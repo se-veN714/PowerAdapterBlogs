@@ -6,46 +6,67 @@ Article:博客文章
 Category:博客文章的分类模型，用于分类博客文章。
 """
 from django.db import models
+from django.contrib.auth.models import User
 
 
 # Create your models here.
 class Category(models.Model):
-    name = models.CharField(max_length=100)
-    slug = models.SlugField(max_length=100, unique=True)
-    add_time = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.name
-
-    def save(self, *args, **kwargs):
-        self.slug = self.name.replace(' ', '-').lower()
-        super().save(*args, **kwargs)
-
-
-    class Meta:
-        ordering = ['-add_time']
-
-
-class Article(models.Model):
+    # 状态字段
+    STATUS_NORMAL = 1
+    STATUS_DELETE = 0
+    STATUS_ITEMS = (
+        (STATUS_NORMAL, "正常"),
+        (STATUS_DELETE, "删除"),
+    )
     # 基本信息字段
-    title = models.CharField(max_length=100)
-    content = models.TextField()
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='articles')
-    blog_language = models.CharField(max_length=10, default='CN')
-    blog_cover = models.ImageField(upload_to='images/', null=True, blank=True)
-
-    # 时间戳及链接字段
-    add_time = models.DateTimeField(auto_now_add=True)
-    update_time = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(max_length=100, unique=True)
-
-    def __str__(self):
-        return self.title
-
-    def save(self, *args, **kwargs):
-        self.slug = self.title.replace(' ', '-').lower()
-        super().save(*args, **kwargs)
+    name = models.CharField(max_length=50, verbose_name="名称")
+    status = models.PositiveIntegerField(default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态")
+    is_nav = models.BooleanField(default=False, verbose_name="是否为导航")
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="作者")
+    created_time = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-add_time']
+        verbose_name = verbose_name_plural = "分类"
 
+
+class Tag(models.Model):
+    # 状态字段
+    STATUS_NORMAL = 1
+    STATUS_DELETE = 0
+    STATUS_ITEMS = (
+        (STATUS_NORMAL, "正常"),
+        (STATUS_DELETE, "删除"),
+    )
+    # 基本信息字段
+    name = models.CharField(max_length=50, verbose_name="名称")
+    status = models.PositiveIntegerField(default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态")
+    is_nav = models.BooleanField(default=False, verbose_name="是否为导航")
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="作者")
+    created_time = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = verbose_name_plural = "标签"
+
+
+class Post(models.Model):
+    # 基本信息字段
+    STATUS_NORMAL = 1
+    STATUS_DELETE = 0
+    STATUS_ITEMS = (
+        (STATUS_NORMAL, "正常"),
+        (STATUS_DELETE, "删除"),
+    )
+
+    title = models.CharField(max_length=255, verbose_name="标题")
+    desc = models.CharField(max_length=1024, blank=True, verbose_name="摘要")
+    content = models.TextField(verbose_name="正文", help_text="正文必须为 Markdown 格式")
+    status = models.PositiveIntegerField(default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态")
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="分类")
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, verbose_name="标签")
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="作者")
+    created_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    update_time = models.DateTimeField(auto_now=True, verbose_name="上次修改时间")
+
+    class Meta:
+        verbose_name = verbose_name_plural = "文章"
+        ordering = ['-created_time']

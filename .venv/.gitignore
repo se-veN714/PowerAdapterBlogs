@@ -1,0 +1,7 @@
+# created by virtualenv automatically
+*.pyc
+*.swp
+*.sqlite3
+*.sqlite
+
+/sundry/

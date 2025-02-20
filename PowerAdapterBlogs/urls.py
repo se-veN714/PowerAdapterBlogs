@@ -17,10 +17,21 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
+
 from .cus_site import custom_site
+from Blogs.views import post_list, post_detail, links
 
 urlpatterns = [
     path("super_admin/", admin.site.urls),
     path("admin/", custom_site.urls),
     # Homepage
+
+    # PostPage
+    path("", post_list),
+    # CategoryPage
+    path("category/<int:category_id>", post_list),
+    # TagPage
+    path("post/<int:post_id>", post_detail),
+    # LinksPage
+    path("links/<int:link_id>", links),
 ]

@@ -27,11 +27,13 @@ urlpatterns = [
     # Homepage
 
     # PostPage
-    path("", post_list),
+    path("", post_list, name="post_list"),
     # CategoryPage
-    path("category/<int:category_id>", post_list),
+    path("category/<int:category_id>/", post_list,name="category"),
     # TagPage
-    path("post/<int:post_id>", post_detail),
+    path("tag/<int:tag_id>/", post_list,name="tag"),
+    # Post Detail
+    path("post/<int:post_id>/", post_detail,name="post"),
     # LinksPage
-    path("links/<int:link_id>", links),
+    path("links/<int:link_id>/", links),
 ]

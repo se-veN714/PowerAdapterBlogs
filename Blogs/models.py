@@ -7,6 +7,7 @@ Category:博客文章的分类模型，用于分类博客文章。
 """
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.query_utils import select_related_descend
 
 
 # Create your models here.
@@ -79,3 +80,31 @@ class Post(models.Model):
     class Meta:
         verbose_name = verbose_name_plural = "文章"
         ordering = ['-created_time']
+
+    @staticmethod
+    def get_by_tag(tag_id):
+        try:
+            tag = Tag.objects.get(id=tag_id)
+        except Tag.DoesNotExist:
+            tag = None
+            posts = None
+        else:
+            posts = tag.post_set.filter(status=Post.STATUS_NORMAL).select_related("owner", "category")
+
+        return posts, tag
+
+    @staticmethod
+    def get_by_category(category_id):
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            category = None
+            posts = None
+        else:
+            posts = category.post_set.filter(status=Post.STATUS_NORMAL).select_related("owner", "category")
+
+        return posts, category
+
+    @staticmethod
+    def latest_posts(cls):
+        qs = cls.objects.filter(status=Post.STATUS_NORMAL)

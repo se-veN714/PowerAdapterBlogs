@@ -2,6 +2,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 
 from Blogs.models import Post, Tag, Category
+from config.models import SideBar
 
 
 # Create your views here.
@@ -21,7 +22,9 @@ def post_list(request, category_id=None, tag_id=None):
         'posts': posts,
         'category': category,
         'tag': tag,
+        'sidebars':SideBar.get_sidebars()
     }
+    context.update(Category.get_navs())
 
     return render(request, 'blog/list.html', context=context)
 
@@ -33,6 +36,7 @@ def post_detail(request, post_id=None):
         post = None
 
     context = {'post': post, }
+    context.update(Category.get_navs())
     return render(request, 'blog/detail.html', context)
 
 

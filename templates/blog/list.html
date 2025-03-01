@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> <!-- 字符编码声明 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式视口设置 -->
     <title>List</title> <!-- 页面标题（建议放在head最前面） -->
-
+    {% extends "base.html" %}
     <!-- 下方区域根据需要添加： -->
     <!-- 1. SEO相关标签：description/meta keywords -->
     <!-- 2. Favicon图标：<link rel="icon" href="..."/> -->
@@ -13,43 +13,20 @@
 </head>
 <body>
 <h1>List</h1>
-<div>顶部分类：
-    {% for cate in navs %}
-        <a href="/category/{{ cate.id }}">{{ cate.name }}</a>
-    {% endfor %}
-</div>
-
-{% if tag %}
-    标签页：{{ tag.name }}
-{% endif %}
-
-{% if category %}
-    分类页：{{ category.name }}
-{% endif %}
-
-<ul>Post:
-    {% for post in posts %}
-        <li>
-            <a href="/post/{{ post.id }}/">{{ post.title }}</a>
-            <div>
-                <span>作者：{{ post.owner.username }}</span>
-                <span>分类：{{ post.category.name }}</span>
-            </div>
-            <p>{{ post.desc }}</p>
-        </li>
-    {% endfor %}
-</ul>
-
-<div>底部分类：
-    {% for cate in categories %}
-    	<a href="/category/{{ cate.id }}">{{ cate.name }}</a>
-    {% endfor %}
-</div>
-<div>侧边栏展示
-    {% for sidebar in sidebars %}
-        <h4>{{ sidebar.title }}</h4>
-        {{ sidebar.content }}
-    {% endfor %}
-</div>
+{% block main %}
+    <h1>List</h1>
+    <ul>Post:
+        {% for post in posts %}
+            <li>
+                <a href="/post/{{ post.id }}/">{{ post.title }}</a>
+                <div>
+                    <span>作者：{{ post.owner.username }}</span>
+                    <span>分类：{{ post.category.name }}</span>
+                </div>
+                <p>{{ post.desc }}</p>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}
 </body>
 </html>

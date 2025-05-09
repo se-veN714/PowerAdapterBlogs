@@ -19,21 +19,22 @@ from django.contrib import admin
 from django.urls import path
 
 from .cus_site import custom_site
-from Blogs.views import post_list, post_detail, links
+from Blogs.views import links
+from Blogs.views import PostDetailView,PostListView
 
 urlpatterns = [
-    path("super_admin/", admin.site.urls),
-    path("admin/", custom_site.urls),
+    path("super_admin/", admin.site.urls, name="super_admin"),
+    path("admin/", custom_site.urls, name="admin"),
     # Homepage
 
     # PostPage
-    path("", post_list, name="post_list"),
+    path("", PostListView.as_view(), name="index"),
     # CategoryPage
-    path("category/<int:category_id>/", post_list,name="category"),
+    path("category/<int:category_id>/", PostListView.as_view(), name="category_list"),
     # TagPage
-    path("tag/<int:tag_id>/", post_list,name="tag"),
+    path("tag/<int:tag_id>/", PostListView.as_view(), name="tag_list"),
     # Post Detail
-    path("post/<int:post_id>/", post_detail,name="post"),
+    path("post/<int:pk>.html/", PostDetailView.as_view(), name="post_detail"),
     # LinksPage
-    path("links/<int:link_id>/", links),
+    path("links/<int:link_id>/", links, name="links"),
 ]

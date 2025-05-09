@@ -16,9 +16,9 @@
 {% block main %}
     <h1>List</h1>
     <ul>Post:
-        {% for post in posts %}
+        {% for post in post_list %}
             <li>
-                <a href="/post/{{ post.id }}/">{{ post.title }}</a>
+                <a href="{% url 'post_detail' post.id %}">{{ post.title }}</a>
                 <div>
                     <span>作者：{{ post.owner.username }}</span>
                     <span>分类：{{ post.category.name }}</span>
@@ -26,6 +26,15 @@
                 <p>{{ post.desc }}</p>
             </li>
         {% endfor %}
+        {% if page_obj %}
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}">上一页</a>
+            {% endif %}
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}">下一页</a>
+            {% endif %} }
+        {% endif %}
+
     </ul>
 {% endblock %}
 </body>

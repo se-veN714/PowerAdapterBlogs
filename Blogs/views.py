@@ -15,6 +15,8 @@ class CommonViewMixin:  # 不让它继承任何类，而是将这个 Mixin 与�
         context.update({
             'sidebar': SideBar.get_sidebars()
         })
+        context.update(Category.get_navs())
+        return context
 
 
 class IndexView(CommonViewMixin, ListView):
@@ -25,8 +27,10 @@ class IndexView(CommonViewMixin, ListView):
 
 
 class PostDetailView(CommonViewMixin, DetailView):
-    model = Post
+    queryset = Post.latest_posts()
     template_name = 'blog/detail.html'
+    context_object_name = 'post'
+    pk_url_kwarg = 'post_id'
 
 
 class PostListView(ListView):

@@ -20,7 +20,10 @@ from django.urls import path
 
 from .cus_site import custom_site
 from Blogs.views import links
-from Blogs.views import PostDetailView,PostListView
+from Blogs.views import (
+    IndexView, CategoryView, TagView,
+    PostDetailView
+)
 
 urlpatterns = [
     path("super_admin/", admin.site.urls, name="super_admin"),
@@ -28,13 +31,13 @@ urlpatterns = [
     # Homepage
 
     # PostPage
-    path("", PostListView.as_view(), name="index"),
+    path("", IndexView.as_view(), name="index"),
     # CategoryPage
-    path("category/<int:category_id>/", PostListView.as_view(), name="category_list"),
+    path("category/<int:category_id>/", CategoryView.as_view(), name="category_list"),
     # TagPage
-    path("tag/<int:tag_id>/", PostListView.as_view(), name="tag_list"),
+    path("tag/<int:tag_id>/", TagView.as_view(), name="tag_list"),
     # Post Detail
-    path("post/<int:pk>.html/", PostDetailView.as_view(), name="post_detail"),
+    path("post/<int:post_id>.html/", PostDetailView.as_view(), name="post_detail"),
     # LinksPage
     path("links/<int:link_id>/", links, name="links"),
 ]

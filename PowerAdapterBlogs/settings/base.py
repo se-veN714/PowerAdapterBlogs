@@ -9,6 +9,7 @@
 """
 本模块提供了基本的Django设置功能的类和函数。
 """
+import os
 
 # here put the import lib
 """
@@ -48,6 +49,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_extensions",
     # my_app
     "Blogs",
     "config",
@@ -124,8 +126,11 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-

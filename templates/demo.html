@@ -1,0 +1,209 @@
+<!DOCTYPE html> <!-- HTML5文档类型声明 -->
+<html lang="zh-CN"> <!-- 设置页面语言为中文 -->
+<head>
+    <meta charset="UTF-8"> <!-- 字符编码声明 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式视口设置 -->
+    <!-- 页面标题（建议放在head最前面） -->
+    <title>Demo</title>
+    <!-- 下方区域根据需要添加： -->
+    <!-- 1. SEO相关标签：description/meta keywords -->
+    <!-- 2. Favicon图标：<link rel="icon" href="..."/> -->
+    <!-- 3. CSS样式表：<link rel="stylesheet" href="..."/> -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
+
+    <style>
+        .columns {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+        }
+
+        .cover {
+            max-width: 120px;
+        }
+
+    </style>
+    <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
+</head>
+<body>
+<!-- 页面主体内容区域 -->
+<!-- 建议结构划分： -->
+<!-- 1. 导航栏：<nav> -->
+<!-- 2. 头部内容：<header> -->
+<div class="head">
+    <div class="container head is-fluid">
+        <nav class="navbar" role="navigation" aria-label="main navigation">
+            <div class="navbar-brand">
+                <a class="navbar-item" href="#">
+                    <img src="../static/img/PowerAdapter_logo.png" alt="Bulma logo">
+                    <span class="">PowerAdapter </span>
+                </a>
+            </div>
+            <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false"
+               data-target="navbarBasicExample">
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+            </a>
+
+            <div id="navbarBasicExample" class="navbar-menu">
+                <div class="navbar-start">
+                    <a class="navbar-item">
+                        Home
+                    </a>
+
+                    <a class="navbar-item">
+                        Documentation
+                    </a>
+
+                    <div class="navbar-item has-dropdown is-hoverable">
+                        <a class="navbar-link">
+                            More
+                        </a>
+
+                        <div class="navbar-dropdown">
+                            <a class="navbar-item">
+                                About
+                            </a>
+                            <a class="navbar-item is-selected">
+                                Jobs
+                            </a>
+                            <a class="navbar-item">
+                                Contact
+                            </a>
+                            <hr class="navbar-divider">
+                            <a class="navbar-item">
+                                Report an issue
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="navbar-end">
+                    <div class="navbar-item">
+                        <input class="input" type="text" placeholder="Search here..." aria-label="Search">
+                        <button class="button is-primary is-outlined" type="submit">搜索</button>
+                    </div>
+                    <div class="navbar-item">
+                        <div class="buttons">
+                            <a class="button is-primary">
+                                <strong>注册</strong>
+                            </a>
+                            <a class="button is-light">
+                                登录
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <section class="hero is-primary is-bold">
+            <div class="hero-body">
+                <p class="title">PowerAdapter Blogs</p>
+                <p class="subtitle">Love Programing</p>
+            </div>
+        </section>
+    </div>
+</div>
+<!-- 3. 主要内容区：<main> -->
+<div class="body">
+    <div class="container">
+        <!-- 第一篇文章 -->
+        <div class="box">
+            <article class="media">
+                <!-- Cover 图片 -->
+                <figure class="media-left">
+                    <p class="image is-128x128">
+                        <img src="../static/img/Cover.png" alt="Cover">
+                    </p>
+                </figure>
+
+                <!-- 内容部分 -->
+                <div class="media-content">
+                    <div class="content">
+                        <div class="field">
+                            <strong class="is-size-5">如何用Python快速构建个人博客</strong>
+                            <br>
+                            <div class="is-flex is-align-items-center">
+                                <figure class="image is-24x24 mr-2 mb-0">
+                                    <img class="is-rounded" src="../static/img/avatar.jpg" alt="作者头像">
+                                </figure>
+                                <small class="has-text-grey">PowerAdapter</small>
+                                <small class="ml-2 has-text-grey-light">| 浏览量 1024</small>
+                            </div>
+                            <br>
+                            <p class="has-text-grey-dark">
+                                本文将介绍如何使用 Django 与 Bulma
+                                快速构建一个响应式个人博客系统，从环境配置到上线部署一应俱全。适合初学者和进阶开发者。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </div>
+
+        <!-- 第二篇文章 -->
+        <div class="box">
+            <article class="media">
+                <figure class="media-left">
+                    <p class="image is-128x128">
+                        <img src="../static/img/Cover.png" alt="Cover">
+                    </p>
+                </figure>
+
+                <div class="media-content">
+                    <div class="content">
+                        <div class="field">
+                            <strong class="is-size-5">深入理解Bulma中的布局系统</strong>
+                            <br>
+                            <div class="is-flex is-align-items-center">
+                                <figure class="image is-24x24 mr-2 mb-0">
+                                    <img class="is-rounded" src="../static/img/avatar.jpg" alt="作者头像">
+                                </figure>
+                                <small class="has-text-grey">saya</small>
+                                <small class="ml-2 has-text-grey-light">| 浏览量 2048</small>
+                            </div>
+                            <br>
+                            <p class="has-text-grey-dark">
+                                探索 Bulma 的 Columns、Media、Box 等布局系统，掌握响应式页面构建的核心技巧，让前端设计更加优雅与灵动。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </div>
+</div>
+<!-- 4. 侧边栏：<aside>（可选） -->
+<!-- 5. 底部版权：<footer> -->
+<footer class="footer has-background-dark">
+  <div class="content has-text-centered">
+    <p>
+      <strong>PowerAdapter's Blog</strong> by <a href="mailto:sevencdxxiv@qq.com">PowerAdapter</a>.<br>
+      专注于优雅的自动化、加密、算法、与精神节律的构建探索。
+    </p>
+    <p class="is-size-7 has-text-grey">
+      © 2025 PowerAdapter. 内容遵循 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 协议。<br>
+      本站构建基于 Bulma、Django 与 MongoDB。<br>
+      最近更新：2025年6月8日<br>
+      “愿代码之美，与精神秩序并行。”
+    </p>
+  </div>
+</footer>
+
+
+<!-- 可扩展内容： -->
+<!-- 1. 图片：<img src="..." alt="..."> -->
+<!-- 2. 段落：<p> -->
+<!-- 3. 超链接：<a href="..."> -->
+<!-- 4. 列表<ul>/<ol>/<li> -->
+<!-- 5. 表格：<table> -->
+<!-- 6. 表单：<form> -->
+
+<!-- 常用脚本引入位置： -->
+<!-- 1. jQuery：<script src="jquery.js"></script> -->
+<!-- 2. 主体逻辑：<script src="app.js"></script> -->
+<!-- 3. 页面初始化脚本：$(document).ready(function(){...}); -->
+</body>
+</html>

@@ -6,4 +6,4 @@
 *.swp
 *.sqlite3
 *.sqlite
-/templates/demo.html
+/static/

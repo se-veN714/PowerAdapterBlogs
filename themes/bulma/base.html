@@ -93,35 +93,34 @@
                 </div>
             </div>
         </nav>
-        <section class="hero is-primary is-bold">
-            <div class="hero-body">
-                <p class="title">PowerAdapter Blogs</p>
-                <p class="subtitle">Love Programing</p>
-            </div>
-        </section>
+        {% block hero %}
+            <section class="hero is-primary is-bold">
+                <div class="hero-body">
+                    <p class="title">PowerAdapter Blogs</p>
+                    <p class="subtitle">Love Programing</p>
+                </div>
+            </section>
+        {% endblock %}
     </div>
 </div>
 <!-- 2. 头部内容：<header> -->
 <hr/>
-<div>顶部分类：
-    {% for cate in navs %}
-        <a href="{% url 'category_list' cate.id %}">{{ cate.name }}</a>
-    {% endfor %}
-</div>
-
-{% if tag %}
-    标签页：{{ tag.name }}
-{% endif %}
-
-{% if category %}
-    分类页：{{ category.name }}
-{% endif %}
-
 <!-- 3. 主要内容区：<main> -->
-{% block main %}
-
-{% endblock %}
-
+<div class="body">
+    <div class="container">
+        <div class="columns">
+            <div class="column">
+                {% block sidebar %}
+                    {% for s in sidebar %}
+                        <div class="card card-header">
+                        <p>123</p>
+                        </div>
+                    {% endfor %}
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+</div>
 <!-- 4. 侧边栏：<aside>（可选） -->
 <hr/>
 <div>侧边栏展示

@@ -18,6 +18,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from views import PostListView
 from .cus_site import custom_site
 from Blogs.views import links
 from Blogs.views import (
@@ -36,6 +37,8 @@ urlpatterns = [
     path("category/<int:category_id>/", CategoryView.as_view(), name="category_list"),
     # TagPage
     path("tag/<int:tag_id>/", TagView.as_view(), name="tag_list"),
+    # PostList
+    path("post/", PostListView.as_view(), name="post_list"),
     # Post Detail
     path("post/<int:post_id>.html/", PostDetailView.as_view(), name="post_detail"),
     # LinksPage

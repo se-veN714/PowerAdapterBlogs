@@ -17,13 +17,14 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
+from django.conf import settings
 
-from views import PostListView
+import settings
 from .cus_site import custom_site
 from Blogs.views import links
 from Blogs.views import (
     IndexView, CategoryView, TagView,
-    PostDetailView
+    PostDetailView, PostListView
 )
 
 urlpatterns = [

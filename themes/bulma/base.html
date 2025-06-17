@@ -14,9 +14,6 @@
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
     <style>
-        .post {
-            margin-bottom: 5px;
-        }
 
         .rounded-content {
             border-radius: 14px;
@@ -32,6 +29,11 @@
             box-shadow: 0 3px 3px hsl(171, 100%, 41%);
         }
 
+        .tb-padding {
+            padding-top: 0 !important;
+            padding-bottom: 10px !important;
+        }
+
     </style>
     <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
 </head>
@@ -44,7 +46,7 @@
     <div class="container is-fluid">
         <nav class="navbar" role="navigation" aria-label="main navigation">
             <div class="navbar-brand pl-6">
-                <a class="navbar-item" href="#">
+                <a class="navbar-item" href="{% url 'index' %}">
                     <img src="{% static 'img/PowerAdapter_logo.png' %}" alt="logo">
                     <span class="">PowerAdapter</span>
                 </a>
@@ -59,8 +61,8 @@
 
             <div id="navbarBasicExample" class="navbar-menu">
                 <div class="navbar-start">
-                    <a class="navbar-item">
-                        Home
+                    <a class="navbar-item" href="{% url 'post_list' %}">
+                        Posts
                     </a>
 
                     <a class="navbar-item">
@@ -122,57 +124,130 @@
 <!-- 2. 头部内容：<header> -->
 <!-- 3. 主要内容区：<main> -->
 <div class="body">
-    {% block main %}
-        <div class="container is-fluid">
-            <div class="columns is-variable is-8">
-                <!-- Sidebar 栏 -->
-                <div class="column is-one-fifth">
-                    <div class="sticky-sidebar">
-                        {% block sidebar %}
-                            {% for s in sidebar %}
-                                <div class="card mb-4">
-                                    <header class="card-header">
-                                        <p class="card-header-title has-text-primary is-centered">
-                                            {{ s.title }}
-                                        </p>
-                                    </header>
-                                    <div class="card-content">
-                                        <div class="content has-background-success has-text-black rounded-content">
-                                            {{ s.content_html }}
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        {% endblock %}
+    <!-- Sidebar -->
+    <aside class="sidebar pl-6 pt-6" style="float: left;">
+        <div class="sticky-sidebar">
+            {% block sidebar %}
+                {% for s in sidebar %}
+                    <div class="card mb-1">
+                        <header class="card-header">
+                            <p class="card-header-title has-text-primary is-centered">
+                                {{ s.title }}
+                            </p>
+                        </header>
+                        <div class="card-content tb-padding">
+                            <div class="content has-background-success has-text-black rounded-content">
+                                {{ s.content_html }}
+                            </div>
+                        </div>
                     </div>
-                </div>
+                {% endfor %}
+            {% endblock %}
+        </div>
+    </aside>
+    {% block main %}
+        <div class="container has-background-primary-10">
+            <!-- 主体介绍栏 -->
+            <div class="section">
+                <article class="message is-primary">
+                    <div class="message-header">
+                        <p>关于本站</p>
+                    </div>
+                    <div class="message-body">
+                        这是一个以技术、写作与生活反思为主题的个人博客，采用 Django + Bulma 构建。
+                        内容涵盖编程、开发日志、思想片段、音乐随笔等。欢迎你在这里探索与共鸣。
+                    </div>
+                </article>
+            </div>
+            <div class="section tb-padding">
+                <div class="columns is-8">
+                    <div class="column">
+                        <div class="card">
+                            <div class="card-image">
+                                <figure class="image is-1by1">
+                                    <img
+                                            src="{% static 'img/skate_card.png' %}"
+                                            alt="Placeholder image"
+                                    />
+                                </figure>
+                            </div>
 
-                <!-- 主体介绍栏 -->
-                <div class="column is-offset-1 is-three-fifths">
-                    <article class="message is-primary">
-                        <div class="message-header">
-                            <p>关于本站</p>
+                            <div class="card-header">
+                                <div class="card-header-title">
+                                    <p class="title is-4 has-text-primary">Skateboard</p>
+                                </div>
+                            </div>
+                            <div class="card-content">
+                                <div class="content">
+                                    123
+                                </div>
+                            </div>
                         </div>
-                        <div class="message-body">
-                            这是一个以技术、写作与生活反思为主题的个人博客，采用 Django + Bulma 构建。
-                            内容涵盖编程、开发日志、思想片段、音乐随笔等。欢迎你在这里探索与共鸣。
+                    </div>
+                    <div class="column">
+                        <div class="card">
+                            <div class="card-image">
+                                <figure class="image is-1by1">
+                                    <img
+                                            src="{% static 'img/music_card.png' %}"
+                                            alt="Placeholder image"
+                                    />
+                                </figure>
+                            </div>
+
+                            <div class="card-header">
+                                <div class="card-header-title">
+                                    <p class="title is-4 has-text-warning">Music</p>
+                                </div>
+                            </div>
+                            <div class="card-content">
+                                <div class="content">
+                                    123
+                                </div>
+                            </div>
                         </div>
-                    </article>
+                    </div>
+                    <div class="column">
+                        <div class="card">
+                            <div class="card-image">
+                                <figure class="image is-1by1">
+                                    <img
+                                            src="{% static 'img/skate_card.png' %}"
+                                            alt="Placeholder image"
+                                    />
+                                </figure>
+                            </div>
+
+                            <div class="card-header">
+                                <div class="card-header-title">
+                                    <p class="title is-4 has-text-info">Coding</p>
+                                </div>
+                            </div>
+                            <div class="card-content">
+                                <div class="content">
+                                    123
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     {% endblock %}
-</div>
-<!-- 4. 侧边栏：<aside>（可选） -->
-<div>
-    <!-- 5. 底部版权-->
-    <hr/>
-    <div>底部分类：
-        {% for cate in categories %}
-            <a href="/category/{{ cate.id }}">{{ cate.name }}</a>
-        {% endfor %}
+    <hr>
+    <div class="container">
+        <div class="columns">底部分类：
+            {% for cate in categories %}
+                <div class="column is-4">
+                    <a href="/category/{{ cate.id }}">{{ cate.name }}</a>
+                </div>
+            {% endfor %}
+        </div>
     </div>
-
+</div>
+<hr>
+<div class="footer">
+    <!-- 5. 底部版权-->
     <div class="content has-text-centered">
         <p>
             <strong>PowerAdapter's Blog</strong> by <a href="mailto:sevencdxxiv@qq.com">PowerAdapter</a>.<br>
@@ -185,14 +260,6 @@
             “愿代码之美，与精神秩序并行。”
         </p>
     </div>
-    <!-- 可扩展内容： -->
-    <!-- 1. 图片：<img src="..." alt="..."> -->
-    <!-- 2. 段落：<p> -->
-    <!-- 3. 超链接：<a href="..."> -->
-    <!-- 4. 列表<ul>/<ol>/<li> -->
-    <!-- 5. 表格：<table> -->
-    <!-- 6. 表单：<form> -->
-
     <!-- 常用脚本引入位置： -->
     <!-- 1. jQuery：<script src="jquery.js"></script> -->
     <!-- 2. 主体逻辑：<script src="app.js"></script> -->

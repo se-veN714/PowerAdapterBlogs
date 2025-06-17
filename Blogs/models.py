@@ -90,6 +90,7 @@ class Post(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="分类")
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, verbose_name="标签")
     owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="作者")
+    cover = models.ImageField(upload_to='covers/', blank=True, null=True,verbose_name="封面")
     pv = models.PositiveIntegerField(default=1)
     uv = models.PositiveIntegerField(default=1)
 

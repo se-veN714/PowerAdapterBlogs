@@ -94,8 +94,19 @@
 
                 <div class="navbar-end pr-6">
                     <div class="navbar-item">
-                        <input class="input" type="text" placeholder="Search here..." aria-label="Search">
-                        <button class="button is-primary is-outlined" type="submit">搜索</button>
+                        <form action="{% url 'search' %}" method="GET">
+                            <div class="field has-addons">
+                                <div class="control">
+                                    <label for="search" class="label is-large">
+                                        <input class="input" type="text" name="q" placeholder="Search here..."
+                                               value="{{ keyword }}">
+                                    </label>
+                                </div>
+                                <div class="control">
+                                    <button class="button is-primary is-outlined" type="submit">搜索</button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                     <div class="navbar-item">
                         <div class="buttons">

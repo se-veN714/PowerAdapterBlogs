@@ -1,0 +1,92 @@
+<!DOCTYPE html> <!-- HTML5文档类型声明 -->
+<html lang="zh-CN"> <!-- 设置页面语言为中文 -->
+<head>
+    <meta charset="UTF-8"> <!-- 字符编码声明 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式视口设置 -->
+    <!-- 页面标题（建议放在head最前面） -->
+    <title>Search</title>
+    {% extends "../base.html" %}
+    {% load static %}
+    <!-- 下方区域根据需要添加： -->
+    <!-- 1. SEO相关标签：description/meta keywords -->
+    <!-- 2. Favicon图标：<link rel="icon" href="..."/> -->
+    <!-- 3. CSS样式表：<link rel="stylesheet" href="..."/> -->
+    <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
+</head>
+<body>
+<!-- 页面主体内容区域 -->
+{% block hero %}
+    <div style="border-top: 1px solid rgba(0, 0, 0, 0.1); margin: 1rem 0;"></div>
+{% endblock %}
+
+<!-- 3. 主要内容区：<main> -->
+{% block main %}
+    <div class="container">
+        {% if keyword %}
+            <h2 class="title is-4">搜索结果:
+                <span class="has-text-info">{{ keyword }}</span>
+            </h2>
+        {% endif %}
+        <div class="box">
+            {% for post in post_list %}
+                <article class="media mb-5">
+                    <!-- 封面图 -->
+                    {% if post.cover %}
+                        <figure class="media-left">
+                            <p class="image is-128x128">
+                                <img src="{{ post.cover.url }}" alt="{{ post.title }} 封面">
+                            </p>
+                        </figure>
+                    {% else %}
+                        <figure class="media-left">
+                            <p class="image is-128x128">
+                                <img src="{% static 'img/Cover.png' %}" alt="封面">
+                            </p>
+                        </figure>
+                    {% endif %}
+
+                    <!-- 文字内容 -->
+                    <div class="media-content">
+                        <div class="content">
+                            <p>
+                                <strong class="is-size-5">
+                                    <a href="{% url 'post_detail' post.id %}">{{ post.title }}</a>
+                                </strong>
+                                <br>
+                            <div class="is-flex is-align-items-center mt-2">
+                                <figure class="image is-24x24 mr-2 mb-0">
+                                    <img class="is-rounded" src="{% static 'img/avatar.jpg' %}" alt="作者头像">
+                                </figure>
+                                <small class="has-text-grey">{{ post.owner.username }}</small>
+                                <small class="ml-3 has-text-grey-light">| 分类：{{ post.category.name }}</small>
+                                <small class="ml-3 has-text-grey-light">| 浏览量 {{ post.pv }}</small>
+                            </div>
+                            <br>
+                            <span class="has-text-grey-dark">{{ post.desc }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </article>
+            {% empty %}
+                <p>暂时还没有文章。</p>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}
+<!-- 4. 侧边栏：<aside>（可选） -->
+<!-- 5. 底部版权：<footer> -->
+
+<!-- 可扩展内容： -->
+<!-- 1. 图片：<img src="..." alt="..."> -->
+<!-- 2. 段落：<p> -->
+<!-- 3. 超链接：<a href="..."> -->
+<!-- 4. 列表<ul>/<ol>/<li> -->
+<!-- 5. 表格：<table> -->
+<!-- 6. 表单：<form> -->
+
+<!-- 常用脚本引入位置： -->
+<!-- 1. jQuery：<script src="jquery.js"></script> -->
+<!-- 2. 主体逻辑：<script src="app.js"></script> -->
+<!-- 3. 页面初始化脚本：$(document).ready(function(){...}); -->
+</body>
+</html>

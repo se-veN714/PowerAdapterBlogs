@@ -1,6 +1,6 @@
 from typing import Dict, Any
 
-from django.shortcuts import render
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.views.generic import DetailView, ListView, TemplateView
 
@@ -73,6 +73,20 @@ class TagView(IndexView):
         tag_id = self.kwargs.get('tag_id')
         return queryset.filter(category_id=tag_id)
 
+class SearchView(IndexView):
+    def get_context_data(self):
+        context = super().get_context_data()
+        context.update({
+            'keyword': self.request.GET.get('keyword'),
+        })
+        return context
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        keyword = self.request.GET.get('keyword')
+        if not keyword:
+            return queryset
+        return queryset.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
 
 def links(request):
     pass

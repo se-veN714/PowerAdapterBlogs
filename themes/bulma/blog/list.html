@@ -17,65 +17,68 @@
     {% block hero %}
         <div style="border-top: 1px solid rgba(0, 0, 0, 0.1); margin: 1rem 0;"></div>
     {% endblock %}
+    {% block title %}
+        {% if tag %}
+            标签列表页：{{ tag.name }}
+        {% elif category %}
+            分类列表页：{{ category.name }}
+        {% else %}
+            首页
+        {% endif %}
+    {% endblock %}
 </div>
 
-{% block title %}
-    {% if tag %}
-        标签列表页：{{ tag.name }}
-    {% elif category %}
-        分类列表页：{{ category.name }}
-    {% else %}
-        首页
-    {% endif %}
-{% endblock %}
 
-{% block main %}
-    <div class="container">
-        <div class="box">
-            {% for post in post_list %}
-                <article class="media mb-5">
-                    <!-- 封面图 -->
-                    {% if post.cover %}
-                        <figure class="media-left">
-                            <p class="image is-128x128">
-                                <img src="{{ post.cover.url }}" alt="{{ post.title }} 封面">
-                            </p>
-                        </figure>
-                    {% else %}
-                        <figure class="media-left">
-                            <p class="image is-128x128">
-                                <img src="{% static 'img/Cover.png' %}" alt="封面">
-                            </p>
-                        </figure>
-                    {% endif %}
+<div class="body">
+    {% block main %}
+        <div class="container">
+            <div class="box">
+                {% for post in post_list %}
+                    <article class="media mb-5">
+                        <!-- 封面图 -->
+                        {% if post.cover %}
+                            <figure class="media-left">
+                                <p class="image is-128x128">
+                                    <img src="{{ post.cover.url }}" alt="{{ post.title }} 封面">
+                                </p>
+                            </figure>
+                        {% else %}
+                            <figure class="media-left">
+                                <p class="image is-128x128">
+                                    <img src="{% static 'img/Cover.png' %}" alt="封面">
+                                </p>
+                            </figure>
+                        {% endif %}
 
-                    <!-- 文字内容 -->
-                    <div class="media-content">
-                        <div class="content">
-                            <p>
-                                <strong class="is-size-5">
-                                    <a href="{% url 'post_detail' post.id %}">{{ post.title }}</a>
-                                </strong>
+                        <!-- 文字内容 -->
+                        <div class="media-content">
+                            <div class="content">
+                                <p>
+                                    <strong class="is-size-5">
+                                        <a href="{% url 'post_detail' post.id %}">{{ post.title }}</a>
+                                    </strong>
+                                    <br>
+                                <div class="is-flex is-align-items-center mt-2">
+                                    <figure class="image is-24x24 mr-2 mb-0">
+                                        <img class="is-rounded" src="{% static 'img/avatar.jpg' %}" alt="作者头像">
+                                    </figure>
+                                    <small class="has-text-grey">{{ post.owner.username }}</small>
+                                    <small class="ml-3 has-text-grey-light">| 分类：{{ post.category.name }}</small>
+                                    <small class="ml-3 has-text-grey-light">| 浏览量 {{ post.pv }}</small>
+                                </div>
                                 <br>
-                            <div class="is-flex is-align-items-center mt-2">
-                                <figure class="image is-24x24 mr-2 mb-0">
-                                    <img class="is-rounded" src="{% static 'img/avatar.jpg' %}" alt="作者头像">
-                                </figure>
-                                <small class="has-text-grey">{{ post.owner.username }}</small>
-                                <small class="ml-3 has-text-grey-light">| 分类：{{ post.category.name }}</small>
-                                <small class="ml-3 has-text-grey-light">| 浏览量 {{ post.pv }}</small>
+                                <span class="has-text-grey-dark">{{ post.desc }}</span>
+                                </p>
                             </div>
-                            <br>
-                            <span class="has-text-grey-dark">{{ post.desc }}</span>
-                            </p>
                         </div>
-                    </div>
-                </article>
-            {% empty %}
-                <p>暂时还没有文章。</p>
-            {% endfor %}
+                    </article>
+                {% empty %}
+                    <p>暂时还没有文章。</p>
+                {% endfor %}
+            </div>
         </div>
-    </div>
-{% endblock %}
+    {% endblock %}
+</div>
+
 </body>
 </html>

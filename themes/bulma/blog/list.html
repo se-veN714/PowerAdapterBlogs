@@ -13,23 +13,21 @@
     <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
 </head>
 <body>
-<div class="head">
-    {% block hero %}
-        <div style="border-top: 1px solid rgba(0, 0, 0, 0.1); margin: 1rem 0;"></div>
-    {% endblock %}
-    {% block title %}
-        {% if tag %}
-            标签列表页：{{ tag.name }}
-        {% elif category %}
-            分类列表页：{{ category.name }}
-        {% else %}
-            首页
-        {% endif %}
-    {% endblock %}
-</div>
-
-
 <div class="body">
+    <div class="tags">
+        {% block hero %}
+            <div style="border-top: 1px solid rgba(0, 0, 0, 0.1); margin: 1rem 0;"></div>
+        {% endblock %}
+        {% block title %}
+            {% if tag %}
+                标签列表页：{{ tag.name }}
+            {% elif category %}
+                分类列表页：{{ category.name }}
+            {% else %}
+                首页
+            {% endif %}
+        {% endblock %}
+    </div>
     {% block main %}
         <div class="container">
             <div class="box">

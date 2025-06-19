@@ -1,0 +1,84 @@
+<!DOCTYPE html> <!-- HTML5文档类型声明 -->
+<html lang="zh-CN"> <!-- 设置页面语言为中文 -->
+<head>
+    <meta charset="UTF-8"> <!-- 字符编码声明 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式视口设置 -->
+    <!-- 页面标题（建议放在head最前面） -->
+    <title>Links</title>
+    {% extends 'base.html' %}
+    {% load static %}
+
+    <!-- 下方区域根据需要添加： -->
+    <!-- 1. SEO相关标签：description/meta keywords -->
+    <!-- 2. Favicon图标：<link rel="icon" href="..."/> -->
+    <!-- 3. CSS样式表：<link rel="stylesheet" href="..."/> -->
+    <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
+</head>
+<body>
+<!-- 页面主体内容区域 -->
+<!-- 建议结构划分： -->
+<!-- 1. 导航栏：<nav> -->
+{% block nav %}{% endblock %}
+<!-- 2. 头部内容：<header> -->
+<header>
+    {% block hero %}
+        <div class="container">
+            <section class="hero is-primary is-bold">
+                <div class="hero-body has-text-centered">
+                    <a class="title" href="{% url 'index' %}">PowerAdapter Blogs</a>
+                    <p class="subtitle">Love Programing, Music & Skateboard!!!!</p>
+                </div>
+                <hr>
+                <div class="section has-background-primary">
+                    <div class="container">
+                        <p class="title is-1 has-text-centered has-text-primary-80">Links</p>
+                    </div>
+                </div>
+                <progress class="progress is-small is-info" max="100">Everything in progress!</progress>
+            </section>
+        </div>
+    {% endblock %}
+</header>
+<aside>
+    {% block sidebar %}{% endblock %}
+</aside>
+<!-- 3. 主要内容区：<main> -->
+<main>
+    {% block main %}
+        <div class="container has-background-primary">
+            <div class="section">
+                <div class="columns is-multiline is-centered">
+                    {% for link in link_list %}
+                        <div class="column is-one-third">
+                            <div class="card has-background-primary-20">
+                                <div class="card-content">
+                                    <p class="title is-4">
+                                        <a href="{{ link.href }}" target="_blank" class="has-text-info">
+                                            {{ link.title }}
+                                        </a>
+                                    </p>
+                                    <p class="subtitle is-6">{{ link.href|slice:":40" }}{% if link.href|length > 50 %}...{% endif %}</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endblock %}
+</main>
+
+<!-- 可扩展内容： -->
+<!-- 1. 图片：<img src="..." alt="..."> -->
+<!-- 2. 段落：<p> -->
+<!-- 3. 超链接：<a href="..."> -->
+<!-- 4. 列表<ul>/<ol>/<li> -->
+<!-- 5. 表格：<table> -->
+<!-- 6. 表单：<form> -->
+
+<!-- 常用脚本引入位置： -->
+<!-- 1. jQuery：<script src="jquery.js"></script> -->
+<!-- 2. 主体逻辑：<script src="app.js"></script> -->
+<!-- 3. 页面初始化脚本：$(document).ready(function(){...}); -->
+</body>
+</html>

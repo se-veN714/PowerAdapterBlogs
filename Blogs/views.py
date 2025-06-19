@@ -2,7 +2,6 @@ from typing import Dict, Any
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from django.template.base import kwarg_re
 from django.views.generic import DetailView, ListView, TemplateView
 
 from Blogs.models import Post, Tag, Category
@@ -81,13 +80,13 @@ class SearchView(PostListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update({
-            'keyword': self.request.GET.get('keyword',''),
+            'keyword': self.request.GET.get('keyword', ''),
         })
         return context
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        keyword = self.request.GET.get('keyword','').strip()
+        keyword = self.request.GET.get('keyword', '').strip()
         if not keyword:
             return queryset
         return queryset.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))

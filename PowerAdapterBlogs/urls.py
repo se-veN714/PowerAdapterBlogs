@@ -19,7 +19,7 @@ from django.contrib import admin
 from django.urls import path
 
 from .cus_site import custom_site
-from Blogs.views import links
+from config.views import LinkListView
 from Blogs.views import (
     IndexView, CategoryView, TagView,
     PostDetailView, PostListView, SearchView
@@ -41,7 +41,7 @@ urlpatterns = [
     # Post Detail
     path("post/<int:post_id>.html/", PostDetailView.as_view(), name="post_detail"),
     # LinksPage
-    path("links/<int:link_id>/", links, name="links"),
+    path("links/", LinkListView.as_view(), name="links"),
     # Search
     path('search/', SearchView.as_view(), name="search"),
 ]

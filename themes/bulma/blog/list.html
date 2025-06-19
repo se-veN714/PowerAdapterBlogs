@@ -13,7 +13,7 @@
     <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
 </head>
 <body>
-<div class="body">
+<aside>
     <div class="tags">
         {% block hero %}
             <div style="border-top: 1px solid rgba(0, 0, 0, 0.1); margin: 1rem 0;"></div>
@@ -28,6 +28,8 @@
             {% endif %}
         {% endblock %}
     </div>
+</aside>
+<main>
     {% block main %}
         <div class="container">
             <div class="box">
@@ -76,7 +78,7 @@
             </div>
         </div>
     {% endblock %}
-</div>
+</main>
 
 </body>
 </html>

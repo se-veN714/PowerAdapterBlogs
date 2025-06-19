@@ -42,93 +42,96 @@
 <!-- 页面主体内容区域 -->
 <!-- 建议结构划分： -->
 <!-- 1. 导航栏：<nav> -->
-<div class="head">
+<header>
     <div class="container is-fluid">
-        <nav class="navbar" role="navigation" aria-label="main navigation">
-            <div class="navbar-brand pl-6">
-                <a class="navbar-item" href="{% url 'index' %}">
-                    <img src="{% static 'img/PowerAdapter_logo.png' %}" alt="logo">
-                    <span class="">PowerAdapter</span>
+        {% block nav %}
+            <nav class="navbar" role="navigation" aria-label="main navigation">
+                <div class="navbar-brand pl-6">
+                    <a class="navbar-item" href="{% url 'index' %}">
+                        <img src="{% static 'img/PowerAdapter_logo.png' %}" alt="logo">
+                        <span class="">PowerAdapter</span>
+                    </a>
+                </div>
+                <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false"
+                   data-target="navbarBasicExample">
+                    <span aria-hidden="true"></span>
+                    <span aria-hidden="true"></span>
+                    <span aria-hidden="true"></span>
+                    <span aria-hidden="true"></span>
                 </a>
-            </div>
-            <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false"
-               data-target="navbarBasicExample">
-                <span aria-hidden="true"></span>
-                <span aria-hidden="true"></span>
-                <span aria-hidden="true"></span>
-                <span aria-hidden="true"></span>
-            </a>
 
-            <div id="navbarBasicExample" class="navbar-menu">
-                <div class="navbar-start">
-                    <a class="navbar-item" href="{% url 'post_list' %}">
-                        Posts
-                    </a>
-
-                    <a class="navbar-item">
-                        Documentation
-                    </a>
-
-                    <div class="navbar-item has-dropdown is-hoverable">
-                        <a class="navbar-link">
-                            More
+                <div id="navbarBasicExample" class="navbar-menu">
+                    <div class="navbar-start">
+                        <a class="navbar-item" href="{% url 'post_list' %}">
+                            Posts
                         </a>
 
-                        <div class="navbar-dropdown">
-                            <a class="navbar-item">
-                                About
+                        <a class="navbar-item">
+                            Documentation
+                        </a>
+
+                        <div class="navbar-item has-dropdown is-hoverable">
+                            <a class="navbar-link">
+                                More
                             </a>
-                            <a class="navbar-item is-selected">
-                                Jobs
-                            </a>
-                            <a class="navbar-item">
-                                Contact
-                            </a>
-                            <hr class="navbar-divider">
-                            <a class="navbar-item">
-                                Report an issue
-                            </a>
+
+                            <div class="navbar-dropdown">
+                                <a class="navbar-item">
+                                    About
+                                </a>
+                                <a class="navbar-item is-selected">
+                                    Jobs
+                                </a>
+                                <a class="navbar-item">
+                                    Contact
+                                </a>
+                                <hr class="navbar-divider">
+                                <a class="navbar-item">
+                                    Report an issue
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="navbar-end pr-6">
+                        <div class="navbar-item">
+                            <form action="{% url 'search' %}" method="GET">
+                                <label for="search-box" class="is-primary">
+                                    <input class="input" type="text" name="keyword" placeholder="搜索…"
+                                           value="{{ keyword }}">
+                                </label>
+                                <button class="button is-primary" type="submit">搜索</button>
+                            </form>
+
+                        </div>
+                        <div class="navbar-item">
+                            <div class="buttons">
+                                <a class="button is-primary">
+                                    <strong>注册</strong>
+                                </a>
+                                <a class="button is-light">
+                                    登录
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="navbar-end pr-6">
-                    <div class="navbar-item">
-                        <form action="{% url 'search' %}" method="GET">
-                            <label for="search-box" class="is-primary">
-                                <input class="input" type="text" name="keyword" placeholder="搜索…" value="{{ keyword }}">
-                            </label>
-                            <button class="button is-primary" type="submit">搜索</button>
-                        </form>
-
-                    </div>
-                    <div class="navbar-item">
-                        <div class="buttons">
-                            <a class="button is-primary">
-                                <strong>注册</strong>
-                            </a>
-                            <a class="button is-light">
-                                登录
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </nav>
+            </nav>
+        {% endblock %}
         {% block hero %}
             <section class="hero is-primary is-bold">
                 <div class="hero-body">
                     <p class="title">PowerAdapter Blogs</p>
-                    <p class="subtitle">Love Programing</p>
+                    <p class="subtitle">Love Programing, Music & Skateboard!!!!</p>
                 </div>
             </section>
             <hr>
         {% endblock %}
     </div>
-</div>
+</header>
 <!-- 2. 头部内容：<header> -->
 <!-- 3. 主要内容区：<main> -->
-<div class="body">
+<main>
     <!-- Sidebar -->
     <aside class="sidebar pl-6 pt-6" style="float: left;">
         <div class="sticky-sidebar">
@@ -240,18 +243,20 @@
         </div>
     {% endblock %}
     <hr>
-    <div class="container">
-        <div class="columns">底部分类：
-            {% for cate in categories %}
-                <div class="column is-4">
-                    <a href="/category/{{ cate.id }}">{{ cate.name }}</a>
-                </div>
-            {% endfor %}
+    <section class="section is-fluid has-background-primary-10">
+        <div class="container">
+            <div class="columns">
+                {% for cate in categories %}
+                    <div class="column is-3">
+                        <a href="/category/{{ cate.id }}" class="is-link has-text-info-bold">{{ cate.name }}</a>
+                    </div>
+                {% endfor %}
+            </div>
         </div>
-    </div>
-</div>
+    </section>
+</main>
 <hr>
-<div class="footer">
+<footer>
     <!-- 5. 底部版权-->
     <div class="content has-text-centered">
         <p>
@@ -269,6 +274,6 @@
     <!-- 1. jQuery：<script src="jquery.js"></script> -->
     <!-- 2. 主体逻辑：<script src="app.js"></script> -->
     <!-- 3. 页面初始化脚本：$(document).ready(function(){...}); -->
-</div>
+</footer>
 </body>
 </html>

@@ -12,17 +12,30 @@
     <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
 </head>
 <body>
-{% block main %}
-    <h1>Detail</h1>
-    {% if post %}
-        <h2>{{ post.title }}</h2>
-        <div>
-            <span>分类：{{ post.category.name }}</span>
-            <span>作者：{{ post.owner.username }}</span>
+<header>
+    {% block hero %}{% endblock %}
+    {% block sidebar %}{% endblock %}
+</header>
+<main>
+    {% block main %}
+        <div class="container">
+            <div class="message">
+                {% if post %}
+                    <div class="message-header">
+                        <p class="has-text-primary is-size-1">{{ post.title }}</p>
+                        <div>
+                            <span>分类：{{ post.category.name }}</span>
+                            <span>作者：{{ post.owner.username }}</span>
+                        </div>
+                    </div>
+                    <div class="message-body">
+                        <p>{{ post.content }}</p>
+                    </div>
+                {% endif %}
+            </div>
         </div>
-        <hr/>
-        <p>{{ post.content }}</p>
-    {% endif %}
-{% endblock %}
+    {% endblock %}
+</main>
+
 </body>
 </html>

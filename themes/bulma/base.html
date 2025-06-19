@@ -66,8 +66,8 @@
                             Posts
                         </a>
 
-                        <a class="navbar-item">
-                            Documentation
+                        <a class="navbar-item" href="{% url 'links' %}">
+                            Links
                         </a>
 
                         <div class="navbar-item has-dropdown is-hoverable">
@@ -95,8 +95,9 @@
 
                     <div class="navbar-end pr-6">
                         <div class="navbar-item">
-                            <form action="{% url 'search' %}" method="GET">
-                                <label for="search-box" class="is-primary">
+                            <form action="{% url 'search' %}" method="GET"
+                                  style="display: flex; gap: 10px; align-items: center;">
+                                <label for="search-box" class="is-primary" style="flex-grow: 1;">
                                     <input class="input" type="text" name="keyword" placeholder="搜索…"
                                            value="{{ keyword }}">
                                 </label>

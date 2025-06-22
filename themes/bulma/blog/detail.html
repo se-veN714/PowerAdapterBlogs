@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式视口设置 -->
     <title>Detail</title> <!-- 页面标题（建议放在head最前面） -->
     {% extends "../base.html" %}
+    {% load static %}
+    {% load widget_tweaks %}
     <!-- 下方区域根据需要添加： -->
     <!-- 1. SEO相关标签：description/meta keywords -->
     <!-- 2. Favicon图标：<link rel="icon" href="..."/> -->
@@ -18,20 +20,104 @@
 </header>
 <main>
     {% block main %}
-        <div class="container">
-            <div class="message">
-                {% if post %}
-                    <div class="message-header">
-                        <p class="has-text-primary is-size-1">{{ post.title }}</p>
-                        <div>
-                            <span>分类：{{ post.category.name }}</span>
-                            <span>作者：{{ post.owner.username }}</span>
+        <div class="post-detail">
+            <div class="container">
+                <div class="message">
+                    {% if post %}
+                        <div class="message-header">
+                            <p class="has-text-primary is-size-1">{{ post.title }}</p>
+                            <div>
+                                <span>分类：{{ post.category.name }}</span>
+                                <span>作者：{{ post.owner.username }}</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="message-body">
-                        <p>{{ post.content }}</p>
-                    </div>
-                {% endif %}
+                        <div class="message-body">
+                            <p>{{ post.content }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <hr>
+        <div class="comments">
+            <div class="container">
+                <div class="section">
+                    <form class="form-multiline" action="/comment/" method="post">
+                        {% csrf_token %}
+
+                        <div class="level">
+                            <div class="columns">
+                                <div class="column">
+                                    <div class="field">
+                                        <label class="label">昵称</label>
+                                        <div class="control">
+                                            {{ comment_form.nickname|add_class:"input" }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="column">
+                                    <div class="field">
+                                        <label class="label">邮箱</label>
+                                        <div class="control">
+                                            {{ comment_form.email|add_class:"input" }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="column">
+                                    <div class="field">
+                                        <label class="label">网站</label>
+                                        <div class="control">
+                                            {{ comment_form.website|add_class:"input" }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="label">内容</label>
+                            <div class="control">
+                                {{ comment_form.content|add_class:"textarea" }}
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="target" value="{{ request.path }}"/>
+
+                        <div class="field">
+                            <div class="control">
+                                <button type="submit" class="button is-primary">写好了！</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="section">
+                    {% for comment in comment_list %}
+                        <div class="box mb-4">
+                            <article class="media">
+                                <figure class="media-left">
+                                    <p class="image is-48x48">
+                                        <img class="is-rounded"
+                                             src="{% static 'img/avatar.jpg' %}" alt="评论头像">
+                                    </p>
+                                </figure>
+                                <div class="media-content">
+                                    <div class="content">
+                                        <div class="nickname">
+                                            <a href="{{ comment.website }}">{{ comment.nickname }}</a>
+                                            <span>{{ comment.created_time }}</span>
+                                        </div>
+                                        <div class="comment-content">
+                                            {{ comment.content }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    {% empty %}
+                        <p class="has-text-grey">暂无评论，快来抢沙发吧～</p>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     {% endblock %}

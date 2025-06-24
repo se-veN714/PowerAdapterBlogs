@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式视口设置 -->
     <!-- 页面标题（建议放在head最前面） -->
     <title>Links</title>
-    {% extends 'base.html' %}
+    {% extends 'config/../base/base.html' %}
     {% load static %}
 
     <!-- 下方区域根据需要添加： -->
@@ -23,15 +23,17 @@
 <header>
     {% block hero %}
         <div class="container">
-            <section class="hero is-primary is-bold">
+            <section class="hero is-light is-bold">
                 <div class="hero-body has-text-centered">
                     <a class="title" href="{% url 'index' %}">PowerAdapter Blogs</a>
                     <p class="subtitle">Love Programing, Music & Skateboard!!!!</p>
                 </div>
                 <hr>
-                <div class="section has-background-primary">
+                <div class="container has-background-light">
                     <div class="container">
-                        <p class="title is-1 has-text-centered has-text-primary-80">Links</p>
+                        <figure class="image">
+                            <img src="{% static 'img/bgimg.png' %}">
+                        </figure>
                     </div>
                 </div>
                 <progress class="progress is-small is-info" max="100">Everything in progress!</progress>
@@ -39,25 +41,29 @@
         </div>
     {% endblock %}
 </header>
-<aside>
-    {% block sidebar %}{% endblock %}
-</aside>
+
 <!-- 3. 主要内容区：<main> -->
 <main>
+    <aside>
+        {% block sidebar %}{% endblock %}
+    </aside>
     {% block main %}
-        <div class="container has-background-primary">
+        <div class="container has-background-light">
+            <p class="title is-1 has-text-centered has-text-dark">Links</p>
+
             <div class="section">
                 <div class="columns is-multiline is-centered">
                     {% for link in link_list %}
                         <div class="column is-one-third">
-                            <div class="card has-background-primary-20">
+                            <div class="card">
                                 <div class="card-content">
                                     <p class="title is-4">
                                         <a href="{{ link.href }}" target="_blank" class="has-text-info">
                                             {{ link.title }}
                                         </a>
                                     </p>
-                                    <p class="subtitle is-6">{{ link.href|slice:":40" }}{% if link.href|length > 50 %}...{% endif %}</p>
+                                    <p class="subtitle is-6">
+                                        {{ link.href|slice:":40" }}{% if link.href|length > 50 %}...{% endif %}</p>
                                 </div>
                             </div>
                         </div>
@@ -66,7 +72,11 @@
             </div>
         </div>
     {% endblock %}
+    {% block category %}{% endblock %}
 </main>
+<footer>
+    {% block footer %}{% endblock %}
+</footer>
 
 <!-- 可扩展内容： -->
 <!-- 1. 图片：<img src="..." alt="..."> -->

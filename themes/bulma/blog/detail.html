@@ -4,7 +4,7 @@
     <meta charset="UTF-8"> <!-- 字符编码声明 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式视口设置 -->
     <title>Detail</title> <!-- 页面标题（建议放在head最前面） -->
-    {% extends "../base.html" %}
+    {% extends "../config/../base/base.html" %}
     {% load static %}
     {% load widget_tweaks %}
     <!-- 下方区域根据需要添加： -->
@@ -41,79 +41,66 @@
         <hr>
         <div class="comments">
             <div class="container">
-                <div class="section">
-                    <form class="form-multiline" action="/comment/" method="post">
-                        {% csrf_token %}
+                <form class="box" action="/comment/" method="post">
+                    {% csrf_token %}
 
-                        <div class="level">
-                            <div class="columns">
-                                <div class="column">
-                                    <div class="field">
-                                        <label class="label">昵称</label>
-                                        <div class="control">
-                                            {{ comment_form.nickname|add_class:"input" }}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="column">
-                                    <div class="field">
-                                        <label class="label">邮箱</label>
-                                        <div class="control">
-                                            {{ comment_form.email|add_class:"input" }}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="column">
-                                    <div class="field">
-                                        <label class="label">网站</label>
-                                        <div class="control">
-                                            {{ comment_form.website|add_class:"input" }}
-                                        </div>
-                                    </div>
+                    <article class="media">
+                        <div class="media-left">
+                            <div class="field">
+                                <label class="label">昵称</label>
+                                <div class="control">
+                                    {{ comment_form.nickname|add_class:"input" }}
                                 </div>
                             </div>
                         </div>
+                        <div class="media-content">
+                            <div class="field">
+                                <label class="label">内容</label>
+                                <div class="control">
+                                    {{ comment_form.content|add_class:"textarea" }}
+                                </div>
+                            </div>
 
-                        <div class="field">
-                            <label class="label">内容</label>
-                            <div class="control">
-                                {{ comment_form.content|add_class:"textarea" }}
+                            <input type="hidden" name="target" value="{{ request.path }}"/>
+
+                            <div class="field">
+                                <div class="control">
+                                    <button type="submit" class="button is-primary">写好了！</button>
+                                </div>
                             </div>
                         </div>
+                    </article>
+                </form>
+                <hr>
 
-                        <input type="hidden" name="target" value="{{ request.path }}"/>
-
-                        <div class="field">
-                            <div class="control">
-                                <button type="submit" class="button is-primary">写好了！</button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="section">
+                <div class="container">
                     {% for comment in comment_list %}
-                        <div class="box mb-4">
-                            <article class="media">
-                                <figure class="media-left">
-                                    <p class="image is-48x48">
-                                        <img class="is-rounded"
-                                             src="{% static 'img/avatar.jpg' %}" alt="评论头像">
+                        <article class="media">
+                            <figure class="media-left">
+                                <p class="image is-48x48">
+                                    <img class="is-rounded"
+                                         src="{% static 'img/avatar.jpg' %}" alt="评论头像">
+                                </p>
+                            </figure>
+
+                            <div class="media-content">
+                                <div class="content">
+                                    <p>
+                                        <strong>
+                                            {% if comment.nickname %}
+                                            	{{ comment.nickname }}
+                                            {% else %}
+                                                匿名
+                                            {% endif %}
+                                        </strong>
+                                        <br/>
+                                        {{ comment.content }}
+                                        <br/>
                                     </p>
-                                </figure>
-                                <div class="media-content">
-                                    <div class="content">
-                                        <div class="nickname">
-                                            <a href="{{ comment.website }}">{{ comment.nickname }}</a>
-                                            <span>{{ comment.created_time }}</span>
-                                        </div>
-                                        <div class="comment-content">
-                                            {{ comment.content }}
-                                        </div>
-                                    </div>
+                                    <small><a>赞</a> · <a>回复</a> · {{ comment.created_time }}</small>
                                 </div>
-                            </article>
-                        </div>
+                            </div>
+                        </article>
                     {% empty %}
                         <p class="has-text-grey">暂无评论，快来抢沙发吧～</p>
                     {% endfor %}

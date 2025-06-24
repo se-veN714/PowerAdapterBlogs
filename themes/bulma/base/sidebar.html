@@ -1,0 +1,14 @@
+<aside class="sidebar">
+    <div class="box">
+        {% block sidebar %}
+            {% for s in sidebar %}
+                <p class="has-text-primary has-text-weight-bold is-centered">
+                    {{ s.title }}
+                </p>
+                <div class="tags">
+                    <u class="has-text-primary">{{ s.content_html }}</u>
+                </div>
+            {% endfor %}
+        {% endblock %}
+    </div>
+</aside>

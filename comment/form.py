@@ -17,17 +17,32 @@ from comment.models import Comment
 
 
 class CommentForm(forms.ModelForm):
-    nickname = forms.CharField(label='昵称',max_length=50,)
-    email = forms.EmailField(label='E-mail',max_length=50,)
-    website = forms.URLField(label='网站',max_length=100,)
-    content = forms.CharField(label='内容',max_length=500,)
+    nickname = forms.CharField(
+        label='昵称',
+        max_length=50,
+        required=False,  # 匿名时可留空
+        widget=forms.TextInput(attrs={
+            'class': 'input',
+            'placeholder': '昵称（可选）'
+        })
+    )
+    content = forms.CharField(
+        label='内容',
+        max_length=500,
+        widget=forms.Textarea(attrs={
+            'class': 'textarea',
+            'placeholder': '请输入评论内容',
+            'rows': 4
+        })
+    )
 
     def clean_content(self):
         content = self.cleaned_data['content']
-        if len(content) < 10:
+        if len(content.strip()) < 10:
             raise forms.ValidationError('输入字符长度不能小于10')
         return content
 
+
     class Meta:
         model = Comment
-        fields = ('nickname', 'email', 'website', 'content')
+        fields = ('nickname', 'content')

@@ -1,0 +1,285 @@
+<!DOCTYPE html> <!-- HTML5文档类型声明 -->
+<html lang="zh-CN"> <!-- 设置页面语言为中文 -->
+<head>
+    <meta charset="UTF-8"> <!-- 字符编码声明 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式视口设置 -->
+    <!-- 页面标题（建议放在head最前面） -->
+    <title>{% block title %}PowerAdapter{% endblock %}</title>
+    {% load static %}
+
+    <!-- 下方区域根据需要添加： -->
+    <!-- 1. SEO相关标签：description/meta keywords -->
+    <!-- 2. Favicon图标：<link rel="icon" href="..."/> -->
+    <!-- 3. CSS样式表：<link rel="stylesheet" href="..."/> -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
+    <style>
+
+        .navbar {
+            box-shadow: 0 3px 3px hsl(171, 100%, 41%);
+        }
+
+        .tb-padding {
+            padding-top: 0 !important;
+            padding-bottom: 10px !important;
+        }
+
+        .content {
+            max-width: 100%;
+            line-height: 1.6; /* 增加行距，避免拥挤 */
+            word-break: break-word; /* 强制长单词自动换行 */
+        }
+
+    </style>
+    <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
+</head>
+
+<body>
+<!-- 页面主体内容区域 -->
+<!-- 建议结构划分： -->
+<!-- 1. 导航栏：<nav> -->
+<header>
+    <div class="container is-fluid">
+        {% block nav %}
+            <nav class="navbar" role="navigation" aria-label="main navigation">
+                <div class="navbar-brand pl-6">
+                    <a class="navbar-item" href="{% url 'index' %}">
+                        <img src="{% static 'img/PowerAdapter_logo.png' %}" alt="logo">
+                        <span class="">PowerAdapter</span>
+                    </a>
+                </div>
+                <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false"
+                   data-target="navbarBasicExample">
+                    <span aria-hidden="true"></span>
+                    <span aria-hidden="true"></span>
+                    <span aria-hidden="true"></span>
+                    <span aria-hidden="true"></span>
+                </a>
+
+                <div id="navbarBasicExample" class="navbar-menu">
+                    <div class="navbar-start">
+                        <a class="navbar-item" href="{% url 'post_list' %}">
+                            Posts
+                        </a>
+
+                        <a class="navbar-item" href="{% url 'links' %}">
+                            Links
+                        </a>
+
+                        <div class="navbar-item has-dropdown is-hoverable">
+                            <a class="navbar-link">
+                                More
+                            </a>
+
+                            <div class="navbar-dropdown">
+                                <a class="navbar-item">
+                                    About
+                                </a>
+                                <a class="navbar-item is-selected">
+                                    Jobs
+                                </a>
+                                <a class="navbar-item">
+                                    Contact
+                                </a>
+                                <hr class="navbar-divider">
+                                <a class="navbar-item">
+                                    Report an issue
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="navbar-end pr-6">
+                        <div class="navbar-item">
+                            <form action="{% url 'search' %}" method="GET"
+                                  style="display: flex; gap: 10px; align-items: center;">
+                                <label for="search-box" class="is-primary" style="flex-grow: 1;">
+                                    <input class="input" type="text" name="keyword" placeholder="搜索…"
+                                           value="{{ keyword }}">
+                                </label>
+                                <button class="button is-primary" type="submit">搜索</button>
+                            </form>
+
+                        </div>
+                        <div class="navbar-item">
+                            <div class="buttons">
+                                <a class="button is-primary">
+                                    <strong>注册</strong>
+                                </a>
+                                <a class="button is-light">
+                                    登录
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        {% endblock %}
+        {% block hero %}
+            <section class="hero is-primary is-bold">
+                <div class="hero-body">
+                    <p class="title">PowerAdapter Blogs</p>
+                    <p class="subtitle">Love Programing, Music & Skateboard!!!!</p>
+                </div>
+            </section>
+            <hr>
+        {% endblock %}
+    </div>
+</header>
+<!-- 2. 头部内容：<header> -->
+<!-- 3. 主要内容区：<main> -->
+<main>
+    {% block main %}
+        <!-- Sidebar -->
+        <div class="fixed-grid has-5-cols">
+            <div class="grid">
+                <div class="cell is-col-span-1">
+                    {% block sidebar %}{% include 'base/sidebar.html' %}{% endblock %}
+                </div>
+                <div class="cell is-col-span-3">
+
+                    <div class="container has-background-primary-10">
+                        <!-- 主体介绍栏 -->
+                        <div class="section">
+                            <article class="message is-primary">
+                                <div class="message-header">
+                                    <p>关于本站</p>
+                                </div>
+                                <div class="message-body">
+                                    这是一个以技术、写作与生活反思为主题的个人博客，采用 Django + Bulma 构建。
+                                    内容涵盖编程、开发日志、思想片段、音乐随笔等。欢迎你在这里探索与共鸣。
+                                </div>
+                            </article>
+                        </div>
+                        <div class="section tb-padding">
+                            <div class="columns is-8">
+                                <div class="column">
+                                    <div class="card">
+                                        <div class="card-image">
+                                            <figure class="image is-1by1">
+                                                <img
+                                                        src="{% static 'img/skate_card.png' %}"
+                                                        alt="Placeholder image"
+                                                />
+                                            </figure>
+                                        </div>
+
+                                        <div class="card-header">
+                                            <div class="card-header-title">
+                                                <p class="title is-4 has-text-primary">Skateboard｜滑板</p>
+                                            </div>
+                                        </div>
+                                        <div class="card-content">
+                                            <div class="content">
+                                                街头、风格与坚持。<br>
+                                                这一栏是我记录滑板学习历程的地方，从基础动作练习到刷街心得，也会分享我喜欢的滑手、视频剪辑，以及那些让我心跳加速的滑行片段。
+                                                欢迎跟我一起享受沾满灰尘的自由。
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="column">
+                                    <div class="card">
+                                        <div class="card-image">
+                                            <figure class="image is-1by1">
+                                                <img
+                                                        src="{% static 'img/music_card.png' %}"
+                                                        alt="Placeholder image"
+                                                />
+                                            </figure>
+                                        </div>
+
+                                        <div class="card-header">
+                                            <div class="card-header-title">
+                                                <p class="title is-4 has-text-warning">Music｜音乐</p>
+                                            </div>
+                                        </div>
+                                        <div class="card-content">
+                                            <div class="content">
+                                                这里收藏我喜欢的声音。<br>
+                                                从 hardcore 到 post rock，从 Rough Sketch 到
+                                                world's end girlfriend，不管是解构节奏的 math rock，还是带有诗意的噪音。偶尔也会分享一些吉他练习、乐理学习笔记或翻奏尝试。
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="column">
+                                    <div class="card">
+                                        <div class="card-image">
+                                            <figure class="image is-1by1">
+                                                <img
+                                                        src="{% static 'img/coding_card.png' %}"
+                                                        alt="Placeholder image"
+                                                />
+                                            </figure>
+                                        </div>
+
+                                        <div class="card-header">
+                                            <div class="card-header-title">
+                                                <p class="title is-4 has-text-info">Coding</p>
+                                            </div>
+                                        </div>
+                                        <div class="card-content">
+                                            <div class="content">
+                                                不止代码，更是对技术结构的好奇。<br>
+                                                这里会放上我学习过程中的笔记、 实践与反思——可能是后端开发，也可能是前端样式、AI
+                                                理论，甚至是某次命令行里的小发现。风格不拘一格，但始终追求优雅与效率。
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    {% endblock %}
+    <hr>
+    {% block category %}
+        <section class="section is-fluid has-background-primary-10">
+            <div class="container">
+                <div class="columns">
+                    {% for cate in categories %}
+                        <div class="column is-3">
+                            <a href="/category/{{ cate.id }}" class="is-link has-text-info-bold">{{ cate.name }}</a>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    {% endblock %}
+</main>
+<hr>
+<!-- 5. 底部版权-->
+
+<footer>
+    {% block footer %}
+        <div class="container is-fluid">
+            <section class="section">
+                <div class="content has-text-centered">
+                    <p>
+                        <strong>PowerAdapter's Blog</strong> by <a
+                            href="mailto:sevencdxxiv@qq.com">PowerAdapter</a>.<br>
+                        专注于优雅的自动化、加密、算法、与精神节律的构建探索。
+                    </p>
+                    <p class="is-size-7 has-text-grey">
+                        © 2025 PowerAdapter. 内容遵循 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+                                                         target="_blank">CC
+                        BY-NC-SA 4.0</a> 协议。<br>
+                        最近更新：2025年x月x日<br>
+                        “愿代码之美，与精神秩序并行。”
+                    </p>
+                </div>
+            </section>
+        </div>
+    {% endblock %}
+
+    <!-- 常用脚本引入位置： -->
+    <!-- 1. jQuery：<script src="jquery.js"></script> -->
+    <!-- 2. 主体逻辑：<script src="app.js"></script> -->
+    <!-- 3. 页面初始化脚本：$(document).ready(function(){...}); -->
+</footer>
+</body>
+</html>

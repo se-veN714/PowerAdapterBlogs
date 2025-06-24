@@ -22,14 +22,13 @@ class CommonViewMixin:  # 不让它继承任何类，而是将这个 Mixin 与�
 
 
 class IndexView(CommonViewMixin, ListView):
-    queryset = Post.latest_posts()
-    paginate_by = 5
+    queryset = Post.latest_posts(5)
     context_object_name = 'post_list'
-    template_name = 'base.html'
+    template_name = '../bulma/base/base.html'
 
 
 class PostDetailView(CommonViewMixin, DetailView):
-    queryset = Post.latest_posts()
+    queryset = Post.get_normal_posts()
     template_name = 'blog/detail.html'
     context_object_name = 'post'
     pk_url_kwarg = 'post_id'
@@ -38,13 +37,13 @@ class PostDetailView(CommonViewMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context.update({
             'comment_form': CommentForm,
-            'comment_list': Comment.get_by_target(self.request.path),
+            'comment_list': Comment.get_by_target(self.object),
         })
         return context
 
 
 class PostListView(ListView):
-    queryset = Post.latest_posts()
+    queryset = Post.get_normal_posts()
     paginate_by = 10
     context_object_name = 'post_list'
     template_name = 'blog/list.html'
@@ -102,5 +101,3 @@ class SearchView(PostListView):
         return queryset.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
 
 
-def links(request):
-    pass

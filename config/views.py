@@ -7,5 +7,5 @@ from .models import Link
 # Create your views here.
 class LinkListView(CommonViewMixin, ListView):
     queryset = Link.objects.filter(status=Link.STATUS_NORMAL)
-    template_name = 'config/links.html'
+    template_name = '../bulma/base/links.html'
     context_object_name = 'link_list'

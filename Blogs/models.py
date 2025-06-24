@@ -90,7 +90,7 @@ class Post(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="分类")
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, verbose_name="标签")
     owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="作者")
-    cover = models.ImageField(upload_to='covers/', blank=True, null=True,verbose_name="封面")
+    cover = models.ImageField(upload_to='covers/', blank=True, null=True, verbose_name="封面")
     pv = models.PositiveIntegerField(default=1)
     uv = models.PositiveIntegerField(default=1)
 
@@ -140,11 +140,19 @@ class Post(models.Model):
         return posts, category
 
     @classmethod
-    def latest_posts(cls):
+    def get_normal_posts(cls):
+        return cls.objects.filter(status=Post.STATUS_NORMAL)
+
+    @classmethod
+    def get_by_id(cls, post_id):
+        return cls.objects.get(id=post_id)
+
+    @classmethod
+    def latest_posts(cls, num=5):
         """
         :return: 返回最近投稿的文章
         """
-        return cls.objects.filter(status=cls.STATUS_NORMAL)
+        return cls.objects.filter(status=cls.STATUS_NORMAL).order_by('-created_time')[:num]
 
     @classmethod
     def hot_posts(cls):

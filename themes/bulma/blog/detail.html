@@ -6,6 +6,7 @@
     <title>Detail</title> <!-- 页面标题（建议放在head最前面） -->
     {% extends "../config/../base/base.html" %}
     {% load static %}
+    {% load comment_block %}
     <!-- 下方区域根据需要添加： -->
     <!-- 1. SEO相关标签：description/meta keywords -->
     <!-- 2. Favicon图标：<link rel="icon" href="..."/> -->
@@ -37,8 +38,8 @@
                 </div>
             </div>
         </div>
-        {% include "comment/form.html" %}
-        {% include "comment/list.html" %}
+        {% form_block object %}
+        {% list_block object %}
     {% endblock %}
 </main>
 

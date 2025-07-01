@@ -1,0 +1,27 @@
+{% load static %}
+<article class="media">
+    <figure class="media-left">
+        <p class="image is-48x48">
+            <img class="is-rounded"
+                 src="{% static 'img/avatar.jpg' %}" alt="评论头像">
+        </p>
+    </figure>
+
+    <div class="media-content">
+        <div class="content">
+            <p>
+                <strong>
+                    {% if comment.nickname %}
+                        {{ comment.nickname }}
+                    {% else %}
+                        匿名
+                    {% endif %}
+                </strong>
+                <br/>
+                {{ comment.content }}
+                <br/>
+            </p>
+            <small><a>赞</a> · <a>回复</a> · {{ comment.created_time }}</small>
+        </div>
+    </div>
+</article>

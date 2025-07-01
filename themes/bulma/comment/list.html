@@ -1,0 +1,15 @@
+{% load static %}
+
+{% block list %}
+    <div class="block">
+        <div class="container">
+            <div id="comments-container" class="container">
+                {% for comment in comment_list %}
+                    {% include 'comment/item.html' with comment=comment %}
+                {% empty %}
+                    <p class="has-text-grey">暂无评论，快来抢沙发吧～</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

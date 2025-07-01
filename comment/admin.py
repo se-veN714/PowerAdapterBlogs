@@ -5,7 +5,7 @@ from .models import Comment
 # Register your models here.
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ['content_short_description', 'nickname', 'created_time']
+    list_display = ['content_short_description', 'post','nickname', 'created_time']
 
     def content_short_description(self, obj):
         """

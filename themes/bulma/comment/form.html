@@ -39,7 +39,7 @@
 {% block form %}
     <div class="block">
         <div class="container">
-            <form id="comment-form" class="box" action="/comment/" method="post">
+            <form id="comment-form" class="box" action="{% url 'post_comment' pk=target.id %}" method="post">
                 {% csrf_token %}
 
                 <article class="media">
@@ -58,8 +58,6 @@
                                 {{ comment_form.content|add_class:"textarea" }}
                             </div>
                         </div>
-
-                        <input type="hidden" name="target" value="{{ request.path }}"/>
 
                         <div class="field">
                             <div class="control">

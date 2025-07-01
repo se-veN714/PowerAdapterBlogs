@@ -1,8 +1,10 @@
 from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.views.generic import TemplateView
+from django.shortcuts import get_object_or_404
 
 from .form import CommentForm
+from Blogs.models import Post
 
 
 # Create your views here.
@@ -10,13 +12,17 @@ class CommentView(TemplateView):
     http_method_names = ['post']
 
     def post(self, request, *args, **kwargs):
+        post_id = kwargs.get('pk')
+        post = get_object_or_404(Post, id=post_id)
+
         form = CommentForm(request.POST)
-        target = request.POST.get('target')
 
         if form.is_valid():
             instance = form.save(commit=False)
-            instance.target = target
+            instance.post = post
+
             instance.save()
+
             return JsonResponse({
                 'success': True,
                 'html': render_to_string('comment/item.html', {'comment': instance}),

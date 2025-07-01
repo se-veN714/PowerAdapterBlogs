@@ -45,6 +45,6 @@ urlpatterns = [
     path("links/", LinkListView.as_view(), name="links"),
     # Search
     path('search/', SearchView.as_view(), name="search"),
-    #comment post
-    path('comment/', CommentView.as_view(), name="comment"),
+    # comment post
+    path('post/<int:pk>/comment/', CommentView.as_view(), name="post_comment"),
 ]

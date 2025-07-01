@@ -6,7 +6,6 @@
     <title>Detail</title> <!-- 页面标题（建议放在head最前面） -->
     {% extends "../config/../base/base.html" %}
     {% load static %}
-    {% load widget_tweaks %}
     <!-- 下方区域根据需要添加： -->
     <!-- 1. SEO相关标签：description/meta keywords -->
     <!-- 2. Favicon图标：<link rel="icon" href="..."/> -->
@@ -20,7 +19,7 @@
 </header>
 <main>
     {% block main %}
-        <div class="post-detail">
+        <div class="post-detail block">
             <div class="container">
                 <div class="message">
                     {% if post %}
@@ -38,75 +37,8 @@
                 </div>
             </div>
         </div>
-        <hr>
-        <div class="comments">
-            <div class="container">
-                <form class="box" action="/comment/" method="post">
-                    {% csrf_token %}
-
-                    <article class="media">
-                        <div class="media-left">
-                            <div class="field">
-                                <label class="label">昵称</label>
-                                <div class="control">
-                                    {{ comment_form.nickname|add_class:"input" }}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="media-content">
-                            <div class="field">
-                                <label class="label">内容</label>
-                                <div class="control">
-                                    {{ comment_form.content|add_class:"textarea" }}
-                                </div>
-                            </div>
-
-                            <input type="hidden" name="target" value="{{ request.path }}"/>
-
-                            <div class="field">
-                                <div class="control">
-                                    <button type="submit" class="button is-primary">写好了！</button>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                </form>
-                <hr>
-
-                <div class="container">
-                    {% for comment in comment_list %}
-                        <article class="media">
-                            <figure class="media-left">
-                                <p class="image is-48x48">
-                                    <img class="is-rounded"
-                                         src="{% static 'img/avatar.jpg' %}" alt="评论头像">
-                                </p>
-                            </figure>
-
-                            <div class="media-content">
-                                <div class="content">
-                                    <p>
-                                        <strong>
-                                            {% if comment.nickname %}
-                                            	{{ comment.nickname }}
-                                            {% else %}
-                                                匿名
-                                            {% endif %}
-                                        </strong>
-                                        <br/>
-                                        {{ comment.content }}
-                                        <br/>
-                                    </p>
-                                    <small><a>赞</a> · <a>回复</a> · {{ comment.created_time }}</small>
-                                </div>
-                            </div>
-                        </article>
-                    {% empty %}
-                        <p class="has-text-grey">暂无评论，快来抢沙发吧～</p>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
+        {% include "comment/form.html" %}
+        {% include "comment/list.html" %}
     {% endblock %}
 </main>
 

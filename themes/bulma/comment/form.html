@@ -1,0 +1,188 @@
+{% load static %}
+{% load widget_tweaks %}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js@1.11.2/src/toastify.min.css">
+<script src="https://cdn.jsdelivr.net/npm/toastify-js@1.11.2/src/toastify.min.js"></script>
+
+<style>
+    /* Bulma兼容的Toastify样式 */
+    .toastify {
+        font-family: BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+        border-radius: 4px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+    }
+
+    /* 禁用状态加载动画 */
+    .button.is-loading::after {
+        animation: spinAround .5s infinite linear;
+        border: 2px solid #dbdbdb;
+        border-radius: 290486px;
+        border-right-color: transparent;
+        border-top-color: transparent;
+        content: "";
+        display: block;
+        height: 1em;
+        position: relative;
+        width: 1em;
+    }
+
+    @keyframes spinAround {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(359deg);
+        }
+    }
+</style>
+
+{% block form %}
+    <div class="block">
+        <div class="container">
+            <form id="comment-form" class="box" action="/comment/" method="post">
+                {% csrf_token %}
+
+                <article class="media">
+                    <div class="media-left">
+                        <div class="field">
+                            <label class="label">昵称</label>
+                            <div class="control">
+                                {{ comment_form.nickname|add_class:"input" }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="media-content">
+                        <div class="field">
+                            <label class="label">内容</label>
+                            <div class="control">
+                                {{ comment_form.content|add_class:"textarea" }}
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="target" value="{{ request.path }}"/>
+
+                        <div class="field">
+                            <div class="control">
+                                <button id="submit-button" type="submit" class="button is-primary">
+                                    <span id="button-text">写好了！</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+<script>
+    // 获取表单和提交按钮
+    const commentForm = document.getElementById('comment-form');
+    const submitButton = document.getElementById('submit-button');
+    const buttonText = document.getElementById('button-text');
+
+    // 监听表单提交事件
+    commentForm.addEventListener('submit', async function (event) {
+        // 1. 阻止表单默认的提交行为
+        event.preventDefault();
+
+        // 2. 准备AJAX提交
+        const formData = new FormData(commentForm);
+
+        // 3. 禁用提交按钮并显示加载状态
+        submitButton.classList.add('is-loading');
+        submitButton.disabled = true;
+        buttonText.textContent = '提交中...';
+
+        try {
+            // 4. 发送AJAX请求
+            const response = await fetch(commentForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    // 可选：通知Django这是AJAX请求
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            // 5. 解析服务器响应
+            const data = await response.json();
+
+            // 6. 根据响应结果进行不同处理
+            if (data.success) {
+                //清空表单
+                this.reset()
+                // 成功时的Toast提示
+                Toastify({
+                    text: "🎉 评论提交成功！",
+                    duration: 3000,
+                    close: true,
+                    gravity: "top",
+                    position: "right",
+                    backgroundColor: "linear-gradient(to right, #00d1b2, #3273dc)",
+                    className: "toast-success",
+                }).showToast();
+
+                //将新评论置顶
+                const commentsContainer = document.getElementById('comments-container');
+                commentsContainer.insertAdjacentHTML('afterbegin', data.html);
+
+                // 可选：刷新评论列表或显示新评论
+                // refreshComments();
+            } else {
+                // 失败时的Toast提示
+                Toastify({
+                    text: "⚠️ " + data.message,
+                    duration: 5000,
+                    close: true,
+                    gravity: "top",
+                    position: "right",
+                    backgroundColor: "linear-gradient(to right, #ff3860, #ffdd57)",
+                    className: "toast-error",
+                }).showToast();
+
+                // 7. 处理表单错误
+                if (data.errors) {
+                    // 隐藏所有错误信息
+                    document.querySelectorAll('.help.is-danger').forEach(el => {
+                        el.style.display = 'none';
+                    });
+                    document.querySelectorAll('.is-danger').forEach(el => el.classList.remove('is-danger'));
+
+                    // 显示新错误
+                    for (const field in data.errors) {
+                        const errors = data.errors[field];
+                        // 找出错误消息的容器（相邻的.help元素）
+                        const inputEl = document.querySelector(`[name="${field}"]`);
+                        if (inputEl) {
+                            inputEl.classList.add('is-danger');
+                            const errorContainer = inputEl.closest('.field').querySelector('.help');
+                            if (errorContainer) {
+                                errorContainer.textContent = errors.join(', ');
+                                errorContainer.style.display = 'block';
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("AJAX 请求失败：", error);
+            // 8. 捕获网络错误
+
+            Toastify({
+                text: "❌ 网络错误，请检查连接并重试",
+                duration: 5000,
+                close: true,
+                gravity: "top",
+                position: "right",
+                backgroundColor: "linear-gradient(to right, #ff3860, #ff7b29)",
+                className: "toast-error",
+            }).showToast();
+        } finally {
+            // 9. 恢复提交按钮状态
+            submitButton.classList.remove('is-loading');
+            submitButton.disabled = false;
+            buttonText.textContent = '写好了！';
+        }
+    });
+</script>

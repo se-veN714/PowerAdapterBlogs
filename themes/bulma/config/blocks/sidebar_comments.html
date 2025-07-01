@@ -1,6 +1,6 @@
 <ul>
     {% for comment in comments %}
-        <li><a href="{% url 'post_detail' comment.post.id %}">{{ comment.post.title }}</a> |
+        <li><a href="{% url 'post_detail' comment.post.id %}"><u>{{ comment.post.title }}</u></a> |
         {{ comment.content|truncatechars:35 }}
     {% endfor %}
 

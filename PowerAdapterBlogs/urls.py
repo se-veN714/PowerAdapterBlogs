@@ -18,6 +18,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from comment.views import CommentView
 from .cus_site import custom_site
 from config.views import LinkListView
 from Blogs.views import (
@@ -44,4 +45,6 @@ urlpatterns = [
     path("links/", LinkListView.as_view(), name="links"),
     # Search
     path('search/', SearchView.as_view(), name="search"),
+    #comment post
+    path('comment/', CommentView.as_view(), name="comment"),
 ]

@@ -1,4 +1,6 @@
 {% load static %}
+{% load md_extras %}
+
 <article class="media">
     <figure class="media-left">
         <p class="image is-48x48">
@@ -19,7 +21,6 @@
                 </strong>
                 <br/>
                 {{ comment.content }}
-                <br/>
             </p>
             <small><a>赞</a> · <a>回复</a> · {{ comment.created_time }}</small>
         </div>

@@ -1,13 +1,14 @@
 from typing import Dict, Any
 
+import mistune
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from django.views.generic import DetailView, ListView, TemplateView
+from django.utils.safestring import mark_safe
+from django.views.generic import DetailView, ListView
+from markdown import markdown
 
 from Blogs.models import Post, Tag, Category
 from config.models import SideBar
-from comment.models import Comment
-from comment.form import CommentForm
 
 
 # Create your views here.
@@ -32,7 +33,6 @@ class PostDetailView(CommonViewMixin, DetailView):
     template_name = 'blog/detail.html'
     context_object_name = 'post'
     pk_url_kwarg = 'post_id'
-
 
 
 class PostListView(ListView):
@@ -92,5 +92,3 @@ class SearchView(PostListView):
         if not keyword:
             return queryset
         return queryset.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
-
-

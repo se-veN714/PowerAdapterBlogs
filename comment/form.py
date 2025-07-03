@@ -14,6 +14,7 @@
 from django import forms
 
 from comment.models import Comment
+import markdown
 
 
 class CommentForm(forms.ModelForm):
@@ -37,9 +38,11 @@ class CommentForm(forms.ModelForm):
     )
 
     def clean_content(self):
-        content = self.cleaned_data['content']
+        content = self.cleaned_data['content'].rstrip()
         if len(content.strip()) < 10:
             raise forms.ValidationError('输入字符长度不能小于10')
+
+        content = markdown.markdown(content)
         return content
 
 

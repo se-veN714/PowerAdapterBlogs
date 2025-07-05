@@ -160,3 +160,22 @@ class Post(models.Model):
         :return: 返回最多访问的文章--只返回标题和id
         """
         return cls.objects.filter(status=cls.STATUS_NORMAL).order_by("-pv").only("title", "id")[:3]
+
+
+class PostVisit(models.Model):
+    # 访问方式
+    UV_VISIT = 0
+    PV_VISIT = 1
+
+    STATUS_ITEMS = (
+        (UV_VISIT, "用户访问"),
+        (PV_VISIT, "页面访问"),
+    )
+
+    uid = models.CharField(max_length=64, db_index=True)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    visit_type = models.PositiveIntegerField(default=UV_VISIT, choices=STATUS_ITEMS, verbose_name="访问模式")
+    created_time = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('uid', 'post','visit_type')  # 保证每个用户对同一篇文章只计一次 UV

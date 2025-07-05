@@ -34,25 +34,26 @@
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/startup.js"></script>
 
+    {% block extra_css %}
+        <style>
 
-    <style>
+            .navbar {
+                box-shadow: 0 3px 3px hsl(171, 100%, 41%);
+            }
 
-        .navbar {
-            box-shadow: 0 3px 3px hsl(171, 100%, 41%);
-        }
+            .tb-padding {
+                padding-top: 0 !important;
+                padding-bottom: 10px !important;
+            }
 
-        .tb-padding {
-            padding-top: 0 !important;
-            padding-bottom: 10px !important;
-        }
+            .content {
+                max-width: 100%;
+                line-height: 1.6; /* 增加行距，避免拥挤 */
+                word-break: break-word; /* 强制长单词自动换行 */
+            }
 
-        .content {
-            max-width: 100%;
-            line-height: 1.6; /* 增加行距，避免拥挤 */
-            word-break: break-word; /* 强制长单词自动换行 */
-        }
-
-    </style>
+        </style>
+    {% endblock %}
     <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
 </head>
 
@@ -291,9 +292,9 @@
         <section class="section is-fluid has-background-primary-10">
             <div class="container">
                 <div class="columns">
-                    {% for cate in categories %}
+                    {% for nav in navs %}
                         <div class="column is-3">
-                            <a href="/category/{{ cate.id }}" class="is-link has-text-info-bold">{{ cate.name }}</a>
+                            <a href="/category/{{ nav.id }}" class="is-link has-text-info-bold">{{ nav.name }}</a>
                         </div>
                     {% endfor %}
                 </div>

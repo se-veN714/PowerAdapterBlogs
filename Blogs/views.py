@@ -1,13 +1,13 @@
 from typing import Dict, Any
+from datetime import date
 
-import mistune
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Q, F
 from django.shortcuts import get_object_or_404
-from django.utils.safestring import mark_safe
 from django.views.generic import DetailView, ListView
-from markdown import markdown
+from django.core.cache import cache
 
-from Blogs.models import Post, Tag, Category
+from Blogs.models import Post, PostVisit, Tag, Category
 from config.models import SideBar
 
 
@@ -33,6 +33,58 @@ class PostDetailView(CommonViewMixin, DetailView):
     template_name = 'blog/detail.html'
     context_object_name = 'post'
     pk_url_kwarg = 'post_id'
+
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        self.handle_visit()
+        return response
+
+    def handle_visit(self):
+
+        uid = self.request.uid
+        post = self.object
+        visit_date = date.today()
+
+        pv_key = f'pv:{uid}:{post.id}'
+        uv_key = f'uv:{uid}:{visit_date}:{post.id}'
+
+        increase_pv = False
+        increase_uv = False
+
+        if not cache.get(pv_key):
+            increase_pv = True
+            cache.set(pv_key, 1, 1 * 60)  # 1min 有效
+
+        if not PostVisit.objects.filter(uid=uid, post=post).exists():
+            increase_uv = True
+            cache.set(uv_key, 1, 24 * 60 * 60)  # 24h 有效
+
+        # 使用事务
+        with transaction.atomic():
+            if increase_pv or increase_uv:
+                update_kwargs = {}
+                if increase_pv:
+                    update_kwargs['pv'] = F('pv') + 1
+                if increase_uv:
+                    update_kwargs['uv'] = F('uv') + 1
+
+                Post.objects.filter(pk=post.id).update(**update_kwargs)
+
+        # 记录访问明细
+        if increase_pv:
+            PostVisit.objects.create(
+                uid=uid,
+                post=post,
+                visit_type=1,
+                created_time=visit_date,
+            )
+            if increase_uv:
+                PostVisit.objects.create(
+                    uid=uid,
+                    post=post,
+                    visit_type=0,
+                    created_time=visit_date,
+                )
 
 
 class PostListView(ListView):

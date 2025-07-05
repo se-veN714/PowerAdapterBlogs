@@ -9,7 +9,6 @@
 """
 本模块提供了基本的Django设置功能的类和函数。
 """
-
 # here put the import lib
 """
 Django settings for PowerAdapterBlogs project.
@@ -54,11 +53,13 @@ INSTALLED_APPS = [
     "Blogs",
     "config",
     "comment",
+    "music",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "Blogs.middleware.user_id.UserIdMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",

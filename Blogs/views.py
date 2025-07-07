@@ -1,7 +1,7 @@
 from typing import Dict, Any
 from datetime import date
 
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Q, F
 from django.shortcuts import get_object_or_404
 from django.views.generic import DetailView, ListView
@@ -72,19 +72,26 @@ class PostDetailView(CommonViewMixin, DetailView):
 
         # 记录访问明细
         if increase_pv:
-            PostVisit.objects.create(
-                uid=uid,
-                post=post,
-                visit_type=1,
-                created_time=visit_date,
-            )
+            try:
+                PostVisit.objects.get_or_create(
+                    uid=uid,
+                    post=post,
+                    visit_type=1,
+                    created_time=visit_date,
+                )
+            except IntegrityError:
+                pass
+
+        try:
             if increase_uv:
-                PostVisit.objects.create(
+                PostVisit.objects.get_or_create(
                     uid=uid,
                     post=post,
                     visit_type=0,
                     created_time=visit_date,
                 )
+        except IntegrityError:
+            pass
 
 
 class PostListView(ListView):

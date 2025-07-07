@@ -7,6 +7,7 @@ Category:博客文章的分类模型，用于分类博客文章。
 """
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils.functional import cached_property
 
 
 # Create your models here.
@@ -88,11 +89,11 @@ class Post(models.Model):
 
     # 文章基本信息
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="分类")
-    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, verbose_name="标签")
+    tag = models.ManyToManyField(Tag, related_name="posts", verbose_name="标签")
     owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="作者")
     cover = models.ImageField(upload_to='covers/', blank=True, null=True, verbose_name="封面")
-    pv = models.PositiveIntegerField(default=1)
-    uv = models.PositiveIntegerField(default=1)
+    pv = models.PositiveIntegerField(default=0, verbose_name="页面访问")
+    uv = models.PositiveIntegerField(default=0, verbose_name="用户访问")
 
     # 文章时间戳
     created_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
@@ -118,7 +119,7 @@ class Post(models.Model):
             tag = None
             posts = None
         else:
-            posts = tag.post_set.filter(status=Post.STATUS_NORMAL).select_related("owner", "category")
+            posts = tag.objects.filter(status=Post.STATUS_NORMAL).select_related("owner", "category")
 
         return posts, tag
 
@@ -138,6 +139,10 @@ class Post(models.Model):
             posts = category.post_set.filter(status=Post.STATUS_NORMAL).select_related("owner", "category")
 
         return posts, category
+
+    @cached_property
+    def tags(self):
+        return ','.join(self.tag.values_list("name", flat=True))
 
     @classmethod
     def get_normal_posts(cls):
@@ -178,4 +183,4 @@ class PostVisit(models.Model):
     created_time = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('uid', 'post','visit_type')  # 保证每个用户对同一篇文章只计一次 UV
+        unique_together = ('uid', 'post', 'visit_type')  # 保证每个用户对同一篇文章只计一次 UV

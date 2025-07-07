@@ -17,10 +17,12 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
+from django.contrib.sitemaps import views as sitemaps_views
 
 from comment.views import CommentView
 from .cus_site import custom_site
 from config.views import LinkListView
+from Blogs.sitemap import PostSitemap
 from Blogs.views import (
     IndexView, CategoryView, TagView,
     PostDetailView, PostListView, SearchView
@@ -47,4 +49,6 @@ urlpatterns = [
     path('search/', SearchView.as_view(), name="search"),
     # comment post
     path('post/<int:pk>/comment/', CommentView.as_view(), name="post_comment"),
+    # sitemap
+    path('sitemap.xml', sitemaps_views.sitemap, {'sitemaps': {'posts': PostSitemap}}, name="sitemap"),
 ]

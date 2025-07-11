@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "Blogs",
     "config",
     "comment",
+    "accounts",
     "music",
 ]
 
@@ -97,6 +98,8 @@ WSGI_APPLICATION = "PowerAdapterBlogs.wsgi.application"
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
+
+AUTH_USER_MODEL = 'accounts.MyUser'
 
 AUTH_PASSWORD_VALIDATORS = [
     {

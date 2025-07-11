@@ -2,69 +2,51 @@
 {% load static %}
 {% load comment_block %}
 {% load md_extras %}
-<!DOCTYPE html> <!-- HTML5文档类型声明 -->
-<html lang="zh-CN"> <!-- 设置页面语言为中文 -->
-<head>
-    <meta charset="UTF-8"> <!-- 字符编码声明 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式视口设置 -->
-    <title>Detail</title> <!-- 页面标题（建议放在head最前面） -->
+{% block title %}Blog-{{ post.id }}-{{ post.title }}{% endblock %}
+{% block extra_css %}
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <!-- 按需加载语言支持，例如 Python、JS -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
 
-    <!-- 下方区域根据需要添加： -->
-    <!-- 1. SEO相关标签：description/meta keywords -->
-    <!-- 2. Favicon图标：<link rel="icon" href="..."/> -->
-    <!-- 3. CSS样式表：<link rel="stylesheet" href="..."/> -->
-    {% block extra_css %}
-        <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
-        <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
-        <!-- 按需加载语言支持，例如 Python、JS -->
-        <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+    <style class="cp-pen-styles">
+        .markdown-body strong {
+            font-weight: bold;
+            color: #4A90E2; /* 或 #D9822B, #7E57C2 中任选其一 */
+        }
 
-        <style class="cp-pen-styles">
-            .markdown-body strong {
-                font-weight: bold;
-                color: #4A90E2; /* 或 #D9822B, #7E57C2 中任选其一 */
-            }
+        .markdown-body blockquote {
+            color: #00b894;
+        }
+    </style>
+{% endblock %}
+{% block hero %}{% endblock %}
+{% block sidebar %}{% endblock %}
 
-            .markdown-body blockquote {
-                color: #00b894;
-            }
-        </style>
-    {% endblock %}
-
-    <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
-</head>
-<body>
-<header>
-    {% block hero %}{% endblock %}
-    {% block sidebar %}{% endblock %}
-</header>
-<main>
-    {% block main %}
-        <div class="post-detail block">
-            <div class="container">
-                <div class="section">
-                    <div class="message">
-                        {% if post %}
-                            <div class="message-header">
-                                <p class="has-text-primary is-size-1">{{ post.title }}</p>
-                                <div>
-                                    <span>分类：{{ post.category.name }}</span>
-                                    <span>作者：{{ post.owner.username }}</span>
-                                </div>
+{% block main %}
+    <div class="post-detail block">
+        <div class="container">
+            <div class="section">
+                <div class="message">
+                    {% if post %}
+                        <div class="message-header">
+                            <p class="has-text-primary is-size-1">{{ post.title }}</p>
+                            <div>
+                                <span>分类：{{ post.category.name }}</span>
+                                <span>作者：{{ post.owner.username }}</span>
                             </div>
-                            <div class="message-body">
-                                <div class="content markdown-body">
-                                    {{ post.content|markdown_to_html }}
-                                </div>
+                        </div>
+                        <div class="message-body">
+                            <div class="content markdown-body">
+                                {{ post.content|markdown_to_html }}
                             </div>
-                        {% endif %}
-                    </div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
-        {% form_block object %}
-        {% list_block object %}
-    {% endblock %}
-</main>
-</body>
-</html>
+    </div>
+    {% form_block object %}
+    {% list_block object %}
+{% endblock %}
+

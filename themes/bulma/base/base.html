@@ -292,9 +292,9 @@
         <section class="section is-fluid has-background-primary-10">
             <div class="container">
                 <div class="columns">
-                    {% for nav in navs %}
+                    {% for cate in cate_navs %}
                         <div class="column is-3">
-                            <a href="/category/{{ nav.id }}" class="is-link has-text-info-bold">{{ nav.name }}</a>
+                            <a href="/category/{{ cate.id }}" class="is-link has-text-info-bold">{{ cate.name }}</a>
                         </div>
                     {% endfor %}
                 </div>

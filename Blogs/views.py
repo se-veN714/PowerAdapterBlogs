@@ -25,7 +25,7 @@ class CommonViewMixin:  # 不让它继承任何类，而是将这个 Mixin 与�
 class IndexView(CommonViewMixin, ListView):
     queryset = Post.latest_posts(5)
     context_object_name = 'post_list'
-    template_name = '../bulma/base/base.html'
+    template_name = '../bulma/base/index.html'
 
 
 class PostDetailView(CommonViewMixin, DetailView):

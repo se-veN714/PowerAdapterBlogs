@@ -5,6 +5,7 @@
 Article:博客文章
 Category:博客文章的分类模型，用于分类博客文章。
 """
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.functional import cached_property
@@ -23,7 +24,7 @@ class Category(models.Model):
     name = models.CharField(max_length=50, verbose_name="名称")
     status = models.PositiveIntegerField(default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态")
     is_nav = models.BooleanField(default=False, verbose_name="是否为导航")
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="作者")
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="作者")
     created_time = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -46,7 +47,7 @@ class Category(models.Model):
 
         return {
             "categories": normal_categories,
-            "navs": nav_categories,
+            "cate_navs": nav_categories,
         }
 
 
@@ -62,7 +63,7 @@ class Tag(models.Model):
     name = models.CharField(max_length=50, verbose_name="名称")
     status = models.PositiveIntegerField(default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态")
     is_nav = models.BooleanField(default=False, verbose_name="是否为导航")
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="作者")
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="作者")
     created_time = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -90,7 +91,7 @@ class Post(models.Model):
     # 文章基本信息
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="分类")
     tag = models.ManyToManyField(Tag, related_name="posts", verbose_name="标签")
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="作者")
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="作者")
     cover = models.ImageField(upload_to='covers/', blank=True, null=True, verbose_name="封面")
     pv = models.PositiveIntegerField(default=0, verbose_name="页面访问")
     uv = models.PositiveIntegerField(default=0, verbose_name="用户访问")

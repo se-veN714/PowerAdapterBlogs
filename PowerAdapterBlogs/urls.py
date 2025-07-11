@@ -30,10 +30,10 @@ from Blogs.views import (
 
 urlpatterns = [
     path("super_admin/", admin.site.urls, name="super_admin"),
-    path("admin/", custom_site.urls, name="admin"),
-    # Homepage
+    # dashboard
+    path("dashboard/", custom_site.urls, name="dashboard"),
 
-    # PostPage
+    # Homepage
     path("", IndexView.as_view(), name="index"),
     # CategoryPage
     path("category/<int:category_id>/", CategoryView.as_view(), name="category_list"),
@@ -46,9 +46,10 @@ urlpatterns = [
     # LinksPage
     path("links/", LinkListView.as_view(), name="links"),
     # Search
-    path('search/', SearchView.as_view(), name="search"),
+    path("search/", SearchView.as_view(), name="search"),
     # comment post
-    path('post/<int:pk>/comment/', CommentView.as_view(), name="post_comment"),
+    path("post/<int:pk>/comment/", CommentView.as_view(), name="post_comment"),
     # sitemap
-    path('sitemap.xml', sitemaps_views.sitemap, {'sitemaps': {'posts': PostSitemap}}, name="sitemap"),
+    path("sitemap.xml", sitemaps_views.sitemap, {'sitemaps': {'posts': PostSitemap}}, name="sitemap"),
+
 ]

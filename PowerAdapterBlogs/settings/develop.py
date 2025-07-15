@@ -9,10 +9,11 @@
 """
 本模块提供了开发环境下的设置
 """
-from .base import * # NOQA
+from .base import *  # NOQA
 
 # here put the import lib
 
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']

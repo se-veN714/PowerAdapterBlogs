@@ -8,6 +8,7 @@ def main():
     """Run administrative tasks."""
     profile = os.environ.get("PROJECT_PROFILE",'develop')
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "PowerAdapterBlogs.settings.%s" % profile)
+    print("---\n"+profile+"\n---")
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

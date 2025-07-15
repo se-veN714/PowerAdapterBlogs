@@ -41,10 +41,7 @@ class CommentForm(forms.ModelForm):
         content = self.cleaned_data['content'].rstrip()
         if len(content.strip()) < 10:
             raise forms.ValidationError('输入字符长度不能小于10')
-
-        content = markdown.markdown(content)
         return content
-
 
     class Meta:
         model = Comment

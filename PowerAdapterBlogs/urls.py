@@ -16,7 +16,7 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from django.contrib.sitemaps import views as sitemaps_views
 
 from comment.views import CommentView
@@ -51,5 +51,6 @@ urlpatterns = [
     path("post/<int:pk>/comment/", CommentView.as_view(), name="post_comment"),
     # sitemap
     path("sitemap.xml", sitemaps_views.sitemap, {'sitemaps': {'posts': PostSitemap}}, name="sitemap"),
-
+    # accounts
+    path('accounts/', include('accounts.urls')),
 ]

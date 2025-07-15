@@ -7,18 +7,38 @@
     <title>{% block title %}PowerAdapter{% endblock %}</title>
     {% load static %}
 
-    <!-- 下方区域根据需要添加： -->
-    <!-- 1. SEO相关标签：description/meta keywords -->
-    <!-- 2. Favicon图标：<link rel="icon" href="..."/> -->
-    <!-- 3. CSS样式表：<link rel="stylesheet" href="..."/> -->
-    <link rel="stylesheet"
+    {% block head_link %}
+        <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js@1.11.2/src/toastify.min.css">
-    {% block head_script %}
+    {% endblock %}
+
+    {% block mathjax %}
+        <script>
+            window.MathJax = {
+                loader: {
+                    load: ['input/tex-base', 'output/chtml', '[tex]/ams']
+                },
+                tex: {
+                    inlineMath: [['$', '$'], ['\\(', '\\)']],
+                    displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                    processEscapes: true,
+                    tags: 'ams',
+                    packages: {'[+]': ['ams']}
+                },
+                chtml: {
+                    fontURL: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2'
+                }
+            };
+        </script>
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/startup.js"></script>
+    {% endblock %}
+
+    {% block head_script %}
         <script src="https://kit.fontawesome.com/566bf64a73.js" crossorigin="anonymous"></script>
     {% endblock %}
+
     {% block extra_css %}
         <link rel="stylesheet" href="{% static 'css/base.css' %}">
     {% endblock %}
@@ -26,9 +46,7 @@
 </head>
 
 <body style="min-height: 100vh; display: flex; flex-direction: column;">
-<!-- 页面主体内容区域 -->
-<!-- 建议结构划分： -->
-<!-- 1. 导航栏：<nav> -->
+
 <header>
     <div class="container is-fluid">
         {% block nav %}
@@ -37,7 +55,7 @@
         {% block hero %}
             <section class="hero is-primary is-bold">
                 <div class="hero-body">
-                    <p class="title">PowerAdapter Blogs</p>
+                    <p class="title power-adapter">PowerAdapter Blogs</p>
                     <p class="subtitle">Love Programing, Music & Skateboard!!!!</p>
                 </div>
             </section>
@@ -122,29 +140,8 @@
         </div>
     {% endblock %}
 
-    <!-- 常用脚本引入位置： -->
-    <!-- 1. jQuery：<script src="jquery.js"></script> -->
-    <!-- 2. 主体逻辑：<script src="app.js"></script> -->
-    {% block extra_script %}
-        <script>
-            window.MathJax = {
-                loader: {
-                    load: ['input/tex-base', 'output/chtml', '[tex]/ams']
-                },
-                tex: {
-                    inlineMath: [['$', '$'], ['\\(', '\\)']],
-                    displayMath: [['$$', '$$'], ['\\[', '\\]']],
-                    processEscapes: true,
-                    tags: 'ams',
-                    packages: {'[+]': ['ams']}
-                },
-                chtml: {
-                    fontURL: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2'
-                }
-            };
-        </script>
-    {% endblock %}
-    <!-- 3. 页面初始化脚本：$(document).ready(function(){...}); -->
+    {% block extra_script %}{% endblock %}
+
 </footer>
 </body>
 </html>

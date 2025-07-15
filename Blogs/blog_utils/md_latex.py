@@ -29,7 +29,7 @@ class LatexProcessor:
         (r'\\begin\{([a-z]+\*?)\}(.*?)\\end\{\1\}', 'environment')  # \begin{}...\end{}
     ]
 
-    PLACEHOLDER_PREFIX = "%%LATEX_MATH_"
+    PLACEHOLDER_PREFIX = "%%LATEX_MATH_%%"
 
     def __init__(self, preserve_linebreaks=True, escape_html=False):
         """

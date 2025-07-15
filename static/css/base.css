@@ -16,15 +16,22 @@
 .custom-card {
     max-width: 320px;
     min-width: 300px;
-    max-height: 700px;
     min-height: 500px;
     margin: 0.75rem auto; /* 居中并留出间距 */
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
-    border-radius: 16px;
     overflow: hidden;
     transition: transform 0.3s ease;
 }
 
 .custom-card:hover {
+    transform: translateY(-4px);
+}
+
+.power-adapter {
+    color: black;
+    text-underline-mode: normal;
+}
+
+.power-adapter:hover {
     transform: translateY(-4px);
 }

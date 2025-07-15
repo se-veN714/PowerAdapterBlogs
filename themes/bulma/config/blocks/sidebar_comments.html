@@ -1,7 +1,8 @@
-<ul>
+<dl>
     {% for comment in comments %}
-        <li><a href="{% url 'post_detail' comment.post.id %}"><u>{{ comment.post.title }}</u></a> |
-        {{ comment.content|truncatechars:25 }}
+        <dt><a href="{% url 'post_detail' comment.post.id %}">
+            <span class="has-text-primary">{{ comment.post.title }}</span></a>
+        </dt>
+        <dd>{{ comment.content|truncatechars:24 }}</dd>
     {% endfor %}
-
-</ul>
+</dl>

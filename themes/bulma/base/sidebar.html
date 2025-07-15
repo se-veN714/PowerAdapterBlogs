@@ -1,18 +1,16 @@
 <aside class="sidebar">
-    <div class="box">
-        {% block sidebar %}
+    <div class="card custom-card has-background-primary-dark" style="padding: 1em;">
             {% if sidebar %}
                 {% for s in sidebar %}
-                    <p class="has-text-primary has-text-weight-bold is-centered">
-                        {{ s.title }}
-                    </p>
-                    <div class="tags">
-                        {{ s.content_html }}
+                    <div class="box" style="padding: 1em;">
+                        <div class="title is-4 has-text-primary has-text-weight-bold is-centered">
+                            {{ s.title }}
+                        </div>
+                        <div class="content">{{ s.content_html }}</div>
                     </div>
                 {% endfor %}
             {% else %}
                 Nothing in Sidebar
             {% endif %}
-        {% endblock %}
     </div>
 </aside>

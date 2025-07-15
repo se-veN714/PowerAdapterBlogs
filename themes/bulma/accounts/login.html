@@ -5,26 +5,35 @@
         .icon_color {
             color: hsl(171, 100%, 41%)
         }
+
+        .box {
+            border-radius: 12px;
+            padding: 2.5rem 2rem;
+            background-color: #fff;
+        }
     </style>
 {% endblock %}
 {% block nav %}{% endblock %}
 {% block hero %}
-    <div class="container">
         <section class="hero is-primary is-bold">
             <div class="hero-body has-text-centered">
                 <a class="title" href="{% url 'index' %}">PowerAdapter Blogs</a>
                 <p class="subtitle">Love Programing, Music & Skateboard!!!!</p>
             </div>
-            <hr>
         </section>
-    </div>
 {% endblock %}
+
 {% block sidebar %}{% endblock %}
+
 {% block main %}
-    <div class="container">
-        <div class="section">
-            <div class="columns is-centered">
-                <form class="box has-background-primary-10" method="post" id="login-form">
+    <div class="section" style="min-height: calc(100vh - 200px); background-color: #1a1a1a;">
+
+        <div class="columns is-centered">
+            <div class="column is-one-quarter">
+                <progress class="progress is-primary" max="100"></progress>
+
+                <form class="box has-background-primary-10" method="post" id="login-form"
+                      style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);">
                     {% csrf_token %}
 
                     <div class="field">
@@ -51,13 +60,13 @@
                         </div>
                     {% endif %}
 
-                    <div class="field">
+                    <div class="field has-text-centered">
                         <button class="button is-primary" type="submit">登录</button>
                     </div>
                 </form>
             </div>
         </div>
-    </div>
+        </div>
 {% endblock %}
 {% block category %}{% endblock %}
 {% block extra_script %}
@@ -73,3 +82,5 @@
         });
     </script>
 {% endblock %}
+
+{% block footer %}{% endblock %}

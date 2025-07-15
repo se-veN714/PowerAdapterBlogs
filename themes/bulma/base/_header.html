@@ -1,0 +1,74 @@
+{% load static %}
+<nav class="navbar" role="navigation" aria-label="main navigation">
+    <div class="navbar-brand pl-6">
+        <a class="navbar-item" href="{% url 'index' %}">
+            <img src="{% static 'img/PowerAdapter_logo.png' %}" alt="logo">
+            <span class="">PowerAdapter</span>
+        </a>
+    </div>
+    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false"
+       data-target="navbarBasicExample">
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+    </a>
+
+    <div id="navbarBasicExample" class="navbar-menu">
+        <div class="navbar-start">
+            <a class="navbar-item" href="{% url 'post_list' %}">
+                Posts
+            </a>
+
+            <a class="navbar-item" href="{% url 'links' %}">
+                Links
+            </a>
+
+            <div class="navbar-item has-dropdown is-hoverable">
+                <a class="navbar-link">
+                    More
+                </a>
+
+                <div class="navbar-dropdown">
+                    <a class="navbar-item">
+                        About
+                    </a>
+                    <a class="navbar-item is-selected">
+                        Jobs
+                    </a>
+                    <a class="navbar-item">
+                        Contact
+                    </a>
+                    <hr class="navbar-divider">
+                    <a class="navbar-item">
+                        Report an issue
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="navbar-end pr-6">
+            <div class="navbar-item">
+                <form action="{% url 'search' %}" method="GET"
+                      style="display: flex; gap: 10px; align-items: center;">
+                    <label for="search-box" class="is-primary" style="flex-grow: 1;">
+                        <input class="input" type="text" name="keyword" placeholder="搜索…"
+                               value="{{ keyword }}">
+                    </label>
+                    <button class="button is-primary" type="submit" id="search-box">搜索</button>
+                </form>
+
+            </div>
+            <div class="navbar-item">
+                <div class="buttons">
+                    <a class="button is-primary">
+                        <strong>注册</strong>
+                    </a>
+                    <a href="{% url 'login' %}" class="button is-light">
+                        登录
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>

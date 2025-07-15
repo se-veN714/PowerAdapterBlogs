@@ -1,0 +1,30 @@
+.navbar {
+    box-shadow: 0 3px 3px hsl(171, 100%, 41%);
+}
+
+.tb-padding {
+    padding-top: 0 !important;
+    padding-bottom: 10px !important;
+}
+
+.content {
+    max-width: 100%;
+    line-height: 1.6; /* 增加行距，避免拥挤 */
+    word-break: break-word; /* 强制长单词自动换行 */
+}
+
+.custom-card {
+    max-width: 320px;
+    min-width: 300px;
+    max-height: 700px;
+    min-height: 500px;
+    margin: 0.75rem auto; /* 居中并留出间距 */
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+}
+
+.custom-card:hover {
+    transform: translateY(-4px);
+}

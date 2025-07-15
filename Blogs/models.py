@@ -7,7 +7,6 @@ Category:博客文章的分类模型，用于分类博客文章。
 """
 from django.conf import settings
 from django.db import models
-from django.contrib.auth.models import User
 from django.utils.functional import cached_property
 
 

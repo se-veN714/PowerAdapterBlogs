@@ -1,0 +1,75 @@
+{% extends 'base/base.html' %}
+{% load widget_tweaks %}
+{% block extra_css %}
+    <style>
+        .icon_color {
+            color: hsl(171, 100%, 41%)
+        }
+    </style>
+{% endblock %}
+{% block nav %}{% endblock %}
+{% block hero %}
+    <div class="container">
+        <section class="hero is-primary is-bold">
+            <div class="hero-body has-text-centered">
+                <a class="title" href="{% url 'index' %}">PowerAdapter Blogs</a>
+                <p class="subtitle">Love Programing, Music & Skateboard!!!!</p>
+            </div>
+            <hr>
+        </section>
+    </div>
+{% endblock %}
+{% block sidebar %}{% endblock %}
+{% block main %}
+    <div class="container">
+        <div class="section">
+            <div class="columns is-centered">
+                <form class="box has-background-primary-10" method="post" id="login-form">
+                    {% csrf_token %}
+
+                    <div class="field">
+                        <label class="label">账号</label>
+                        <div class="control has-icons-left">
+                            {{ form.username|add_class:"input" }}
+                            <span class="icon is-small is-left"><i class="fas fa-user icon_color"></i></span>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="label">口令</label>
+                        <div class="control has-icons-left">
+                            {{ form.password|add_class:"input" }}
+                            <span class="icon is-small is-left"><i class="fas fa-key icon_color"></i></span>
+                        </div>
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="help is-danger is-light" id="error-msg">
+                            {% for error in form.non_field_errors %}
+                                <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="field">
+                        <button class="button is-primary" type="submit">登录</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block category %}{% endblock %}
+{% block extra_script %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const errors = document.querySelector("#error-msg");
+            if (errors) {
+                const inputs = document.querySelectorAll("#login-form input");
+                inputs.forEach(input => {
+                    input.classList.add("is-danger");
+                });
+            }
+        });
+    </script>
+{% endblock %}

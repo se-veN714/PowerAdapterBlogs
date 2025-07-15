@@ -20,6 +20,7 @@ class CommentView(TemplateView):
         if form.is_valid():
             instance = form.save(commit=False)
             instance.post = post
+            print()
 
             instance.save()
 

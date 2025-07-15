@@ -14,26 +14,11 @@
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js@1.11.2/src/toastify.min.css">
-    <script>
-        window.MathJax = {
-            loader: {
-                load: ['input/tex-base', 'output/chtml', '[tex]/ams']
-            },
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']],
-                processEscapes: true,
-                tags: 'ams',
-                packages: {'[+]': ['ams']}
-            },
-            chtml: {
-                fontURL: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2'
-            }
-        };
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/startup.js"></script>
-
+    {% block head_script %}
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/startup.js"></script>
+        <script src="https://kit.fontawesome.com/566bf64a73.js" crossorigin="anonymous"></script>
+    {% endblock %}
     {% block extra_css %}
         <style>
 
@@ -57,7 +42,7 @@
     <!-- 4. 现代浏览器前缀：<script src="modernizr.js"></script> -->
 </head>
 
-<body>
+<body style="min-height: 100vh; display: flex; flex-direction: column;">
 <!-- 页面主体内容区域 -->
 <!-- 建议结构划分： -->
 <!-- 1. 导航栏：<nav> -->
@@ -120,7 +105,7 @@
                                     <input class="input" type="text" name="keyword" placeholder="搜索…"
                                            value="{{ keyword }}">
                                 </label>
-                                <button class="button is-primary" type="submit">搜索</button>
+                                <button class="button is-primary" type="submit" id="search-box">搜索</button>
                             </form>
 
                         </div>
@@ -129,7 +114,7 @@
                                 <a class="button is-primary">
                                     <strong>注册</strong>
                                 </a>
-                                <a class="button is-light">
+                                <a href="{% url 'login' %}" class="button is-light">
                                     登录
                                 </a>
                             </div>
@@ -151,7 +136,7 @@
 </header>
 <!-- 2. 头部内容：<header> -->
 <!-- 3. 主要内容区：<main> -->
-<main>
+<main style="flex: 1">
     {% block main %}
         <!-- Sidebar -->
         <div class="fixed-grid has-5-cols">
@@ -287,8 +272,9 @@
             </div>
         </div>
     {% endblock %}
-    <hr>
+
     {% block category %}
+        <hr>
         <section class="section is-fluid has-background-primary-10">
             <div class="container">
                 <div class="columns">
@@ -302,10 +288,10 @@
         </section>
     {% endblock %}
 </main>
-<hr>
 <!-- 5. 底部版权-->
 
 <footer>
+    <hr>
     {% block footer %}
         <div class="container is-fluid">
             <section class="section">
@@ -330,6 +316,25 @@
     <!-- 常用脚本引入位置： -->
     <!-- 1. jQuery：<script src="jquery.js"></script> -->
     <!-- 2. 主体逻辑：<script src="app.js"></script> -->
+    {% block extra_script %}
+        <script>
+            window.MathJax = {
+                loader: {
+                    load: ['input/tex-base', 'output/chtml', '[tex]/ams']
+                },
+                tex: {
+                    inlineMath: [['$', '$'], ['\\(', '\\)']],
+                    displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                    processEscapes: true,
+                    tags: 'ams',
+                    packages: {'[+]': ['ams']}
+                },
+                chtml: {
+                    fontURL: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2'
+                }
+            };
+        </script>
+    {% endblock %}
     <!-- 3. 页面初始化脚本：$(document).ready(function(){...}); -->
 </footer>
 </body>

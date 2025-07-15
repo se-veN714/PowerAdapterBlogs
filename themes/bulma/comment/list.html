@@ -3,7 +3,7 @@
 {% block list %}
     <div class="block">
         <div class="container">
-            <div id="comments-container" class="container">
+            <div id="comments-container">
                 {% for comment in comment_list %}
                     {% include 'comment/item.html' with comment=comment %}
                 {% empty %}

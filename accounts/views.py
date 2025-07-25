@@ -1,10 +1,7 @@
-from django.shortcuts import render
-
 # Create your views here.
 # accounts/views.py
 from django.views.generic.edit import FormView
 from django.contrib.auth import authenticate, login
-from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from .forms import LoginForm
 

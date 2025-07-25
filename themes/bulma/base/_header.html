@@ -61,12 +61,20 @@
             </div>
             <div class="navbar-item">
                 <div class="buttons">
+                    {% if user.is_authenticated %}
+                        <form id="logout-form" action="{% url 'accounts:logout' %}" method="post">
+                            {% csrf_token %}
+                            <button class="button" type="submit">登出</button>
+                        </form>
+                        <div class="button is-primary">{{ user.username }}</div>
+                    {% else %}
                     <a class="button is-primary">
                         <strong>注册</strong>
                     </a>
-                    <a href="{% url 'login' %}" class="button is-light">
+                        <a href="{% url 'accounts:login' %}" class="button is-light">
                         登录
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

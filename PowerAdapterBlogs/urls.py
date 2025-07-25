@@ -16,17 +16,17 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path, include
 from django.contrib.sitemaps import views as sitemaps_views
+from django.urls import path, include
 
-from comment.views import CommentView
-from .cus_site import custom_site
-from config.views import LinkListView
 from Blogs.sitemap import PostSitemap
 from Blogs.views import (
     IndexView, CategoryView, TagView,
     PostDetailView, PostListView, SearchView
 )
+from comment.views import CommentView
+from config.views import LinkListView
+from .cus_site import custom_site
 
 urlpatterns = [
     path("super_admin/", admin.site.urls, name="super_admin"),
@@ -52,5 +52,5 @@ urlpatterns = [
     # sitemap
     path("sitemap.xml", sitemaps_views.sitemap, {'sitemaps': {'posts': PostSitemap}}, name="sitemap"),
     # accounts
-    path('accounts/', include('accounts.urls')),
+    path('accounts/', include(('accounts.urls', 'accounts'), namespace='accounts')),
 ]

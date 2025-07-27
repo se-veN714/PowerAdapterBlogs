@@ -27,11 +27,15 @@ from Blogs.views import (
 from comment.views import CommentView
 from config.views import LinkListView
 from .cus_site import custom_site
+from Blogs.autocomplete import CategoryAutocomplete,TagAutocomplete
 
 urlpatterns = [
     path("super_admin/", admin.site.urls, name="super_admin"),
     # dashboard
     path("dashboard/", custom_site.urls, name="dashboard"),
+    # dal
+    path("category-autocomplete/",CategoryAutocomplete.as_view(),name="category-autocomplete"),
+    path("tag-autocomplete/",TagAutocomplete.as_view(),name="tag-autocomplete"),
 
     # Homepage
     path("", IndexView.as_view(), name="index"),

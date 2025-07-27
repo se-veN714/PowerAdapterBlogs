@@ -111,3 +111,4 @@ class PostAdmin(BaseOwnerAdmin):
 @admin.register(LogEntry,site=custom_site)
 class LogEntryAdmin(admin.ModelAdmin):
     list_display = ('object_repr','object_id','action_flag', 'user','change_message')
+

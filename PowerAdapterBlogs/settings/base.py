@@ -37,6 +37,8 @@ SECRET_KEY = "django-insecure-&bb1l!n&3qup4=l*w!u^tdo#_+hqpyx$!aso!)z!7t+hu1_nx(
 
 INSTALLED_APPS = [
     "jazzmin",
+    "dal",
+    "dal_select2",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -145,7 +147,6 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 JAZZMIN_SETTINGS = {
-    "site_title": "PowerAdapter 后台",
     "site_title": "PowerAdapter 后台",
     "site_header": "PowerAdapter 控制台",
     "site_brand": "PowerAdapter",

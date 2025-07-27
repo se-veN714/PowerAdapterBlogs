@@ -36,6 +36,7 @@ SECRET_KEY = "django-insecure-&bb1l!n&3qup4=l*w!u^tdo#_+hqpyx$!aso!)z!7t+hu1_nx(
 # Application definition
 
 INSTALLED_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -142,3 +143,16 @@ MEDIA_ROOT = BASE_DIR / "media"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+JAZZMIN_SETTINGS = {
+    "site_title": "PowerAdapter 后台",
+    "site_title": "PowerAdapter 后台",
+    "site_header": "PowerAdapter 控制台",
+    "site_brand": "PowerAdapter",
+    "welcome_sign": "欢迎使用你的后台",
+    "topmenu_links": [
+        {"name": "首页", "url": "/", "permissions": ["auth.view_user"]},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+}

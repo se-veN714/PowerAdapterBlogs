@@ -13,6 +13,7 @@ class MyUserAdmin(UserAdmin):
     model = MyUser
     list_display = ('username', 'email', 'is_active', 'is_dashboard_user', 'is_superuser')
     list_filter = ('is_active', 'is_dashboard_user', 'is_superuser')
+    readonly_fields = ('username', 'email', 'is_active', 'is_dashboard_user', 'is_superuser')
     ordering = ('date_joined',)
 
     fieldsets = (

@@ -7,7 +7,7 @@
 # @Contact : sevencdxxiv@qq.com
 
 """
-本模块提供了XXX功能的类和函数。
+本模块提供了自定义dashboard功能的类和函数。
 """
 from django.contrib.admin import AdminSite
 

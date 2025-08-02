@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "django_extensions",
     "widget_tweaks",
     # my_app
+    "security",
     "Blogs",
     "config",
     "comment",

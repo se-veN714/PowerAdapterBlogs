@@ -24,3 +24,5 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+LOG_HMAC_KEY = b'\x9dM\xb0\x01ss_>\xb3\xec\xb5w\xa1\xb3kY\xc3\xa4\x19\xb7\x8cE\xf3\xff};\x01by\xa7\xa22'

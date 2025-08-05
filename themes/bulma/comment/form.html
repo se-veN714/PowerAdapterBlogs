@@ -36,7 +36,7 @@
 {% block form %}
     <div class="block">
         <div class="container">
-            <form id="comment-form" class="box" action="{% url 'post_comment' pk=target.id %}" method="post">
+            <form id="comment-form" class="box" action="{% url 'Blogs:post_comment' pk=target.id %}" method="post">
                 {% csrf_token %}
 
                 <article class="media">

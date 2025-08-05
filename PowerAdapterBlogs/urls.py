@@ -19,15 +19,11 @@ from django.contrib import admin
 from django.contrib.sitemaps import views as sitemaps_views
 from django.urls import path, include
 
+from Blogs.autocomplete import CategoryAutocomplete, TagAutocomplete
 from Blogs.sitemap import PostSitemap
-from Blogs.views import (
-    IndexView, CategoryView, TagView,
-    PostDetailView, PostListView, SearchView
-)
-from comment.views import CommentView
+from Blogs.views import IndexView
 from config.views import LinkListView
 from .cus_site import custom_site
-from Blogs.autocomplete import CategoryAutocomplete,TagAutocomplete
 
 urlpatterns = [
     path("super_admin/", admin.site.urls, name="super_admin"),
@@ -36,25 +32,13 @@ urlpatterns = [
     # dal
     path("category-autocomplete/",CategoryAutocomplete.as_view(),name="category-autocomplete"),
     path("tag-autocomplete/",TagAutocomplete.as_view(),name="tag-autocomplete"),
-
     # Homepage
     path("", IndexView.as_view(), name="index"),
-    # CategoryPage
-    path("category/<int:category_id>/", CategoryView.as_view(), name="category_list"),
-    # TagPage
-    path("tag/<int:tag_id>/", TagView.as_view(), name="tag_list"),
-    # PostList
-    path("post/", PostListView.as_view(), name="post_list"),
-    # Post Detail
-    path("post/<int:post_id>.html/", PostDetailView.as_view(), name="post_detail"),
+    path("Blogs/", include(("Blogs.urls", "Blogs"), namespace="blogs")),
     # LinksPage
     path("links/", LinkListView.as_view(), name="links"),
-    # Search
-    path("search/", SearchView.as_view(), name="search"),
-    # comment post
-    path("post/<int:pk>/comment/", CommentView.as_view(), name="post_comment"),
     # sitemap
-    path("sitemap.xml", sitemaps_views.sitemap, {'sitemaps': {'posts': PostSitemap}}, name="sitemap"),
+    path("sitemap.xml/", sitemaps_views.sitemap, {'sitemaps': {'posts': PostSitemap}}, name="sitemap"),
     # accounts
     path('accounts/', include(('accounts.urls', 'accounts'), namespace='accounts')),
 ]

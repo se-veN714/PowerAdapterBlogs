@@ -16,7 +16,7 @@
 
     <div id="navbarBasicExample" class="navbar-menu">
         <div class="navbar-start">
-            <a class="navbar-item" href="{% url 'post_list' %}">
+            <a class="navbar-item" href="{% url 'Blogs:post_list' %}">
                 Posts
             </a>
 
@@ -49,7 +49,17 @@
 
         <div class="navbar-end pr-6">
             <div class="navbar-item">
-                <form action="{% url 'search' %}" method="GET"
+                <div class="buttons">
+                    <a class="button is-primary"
+                       href="{% if user.is_authenticated %}
+                       	    {% url 'Blogs:post_create' %}
+                       	    {% else %}
+                       	    {% url 'accounts:login' %}
+                       {% endif %} ">新文章</a>
+                </div>
+            </div>
+            <div class="navbar-item">
+                <form action="{% url 'Blogs:search' %}" method="GET"
                       style="display: flex; gap: 10px; align-items: center;">
                     <label for="search-box" class="is-primary" style="flex-grow: 1;">
                         <input class="input" type="text" name="keyword" placeholder="搜索…"

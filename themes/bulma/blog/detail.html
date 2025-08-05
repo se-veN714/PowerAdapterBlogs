@@ -25,16 +25,15 @@
     <script src="{% static "js/form.js" %}" defer></script>
 {% endblock %}
 {% block hero %}{% endblock %}
-{% block sidebar %}{% endblock %}
 
 {% block main %}
-    <div class="post-detail block">
-        <div class="container">
-            <div class="section">
+    <div class="post-detail fixed-grid has-5-cols">
+        <div class="grid">
+            <div class="cell is-col-start-2 is-col-span-3">
                 <div class="message">
                     {% if post %}
                         <div class="message-header">
-                            <p class="has-text-primary is-size-1">{{ post.title }}</p>
+                            <p class="has-text-primary is-size-3">{{ post.title }}</p>
                             <div>
                                 <span>分类：{{ post.category.name }}</span>
                                 <span>作者：{{ post.owner.username }}</span>
@@ -48,9 +47,33 @@
                     {% endif %}
                 </div>
             </div>
+            <div class="toc-menu cell" style="float: right; width: 300px;">
+                {% block sidebar %}
+                    {% include 'blog/_toc.html' %}
+                {% endblock %}
+            </div>
         </div>
     </div>
     {% form_block object %}
     {% list_block object %}
+{% endblock %}
+
+{% block extra_script %}
+    <script language="javascript">
+        const toc = document.querySelector('.toc');
+        if (toc) {
+            toc.classList.add("menu-list");  // Bulma 的 menu 列表
+        }
+
+        toc.querySelectorAll("ul").forEach(li => {
+            li.classList.add("menu-list");
+            // 如果你想加 icon 或者层级缩进，也可以在这里处理
+        });
+
+        // 如果是链接样式调整
+        toc.querySelectorAll("a").forEach(a => {
+            a.classList.add("has-text-link");  // Bulma 风格的链接颜色
+        });
+    </script>
 {% endblock %}
 

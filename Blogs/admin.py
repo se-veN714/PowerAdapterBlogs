@@ -3,10 +3,10 @@ from django.contrib.admin.models import LogEntry
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Post, Category, Tag
-from .adminforms import PostAdminForm
-from PowerAdapterBlogs.cus_site import custom_site
 from PowerAdapterBlogs.base_admin import BaseOwnerAdmin
+from PowerAdapterBlogs.cus_site import custom_site
+from Blogs.adminforms import PostAdminForm
+from Blogs.models import Post, Category, Tag
 
 # Register your models here.
 admin.site.register(Post)
@@ -80,11 +80,11 @@ class PostAdmin(BaseOwnerAdmin):
             'fields': (
                 ('title', 'category'),
                 'status',
+                'desc',
             )
         }),
         ('内容', {
             'fields': (
-                'desc',
                 'content',
             ),
         }),
@@ -103,10 +103,14 @@ class PostAdmin(BaseOwnerAdmin):
 
     class Meta:
         css = {
-            'all': ('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',)
+            'all': (
+                'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
+            )
         }
 
-        js = ('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js',)
+        js = (
+            'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js',
+        )
 
 @admin.register(LogEntry,site=custom_site)
 class LogEntryAdmin(admin.ModelAdmin):

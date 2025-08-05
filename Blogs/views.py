@@ -1,12 +1,16 @@
-from typing import Dict, Any
 from datetime import date
+from typing import Dict, Any
 
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.cache import cache
 from django.db import transaction, IntegrityError
 from django.db.models import Q, F
 from django.shortcuts import get_object_or_404
+from django.urls.base import reverse
 from django.views.generic import DetailView, ListView
-from django.core.cache import cache
+from django.views.generic.edit import CreateView
 
+from Blogs.forms import PostForm
 from Blogs.models import Post, PostVisit, Tag, Category
 from config.models import SideBar
 
@@ -151,3 +155,17 @@ class SearchView(PostListView):
         if not keyword:
             return queryset
         return queryset.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
+
+
+class PostCreateView(LoginRequiredMixin, CreateView):
+    model = Post
+    form_class = PostForm
+    template_name = 'blog/post_create.html'
+
+    def form_valid(self, form):
+        form.instance.owner = self.request.user
+        response = super().form_valid(form)
+        return response
+
+    def get_success_url(self):
+        return reverse('Blogs:post_detail', kwargs={'post_id': self.object.pk})

@@ -1,0 +1,104 @@
+{% extends "base/base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Blog-新建{% endblock %}
+{% block hero %}{% endblock %}
+{% block sidebar %}{% endblock %}
+
+{% block head_script %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css"/>
+    <link rel="stylesheet"
+          href="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight.min.css"/>
+    <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/theme/toastui-editor-dark.min.css"/>
+    <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+{% endblock %}
+
+{% block main %}
+    <div class="container is-fluid">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="blog-content section">
+                <div class="file has-name is-boxed has-text-centered" id="cover-upload-box">
+                    <label class="file-label">
+                        <!-- 绑定 Django 的字段name -->
+                        <input class="file-input" type="file" name="{{ form.cover.name }}" id="id_cover"/>
+
+                        <span class="file-cta"><span class="file-icon">
+                                <i class="fas fa-upload"></i>
+                                </span>
+                                <span class="file-label">选择封面…</span>
+                                </span>
+                        <span class="file-name" id="cover-filename">未选择文件</span>
+                    </label>
+                </div>
+
+                <div class="field">
+                    {{ form.title|add_class:"textarea is-large" }}
+                </div>
+
+                <textarea id="id_content" name="content"
+                          hidden="">{{ form.content.value|default_if_none:"" }}</textarea>
+                <label for="id_content"></label>
+
+                <div id="tui-editor"></div>
+            </div>
+            <div class="container">
+                <div class="block">
+                    <div class="box">
+                        <div class="title is-4">摘要</div>
+                        <div class="content">{{ form.desc|add_class:"textarea" }}</div>
+                    </div>
+                    <div class="fixed-grid has-4-cols">
+                        <div class="grid block">
+                            <div class="cell">
+                                <div class="title is-4">分类</div>
+                                <div class="content">
+                                    <div class="select is-multiple">{{ form.category }}</div>
+                                </div>
+                            </div>
+                            <div class="cell">
+                                <div class="title is-4">标签</div>
+                                <div class="content">{{ form.tag }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% if form.errors %}
+                    <div class="notification is-danger">
+                        {{ form.errors }}
+                    </div>
+                {% endif %}
+                <button class="button is-primary is-outlined is-large"
+                        style="width: 400px" type="submit"
+                        onclick="submitPostForm()">
+                    发布
+                </button>
+
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block extra_script %}
+    <script language="javascript">
+        let editor = null;
+        document.addEventListener('DOMContentLoaded', function () {
+            editor = new toastui.Editor({
+                el: document.querySelector('#tui-editor'),
+                height: '600px',
+                initialEditType: 'markdown',
+                previewStyle: 'vertical',
+                theme: 'dark',
+                initialValue: document.getElementById('id_content').value,
+            });
+        });
+
+        function submitPostForm() {
+            const contentField = document.getElementById('id_content');
+            if (editor && contentField) {
+                contentField.value = editor.getMarkdown();  // 手动赋值
+            }
+        }
+    </script>
+{% endblock %}

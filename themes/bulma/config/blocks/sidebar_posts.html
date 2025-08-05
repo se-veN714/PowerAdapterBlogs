@@ -1,6 +1,6 @@
 <dl>
     {% for post in posts %}
-        <dt><a href="{% url 'post_detail' post.id %}">
+        <dt><a href="{% url 'Blogs:post_detail' post.id %}">
             <span class="has-text-primary">{{ post.title }}</span></a>
         </dt>
     {% endfor %}

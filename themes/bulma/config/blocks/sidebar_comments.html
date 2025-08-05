@@ -1,6 +1,6 @@
 <dl>
     {% for comment in comments %}
-        <dt><a href="{% url 'post_detail' comment.post.id %}">
+        <dt><a href="{% url 'Blogs:post_detail' comment.post.id %}">
             <span class="has-text-primary">{{ comment.post.title }}</span></a>
         </dt>
         <dd>{{ comment.content|truncatechars:24 }}</dd>

@@ -16,7 +16,7 @@ from django.urls.conf import include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
-from Blogs.apis import PostViewSet
+from Blogs.apis import PostViewSet, CategoryViewSet
 from Blogs.views import (
     CategoryView, TagView, PostDetailView,
     PostListView, SearchView, PostCreateView)
@@ -24,6 +24,7 @@ from comment.views import CommentView
 
 router = DefaultRouter()
 router.register('posts', PostViewSet, basename='api_post')
+router.register('categories', CategoryViewSet, basename='api_category')
 
 api_urlpatterns = [
     # RESTful API

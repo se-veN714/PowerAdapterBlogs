@@ -21,7 +21,8 @@ from rest_framework.routers import DefaultRouter
 from Blogs.apis import PostViewSet, CategoryViewSet
 from Blogs.views import (
     CategoryView, TagView, PostDetailView,
-    PostListView, SearchView, PostCreateView)
+    PostListView, SearchView, PostCreateView, PostEditView,
+)
 from Blogs.views import post_img_upload
 from comment.views import CommentView
 
@@ -48,9 +49,11 @@ urlpatterns = [
     # Search
     path("search/", SearchView.as_view(), name="search"),
     # comment post
-    path("post/<int:pk>/comment/", CommentView.as_view(), name="post_comment"),
-    # Post_create
+    path("post/<slug:slug>/comment/", CommentView.as_view(), name="post_comment"),
+    # post_create
     path("post/new/", PostCreateView.as_view(), name="post_create"),
+    # post_edit
+    path("post/<slug:slug>/edit/",PostEditView.as_view(), name="post_edit"),
     # img_upload
     path("img_upload/", post_img_upload, name="post_img_upload"),
 

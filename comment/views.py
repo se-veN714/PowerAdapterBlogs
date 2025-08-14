@@ -12,8 +12,8 @@ class CommentView(TemplateView):
     http_method_names = ['post']
 
     def post(self, request, *args, **kwargs):
-        post_id = kwargs.get('pk')
-        post = get_object_or_404(Post, id=post_id)
+        post_slug = kwargs.get('slug')
+        post = get_object_or_404(Post, slug=post_slug)
 
         form = CommentForm(request.POST)
 

@@ -92,6 +92,25 @@
                 theme: 'dark',
                 initialValue: document.getElementById('id_content').value,
             });
+
+            editor.eventEmitter.removeEventHandler('addImageBlobHook')
+            editor.eventEmitter.listen('addImageBlobHook', (blob, callback) => {
+                const formData = new FormData();
+                const uploadUrl = "{% url 'Blogs:post_img_upload' %}"
+                formData.append('image', blob);
+                // 上传逻辑
+                fetch(uploadUrl, {
+                    method: 'POST',
+                    body: formData,
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        callback(data.url);
+                    })
+                    .catch(err => console.error(err));
+
+                return false; // 阻止默认 base64 插入
+            });
         });
 
         function submitPostForm() {
@@ -100,5 +119,6 @@
                 contentField.value = editor.getMarkdown();  // 手动赋值
             }
         }
+
     </script>
 {% endblock %}

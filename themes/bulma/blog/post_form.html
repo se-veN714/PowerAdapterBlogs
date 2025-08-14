@@ -1,12 +1,26 @@
 {% extends "base/base.html" %}
+{% load static %}
 {% load widget_tweaks %}
 
-{% block title %}Blog-新建{% endblock %}
+{% block title %}
+    {% if object.pk %}
+        {{ object.title }} - 编辑
+    {% else %}
+        Blog - 新建
+    {% endif %}
+{% endblock %}
 {% block hero %}{% endblock %}
 {% block sidebar %}{% endblock %}
+{% block extra_css %}
+    {{ block.super }}
+    <style>
+        .file
+    </style>
+{% endblock %}
 
 {% block head_script %}
     {{ block.super }}
+    <link href="{% static 'css/blog_form_cover.css' %}">
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css"/>
     <link rel="stylesheet"
           href="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight.min.css"/>
@@ -21,15 +35,28 @@
             <div class="blog-content section">
                 <div class="file has-name is-boxed has-text-centered" id="cover-upload-box">
                     <label class="file-label">
-                        <!-- 绑定 Django 的字段name -->
                         <input class="file-input" type="file" name="{{ form.cover.name }}" id="id_cover"/>
 
                         <span class="file-cta"><span class="file-icon">
-                                <i class="fas fa-upload"></i>
-                                </span>
-                                <span class="file-label">选择封面…</span>
-                                </span>
-                        <span class="file-name" id="cover-filename">未选择文件</span>
+                            <i class="fas fa-upload">
+                                {% if form.instance.cover %}
+                                    <div style="margin-top:10px;">
+                                <img src="{{ form.instance.cover.url }}" alt="当前封面"
+                                     style="max-width:200px; height:auto; border:1px solid #ccc;">
+                            </div>
+                                {% endif %}
+                            </i>
+                            </span>
+                            <span class="file-label">选择封面…</span>
+                        </span>
+                        <span class="file-name" id="cover-filename">
+                            {% if form.instance.cover %}
+                                {{ form.instance.cover.name }}
+                            {% else %}
+                                未选择文件
+                            {% endif %}
+                        </span>
+
                     </label>
                 </div>
 
@@ -81,7 +108,23 @@
 {% endblock %}
 
 {% block extra_script %}
-    <script language="javascript">
+    <script>
+        document.getElementById('id_cover').addEventListener('change', function (e) {
+            document.getElementById('cover-filename').textContent = e.target.files.length > 0 ? e.target.files[0].name : '未选择文件';
+
+            // 实时预览选中的新封面
+            if (e.target.files.length > 0) {
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    const img = document.querySelector('#cover-upload-box img');
+                    if (img) {
+                        img.src = ev.target.result;
+                    }
+                }
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
         let editor = null;
         document.addEventListener('DOMContentLoaded', function () {
             editor = new toastui.Editor({
@@ -119,6 +162,5 @@
                 contentField.value = editor.getMarkdown();  // 手动赋值
             }
         }
-
     </script>
 {% endblock %}

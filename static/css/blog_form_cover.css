@@ -1,0 +1,45 @@
+#cover-upload-box {
+    width: 128px;
+    height: 128px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+#cover-upload-box .file-label {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+#cover-upload-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+}
+
+#cover-upload-box .file-cta,
+#cover-upload-box .file-icon,
+#cover-upload-box .file-label span {
+    z-index: 1; /* 确保文字和上传图标在封面上方 */
+}
+
+#cover-upload-box .file-name {
+    margin-top: 4px;
+    font-size: 0.8em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 1;
+}

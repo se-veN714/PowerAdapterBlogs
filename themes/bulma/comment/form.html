@@ -36,7 +36,7 @@
 {% block form %}
     <div class="block">
         <div class="container">
-            <form id="comment-form" class="box" action="{% url 'Blogs:post_comment' pk=target.id %}" method="post">
+            <form id="comment-form" class="box" action="{% url 'Blogs:post_comment' slug=target.slug %}" method="post">
                 {% csrf_token %}
 
                 <article class="media">
@@ -74,5 +74,5 @@
 {% endblock %}
 
 {% block extra_script %}
-    <script src="js/form.js"></script>
+    <script src="../../../static/js/form-comment.js"></script>
 {% endblock %}

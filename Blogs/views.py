@@ -1,18 +1,20 @@
 import os
+import uuid
 from datetime import date
 from typing import Dict, Any
 
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
+from django.core.files.storage import default_storage
 from django.db import transaction, IntegrityError
 from django.db.models import Q, F
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls.base import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import DetailView, ListView
-from django.views.generic.edit import CreateView
-from django.http import JsonResponse
-from django.conf import settings
+from django.views.generic.edit import CreateView, UpdateView
 
 from Blogs.forms import PostForm
 from Blogs.models import Post, PostVisit, Tag, Category
@@ -167,7 +169,7 @@ class SearchView(PostListView):
 class PostCreateView(LoginRequiredMixin, CreateView):
     model = Post
     form_class = PostForm
-    template_name = 'blog/post_create.html'
+    template_name = 'blog/post_form.html'
 
     def form_valid(self, form):
         form.instance.owner = self.request.user
@@ -177,18 +179,29 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     def get_success_url(self):
         return reverse('Blogs:post_detail', kwargs={'slug': self.object.slug})
 
+
+class PostEditView(LoginRequiredMixin, UpdateView):
+    model = Post
+    form_class = PostForm
+    template_name = 'blog/post_form.html'
+
+    def get_success_url(self):
+        return reverse('Blogs:post_detail', kwargs={'slug': self.object.slug})
+
+
 @csrf_exempt
 def post_img_upload(request):
     if request.method == "POST" and request.FILES.get("image"):
         image = request.FILES["image"]
-        save_path = os.path.join(settings.MEDIA_ROOT, "post_images", image.name)
 
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        # 生成安全文件名
+        ext = image.name.split('.')[-1].lower()
+        filename = f"{uuid.uuid4().hex}.{ext}"
+        save_path = os.path.join("post_images", filename)
 
-        with open(save_path, "wb+") as f:
-            for chunk in image.chunks():
-                f.write(chunk)
+        # 保存文件
+        path = default_storage.save(save_path, image)
 
-        return JsonResponse({"url": f"{settings.MEDIA_URL}post_images/{image.name}"})
+        return JsonResponse({"url": f"{settings.MEDIA_URL}{path}"})
 
     return JsonResponse({"error": "No image uploaded"}, status=400)

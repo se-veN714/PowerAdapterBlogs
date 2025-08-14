@@ -1,3 +1,4 @@
+import os
 from datetime import date
 from typing import Dict, Any
 
@@ -7,8 +8,11 @@ from django.db import transaction, IntegrityError
 from django.db.models import Q, F
 from django.shortcuts import get_object_or_404
 from django.urls.base import reverse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView
+from django.http import JsonResponse
+from django.conf import settings
 
 from Blogs.forms import PostForm
 from Blogs.models import Post, PostVisit, Tag, Category
@@ -42,6 +46,9 @@ class PostDetailView(CommonViewMixin, DetailView):
         response = super().get(request, *args, **kwargs)
         self.handle_visit()
         return response
+
+    def get_object(self, queryset=None):
+        return get_object_or_404(Post, slug=self.kwargs['slug'], status=Post.STATUS_NORMAL)
 
     def handle_visit(self):
 
@@ -168,4 +175,20 @@ class PostCreateView(LoginRequiredMixin, CreateView):
         return response
 
     def get_success_url(self):
-        return reverse('Blogs:post_detail', kwargs={'post_id': self.object.pk})
+        return reverse('Blogs:post_detail', kwargs={'slug': self.object.slug})
+
+@csrf_exempt
+def post_img_upload(request):
+    if request.method == "POST" and request.FILES.get("image"):
+        image = request.FILES["image"]
+        save_path = os.path.join(settings.MEDIA_ROOT, "post_images", image.name)
+
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+        with open(save_path, "wb+") as f:
+            for chunk in image.chunks():
+                f.write(chunk)
+
+        return JsonResponse({"url": f"{settings.MEDIA_URL}post_images/{image.name}"})
+
+    return JsonResponse({"error": "No image uploaded"}, status=400)

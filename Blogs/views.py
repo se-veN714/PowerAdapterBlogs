@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from datetime import date
@@ -31,6 +32,12 @@ class CommonViewMixin:  # 不让它继承任何类，而是将这个 Mixin 与�
         context.update(Category.get_navs())
         return context
 
+
+class LoggingMixin:
+    def log_action(self, request, action, **kwargs):
+        username = getattr(request.user, 'username', str(request.user))
+        logger = logging.getLogger(__name__)
+        logger.info(f"用户-[{username}]:{action}", extra=kwargs)
 
 class IndexView(CommonViewMixin, ListView):
     queryset = Post.latest_posts(5)
@@ -166,7 +173,7 @@ class SearchView(PostListView):
         return queryset.filter(Q(title__icontains=keyword) | Q(content__icontains=keyword))
 
 
-class PostCreateView(LoginRequiredMixin, CreateView):
+class PostCreateView(LoginRequiredMixin, LoggingMixin, CreateView):
     model = Post
     form_class = PostForm
     template_name = 'blog/post_form.html'
@@ -174,6 +181,7 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.owner = self.request.user
         response = super().form_valid(form)
+        self.log_action(self.request, f"post-{form.instance.title}")
         return response
 
     def get_success_url(self):

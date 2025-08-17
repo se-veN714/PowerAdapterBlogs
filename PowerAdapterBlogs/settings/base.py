@@ -9,6 +9,7 @@
 """
 本模块提供了基本的Django设置功能的类和函数。
 """
+import os
 # here put the import lib
 """
 Django settings for PowerAdapterBlogs project.
@@ -48,6 +49,7 @@ INSTALLED_APPS = [
     "django_extensions",
     "widget_tweaks",
     "drf_spectacular",
+    "django_redis",
     # my_app
     "security.apps.SecurityConfig",
     "Blogs",
@@ -164,4 +166,68 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": 'drf_spectacular.openapi.AutoSchema',
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 10,# 后续可以尝试 Cursor分页
+}
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+info_format = "[{asctime}] INFO (✿◕‿◕) {message}"
+warn_format = "[{asctime}] WARN (ಠ_ಠ) {message}"
+error_format = "[{asctime}] ERROR (╯°□°）╯︵ ┻━┻ {message}"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "info": {"format": info_format, "style": "{"},
+        "warning": {"format": warn_format, "style": "{"},
+        "error": {"format": error_format, "style": "{"},
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "info",
+        },
+        "info_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOG_DIR, "info.log"),
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "info",
+            "level": "INFO",
+            "encoding": "utf-8",
+        },
+        "warning_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOG_DIR, "warning.log"),
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "warning",
+            "level": "WARNING",
+            "encoding": "utf-8",
+        },
+        "error_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOG_DIR, "error.log"),
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "error",
+            "level": "ERROR",
+            "encoding": "utf-8",
+        },
+    },
+
+    "loggers": {
+        "Blogs": {
+            "handlers": ["info_file", "warning_file", "error_file"],
+            "level": "DEBUG",
+            "propagate": False,  # 阻止再传给 root
+        }
+    },
+
+    "root": {
+        "handlers": ["console"],
+        "level": "DEBUG",
+    },
 }

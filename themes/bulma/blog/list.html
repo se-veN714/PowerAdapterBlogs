@@ -18,8 +18,9 @@
     </div>
 {% endblock %}
 {% block main %}
-    <div class="container">
-        {% for post in post_list %}
+    <div class="section">
+        <div class="container">
+            {% for post in post_list %}
             <div class="box">
                 <article class="media">
                     <!-- 封面图 -->
@@ -40,7 +41,8 @@
                                 <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
                             </strong>
                             {% if user.is_authenticated %}
-                                <a class="button is-small is-link" href="{% url 'Blogs:post_edit' slug=post.slug %}">编辑</a>
+                                <a class="button is-small is-link"
+                                   href="{% url 'Blogs:post_edit' slug=post.slug %}">编辑</a>
                             {% endif %}
                         </div>
                         <div class="is-flex is-align-items-center mt-2">
@@ -59,5 +61,29 @@
         {% empty %}
             <p>暂时还没有文章。</p>
         {% endfor %}
+        </div>
+    </div>
+    <div class="block">
+        {% if is_paginated %}
+            <nav class="pagination">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1" class="pagination-link">Front</a>
+                    <a href="?page={{ page_obj.previous_page_number }}" class="pagination-previous">&lt;Previous</a>
+                {% endif %}
+                <ul class="pagination-list">
+                    {% for num in paginator.page_range %}
+                        {% if num == page_obj.number %}
+                            <li><span class="pagination-link is-current">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:-3 and num < page_obj.number|add:3 %}
+                            <li><a href="?page={{ num }}" class="pagination-link">{{ num }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ paginator.num_pages }}" class="pagination-link">Last</a>
+                    <a href="?page={{ page_obj.next_page_number }}" class="pagination-next">Next page&gt;</a>
+                {% endif %}
+            </nav>
+        {% endif %}
     </div>
 {% endblock %}

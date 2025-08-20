@@ -1,4 +1,5 @@
-{% extends "../config/../base/base.html" %}
+{% extends "base/base.html" %}
+{% load cache %}
 {% load static %}
 {% block title %}Posts{% endblock %}
 
@@ -20,6 +21,7 @@
 {% block main %}
     <div class="section">
         <div class="container">
+            {% cache 900 post_list_page page_obj.number %}
             {% for post in post_list %}
             <div class="box">
                 <article class="media">
@@ -43,6 +45,7 @@
                             {% if user.is_authenticated %}
                                 <a class="button is-small is-link"
                                    href="{% url 'Blogs:post_edit' slug=post.slug %}">编辑</a>
+                            {% else %}
                             {% endif %}
                         </div>
                         <div class="is-flex is-align-items-center mt-2">
@@ -61,13 +64,14 @@
         {% empty %}
             <p>暂时还没有文章。</p>
         {% endfor %}
+            {% endcache %}
         </div>
     </div>
     <div class="block">
         {% if is_paginated %}
             <nav class="pagination">
                 {% if page_obj.has_previous %}
-                    <a href="?page=1" class="pagination-link">Front</a>
+                    <a href="?page=1" class="pagination-link button">Front</a>
                     <a href="?page={{ page_obj.previous_page_number }}" class="pagination-previous">&lt;Previous</a>
                 {% endif %}
                 <ul class="pagination-list">
@@ -80,7 +84,7 @@
                     {% endfor %}
                 </ul>
                 {% if page_obj.has_next %}
-                    <a href="?page={{ paginator.num_pages }}" class="pagination-link">Last</a>
+                    <a href="?page={{ paginator.num_pages }}" class="pagination-link button">Last</a>
                     <a href="?page={{ page_obj.next_page_number }}" class="pagination-next">Next page&gt;</a>
                 {% endif %}
             </nav>

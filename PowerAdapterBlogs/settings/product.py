@@ -11,8 +11,20 @@
 """
 
 # here put the import lib
-from .base import *
 
 DEBUG = False
 
 ALLOWED_HOSTS = []
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": '',
+        "USER": 'blog_user_pa',
+        "PASSWORD": 'IcPa424672714',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+
+

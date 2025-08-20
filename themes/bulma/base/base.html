@@ -1,3 +1,4 @@
+{% load cache %}
 <!DOCTYPE html> <!-- HTML5文档类型声明 -->
 <html lang="zh-CN"> <!-- 设置页面语言为中文 -->
 <head>
@@ -70,12 +71,13 @@
         <div class="fixed-grid has-5-cols">
             <div class="grid">
                 <div class="cell is-col-span-1">
+                    {% cache 900 cache_sidebar %}
                     {% block sidebar %}
                         {% include 'base/sidebar.html' %}
                     {% endblock %}
+                    {% endcache %}
                 </div>
                 <div class="cell is-col-span-3">
-
                     <div class="container has-background-primary-10">
                         <!-- 主体介绍栏 -->
                         <div class="section">
@@ -99,6 +101,7 @@
         </div>
     {% endblock %}
 
+    {% cache 900 cache_cate %}
     {% block category %}
         <hr>
         <section class="section is-fluid has-background-primary-10">
@@ -106,13 +109,15 @@
                 <div class="columns">
                     {% for cate in cate_navs %}
                         <div class="column is-3">
-                            <a href="/category/{{ cate.id }}" class="is-link has-text-info-bold">{{ cate.name }}</a>
+                            <a href="{% url 'Blogs:category_list' category_id=cate.id %}"
+                               class="is-link has-text-info-bold">{{ cate.name }}</a>
                         </div>
                     {% endfor %}
                 </div>
             </div>
         </section>
     {% endblock %}
+    {% endcache %}
 </main>
 <!-- 5. 底部版权-->
 
@@ -131,7 +136,6 @@
                         © 2025 PowerAdapter. 内容遵循 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
                                                          target="_blank">CC
                         BY-NC-SA 4.0</a> 协议。<br>
-                        最近更新：2025年x月x日<br>
                         “愿代码之美，与精神秩序并行。”
                     </p>
                 </div>

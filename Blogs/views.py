@@ -2,7 +2,6 @@ import logging
 import os
 import uuid
 from datetime import date
-from typing import Dict, Any
 
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -15,6 +14,7 @@ from django.shortcuts import get_object_or_404
 from django.urls.base import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import DetailView, ListView
+from django.views.generic.base import TemplateView
 from django.views.generic.edit import CreateView, UpdateView
 
 from Blogs.forms import PostForm
@@ -23,14 +23,26 @@ from config.models import SideBar
 
 
 # Create your views here.
-class CommonViewMixin:  # 不让它继承任何类，而是将这个 Mixin 与有 get_context_data() 方法的视图类一起使用
+# 不让它继承任何类，而是将这个 Mixin 与有 get_context_data() 方法的视图类一起使用
+
+class SideBarMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update({
-            'sidebar': SideBar.get_sidebars()
-        })
-        context.update(Category.get_navs())
+        context['sidebar'] = SideBar.get_sidebars()
+        print("This is sidebar context:(T_T)", context['sidebar'])
         return context
+
+
+class CategoryNavMixin:
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(Category.get_navs())
+        print("This is nav context:(T_T)", context['cate_navs'])
+        return context
+
+
+class CommonViewMixin(SideBarMixin, CategoryNavMixin):
+    pass
 
 
 class LoggingMixin:
@@ -39,9 +51,8 @@ class LoggingMixin:
         logger = logging.getLogger(__name__)
         logger.info(f"用户-[{username}]:{action}", extra=kwargs)
 
-class IndexView(CommonViewMixin, ListView):
-    queryset = Post.latest_posts(5)
-    context_object_name = 'post_list'
+
+class IndexView(CommonViewMixin, TemplateView):
     template_name = '../bulma/base/index.html'
 
 
@@ -49,7 +60,6 @@ class PostDetailView(CommonViewMixin, DetailView):
     queryset = Post.get_normal_posts()
     template_name = 'blog/detail.html'
     context_object_name = 'post'
-    pk_url_kwarg = 'post_id'
 
     def get(self, request, *args, **kwargs):
         response = super().get(request, *args, **kwargs)
@@ -113,7 +123,6 @@ class PostDetailView(CommonViewMixin, DetailView):
         except IntegrityError:
             pass
 
-
 class PostListView(ListView):
     queryset = Post.get_normal_posts()
     paginate_by = 10
@@ -121,22 +130,22 @@ class PostListView(ListView):
     template_name = 'blog/list.html'
 
 
-class CategoryView(IndexView):
-    def get_context_data(self, **kwargs) -> Dict[str, Any]:
-        context = super().get_context_data(**kwargs)
-        category_id = self.kwargs.get('category_id')
-        category = get_object_or_404(Category, pk=category_id)
-        context.update({
-            'category': category,
-        })
-        return context
+class CategoryView(CommonViewMixin, ListView):
+    paginate_by = 10
+    template_name = 'blog/cate_list.html'
+    context_object_name = 'cate_posts'
+    cate_list = None
 
     def get_queryset(self):
         """ 重写 queryset，根据分类过滤 """
-        queryset = super().get_queryset()
-        category_id = self.kwargs.get('category_id')
-        return queryset.filter(category_id=category_id)
+        self.cate_list = get_object_or_404(Category, pk=self.kwargs.get("category_id"))
+        return Post.get_by_category(self.cate_list.id)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["cate"] = self.cate_list
+        print("This is cate_list context:(T_T)", context['cate_posts'])
+        return context
 
 class TagView(PostListView):
     def get_context_data(self, **kwargs):

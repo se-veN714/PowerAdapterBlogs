@@ -50,12 +50,9 @@
         <div class="navbar-end pr-6">
             <div class="navbar-item">
                 <div class="buttons">
-                    <a class="button is-info"
-                       href="{% if user.is_authenticated %}
-                       	    {% url 'Blogs:post_create' %}
-                       	    {% else %}
-                       	    {% url 'accounts:login' %}
-                       {% endif %} ">新文章</a>
+                    {% if user.is_authenticated %}
+                        <a class="button is-info" href="{% url 'Blogs:post_create' %}">新文章</a>
+                    {% endif %}
                 </div>
             </div>
             <div class="navbar-item">
@@ -78,9 +75,7 @@
                         </form>
                         <div class="button is-primary">{{ user.username }}</div>
                     {% else %}
-                    <a class="button is-primary">
-                        <strong>注册</strong>
-                    </a>
+{#                    <a class="button is-primary"><strong>注册</strong></a>#}
                         <a href="{% url 'accounts:login' %}" class="button is-light">
                         登录
                     </a>

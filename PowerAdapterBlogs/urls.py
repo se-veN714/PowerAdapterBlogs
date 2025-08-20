@@ -19,6 +19,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.sitemaps import views as sitemaps_views
 from django.urls import path, include
+from django.views.decorators.cache import cache_page
 
 from Blogs.autocomplete import CategoryAutocomplete, TagAutocomplete
 from Blogs.sitemap import PostSitemap
@@ -39,7 +40,10 @@ urlpatterns = [
     # LinksPage
     path("links/", LinkListView.as_view(), name="links"),
     # sitemap
-    path("sitemap.xml/", sitemaps_views.sitemap, {'sitemaps': {'posts': PostSitemap}}, name="sitemap"),
+    path(
+        "sitemap.xml/", cache_page(60 * 60)(sitemaps_views.sitemap),
+        {'sitemaps': {'posts': PostSitemap}}, name="sitemap")
+    ,
     # accounts
     path('accounts/', include(('accounts.urls', 'accounts'), namespace='accounts')),
 ]

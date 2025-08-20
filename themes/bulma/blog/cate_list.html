@@ -1,0 +1,84 @@
+{% extends "base/base.html" %}
+{% load cache %}
+{% load static %}
+{% block title %}Cate-{{ cate.name }}{% endblock %}
+
+{% block hero %}
+    <div style="border-top: 1px solid rgba(0, 0, 0, 0.1); margin: 1rem 0;"></div>
+{% endblock %}
+
+{% block main %}
+    <div class="section">
+        <div class="container">
+            <h2 class="title is-2">{{ cate.name }}</h2>
+            {% cache 900 cache_cate_post cate.id page_obj.number %}
+                {% for post in cate_posts %}
+                    <div class="box">
+                        <article class="media">
+                            <!-- 封面图 -->
+                            <figure class="media-left">
+                                <p class="image is-128x128">
+                                    {% if post.cover %}
+                                        <img src="{{ post.cover.url }}" alt="{{ post.title }}-封面">
+                                    {% else %}
+                                        <img src="{% static 'img/Cover.png' %}" alt="封面">
+                                    {% endif %}
+                                </p>
+                            </figure>
+
+                            <!-- 文字内容 -->
+                            <div class="media-content block">
+                                <div class="media-content">
+                                    <strong class="is-size-5">
+                                        <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                                    </strong>
+                                    {% if user.is_authenticated %}
+                                        <a class="button is-small is-link"
+                                           href="{% url 'Blogs:post_edit' slug=post.slug %}">编辑</a>
+                                    {% else %}
+                                    {% endif %}
+                                </div>
+                                <div class="is-flex is-align-items-center mt-2">
+                                    <figure class="image is-24x24 mr-2 mb-0">
+                                        <img class="is-rounded" src="{% static 'img/avatar.jpg' %}" alt="作者头像">
+                                    </figure>
+                                    <small class="has-text-grey">{{ post.owner.username }}</small>
+                                    <small class="ml-3 has-text-grey-light">| 分类：{{ post.category.name }}</small>
+                                    <small class="ml-3 has-text-grey-light">| 浏览量 {{ post.pv }}</small>
+                                </div>
+                                <br>
+                                <span class="has-text-grey-dark">{{ post.desc }}</span>
+                            </div>
+                        </article>
+                    </div>
+                {% empty %}
+                    <p>暂时还没有文章。</p>
+                {% endfor %}
+                </div>
+                </div>
+                <div class="block">
+                    {% if is_paginated %}
+                        <nav class="pagination">
+                            {% if page_obj.has_previous %}
+                                <a href="?page=1" class="pagination-link button">Front</a>
+                                <a href="?page={{ page_obj.previous_page_number }}" class="pagination-previous">&lt;Previous</a>
+                            {% endif %}
+                            <ul class="pagination-list">
+                                {% for num in paginator.page_range %}
+                                    {% if num == page_obj.number %}
+                                        <li><span class="pagination-link is-current">{{ num }}</span></li>
+                                    {% elif num > page_obj.number|add:-3 and num < page_obj.number|add:3 %}
+                                        <li><a href="?page={{ num }}" class="pagination-link">{{ num }}</a></li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                            {% if page_obj.has_next %}
+                                <a href="?page={{ paginator.num_pages }}" class="pagination-link button">Last</a>
+                                <a href="?page={{ page_obj.next_page_number }}" class="pagination-next">Next
+                                    page&gt;</a>
+                            {% endif %}
+                        </nav>
+                    {% endif %}
+                </div>
+            {% endcache %}
+{% endblock %}

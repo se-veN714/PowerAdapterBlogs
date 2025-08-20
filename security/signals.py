@@ -10,12 +10,12 @@
 本模块提供了security的signals功能的类和函数。
 """
 
-# here put the import lib
 from django.conf import settings
 from django.contrib.admin.models import LogEntry
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+# here put the import lib
 from security.models import SecureLogEntry
 
 

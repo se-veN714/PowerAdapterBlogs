@@ -231,3 +231,29 @@ LOGGING = {
         "level": "DEBUG",
     },
 }
+
+REDIS_CACHE_URL = 'redis://127.0.0.1:6379/1'
+REDIS_SESSIONS_URL = 'redis://127.0.0.1:6379/2'
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_CACHE_URL,
+        "TIMEOUT": 300,
+        "OPTIONS": {
+            # 'PASSWORD':'<password>'
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "CONNECTION_POOL_CLASS": "redis.connection.BlockingConnectionPool"
+    },
+    "sessions": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_SESSIONS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "sessions"

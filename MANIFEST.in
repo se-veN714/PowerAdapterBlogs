@@ -1,0 +1,8 @@
+# 包含所有静态文件
+recursive-include static *
+
+# 包含 themes/bulma 下的模板
+recursive-include themes
+
+# 可选：忽略 pyc / __pycache__ 这些垃圾文件
+global-exclude *.pyc __pycache__ *.pyo

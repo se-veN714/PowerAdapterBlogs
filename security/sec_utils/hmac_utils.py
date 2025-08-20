@@ -42,8 +42,3 @@ def sm3_hmac(hmac_key: bytes, msg: bytes) -> str:
 
 def generate_key() -> bytes:
     return secrets.token_bytes(32)
-
-
-if __name__ == "__main__":
-    key = generate_key()
-    print(key)

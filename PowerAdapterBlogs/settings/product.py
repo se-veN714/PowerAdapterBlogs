@@ -11,18 +11,28 @@
 """
 
 # here put the import lib
+import base64
+
+from dotenv import load_dotenv
+
+from .base import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = []
+load_dotenv(BASE_DIR / '.env')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS').split(',')
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": '',
-        "USER": 'blog_user_pa',
-        "PASSWORD": '',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'ENGINE': "django.db.backends.postgresql",
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
     }
 }
+
+key_base64 = os.getenv('LOGINTEGRYIT_HMAC_KEY_BASE64')
+LOG_HMAC_KEY = base64.b64decode(key_base64)

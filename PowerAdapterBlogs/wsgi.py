@@ -12,6 +12,7 @@ import os
 from django.core.wsgi import get_wsgi_application
 
 profile = os.environ.get("PROJECT_PROFILE",'develop')
+print("---\n"+profile+"\n---")
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "PowerAdapterBlogs.settings.%s" % profile)
 
 

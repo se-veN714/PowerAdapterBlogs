@@ -1,4 +1,5 @@
 {% load cache %}
+{% load static %}
 <!DOCTYPE html> <!-- HTML5文档类型声明 -->
 <html lang="zh-CN"> <!-- 设置页面语言为中文 -->
 <head>
@@ -6,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 响应式视口设置 -->
     <!-- 页面标题（建议放在head最前面） -->
     <title>{% block title %}PowerAdapter{% endblock %}</title>
-    {% load static %}
+    <link rel="icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
 
     {% block head_link %}
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
@@ -138,13 +139,19 @@
                         BY-NC-SA 4.0</a> 协议。<br>
                         “愿代码之美，与精神秩序并行。”
                     </p>
+                    <p class="is-size-7 has-text-grey">举报与反馈：如您发现本站任何内容存在问题，请通过以下邮箱联系我们：mail-placeholder</p>
+                    <p>
+                    <a class="is-size-7 is-link" href="https://beian.miit.gov.cn">ICP-num-placeholder</a>
+                    </p>
+                    <p><img src="{% static 'img/gonganbei.png' %}" class="w-full" style="width: 16px;">
+                    <a class="is-size-7 is-link" href="https://beian.mps.gov.cn/" rel="noreferrer" target="_blank">gonganbei-placeholder</a>
+                    </p>
                 </div>
             </section>
         </div>
     {% endblock %}
 
     {% block extra_script %}{% endblock %}
-
 </footer>
 </body>
 </html>

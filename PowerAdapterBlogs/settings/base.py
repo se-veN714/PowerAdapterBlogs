@@ -60,6 +60,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "comment.middleware.ClientMetaMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "Blogs.middleware.user_id.UserIdMiddleware",
@@ -257,3 +258,12 @@ CACHES = {
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "sessions"
+
+MONGO = {
+    "HOST": os.getenv("MONGO_HOST", "localhost"),
+    "PORT": os.getenv("MONGO_PORT", 27017),
+    "DB_NAME": os.getenv("MONGO_DB_NAME", "poweradapter_mongo"),
+    "DB_USER": os.getenv("MONGO_DB_USER", ""),
+    "DB_PASSWORD": os.getenv("MONGO_DB_PASSWORD", ""),
+    "COLLECTION": os.getenv("MONGO_COLLECTION", "logs"),
+}

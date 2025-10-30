@@ -9,8 +9,6 @@
 """
 本模块提供了生成post测试用例功能的类和函数。
 """
-from envs.music.DLLs.unicodedata import category
-
 from Blogs.models import Post
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand

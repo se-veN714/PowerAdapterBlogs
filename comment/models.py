@@ -1,17 +1,20 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.utils.translation import gettext_lazy as _
 
 from Blogs.models import Post
 
 
 # Create your models here.
 class Comment(models.Model):
-    STATUS_NORMAL = 1
-    STATUS_DELETE = 0
-    STATUS_ITEMS = (
-        (STATUS_NORMAL, "正常"),
-        (STATUS_DELETE, "删除"),
-    )
+    """
+    comment model
+    """
+    class Status(models.IntegerChoices):
+        PENDING = "0", _("待审核")
+        PUBLISHED = "1", _("已发布")
+        REJECTED = "2", _("已拒绝")
+        DELETED = "3", _("已删除")
+
 
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments', verbose_name="关联文章",default=1)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies',
@@ -19,12 +22,9 @@ class Comment(models.Model):
 
     content = models.TextField(max_length=2000, verbose_name="评论内容")
 
-    nickname = models.CharField(max_length=50, blank=True, null=True, verbose_name="昵称")
+    nickname = models.CharField(max_length=50, blank=True, null=False, verbose_name="昵称")
     email = models.EmailField(blank=True, null=True, verbose_name="邮箱")
-
-    image = models.ImageField(upload_to='comment_images/', blank=True, null=True, verbose_name="附图")
-
-    status = models.PositiveIntegerField(default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态")
+    status = models.PositiveIntegerField(default=Status.PENDING, choices=Status.choices, verbose_name="状态")
     created_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
 
     class Meta:
@@ -32,12 +32,17 @@ class Comment(models.Model):
         ordering = ['created_time']
 
     def __str__(self):
-        return f"{self.nickname or '匿名'}: {self.content[:20]}"
+        return f"{self.nickname}: {self.content[:20]}"
 
     @classmethod
     def get_by_target(cls, post):
+        """
+        get comment by target post
+        :param post: model post instance
+        :return: all comments that belong to target post
+        """
         return cls.objects.filter(
             post=post,
             parent__isnull=True,
-            status=cls.STATUS_NORMAL,
+            status=cls.Status.PUBLISHED,
         ).order_by('-created_time')

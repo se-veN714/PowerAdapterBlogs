@@ -2,12 +2,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
-from django.utils import timezone
 from django.views.generic import TemplateView
 
 from Blogs.models import Post
 from comment.form import CommentForm
-from security.models import CommentEventLog
 
 
 # Create your views here.
@@ -51,29 +49,6 @@ class CommentView(LoginRequiredMixin, TemplateView):
         instance.post = post
         instance.user = request.user  # 记录评论者
         instance.save()
-
-        # --- 安全日志记录 ---
-        snapshot = {
-            "id": instance.id,
-            "post_id": instance.post_id,
-            "parent": instance.parent_id,
-            "content": instance.content,
-            "nickname": instance.nickname,
-            "status": instance.status,
-            "created_time": instance.created_time.isoformat(),
-        }
-
-        CommentEventLog.objects.create(
-            comment=instance,
-            action=CommentEventLog.UserAction.CREATE,
-            action_at=timezone.now(),
-            ip_address=getattr(request, "client_ip", None),
-            user_agent=getattr(request, "client_ua", ""),
-            referrer=getattr(request, "client_referrer", ""),
-            url_path=getattr(request, "client_path", ""),
-            client_fingerprint=getattr(request, "client_fp", ""),
-            comment_snapshot=snapshot,
-        )
 
         return JsonResponse({
             'success': True,

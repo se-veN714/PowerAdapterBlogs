@@ -4,12 +4,10 @@ from django.contrib import messages
 from django.utils.html import format_html
 
 from PowerAdapterBlogs.cus_site import custom_site
-from security.models import SecureLogEntry, CommentEventLog
+from security.models import SecureLogEntry
 
 # Register your models here.
 admin.site.register(SecureLogEntry)
-admin.site.register(CommentEventLog)
-
 
 @admin.register(SecureLogEntry, site=custom_site)
 class SecureLogEntryAdmin(admin.ModelAdmin):
@@ -56,22 +54,3 @@ class SecureLogEntryAdmin(admin.ModelAdmin):
                 del secret_key
             print("审计结束")
 
-
-@admin.register(CommentEventLog, site=custom_site)
-class CommentEventLogAdmin(admin.ModelAdmin):
-    list_display = ("comment", "action", "ip_address", "user_agent", "referrer", "url_path", "chain_head_key",)
-    readonly_fields = ("comment", "action", "action_at", "ip_address", "user_agent", "referrer", "url_path",
-                       "client_fingerprint", "comment_snapshot", "hmac_truncated", "pre_hmac_truncated", "chain_head_key",
-                       "masked_ip")
-
-    def hmac_truncated(self, obj):
-        """显示前8位+后8位，中间用...省略"""
-        full_hmac = obj.hmac
-        return f"{full_hmac[:4]}......{full_hmac[-4:]}" if full_hmac else ""
-
-    def pre_hmac_truncated(self,obj):
-        full_hmac = obj.pre_hmac
-        return f"{full_hmac[:4]}......{full_hmac[-4:]}" if full_hmac else ""
-
-    hmac_truncated.short_description = "HMAC摘要"
-    pre_hmac_truncated.short_description = "前HMAC摘要"

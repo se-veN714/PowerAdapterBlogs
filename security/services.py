@@ -11,7 +11,8 @@
 """
 
 # here put the import lib
-from .models import Comment, CommentEventLog
+from security.models import Comment
+from security.mongo_client import MongoLogger
 
 
 def moderate_comment(*, comment: Comment, new_status: str, request, reason: str | None = None):
@@ -33,24 +34,34 @@ def moderate_comment(*, comment: Comment, new_status: str, request, reason: str 
         - Creates a new CommentEventLog entry with contextual client information.
 
     """
-    old = comment.status
+    # 保存原状态
+    old_status = comment.status
     comment.status = new_status
     comment.save(update_fields=["status", "created_time"])
 
+    # 构造快照（留痕）
     snapshot = {
         "id": comment.id,
-        "old_status": old,
+        "old_status": old_status,
         "new_status": comment.status,
         "reason": reason,
     }
 
-    CommentEventLog.objects.create(
-        comment=comment,
-        action=CommentEventLog.UserAction.MODERATE,
-        ip_address=getattr(request, "client_ip", None),
-        user_agent=getattr(request, "client_ua", ""),
-        referrer=getattr(request, "client_referrer", ""),
-        url_path=getattr(request, "client_path", ""),
-        client_fingerprint=getattr(request, "client_fp", ""),
-        comment_snapshot=snapshot,
-    )
+    # 准备日志数据
+    log_data = {
+        "comment_id": comment.id,
+        "action": "MODERATE",
+        "snapshot": snapshot,
+        "client": {
+            "ip": getattr(request, "client_ip", None),
+            "ua": getattr(request, "client_ua", ""),
+            "referrer": getattr(request, "client_referrer", ""),
+            "url": getattr(request, "client_path", ""),
+            "fp": getattr(request, "client_fp", ""),
+        },
+        "user": str(getattr(request, "user", None)),  # 避免 Django User 对象无法 JSON 化
+    }
+
+    # 写入 MongoDB 日志
+    mongo_logger = MongoLogger()
+    mongo_logger.insert_log(action="moderate_comment", data=log_data)

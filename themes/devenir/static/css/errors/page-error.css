@@ -1,0 +1,98 @@
+/* instability body */
+body {
+    margin: 0;
+    min-height: 100vh;
+
+    background: #0b0d0d;
+    color: #f5f5f5;
+
+    font-family: "SourceHanSerifCN", serif;
+}
+
+.system-status, .process-log {
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* instability error */
+
+.error-layout {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    min-height: 100vh;
+}
+
+.error-visual {
+    background: #161818;
+}
+
+.error-info {
+    background: #111313;
+    display: flex;
+    flex-direction: column;
+
+    padding: 4rem;
+    gap: 2rem;
+
+    position: relative;
+}
+
+.error-code {
+    margin-top: 2rem;
+    font-size: 10rem;
+
+    color: #d8ffe1;
+
+    line-height: 0.9;
+    letter-spacing: -0.08em;
+    opacity: 0.95;
+
+    font-family: "JetBrains Mono ExtraBold", monospace;
+}
+
+.error-message {
+    margin-top: 3rem;
+    font-size: 1rem;
+
+    color: #6f8177;
+
+    max-width: 20rem;
+
+    line-height: 1.8rem;
+}
+
+.system-status {
+    margin-top: auto;
+    align-self: flex-end;
+
+    color: gray;
+}
+
+.process-log {
+    color: #5d6d63;
+
+    font-size: 0.9rem;
+
+    opacity: 0.7;
+}
+
+/* instability space */
+
+.error-visual {
+    position: relative;
+    overflow: hidden;
+}
+
+.instability-layer {
+    position: absolute;
+
+    width: 320px;
+    height: 900px;
+
+    background: #d8ffe1;
+
+    opacity: 0.08;
+
+    transform: rotate(-18deg) translate(120px, -80px)
+}

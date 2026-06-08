@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 — Skateboard Error | PowerAdapter</title>
+    <link rel="stylesheet" href="/static/css/errors/page-error.css">
+</head>
+<body class="error-page">
+
+<!-- TV scanline texture (reused from index hero) -->
+<div class="scanline-layer"></div>
+
+<main class="error-layout">
+
+    <!-- Left: Info -->
+    <section class="error-info">
+        <div class="error-code">500</div>
+
+        <div class="error-message">
+            The render process interrupted.<br>
+            Something unexpected happened.<br>
+            The system temporarily lost its balance.<br><br>
+            You pushed too hard, fell, and<br>
+            the ground didn't catch you.
+        </div>
+
+        <div class="system-status">
+            system unstable
+        </div>
+
+        <div class="process-log">
+            observe(woRld)
+            fail(stAte)
+        </div>
+
+        <a href="/" class="error-back-link">
+            Return Home <span class="link-arrow">&rarr;</span>
+        </a>
+    </section>
+
+    <!-- Right: Visual — Skateboard SVG -->
+    <section class="error-visual">
+        <div class="instability-layer"></div>
+        <div class="fragment-layer"></div>
+        <div class="signal-layer"></div>
+
+        <div class="error-visual-inner">
+            <svg viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg"
+                 style="width:100%;height:100%;">
+                <defs>
+                    <linearGradient id="skyErr" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#0D1010"/>
+                        <stop offset="100%" stop-color="#141818"/>
+                    </linearGradient>
+                </defs>
+                <rect width="400" height="300" fill="url(#skyErr)"/>
+
+                <!-- Ground — fractured -->
+                <line x1="20" y1="260" x2="150" y2="260" stroke="rgb(111,129,119)" stroke-width="1" opacity="0.3"/>
+                <line x1="170" y1="262" x2="300" y2="262" stroke="rgb(111,129,119)" stroke-width="1" opacity="0.22"/>
+                <line x1="310" y1="258" x2="380" y2="258" stroke="rgb(111,129,119)" stroke-width="1" opacity="0.15"/>
+
+                <!-- Skateboard — tilted off-balance -->
+                <g transform="translate(200, 200) rotate(-28)">
+                    <path d="M-60,10 Q-30,-5 0,-5 Q30,-5 60,10 L55,15 Q30,5 0,5 Q-30,5 -55,15 Z"
+                          fill="none" stroke="rgb(216,255,225)" stroke-width="2" opacity="0.45"/>
+                    <line x1="-35" y1="10" x2="-35" y2="22" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.35"/>
+                    <line x1="35" y1="10" x2="35" y2="22" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.35"/>
+                    <!-- Misaligned wheels -->
+                    <circle cx="-42" cy="24" r="6" fill="none" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.3"/>
+                    <circle cx="-28" cy="27" r="6" fill="none" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.3"/>
+                    <circle cx="28" cy="24" r="6" fill="none" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.3"/>
+                    <circle cx="42" cy="27" r="6" fill="none" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.3"/>
+                </g>
+
+                <!-- Falling motion lines -->
+                <line x1="250" y1="135" x2="238" y2="168" stroke="rgb(216,255,225)" stroke-width="1" opacity="0.18" stroke-dasharray="4,6"/>
+                <line x1="270" y1="125" x2="252" y2="173" stroke="rgb(216,255,225)" stroke-width="1" opacity="0.14" stroke-dasharray="3,7"/>
+                <line x1="295" y1="145" x2="268" y2="178" stroke="rgb(216,255,225)" stroke-width="1" opacity="0.11" stroke-dasharray="2,8"/>
+
+                <!-- Glitch bars -->
+                <rect x="155" y="90" width="3" height="30" fill="rgb(201,120,120)" opacity="0.22" transform="rotate(8,155,90)"/>
+                <rect x="230" y="80" width="2" height="25" fill="rgb(201,120,120)" opacity="0.17" transform="rotate(-5,230,80)"/>
+                <rect x="180" y="110" width="40" height="1.5" fill="rgb(201,120,120)" opacity="0.15"/>
+
+                <!-- Stars -->
+                <circle cx="55" cy="48" r="1" fill="rgb(216,255,225)" opacity="0.18"/>
+                <circle cx="135" cy="32" r="1.5" fill="rgb(216,255,225)" opacity="0.13"/>
+                <circle cx="340" cy="58" r="1" fill="rgb(216,255,225)" opacity="0.18"/>
+                <circle cx="382" cy="28" r="1.5" fill="rgb(216,255,225)" opacity="0.1"/>
+
+                <!-- Signal lost text -->
+                <text x="100" y="78" font-family="monospace" font-size="9" fill="rgb(201,120,120)"
+                      opacity="0.3" letter-spacing="4">SIGNAL LOST</text>
+            </svg>
+        </div>
+    </section>
+
+</main>
+
+</body>
+</html>

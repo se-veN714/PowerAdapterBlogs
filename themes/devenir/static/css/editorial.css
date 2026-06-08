@@ -1,0 +1,484 @@
+/* ============================================
+   Editorial Layout System — Devenir Theme
+   Grid: | Number+Metadata | Content | Artifact | Keywords |
+   ============================================ */
+
+/* ===== Shared easing & font ===== */
+:root {
+    --ease-glitch: cubic-bezier(0.25, 0.1, 0.25, 1);
+    --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+    --font-sans: "Source Han Sans SC", /* 思源黑体（简体） */ "Noto Sans CJK SC", /* Google 版 */ "PingFang SC", /* macOS */ "Microsoft YaHei", /* Windows */ sans-serif;
+}
+
+/* ===== Grid ===== */
+.editorial-section {
+    position: relative;
+    display: grid;
+    grid-template-columns:
+    minmax(90px, 0.55fr)   /* Number + Metadata */
+    minmax(260px, 1.85fr)  /* Content */
+    minmax(200px, 1.50fr)  /* Artifact */
+    minmax(90px, 0.55fr); /* Keywords */
+    min-height: clamp(360px, 50vh, 560px);
+    width: 100%;
+    border-top: 1px solid var(--fragment-border);
+    overflow: hidden;
+}
+
+/* ============================================
+   Column 1 — Number + Metadata
+   bg: #162523, number: #1d7d60
+   ============================================ */
+.editorial-number {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    background: #162523;
+    user-select: none;
+}
+
+.editorial-number .number-text {
+    font-family: var(--font-sans, monospace);
+    font-size: clamp(1.1rem, 5vw, 3.5rem);
+    font-weight: 600;
+    color: #1d7d60;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+
+.editorial-number .editorial-metadata {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.editorial-number .meta-word {
+    font-family: var(--font-mono, monospace);
+    font-size: clamp(0.7rem, 1vw, 0.9rem);
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent-soft);
+    opacity: 0.45;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+/* ============================================
+   Column 2 — Content
+   bg: rgb(13,16,16), title: rgb(235,240,235)
+   body: rgb(170,180,170), link: #4ed7af
+   ============================================ */
+.editorial-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(1.8rem, 4vw, 3.5rem) clamp(1.5rem, 3vw, 3rem);
+    background: rgb(13, 16, 16);
+    border-left: 1px solid var(--fragment-border);
+    border-right: 1px solid var(--fragment-border);
+}
+
+.editorial-content .editorial-title {
+    font-family: var(--font-mono);
+    font-size: clamp(1.8rem, 3.5vw, 3rem);
+    font-weight: 700;
+    color: rgb(235, 240, 235);
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+}
+
+.editorial-content .editorial-body {
+    font-size: 1.05rem;
+    color: rgb(170, 180, 170);
+    line-height: 1.8;
+    max-width: 34rem;
+    margin-bottom: 2.5rem;
+}
+
+.editorial-content .editorial-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #4ed7af;
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    transition: color 0.4s ease;
+    width: fit-content;
+}
+
+.editorial-content .editorial-link:hover {
+    color: rgb(216, 255, 225);
+}
+
+.editorial-content .editorial-link .link-arrow {
+    display: inline-block;
+    transition: transform 0.4s ease;
+}
+
+.editorial-content .editorial-link:hover .link-arrow {
+    transform: translateX(6px);
+}
+
+/* ============================================
+   Column 3 — Artifact
+   bg: rgb(20,24,24)
+   ============================================ */
+.editorial-visual {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgb(20, 24, 24);
+}
+
+.editorial-visual--skate {
+    background: linear-gradient(160deg, #0D1010 0%, #141818 40%, #1C2323 100%);
+}
+
+.editorial-visual--music {
+    background: linear-gradient(200deg, #141818 0%, #1C2323 50%, #0D1010 100%);
+}
+
+.editorial-visual--code {
+    padding: 2rem;
+}
+
+/* ============================================
+   Column 4 — Keywords (vertical, dash-separated)
+   ============================================ */
+.editorial-keywords {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(216, 255, 225, 0.02);
+    user-select: none;
+    border-left: 1px solid var(--fragment-border);
+}
+
+.editorial-keywords .artifact-keywords {
+    font-family: var(--font-mono, monospace);
+    font-size: clamp(0.7rem, 1vw, 0.9rem);
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(216, 255, 225, 0.4);
+    pointer-events: none;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    line-height: 1.8;
+}
+
+/* ============================================
+   Glitch Entrance System
+   ============================================ */
+
+/* Pre-entrance state — offset + blurred */
+.editorial-glitch .editorial-number {
+    opacity: 0;
+    transform: translateX(-12px);
+    filter: blur(1.5px);
+    transition: opacity 0.45s var(--ease-glitch), transform 0.55s var(--ease-glitch), filter 0.45s var(--ease-glitch);
+    transition-delay: 0.04s;
+}
+
+.editorial-glitch .editorial-keywords {
+    opacity: 0;
+    transform: translateX(20px);
+    filter: blur(2px);
+    transition: opacity 0.5s var(--ease-glitch), transform 0.6s var(--ease-glitch), filter 0.5s var(--ease-glitch);
+    transition-delay: 0.14s;
+}
+
+.editorial-glitch .editorial-content {
+    opacity: 0;
+    transform: translateY(40px);
+    filter: blur(4px);
+    transition: opacity 0.6s var(--ease-glitch), transform 0.8s var(--ease-glitch), filter 0.7s var(--ease-glitch);
+    transition-delay: 0.12s;
+}
+
+.editorial-glitch .editorial-visual {
+    opacity: 0;
+    transform: translateX(80px);
+    filter: blur(8px);
+    transition: opacity 0.6s var(--ease-glitch), transform 0.8s var(--ease-glitch), filter 0.7s var(--ease-glitch);
+    transition-delay: 0.18s;
+}
+
+/* Scanline overlay */
+.editorial-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    background: linear-gradient(to bottom,
+    transparent 0%, transparent 12%,
+    var(--accent-primary) 12%, var(--accent-primary) 12.5%, transparent 12.5%,
+    transparent 38%,
+    var(--accent-primary) 38%, var(--accent-primary) 38.5%, transparent 38.5%,
+    transparent 64%,
+    var(--accent-primary) 64%, var(--accent-primary) 64.5%, transparent 64.5%,
+    transparent 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.editorial-glitch.editorial-entering::before {
+    opacity: 0.04;
+    transition: opacity 0.15s ease;
+}
+
+.editorial-glitch.editorial-entered::before {
+    opacity: 0;
+    transition: opacity 0.6s ease 0.4s;
+}
+
+/* Vertical glitch strip */
+.editorial-section::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--accent-primary);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 11;
+    transition: opacity 0.1s ease;
+}
+
+.editorial-glitch.editorial-entering::after {
+    opacity: 0.08;
+    left: 35%;
+    transition: opacity 0.1s ease, left 0.3s steps(3, end);
+}
+
+.editorial-glitch.editorial-entered::after {
+    opacity: 0;
+    left: 65%;
+    transition: opacity 0.4s ease 0.3s, left 0.5s steps(5, end) 0.1s;
+}
+
+/* Resolved — all locked in */
+.editorial-glitch.editorial-entered .editorial-number,
+.editorial-glitch.editorial-entered .editorial-keywords,
+.editorial-glitch.editorial-entered .editorial-content,
+.editorial-glitch.editorial-entered .editorial-visual {
+    opacity: 1;
+    transform: translate(0);
+    filter: blur(0);
+}
+
+/* ============================================
+   Text Scramble
+   ============================================ */
+.scramble-char {
+    display: inline-block;
+    position: relative;
+    transition: color 0.3s ease, opacity 0.3s ease;
+}
+
+.scramble-char.scramble-corrupted {
+    color: var(--accent-muted);
+    opacity: 0.4;
+    animation: scramble-jitter 0.08s ease-in-out infinite;
+}
+
+.scramble-char.scramble-resolved {
+    color: inherit;
+    opacity: 1;
+    animation: none;
+}
+
+@keyframes scramble-jitter {
+    0% {
+        transform: translate(0, 0);
+    }
+    25% {
+        transform: translate(1px, -1px);
+    }
+    50% {
+        transform: translate(-1px, 1px);
+    }
+    75% {
+        transform: translate(-0.5px, -0.5px);
+    }
+    100% {
+        transform: translate(0.5px, 0);
+    }
+}
+
+/* ===== Waveform bars ===== */
+.editorial-visual .waveform-bars {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 120px;
+}
+
+.editorial-visual .waveform-bars .bar {
+    width: 4px;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: wave 0.8s ease-in-out infinite;
+}
+
+@keyframes wave {
+    0%, 100% {
+        height: 4px;
+    }
+    50% {
+        height: var(--h, 100px);
+    }
+}
+
+/* ===== Code syntax colors ===== */
+.code-line {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.code-keyword {
+    color: var(--accent-primary);
+}
+
+.code-func {
+    color: var(--accent-soft);
+}
+
+.code-string {
+    color: var(--warning-accent);
+}
+
+.code-comment {
+    color: var(--text-tertiary);
+}
+
+.code-var {
+    color: var(--text-primary);
+}
+
+.code-prop {
+    color: var(--accent-muted);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 1024px) {
+    .editorial-section {
+        grid-template-columns: minmax(60px, 0.40fr) minmax(220px, 1.7fr) minmax(60px, 0.40fr);
+        min-height: auto;
+        gap: 0;
+    }
+
+    .editorial-visual {
+        grid-column: 1 / -1;
+        min-height: 35vh;
+    }
+
+    .editorial-keywords {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        padding: 0.8rem 1.5rem;
+        border-left: none;
+        border-top: 1px solid var(--fragment-border);
+    }
+
+    .editorial-keywords .artifact-keywords {
+        writing-mode: horizontal-tb;
+        font-size: 0.85rem;
+    }
+
+    .editorial-number .number-text {
+        font-size: clamp(0.9rem, 1.5vw, 1.3rem);
+    }
+
+    .editorial-number .meta-word {
+        font-size: clamp(0.6rem, 0.9vw, 0.78rem);
+    }
+
+    .editorial-content {
+        border-right: none;
+        padding: clamp(1.5rem, 3.5vw, 2.5rem) clamp(1.2rem, 2.5vw, 2rem);
+    }
+}
+
+@media (max-width: 640px) {
+    .editorial-section {
+        grid-template-columns: 1fr;
+        min-height: auto;
+    }
+
+    .editorial-number {
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border-bottom: 1px solid var(--fragment-border);
+    }
+
+    .editorial-number .number-text {
+        font-size: 4rem;
+        color: rgba(216, 255, 225, 0.25);
+        line-height: 1;
+    }
+
+    .editorial-number .editorial-metadata {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .editorial-number .meta-word {
+        writing-mode: horizontal-tb;
+        font-size: 0.65rem;
+        opacity: 0.35;
+        letter-spacing: 0.12em;
+        padding-bottom: 2px;
+        border-bottom: 1px solid rgba(216, 255, 225, 0.15);
+    }
+
+    .editorial-keywords {
+        flex-direction: row;
+        justify-content: flex-start;
+        padding: 0.6rem 1.25rem;
+        border-left: none;
+        border-top: 1px solid var(--fragment-border);
+    }
+
+    .editorial-keywords .artifact-keywords {
+        writing-mode: horizontal-tb;
+        font-size: 0.78rem;
+        color: rgba(216, 255, 225, 0.3);
+    }
+
+    .editorial-content {
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid var(--fragment-border);
+        border-bottom: 1px solid var(--fragment-border);
+        padding: 1.75rem 1.25rem;
+    }
+
+    .editorial-visual {
+        min-height: 30vh;
+    }
+}

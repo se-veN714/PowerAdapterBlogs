@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 — Code Error | PowerAdapter</title>
+    <link rel="stylesheet" href="/static/css/errors/page-error.css">
+</head>
+<body class="error-page">
+
+<!-- TV scanline texture (reused from index hero) -->
+<div class="scanline-layer"></div>
+
+<main class="error-layout">
+
+    <!-- Left: Info -->
+    <section class="error-info">
+        <div class="error-code">500</div>
+
+        <div class="error-message">
+            The render process interrupted.<br>
+            Something unexpected happened.<br>
+            An unhandled exception was raised.<br><br>
+            NoneType has no attribute 'solve'<br>
+            The logic broke at line 42,<br>
+            and the system couldn't recover.
+        </div>
+
+        <div class="system-status">
+            system unstable
+        </div>
+
+        <div class="process-log">
+            observe(woRld)
+            fail(stAte)
+        </div>
+
+        <a href="/" class="error-back-link">
+            Return Home <span class="link-arrow">&rarr;</span>
+        </a>
+    </section>
+
+    <!-- Right: Visual — Python Traceback SVG -->
+    <section class="error-visual">
+        <div class="instability-layer"></div>
+        <div class="fragment-layer"></div>
+        <div class="signal-layer"></div>
+
+        <div class="error-visual-inner">
+            <svg viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg"
+                 style="width:100%;height:100%;">
+                <defs>
+                    <linearGradient id="skyCode" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#0D1010"/>
+                        <stop offset="100%" stop-color="#141818"/>
+                    </linearGradient>
+                </defs>
+                <rect width="400" height="300" fill="url(#skyCode)"/>
+
+                <!-- Line numbers -->
+                <g font-family="'Cascadia Code','Fira Code',Consolas,monospace" font-size="10.5">
+                    <text x="14" y="44" fill="rgb(216,255,225)" opacity="0.18">01</text>
+                    <text x="14" y="60" fill="rgb(216,255,225)" opacity="0.18">02</text>
+                    <text x="14" y="76" fill="rgb(216,255,225)" opacity="0.18">03</text>
+                    <text x="14" y="92" fill="rgb(216,255,225)" opacity="0.18">04</text>
+                    <text x="14" y="108" fill="rgb(216,255,225)" opacity="0.18">05</text>
+                    <!-- Error lines highlighted -->
+                    <text x="12" y="124" fill="rgb(201,120,120)" opacity="0.45" font-weight="600">06</text>
+                    <text x="12" y="140" fill="rgb(201,120,120)" opacity="0.38">07</text>
+                    <text x="12" y="156" fill="rgb(201,120,120)" opacity="0.32">08</text>
+                    <text x="12" y="172" fill="rgb(201,120,120)" opacity="0.26">09</text>
+                    <!-- Comment lines dimmed -->
+                    <text x="14" y="188" fill="rgb(143,163,148)" opacity="0.15">10</text>
+                    <text x="14" y="204" fill="rgb(143,163,148)" opacity="0.12">11</text>
+                    <text x="14" y="220" fill="rgb(143,163,148)" opacity="0.10">12</text>
+
+                    <!-- Vertical divider between nums & code -->
+                    <line x1="36" y1="30" x2="36" y2="228" stroke="rgba(216,255,225,0.06)" stroke-width="1"/>
+                </g>
+
+                <!-- Code content -->
+                <g font-family="'Cascadia Code','Fira Code','JetBrains Mono',Consolas,monospace" font-size="10.5">
+
+                    <!-- Normal code (dimmed) -->
+                    <text x="48" y="44" fill="rgb(143,163,148)" opacity="0.6">
+                        <tspan fill="rgb(216,255,225)" opacity="0.65">def</tspan> <tspan fill="rgb(235,240,235)" opacity="0.55">solve_problem</tspan>(<tspan fill="rgb(235,240,235)" opacity="0.55">problem</tspan>):
+                    </text>
+                    <text x="48" y="60" fill="rgb(143,163,148)" opacity="0.5">
+                        <tspan fill="rgb(235,240,235)" opacity="0.48">observed</tspan> = <tspan fill="rgb(235,240,235)" opacity="0.48">analyze</tspan>(<tspan fill="rgb(235,240,235)" opacity="0.48">problem</tspan>)
+                    </text>
+                    <text x="48" y="76" fill="rgb(143,163,148)" opacity="0.42">
+                        <tspan fill="rgb(216,255,225)" opacity="0.52">if</tspan> <tspan fill="rgb(235,240,235)" opacity="0.42">insight</tspan>:
+                    </text>
+                    <text x="48" y="92" fill="rgb(143,163,148)" opacity="0.35">
+                        <tspan fill="rgb(216,255,225)" opacity="0.45">return</tspan> <tspan fill="rgb(235,240,235)" opacity="0.35">iterate</tspan>(<tspan fill="rgb(235,240,235)" opacity="0.35">problem</tspan>)
+                    </text>
+                    <text x="48" y="108" fill="rgb(143,163,148)" opacity="0.28">&nbsp;</text>
+
+                    <!-- ERROR LINE — exception -->
+                    <rect x="46" y="113" width="340" height="17" fill="rgb(201,120,120)" opacity="0.06"/>
+                    <text x="48" y="124" fill="rgb(201,120,120)">
+                        <tspan font-weight="600">Exception</tspan>: <tspan>NoneType has no attribute 'solve'</tspan>
+                    </text>
+
+                    <!-- Traceback stack -->
+                    <text x="52" y="140" fill="rgb(207,181,126)" opacity="0.7">File "core/engine.py", line 42, in solve</text>
+                    <text x="52" y="156" fill="rgb(143,163,148)" opacity="0.48">    return self.iterate(data)</text>
+                    <text x="52" y="172" fill="rgb(143,163,148)" opacity="0.4">TypeError: 'NoneType' object is not callable</text>
+
+                    <!-- Comments fading out -->
+                    <text x="48" y="188" fill="rgb(95,105,100)" opacity="0.28"># Write less.</text>
+                    <text x="48" y="204" fill="rgb(95,105,100)" opacity="0.22"># Do more.</text>
+                    <text x="48" y="220" fill="rgb(95,105,100)" opacity="0.18"># Repeat.</text>
+                </g>
+
+                <!-- Glitch overlay on error line -->
+                <rect x="46" y="125" width="340" height="1.5" fill="rgb(201,120,120)" opacity="0.12"
+                      transform="translate(-4,1) skewX(-6deg)"/>
+                <rect x="50" y="128" width="200" height="1" fill="rgb(201,120,120)" opacity="0.08"
+                      transform="translate(6,-2) skewX(4deg)"/>
+
+                <!-- Blinking cursor -->
+                <rect x="164" y="112" width="7" height="14" fill="rgb(216,255,225)" opacity="0.12">
+                    <animate attributeName="opacity" values="0.12;0;0.12" dur="1.1s" repeatCount="indefinite"/>
+                </rect>
+
+                <!-- Bottom status bar -->
+                <rect x="0" y="275" width="400" height="25" fill="rgba(28,35,35,0.92)"/>
+                <text x="12" y="291" font-family="'Cascadia Code',Consolas,monospace" font-size="8"
+                      fill="rgb(95,105,100)" opacity="0.5">TracebackError</text>
+                <text x="388" y="291" font-family="monospace" font-size="8"
+                      fill="rgb(201,120,120)" opacity="0.4" text-anchor="end">&#x2718;</text>
+            </svg>
+        </div>
+    </section>
+
+</main>
+
+</body>
+</html>

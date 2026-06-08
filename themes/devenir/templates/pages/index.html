@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerAdapter — I write to understand what I love.</title>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/static/css/editorial.css">
+
+    <style>
+        /* ===== Reset & Base ===== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-mono);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ===== CSS Variables — Devenir Theme ===== */
+        :root {
+            /* Backgrounds */
+            --bg-primary: rgb(13, 16, 16);
+            --bg-secondary: rgb(20, 24, 24);
+            --bg-elevated: rgb(28, 35, 35);
+
+            /* Accent — Green Family */
+            --accent-primary: rgb(216, 255, 225);
+            --accent-soft: rgb(143, 163, 148);
+            --accent-muted: rgb(111, 129, 119);
+            --accent-deep: rgb(62, 88, 72);
+
+            /* Text */
+            --text-primary: rgb(235, 240, 235);
+            --text-secondary: rgb(170, 180, 170);
+            --text-tertiary: rgb(95, 105, 100);
+
+            /* Signal & Borders */
+            --scanline: rgba(255, 255, 255, 0.03);
+            --noise: rgba(216, 255, 225, 0.04);
+            --fragment-border: rgba(216, 255, 225, 0.08);
+            --fragment-highlight: rgba(216, 255, 225, 0.12);
+
+            /* States */
+            --error-accent: rgb(201, 120, 120);
+            --warning-accent: rgb(207, 181, 126);
+
+            /* Typography */
+            --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', 'SF Mono', monospace;
+
+            /* Convenience aliases */
+            --bg: var(--bg-primary);
+            --bg-card: var(--bg-elevated);
+            --border: var(--fragment-border);
+            --text: var(--text-primary);
+            --text-muted: var(--text-secondary);
+            --accent: var(--accent-primary);
+            --accent-glow: var(--fragment-highlight);
+            --max-width: 1200px;
+            --ease-glitch: cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+
+
+        /* ===== Typography ===== */
+        h1, h2, h3 {
+            font-weight: 700;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+
+        h1 {
+            font-size: clamp(2.5rem, 6vw, 5rem);
+        }
+
+        /* ===== Hero Subtitle & Scroll Hint (from Demo) ===== */
+        .hero-subtitle {
+            font-size: 0.75rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--accent-soft);
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-desc {
+            color: var(--text-secondary);
+            line-height: 1.9;
+            max-width: 420px;
+            margin-bottom: 2.5rem;
+            font-size: 0.95rem;
+        }
+
+        .scroll-hint {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 4rem;
+            color: var(--accent-muted);
+            font-size: 0.8rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .scroll-hint::before {
+            content: '';
+            display: inline-block;
+            width: 1px;
+            height: 28px;
+            background: var(--accent-muted);
+            opacity: 0.5;
+        }
+
+        /* ===== Editorial Title Slash Divider ===== */
+        .editorial-title-slash {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: var(--accent-primary);
+            transform: rotate(-20deg);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Code visual with line numbers */
+        .code-visual-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            align-items: start;
+            width: 100%;
+            height: 100%;
+        }
+
+        .code-line-numbers {
+            padding: 2rem 0.75rem 2rem 1rem;
+            text-align: right;
+            color: var(--text-tertiary);
+            opacity: 0.35;
+            font-size: 0.7rem;
+            line-height: 1.7;
+            user-select: none;
+            border-right: 1px solid var(--fragment-border);
+        }
+
+        .code-lines {
+            padding: 2rem 1.5rem 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            line-height: 1.7;
+        }
+
+        /* ===== Layout ===== */
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(13, 16, 16, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            color: var(--text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav a:hover, .nav a.active {
+            color: var(--text);
+        }
+
+        .nav a.active {
+            color: var(--accent);
+        }
+
+        /* Hamburger menu toggle (mobile) */
+        .menu-toggle {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--border);
+            background: transparent;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            color: var(--text);
+            font-size: 1.3rem;
+            transition: all 0.2s;
+        }
+
+        .menu-toggle:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Sidebar overlay */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 199;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Sidebar drawer */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: -280px;
+            width: 280px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            z-index: 200;
+            padding: 1.5rem;
+            transition: right 0.35s var(--ease-glitch);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar.open {
+            right: 0;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-close {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border);
+            background: transparent;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .sidebar-close:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .sidebar-nav a {
+            display: block;
+            padding: 1rem 0;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+            transition: color 0.2s;
+        }
+
+        .sidebar-nav a:hover, .sidebar-nav a.active {
+            color: var(--accent);
+        }
+
+        /* ===== Hero ===== */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 6rem 0 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, var(--scanline) 2px, var(--scanline) 4px),
+            radial-gradient(ellipse at 70% 30%, var(--noise) 0%, transparent 60%);
+        }
+
+        .hero .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            margin-bottom: 1.5rem;
+        }
+
+        .hero h1 .highlight {
+            color: var(--accent);
+            position: relative;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            max-width: 440px;
+            margin-bottom: 2.5rem;
+            line-height: 1.7;
+        }
+
+        .cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.9rem 2rem;
+            background: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px var(--accent-glow);
+        }
+
+        .cta-btn .arrow {
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+
+        .cta-btn:hover .arrow {
+            transform: translateX(4px);
+        }
+
+        /* Hero Visual */
+        .hero-visual {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 500px;
+        }
+
+        .skateboarder-svg {
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .circular-text {
+            position: absolute;
+            width: 340px;
+            height: 340px;
+            animation: spin 20s linear infinite;
+        }
+
+        .circular-text text {
+            fill: var(--accent-muted);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ===== Footer ===== */
+        .footer {
+            padding: 4rem 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .footer-quote {
+            font-size: 1.2rem;
+            font-style: italic;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 3rem;
+            line-height: 1.8;
+        }
+
+        .footer-quote cite {
+            display: block;
+            font-style: normal;
+            font-size: 0.85rem;
+            margin-top: 0.75rem;
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .social-links a {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--border);
+            background: var(--bg-elevated);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+        }
+
+        .social-links a:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .footer-copy {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        /* ===== Scroll Reveal (Hero + Footer legacy) ===== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ===== Mobile ===== */
+        @media (max-width: 768px) {
+            .hero .container {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+            }
+
+            .hero-visual {
+                height: 350px;
+                order: -1;
+            }
+
+            .nav {
+                display: none;
+            }
+
+            .menu-toggle {
+                display: flex;
+            }
+
+            .sidebar-overlay {
+                display: block;
+            }
+
+            .circular-text {
+                width: 260px;
+                height: 260px;
+            }
+
+            .code-visual-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .code-line-numbers {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header class="header">
+    <div class="container">
+        <a href="#" class="logo">
+            <span class="logo-dot"></span> PowerAdapter
+        </a>
+        <nav class="nav">
+            <a href="#skateboard" class="active">Posts</a>
+            <a href="#coding">About</a>
+            <a href="#links">Links</a>
+        </nav>
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu" title="Menu">
+            &#9776;
+        </button>
+    </div>
+</header>
+
+<!-- Sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar drawer -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <a href="#" class="logo" style="font-size:1.1rem;">
+            <span class="logo-dot"></span> PowerAdapter
+        </a>
+        <button class="sidebar-close" id="sidebarClose" aria-label="Close menu">&#10005;</button>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="#skateboard" class="active">Posts</a>
+        <a href="#coding">About</a>
+        <a href="#links">Links</a>
+    </nav>
+</aside>
+
+<!-- ===== Hero ===== -->
+<section class="hero" id="hero">
+    <div class="container">
+        <div class="hero-content reveal">
+            <p class="hero-subtitle">Love Programming, Music & Skateboard</p>
+            <h1>
+                I <span class="highlight">write</span> to understand<br>what I <span class="highlight">love</span>.
+            </h1>
+            <p class="hero-desc">
+                记录我在编程、音乐与滑板中的思考、实验与感受。<br>
+                这些是基于我的数字花园，也是我的练习场。
+            </p>
+            <a href="#skateboard" class="cta-btn">
+                Explore My Worlds <span class="arrow">&#8594;</span>
+            </a>
+            <div class="scroll-hint">Scroll Down</div>
+        </div>
+        <div class="hero-visual reveal">
+            <!-- Skateboarder SVG -->
+            <svg class="skateboarder-svg" viewBox="0 0 300 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Head -->
+                <circle cx="150" cy="80" r="28" fill="none" stroke="rgb(235,240,235)" stroke-width="2.5"/>
+                <!-- Body -->
+                <line x1="150" y1="108" x2="140" y2="220" stroke="rgb(235,240,235)" stroke-width="2.5"
+                      stroke-linecap="round"/>
+                <!-- Arms -->
+                <path d="M145 140 Q120 160 100 150" stroke="rgb(235,240,235)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M148 145 Q170 170 190 185" stroke="rgb(235,240,235)" stroke-width="2" stroke-linecap="round"/>
+                <!-- Legs -->
+                <line x1="140" y1="220" x2="120" y2="290" stroke="rgb(235,240,235)" stroke-width="2.5"
+                      stroke-linecap="round"/>
+                <line x1="145" y1="220" x2="170" y2="280" stroke="rgb(235,240,235)" stroke-width="2.5"
+                      stroke-linecap="round"/>
+                <!-- Skateboard -->
+                <path d="M95 295 Q150 310 230 295" stroke="rgb(216,255,225)" stroke-width="3" stroke-linecap="round"/>
+                <line x1="110" y1="295" x2="110" y2="305" stroke="rgb(216,255,225)" stroke-width="3"
+                      stroke-linecap="round"/>
+                <line x1="200" y1="295" x2="200" y2="305" stroke="rgb(216,255,225)" stroke-width="3"
+                      stroke-linecap="round"/>
+                <!-- Motion lines -->
+                <line x1="70" y1="260" x2="85" y2="260" stroke="rgb(143,163,148)" stroke-width="1.5"
+                      stroke-linecap="round" opacity="0.4"/>
+                <line x1="60" y1="280" x2="80" y2="280" stroke="rgb(143,163,148)" stroke-width="1.5"
+                      stroke-linecap="round" opacity="0.3"/>
+                <line x1="75" y1="300" x2="95" y2="300" stroke="rgb(143,163,148)" stroke-width="1.5"
+                      stroke-linecap="round" opacity="0.2"/>
+            </svg>
+            <!-- Circular rotating text -->
+            <svg class="circular-text" viewBox="0 0 200 200">
+                <defs>
+                    <path id="circlePath" d="M100,20 a80,80 0 1,1 -0.1,0"/>
+                </defs>
+                <text>
+                    <textPath href="#circlePath" startOffset="0%">
+                        DESIRE · THINK · BUILD · PLAY · DESIRE · THINK · BUILD · PLAY ·
+                    </textPath>
+                </text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ===== 01 Skateboard ===== -->
+<section class="editorial-section editorial-glitch" id="skateboard" data-scramble="title,body"
+         data-scramble-set="skate">
+    <!-- Col 1: Number -->
+    <div class="editorial-number">
+        <span class="number-text">01</span>
+        <div class="editorial-metadata">
+            <span class="meta-word">PUSH</span>
+            <span class="meta-word">FALL</span>
+            <span class="meta-word">ROLL</span>
+        </div>
+
+    </div>
+
+
+    <!-- Col 2: Narrative Content -->
+    <div class="editorial-content">
+        <h2 class="editorial-title" data-scramble-text>Skateboard</h2>
+        <span class="editorial-title-slash"></span>
+        <p class="editorial-body" data-scramble-text>
+            基础、保持与坚持。<br>
+            关于滑板的一切：关于平衡、起跳<br>
+            以及反复摔倒的瞬间。
+        </p>
+        <a href="#" class="editorial-link">
+            Enter Skateboard World <span class="link-arrow">&#8594;</span>
+        </a>
+    </div>
+
+    <!-- Col 3: Visual Artifact -->
+    <div class="editorial-visual editorial-visual--skate">
+        <!-- Overlay keywords — top-right -->
+        <svg viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg"
+             style="width:100%;height:100%;">
+            <rect width="400" height="300" fill="url(#skyGrad01)"/>
+            <defs>
+                <linearGradient id="skyGrad01" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#0D1010"/>
+                    <stop offset="100%" stop-color="#1C2323"/>
+                </linearGradient>
+            </defs>
+            <!-- Ramp -->
+            <path d="M0 300 L50 120 L150 120 L200 300" fill="none" stroke="rgb(216,255,225)" stroke-width="3"
+                  opacity="0.4"/>
+            <!-- Bowl curve -->
+            <path d="M250 300 Q300 150 400 180 L400 300" fill="none" stroke="rgb(143,163,148)" stroke-width="2"
+                  opacity="0.3"/>
+            <!-- Stars -->
+            <circle cx="50" cy="40" r="1.5" fill="rgb(216,255,225)" opacity="0.4"/>
+            <circle cx="120" cy="25" r="1" fill="rgb(216,255,225)" opacity="0.35"/>
+            <circle cx="200" cy="50" r="1.5" fill="rgb(216,255,225)" opacity="0.3"/>
+            <circle cx="300" cy="30" r="1" fill="rgb(216,255,225)" opacity="0.4"/>
+            <circle cx="350" cy="60" r="1.5" fill="rgb(216,255,225)" opacity="0.25"/>
+            <circle cx="80" cy="70" r="1" fill="rgb(216,255,225)" opacity="0.35"/>
+            <!-- Skateboarder on ramp -->
+            <g transform="translate(130, 100) rotate(-15)">
+                <circle cx="0" cy="-20" r="10" fill="none" stroke="rgb(235,240,235)" stroke-width="2"/>
+                <line x1="0" y1="-10" x2="0" y2="20" stroke="rgb(235,240,235)" stroke-width="2"/>
+                <line x1="0" y1="0" x2="-15" y2="10" stroke="rgb(235,240,235)" stroke-width="1.5"/>
+                <line x1="0" y1="0" x2="15" y2="5" stroke="rgb(235,240,235)" stroke-width="1.5"/>
+                <line x1="-8" y1="20" x2="8" y2="30" stroke="rgb(235,240,235)" stroke-width="1.5"/>
+                <line x1="5" y1="20" x2="15" y2="25" stroke="rgb(235,240,235)" stroke-width="1.5"/>
+                <path d="M-20 35 Q0 38 20 35" stroke="rgb(216,255,225)" stroke-width="2"/>
+            </g>
+        </svg>
+    </div>
+
+    <!-- Col 4: Keywords — vertical, dash-separated -->
+    <div class="editorial-keywords">
+        <div class="artifact-keywords">Ollie-Grind-Flip</div>
+    </div>
+</section>
+
+<!-- ===== 02 Music ===== -->
+<section class="editorial-section editorial-glitch" id="music" data-scramble="title,body" data-scramble-set="music">
+    <!-- Col 1: Number + Metadata -->
+    <div class="editorial-number">
+        <span class="number-text">02</span>
+        <div class="editorial-metadata">
+            <span class="meta-word">RHYTHM</span>
+            <span class="meta-word">HARMONY</span>
+            <span class="meta-word">NOISE</span>
+        </div>
+    </div>
+
+    <!-- Col 2: Narrative Content -->
+    <div class="editorial-content">
+        <h2 class="editorial-title" data-scramble-text>Music</h2>
+        <span class="editorial-title-slash"></span>
+        <p class="editorial-body" data-scramble-text>
+            节律、节奏与共鸣。<br>
+            记录我听到的、创作的，<br>
+            以及那些打动我的声音。
+        </p>
+        <a href="#" class="editorial-link">
+            Enter Music World <span class="link-arrow">&#8594;</span>
+        </a>
+    </div>
+
+    <!-- Col 3: Visual Artifact -->
+    <div class="editorial-visual editorial-visual--music">
+        <div class="waveform-bars" id="waveform">
+            <!-- Generated by JS -->
+        </div>
+    </div>
+
+    <!-- Col 4: Keywords — vertical, dash-separated -->
+    <div class="editorial-keywords">
+        <div class="artifact-keywords">Melody-Harmony-Noise</div>
+    </div>
+</section>
+
+<!-- ===== 03 Coding ===== -->
+<section class="editorial-section editorial-glitch" id="coding" data-scramble="title,body" data-scramble-set="code">
+    <!-- Col 1: Number + Metadata -->
+    <div class="editorial-number">
+        <span class="number-text">03</span>
+        <div class="editorial-metadata">
+            <span class="meta-word">LOGIC</span>
+            <span class="meta-word">STRUCT</span>
+            <span class="meta-word">CREATE</span>
+        </div>
+    </div>
+
+    <!-- Col 2: Narrative Content -->
+    <div class="editorial-content">
+        <h2 class="editorial-title" data-scramble-text>Coding</h2>
+        <span class="editorial-title-slash"></span>
+        <p class="editorial-body" data-scramble-text>
+            代码、结构与可能性的<br>
+            在逻辑中构建想法，<br>
+            在系统中寻找自由。
+        </p>
+        <a href="#" class="editorial-link">
+            Enter Coding World <span class="link-arrow">&#8594;</span>
+        </a>
+    </div>
+
+    <!-- Col 3: Visual Artifact — Code with Line Numbers -->
+    <div class="editorial-visual editorial-visual--code">
+        <div class="code-visual-grid">
+            <div class="code-line-numbers">
+                01<br>02<br>03<br>04<br>05<br>06<br>07<br>08<br>09<br>10<br>11<br>12<br>13<br>14<br>15<br></div>
+            <div class="code-lines">
+                <div class="code-line"><span class="code-keyword">def</span> <span
+                        class="code-func">solve_problem</span>(<span class="code-var">problem</span>):
+                </div>
+                <div class="code-line"><span class="code-var">observed</span> = <span
+                        class="code-func">analyze</span>(<span class="code-var">problem</span>)
+                </div>
+                <div class="code-line"><span class="code-keyword">if</span> <span class="code-var">insight</span>:</div>
+                <div class="code-line"><span class="code-keyword">return</span> <span
+                        class="code-func">iterate</span>(<span class="code-var">problem</span>)
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line"><span class="code-comment">// Write less.</span></div>
+                <div class="code-line"><span class="code-comment">// Do more.</span></div>
+                <div class="code-line"><span class="code-comment">// Repeat.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Col 4: Keywords — vertical, dash-separated -->
+    <div class="editorial-keywords">
+        <div class="artifact-keywords">Logic-Struct-Create</div>
+    </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<footer class="footer" id="links">
+    <div class="container reveal"
+         style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; text-align: left; align-items: start;">
+        <!-- Left: Quote -->
+        <blockquote class="footer-quote" style="margin:0; max-width:none;">
+            <span style="color:var(--accent-primary); font-size:2rem; line-height:0;">&#8220;</span>
+            <p style="font-style:normal; font-size:1rem; color:var(--text-secondary); line-height:1.8; margin-top:0.5rem;">
+                The best way to predict the future<br>is to build it yourself.
+            </p>
+            <cite style="display:block; font-style:normal; font-size:0.85rem; margin-top:1.25rem; color:var(--accent-muted);">
+                — Alan Kay
+            </cite>
+        </blockquote>
+
+        <!-- Right: Social -->
+        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+            <p style="font-family:var(--font-mono); font-size:0.75rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent-soft); margin-bottom:1.5rem;">
+                &#9776; Stay in Touch
+            </p>
+            <div class="social-links" style="justify-content: flex-start; margin-bottom:0;">
+                <a href="#" title="GitHub">GH</a>
+                <a href="#" title="Twitter">TW</a>
+                <a href="#" title="Email">EM</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="container"
+         style="border-top:1px solid var(--fragment-border); padding-top:1.5rem; display:flex; justify-content:space-between; align-items:center; margin-top:3rem;">
+        <p class="footer-copy" style="opacity:0.4;">&#9632;</p>
+        <p class="footer-copy" style="opacity:0.4;">&copy; PowerAdapter &middot; 2024</p>
+    </div>
+</footer>
+
+<script>
+    // ===== Sidebar Toggle =====
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const sidebarClose = document.getElementById('sidebarClose');
+
+    function openSidebar() {
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    menuToggle.addEventListener('click', openSidebar);
+    sidebarClose.addEventListener('click', closeSidebar);
+    sidebarOverlay.addEventListener('click', closeSidebar);
+
+    // Close sidebar when a nav link is clicked
+    sidebar.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', closeSidebar);
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+            closeSidebar();
+        }
+    });
+
+    // ===== Scroll Reveal (Hero + Footer) =====
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, {threshold: 0.15, rootMargin: '0px 0px -50px 0px'});
+
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    // ============================================
+    // Glitch Entrance System
+    // Sequence: fragments appear → blocks stabilize
+    //           → typography resolves → layout locks
+    // ============================================
+
+    // Per-section scramble character sets
+    const scrambleSets = {
+        // Skateboard — physics/motion symbols, geometric forms, raw energy
+        skate: '∞≈±×÷∆∇◊○●◐◎▣▤▥▦▧▨▩▲△▼▽◢◣◥◦⊕⊗⊙⌘⎔⏚⏎⏏░▒▓',
+        // Music — musical notation, rhythm, waveforms
+        music: '♩♪♫♬♭♯♮𝄪𝄫‖𝄀𝄁𝄂𝄃𝄄𝄅𝄆𝄇𝄈∿≋≈~·•‥…°′″‴〃',
+        // Code — programming syntax, logic operators
+        code: '{}[]()<>;:=!&|/\\#@$%^*+-_0123456789abcdef<>?`~'
+    };
+
+    function scrambleText(el) {
+        const originalText = el.dataset.original || el.textContent;
+        if (!el.dataset.original) {
+            el.dataset.original = originalText;
+        }
+
+        // Pick scramble set from parent section's data attribute, fallback to code set
+        const section = el.closest('[data-scramble-set]');
+        const setName = section ? section.dataset.scrambleSet : 'code';
+        const charPool = scrambleSets[setName] || scrambleSets.code;
+
+        const chars = originalText.split('');
+
+        // Wrap each character in a span
+        el.innerHTML = chars.map((ch, i) => {
+            if (ch === ' ' || ch === '\n') return ch;
+            const randomChar = charPool[Math.floor(Math.random() * charPool.length)];
+            return `<span class="scramble-char scramble-corrupted" data-index="${i}" data-original="${ch.replace(/"/g, '&quot;')}">${randomChar}</span>`;
+        }).join('');
+
+        // Resolve characters one by one with staggered delays — ~2x faster than before
+        const spans = el.querySelectorAll('.scramble-char');
+        spans.forEach((span, i) => {
+            // Base delay reduced to ~40ms (was 80ms), random range halved, per-char increment halved
+            const delay = 40 + Math.random() * 200 + i * 12;
+            setTimeout(() => {
+                span.textContent = span.dataset.original;
+                span.classList.remove('scramble-corrupted');
+                span.classList.add('scramble-resolved');
+            }, delay);
+        });
+    }
+
+    // ===== Editorial Section Glitch Observer =====
+    const editorialObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const section = entry.target;
+
+                // Phase 1: Mark as entering (triggers glitch rect overlays)
+                section.classList.add('editorial-entering');
+
+                // Phase 2: After glitch rects flash, stabilize blocks
+                setTimeout(() => {
+                    section.classList.remove('editorial-entering');
+                    section.classList.add('editorial-entered');
+                }, 300);
+
+                // Phase 3: Scramble text resolution
+                const scrambleTargets = section.querySelectorAll('[data-scramble-text]');
+                scrambleTargets.forEach((el, idx) => {
+                    setTimeout(() => scrambleText(el), 400 + idx * 150);
+                });
+
+                // Unobserve after triggering
+                editorialObserver.unobserve(section);
+            }
+        });
+    }, {
+        threshold: 0.2,
+        rootMargin: '0px 0px -10% 0px'
+    });
+
+    document.querySelectorAll('.editorial-glitch').forEach(section => {
+        editorialObserver.observe(section);
+    });
+
+    // ===== Waveform Bars (left-heavy: low-freq high, right-side tapers down) =====
+    const waveform = document.getElementById('waveform');
+    if (waveform) {
+        const barCount = 32;
+        for (let i = 0; i < barCount; i++) {
+            const t = i / (barCount - 1); // 0 (left) → 1 (right)
+            // Envelope: loud on left, fading toward right
+            const envelope = 1 - Math.pow(t, 1.6);
+            // Base height + envelope-scaled randomness
+            const baseH = 8 + envelope * (70 + Math.random() * 50);
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            bar.style.setProperty('--h', baseH + 'px');
+            bar.style.animationDelay = (i * 0.03) + 's';
+            bar.style.animationDuration = (0.5 + Math.random() * 0.6) + 's';
+            waveform.appendChild(bar);
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!--
+    Error Visual — Music
+    出错的五线谱：断裂、音符错位
+-->
+<svg viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="skyGradMusic" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0D1010"/>
+            <stop offset="100%" stop-color="#141818"/>
+        </linearGradient>
+    </defs>
+    <rect width="400" height="300" fill="url(#skyGradMusic)"/>
+
+    <!-- Staff lines — fractured -->
+    <g opacity="0.3">
+        <line x1="30" y1="120" x2="180" y2="120" stroke="rgb(216,255,225)" stroke-width="0.8"/>
+        <line x1="30" y1="140" x2="155" y2="140" stroke="rgb(216,255,225)" stroke-width="0.8"/>
+        <line x1="30" y1="160" x2="200" y2="160" stroke="rgb(216,255,225)" stroke-width="0.8"/>
+        <line x1="30" y1="180" x2="165" y2="180" stroke="rgb(216,255,225)" stroke-width="0.8"/>
+        <line x1="30" y1="200" x2="190" y2="200" stroke="rgb(216,255,225)" stroke-width="0.8"/>
+    </g>
+
+    <!-- Staff lines — scattered fragments -->
+    <g opacity="0.15">
+        <line x1="210" y1="125" x2="300" y2="125" stroke="rgb(216,255,225)" stroke-width="0.8"/>
+        <line x1="220" y1="145" x2="310" y2="145" stroke="rgb(216,255,225)" stroke-width="0.8"/>
+        <line x1="230" y1="165" x2="320" y2="165" stroke="rgb(216,255,225)" stroke-width="0.8"/>
+        <line x1="240" y1="185" x2="330" y2="185" stroke="rgb(216,255,225)" stroke-width="0.8"/>
+        <line x1="250" y1="205" x2="340" y2="205" stroke="rgb(216,255,225)" stroke-width="0.8"/>
+    </g>
+
+    <!-- Treble clef — distorted -->
+    <g transform="translate(55, 160) scale(0.8)" opacity="0.3">
+        <path d="M0,40 C-10,30 -15,10 -5,-10 C5,-30 15,-25 10,-5 C8,10 -5,25 0,40"
+              fill="none" stroke="rgb(216,255,225)" stroke-width="1.5"/>
+        <circle cx="0" cy="42" r="3" fill="rgb(216,255,225)" opacity="0.5"/>
+    </g>
+
+    <!-- Notes — scattered, some broken -->
+    <!-- Note 1: normal -->
+    <g transform="translate(80, 130)" opacity="0.4">
+        <ellipse cx="0" cy="0" rx="6" ry="4.5" fill="rgb(216,255,225)" transform="rotate(-15)"/>
+        <line x1="5" y1="-3" x2="5" y2="-30" stroke="rgb(216,255,225)" stroke-width="1"/>
+    </g>
+
+    <!-- Note 2: broken stem -->
+    <g transform="translate(130, 150)" opacity="0.35">
+        <ellipse cx="0" cy="0" rx="6" ry="4.5" fill="rgb(216,255,225)" transform="rotate(-15)"/>
+        <line x1="5" y1="-3" x2="5" y2="-18" stroke="rgb(216,255,225)" stroke-width="1"/>
+        <line x1="7" y1="-22" x2="10" y2="-28" stroke="rgb(201,120,120)" stroke-width="1" opacity="0.6"/>
+    </g>
+
+    <!-- Note 3: fallen over -->
+    <g transform="translate(170, 175) rotate(45)" opacity="0.25">
+        <ellipse cx="0" cy="0" rx="6" ry="4.5" fill="rgb(201,120,120)"/>
+        <line x1="5" y1="-3" x2="5" y2="-30" stroke="rgb(201,120,120)" stroke-width="1"/>
+    </g>
+
+    <!-- Note 4: displaced -->
+    <g transform="translate(260, 130)" opacity="0.3">
+        <ellipse cx="0" cy="0" rx="6" ry="4.5" fill="rgb(216,255,225)" transform="rotate(-15)"/>
+        <line x1="5" y1="-3" x2="5" y2="-30" stroke="rgb(216,255,225)" stroke-width="1"/>
+    </g>
+
+    <!-- Note 5: error marker -->
+    <g transform="translate(310, 155)" opacity="0.25">
+        <ellipse cx="0" cy="0" rx="6" ry="4.5" fill="rgb(201,120,120)" transform="rotate(-15)"/>
+        <line x1="5" y1="-3" x2="5" y2="-30" stroke="rgb(201,120,120)" stroke-width="1"/>
+        <line x1="-8" y1="-10" x2="12" y2="6" stroke="rgb(201,120,120)" stroke-width="1.5" opacity="0.5"/>
+    </g>
+
+    <!-- Glitch bars -->
+    <rect x="90" y="100" width="60" height="2" fill="rgb(201,120,120)" opacity="0.15"/>
+    <rect x="250" y="240" width="80" height="1.5" fill="rgb(201,120,120)" opacity="0.12"/>
+
+    <!-- Error text -->
+    <text x="140" y="260" font-family="monospace" font-size="8" fill="rgb(201,120,120)" opacity="0.3"
+          letter-spacing="3">HARMONY BROKEN</text>
+</svg>

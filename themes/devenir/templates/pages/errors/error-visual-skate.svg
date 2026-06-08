@@ -1,0 +1,57 @@
+<!--
+    Error Visual — Skateboard
+    简笔画滑板：失衡、摔倒的状态
+-->
+<svg viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background gradient -->
+    <defs>
+        <linearGradient id="skyGradErr" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0D1010"/>
+            <stop offset="100%" stop-color="#141818"/>
+        </linearGradient>
+    </defs>
+    <rect width="400" height="300" fill="url(#skyGradErr)"/>
+
+    <!-- Ground line — fractured -->
+    <line x1="20" y1="260" x2="150" y2="260" stroke="rgb(111,129,119)" stroke-width="1" opacity="0.3"/>
+    <line x1="170" y1="262" x2="300" y2="262" stroke="rgb(111,129,119)" stroke-width="1" opacity="0.25"/>
+    <line x1="310" y1="258" x2="380" y2="258" stroke="rgb(111,129,119)" stroke-width="1" opacity="0.2"/>
+
+    <!-- Skateboard — tilted, off-balance -->
+    <g transform="translate(200, 200) rotate(-25)">
+        <!-- Board -->
+        <path d="M-60,10 Q-30,-5 0,-5 Q30,-5 60,10 L55,15 Q30,5 0,5 Q-30,5 -55,15 Z"
+              fill="none" stroke="rgb(216,255,225)" stroke-width="2" opacity="0.5"/>
+        <!-- Trucks -->
+        <line x1="-35" y1="10" x2="-35" y2="22" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.4"/>
+        <line x1="35" y1="10" x2="35" y2="22" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.4"/>
+        <!-- Wheels (misaligned) -->
+        <circle cx="-42" cy="24" r="6" fill="none" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.35"/>
+        <circle cx="-28" cy="26" r="6" fill="none" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.35"/>
+        <circle cx="28" cy="24" r="6" fill="none" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.35"/>
+        <circle cx="42" cy="26" r="6" fill="none" stroke="rgb(143,163,148)" stroke-width="1.5" opacity="0.35"/>
+    </g>
+
+    <!-- Motion lines — falling trajectory -->
+    <line x1="250" y1="140" x2="240" y2="170" stroke="rgb(216,255,225)" stroke-width="1" opacity="0.2"
+          stroke-dasharray="4,6"/>
+    <line x1="270" y1="130" x2="255" y2="175" stroke="rgb(216,255,225)" stroke-width="1" opacity="0.15"
+          stroke-dasharray="3,7"/>
+    <line x1="290" y1="150" x2="270" y2="180" stroke="rgb(216,255,225)" stroke-width="1" opacity="0.12"
+          stroke-dasharray="2,8"/>
+
+    <!-- Error glitch bars -->
+    <rect x="155" y="90" width="3" height="30" fill="rgb(201,120,120)" opacity="0.25" transform="rotate(8,155,90)"/>
+    <rect x="230" y="80" width="2" height="25" fill="rgb(201,120,120)" opacity="0.2" transform="rotate(-5,230,80)"/>
+    <rect x="180" y="110" width="40" height="1.5" fill="rgb(201,120,120)" opacity="0.18"/>
+
+    <!-- Sparse stars -->
+    <circle cx="60" cy="50" r="1" fill="rgb(216,255,225)" opacity="0.2"/>
+    <circle cx="140" cy="35" r="1.5" fill="rgb(216,255,225)" opacity="0.15"/>
+    <circle cx="340" cy="60" r="1" fill="rgb(216,255,225)" opacity="0.2"/>
+    <circle cx="380" cy="30" r="1.5" fill="rgb(216,255,225)" opacity="0.12"/>
+
+    <!-- LOST signal text -->
+    <text x="100" y="80" font-family="monospace" font-size="9" fill="rgb(201,120,120)" opacity="0.35"
+          letter-spacing="4">SIGNAL LOST</text>
+</svg>

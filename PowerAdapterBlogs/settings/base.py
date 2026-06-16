@@ -32,7 +32,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-&bb1l!n&3qup4=l*w!u^tdo#_+hqpyx$!aso!)z!7t+hu1_nx("
+# 生产环境务必通过环境变量注入 SECRET_KEY，此处仅为开发环境兜底
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-dev-fallback--change-me-in-production"
+)
+if SECRET_KEY.startswith("django-insecure-dev-fallback"):
+    import warnings
+    warnings.warn(
+        "SECRET_KEY is using the dev fallback! Set DJANGO_SECRET_KEY env var in production.",
+        RuntimeWarning,
+    )
 
 # Application definition
 
@@ -60,9 +70,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "comment.middleware.ClientMetaMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "comment.middleware.ClientMetaMiddleware",
     "Blogs.middleware.user_id.UserIdMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

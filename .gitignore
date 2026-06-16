@@ -1,8 +1,31 @@
-/db.sqlite3
-/.venv/
-/.idea/
-/sundry/
+# ====== Python ======
+__pycache__/
 *.pyc
-*.swp
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# ====== Django / Project ======
+/db.sqlite3
 *.sqlite3
 *.sqlite
+.env
+/media/
+/logs/
+
+# ====== Node / Frontend ======
+/node_modules/
+package-lock.json
+
+# ====== IDE & Editor ======
+/.idea/
+/themes/devenir/.idea/
+*.swp
+*.swo
+
+# ====== Project-specific ======
+/.venv/
+/sundry/
+/themes/devenir/static/fonts
+/cb_context.md

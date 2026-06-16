@@ -67,6 +67,7 @@
 <!-- 2. 头部内容：<header> -->
 <!-- 3. 主要内容区：<main> -->
 <main style="flex: 1">
+    {% block tag %}{% endblock %}
     {% block main %}
         <!-- Sidebar -->
         <div class="fixed-grid has-5-cols">

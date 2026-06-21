@@ -18,5 +18,9 @@ class CustomSite(AdminSite):
     site_title = 'PowerAdapterBlogs 管理后台'
     index_title = '首页'
 
+    def has_permission(self, request):
+        """dashboard 入口：检查 is_dashboard_user（与 /super_admin/ 的 is_staff 分离）"""
+        return request.user.is_active and request.user.is_dashboard_user
+
 
 custom_site = CustomSite(name='cus_admin')

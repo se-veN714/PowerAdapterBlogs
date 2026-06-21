@@ -9,7 +9,7 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.db import transaction, IntegrityError
 from django.db.models import Q, F
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls.base import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -20,6 +20,7 @@ from django.views.generic.edit import CreateView, UpdateView
 
 from Blogs.forms import PostForm
 from Blogs.models import Post, PostVisit, Tag, Category
+from Blogs.revisions import create_revision, can_view_staff_only
 from config.models import SideBar
 
 
@@ -70,7 +71,13 @@ class PostDetailView(CommonViewMixin, DetailView):
         return response
 
     def get_object(self, queryset=None):
-        return get_object_or_404(Post, slug=self.kwargs['slug'], status=Post.STATUS_NORMAL)
+        post = get_object_or_404(Post, slug=self.kwargs['slug'], status=Post.STATUS_NORMAL)
+        # visibility 检查：staff-only 文章非内部用户 → 404
+        if post.visibility == Post.VISIBILITY_STAFF_ONLY and not can_view_staff_only(self.request.user):
+            logger.warning(f"非授权访问 staff-only 文章: slug={post.slug} "
+                           f"user={getattr(self.request.user, 'id', 'anon')}")
+            raise Http404("文章不存在")
+        return post
 
     def handle_visit(self):
 
@@ -156,6 +163,12 @@ class PostListView(AnonymousPageCacheMixin, ListView):
     context_object_name = 'post_list'
     template_name = 'blog/list.html'
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if not can_view_staff_only(self.request.user):
+            qs = qs.exclude(visibility=Post.VISIBILITY_STAFF_ONLY)
+        return qs
+
 
 class CategoryView(CommonViewMixin, ListView):
     paginate_by = 10
@@ -166,7 +179,10 @@ class CategoryView(CommonViewMixin, ListView):
     def get_queryset(self):
         """ 重写 queryset，根据分类过滤 """
         self.cate_list = get_object_or_404(Category, pk=self.kwargs.get("category_id"))
-        return Post.get_by_category(self.cate_list.id)
+        qs = Post.get_by_category(self.cate_list.id)
+        if not can_view_staff_only(self.request.user):
+            qs = qs.exclude(visibility=Post.VISIBILITY_STAFF_ONLY)
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -234,6 +250,9 @@ class PostCreateView(LoginRequiredMixin, LoggingMixin, CreateView):
     def form_valid(self, form):
         form.instance.owner = self.request.user
         response = super().form_valid(form)
+        # 创建 v1.0 初始快照
+        create_revision(self.object, self.request.user,
+                        change_type='major', edit_summary='初始发布')
         logger.info(f"Post 创建: post_id={self.object.id} slug={self.object.slug} "
                     f"user={self.request.user.id} category_id={self.object.category_id}")
         clear_page_caches()
@@ -257,6 +276,11 @@ class PostEditView(LoginRequiredMixin, UpdateView):
         old_title = self.object.title
         old_content = self.object.content
         response = super().form_valid(form)
+        # 创建修订快照
+        change_type = form.cleaned_data.get('change_type', 'minor')
+        edit_summary = form.cleaned_data.get('edit_summary', '')
+        create_revision(self.object, self.request.user,
+                        change_type=change_type, edit_summary=edit_summary)
         changed = []
         if old_title != self.object.title:
             changed.append("title")
@@ -298,3 +322,79 @@ def post_img_upload(request):
             return JsonResponse({"error": f"图片上传失败: {e}"}, status=500)
 
     return JsonResponse({"error": "No image uploaded"}, status=400)
+
+
+# ============================================================
+# 修订历史 API（v2.0 P1 — 前端 fetch 消费）
+# ============================================================
+
+def revision_list_api(request, slug):
+    """GET /api/post/{slug}/revisions/ — 返回版本列表 JSON"""
+    post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
+    revisions = post.revisions.all().values(
+        'major', 'minor', 'version', 'change_type',
+        'edit_summary', 'editor__username', 'created_at',
+    ).order_by('-major', '-minor')
+    return JsonResponse({
+        'slug': slug,
+        'versions': list(revisions),
+    })
+
+
+def revision_detail_api(request, slug, version):
+    """GET /api/post/{slug}/revision/v{major}.{minor}/ — 返回指定版本完整内容"""
+    post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
+    parts = version.lstrip('v').split('.')
+    if len(parts) != 2 or not all(p.isdigit() for p in parts):
+        return JsonResponse({'error': '版本号格式无效，应为 v{major}.{minor}'}, status=400)
+    major, minor = int(parts[0]), int(parts[1])
+    revision = get_object_or_404(
+        post.revisions, major=major, minor=minor
+    )
+    return JsonResponse({
+        'version': revision.version,
+        'title': revision.title,
+        'desc': revision.desc,
+        'content': revision.content,
+        'slug': revision.slug,
+        'change_type': revision.change_type,
+        'edit_summary': revision.edit_summary,
+        'editor': revision.editor.username if revision.editor else None,
+        'created_at': revision.created_at,
+    })
+
+
+def revision_diff_api(request, slug):
+    """GET /api/post/{slug}/diff/?from=1.0&to=2.0 — 返回 diff HTML 片段"""
+    from .revisions import render_diff
+
+    post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
+    from_ver = request.GET.get('from', '')
+    to_ver = request.GET.get('to', '')
+
+    if not from_ver or not to_ver:
+        return JsonResponse({'error': '请提供 ?from= 和 ?to= 参数'}, status=400)
+
+    try:
+        rev_from = _get_revision_by_version(post, from_ver)
+        rev_to = _get_revision_by_version(post, to_ver)
+    except ValueError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+    if not rev_from or not rev_to:
+        return JsonResponse({'error': '版本号不存在'}, status=404)
+
+    diff_html = render_diff(rev_from.content, rev_to.content, from_ver, to_ver)
+    return JsonResponse({
+        'from_version': from_ver,
+        'to_version': to_ver,
+        'diff_html': diff_html,
+    })
+
+
+def _get_revision_by_version(post, ver_str: str):
+    """版本号字符串 → PostRevision 实例的辅助函数"""
+    parts = ver_str.strip().lstrip('v').split('.')
+    if len(parts) != 2 or not all(p.isdigit() for p in parts):
+        raise ValueError(f"版本号格式无效: {ver_str}")
+    return post.revisions.filter(major=int(parts[0]), minor=int(parts[1])).first()

@@ -57,15 +57,37 @@ class PostForm(forms.ModelForm):
     )
 
     tag = forms.ModelMultipleChoiceField(
-        queryset=Post.objects.none(),  # 后面替换为你的 Tag 模型的 queryset
-        widget=forms.CheckboxSelectMultiple(),  # 可改成 Select2 或其他组件
+        queryset=Post.objects.none(),
+        widget=forms.CheckboxSelectMultiple(),
         label='标签',
         required=False,
     )
 
+    visibility = forms.ChoiceField(
+        choices=Post.VISIBILITY_ITEMS,
+        initial=Post.VISIBILITY_PUBLIC,
+        label='可见性',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
+    # === PostRevision 相关（非 Post 模型字段，在视图 form_valid 中消费） ===
+    change_type = forms.ChoiceField(
+        choices=[('major', '大版本'), ('minor', '小修订')],
+        initial='minor',
+        label='变更类型',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        required=False,  # 创建时可选（默认 minor）
+    )
+    edit_summary = forms.CharField(
+        max_length=200,
+        required=False,
+        label='编辑摘要',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '简述本次修改'}),
+    )
+
     class Meta:
         model = Post
-        fields = ['title', 'cover', 'desc', 'content', 'category', 'tag']
+        fields = ['title', 'cover', 'desc', 'content', 'category', 'tag', 'visibility']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

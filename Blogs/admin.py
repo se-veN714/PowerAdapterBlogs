@@ -6,7 +6,7 @@ from django.utils.html import format_html
 from PowerAdapterBlogs.base_admin import BaseOwnerAdmin, DashboardAdminMixin
 from PowerAdapterBlogs.cus_site import custom_site
 from Blogs.adminforms import PostAdminForm
-from Blogs.models import Post, Category, Tag
+from Blogs.models import Post, Category, Tag, PostRevision
 
 # Register your models here.
 admin.site.register(Post)
@@ -19,6 +19,19 @@ class PostInline(admin.TabularInline):  # 可选择继承自 admin.StackedInline
     fields = ('title', 'desc')
     extra = 1
     model = Post
+
+
+class PostRevisionInline(admin.TabularInline):
+    model = PostRevision
+    fields = ('version', 'change_type', 'edit_summary', 'editor', 'created_at')
+    readonly_fields = ('version', 'change_type', 'edit_summary', 'editor', 'created_at')
+    extra = 0
+    can_delete = False
+    verbose_name = "修订历史"
+    verbose_name_plural = "修订历史"
+
+    def has_add_permission(self, request, obj=None):
+        return False  # 快照由系统自动创建，禁止手动添加
 
 
 @admin.register(Category, site=custom_site)
@@ -59,13 +72,14 @@ class CategoryOwnerFilter(admin.SimpleListFilter):
 @admin.register(Post, site=custom_site)
 class PostAdmin(DashboardAdminMixin, BaseOwnerAdmin):
     form = PostAdminForm
+    inlines = [PostRevisionInline]
     list_display = [
-        'title', 'category', 'status',
+        'title', 'category', 'status', 'visibility',
         'created_time', 'owner'
     ]
     list_display_links = []
 
-    list_filter = ['category', ]
+    list_filter = ['category', 'visibility']
     search_fields = ['title', 'category__name']
 
     actions_on_top = True
@@ -89,7 +103,7 @@ class PostAdmin(DashboardAdminMixin, BaseOwnerAdmin):
             ),
         }),
         ('额外信息', {
-            'fields': ('tag',),
+            'fields': ('tag', 'visibility'),
         })
     )
 

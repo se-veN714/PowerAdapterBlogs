@@ -2,7 +2,7 @@
 
 > **版本**: v2.0-prerelease  
 > **更新**: 2026-06-22  
-> **状态**: 需求已确定，基础设施加固中  
+> **状态**: P0 已完成，P1 后端完成，下一项 v2.1 演进  
 > **继承**: V1 所有基础设施（Bulma 主题、Redis 缓存、Waitress/Nginx 部署）
 
 ---
@@ -19,7 +19,9 @@
 
 ---
 
-## 1. P0 Bugfix：MongoDB 日志完整性修复
+## 1. P0 Bugfix：MongoDB 日志完整性修复 ✅ 已完成
+
+> **完成日期**: 2026-06-22 · 4 个问题全部修复
 
 ### 1.1 问题诊断
 
@@ -371,6 +373,84 @@ def render_diff(old_text: str, new_text: str, from_ver: str, to_ver: str) -> str
 
 ---
 
+## 2A. v2.1 演进：PostRevision 成为内容唯一来源
+
+> **状态**: 规划中 · 预计 2026-06 下旬  
+> **目标**: Post 退化为纯元数据容器，PostRevision 成为内容唯一数据源  
+> **影响**: 模型 + 视图 + 模板 + Admin + DRF serializer · 预计 4-6h
+
+### 2A.1 架构变化
+
+```
+v2.0 (当前)                          v2.1 (目标)
+─────────────                        ────────────
+Post (内容主体)                       Post (纯元数据容器)
+├─ title, desc, content, slug        ├─ status, category, tag, owner
+├─ status, category, tag, ...        ├─ cover, pv, uv, visibility
+└─ visibility                        ├─ current_revision FK → PostRevision  ← 新增
+                                     ├─ created_time, update_time
+PostRevision (历史快照)               └─ ❌ 移除: title, desc, content, slug
+├─ title, desc, content, slug
+└─ major, minor, version, ...        PostRevision (内容唯一来源)
+                                     ├─ title, desc, content, slug  ← 唯一内容
+                                     ├─ major, minor, version
+                                     └─ editor, change_type, ...
+```
+
+### 2A.2 路由逻辑变化
+
+```
+v2.0:  GET /post/{slug}/
+       → PostDetailView.get_object()
+       → Post.objects.get(slug=slug)  ← 直接从 Post 取内容
+       → 模板渲染 post.title / post.content
+
+v2.1:  GET /post/{slug}/
+       → PostDetailView.get_object()
+       → Post.objects.get(slug=slug)  ← Post 只有元数据
+       → post.current_revision.title / .content  ← 通过 FK 取内容
+       → 模板渲染 (同上，前端无感)
+```
+
+### 2A.3 好处
+
+| 方面 | 效果 |
+|------|------|
+| 数据一致性 | 不会再出现 Post 内容 ≠ 最新版本内容（因为 Post 不再有内容字段） |
+| 版本完整性 | 每篇文章天然有完整版本链，不存在"当前版本未归档"的漏洞 |
+| 回滚能力 | 切换 `current_revision` 即可实现文章回滚（Phase 3 功能） |
+| 代码简洁 | 模板不需要关心内容来源是两个表还是一个表 |
+
+### 2A.4 实施步骤
+
+| # | 步骤 | 文件 | 注意 |
+|---|------|------|------|
+| 1 | Post 加 `current_revision` FK (nullable, `related_name='current_for'`) | `Blogs/models.py` | 先 nullable，data migration 后改 not null |
+| 2 | Schema migration | `makemigrations` | |
+| 3 | **Data migration**: 每篇文章 `current_revision = revisions.order_by('-major','-minor').first()` | `migrations/` | 必须先有 v1.0 快照，v2.0 P1 已保证 |
+| 4 | **Data migration**: 如果 latest revision 内容 ≠ Post 当前内容 → 补建一个快照 | `migrations/` | 兜底：编辑后未保存快照的边缘情况 |
+| 5 | `Post.save()` 新增逻辑：更新后自动设置 `current_revision` 为最新快照 | `Blogs/models.py` | |
+| 6 | 所有视图改内容来源：`post.title` → `post.current_revision.title` 等 | `Blogs/views.py` | `PostDetailView` / `PostListView` / `SearchView` 等 |
+| 7 | 模板改：`{{ post.title }}` → `{{ post.current_revision.title }}` | `themes/` | 所有引用 post.title/content/desc/slug 的模板 |
+| 8 | `PostAdmin` fieldsets 改为从 current_revision 代理读取 | `Blogs/admin.py` + `adminforms.py` | |
+| 9 | DRF `PostSerializer` 字段来源改为 `current_revision.*` | `Blogs/serializers.py` | |
+| 10 | Post 移除 `title/desc/content/slug` 列 | `models.py` + migration | 最后一步，确认所有引用已迁移 |
+| 11 | PostRevision `verbose_name` 去"快照" → 改为"文章版本" | `models.py` + migration | 语义对齐 |
+
+### 2A.5 向后兼容性
+
+| 功能 | v2.0 行为 | v2.1 行为 |
+|------|----------|----------|
+| 前台文章渲染 | `{{ post.title }}` | `{{ post.current_revision.title }}` |
+| 搜索 (title+content) | `Q(title__icontains=...) \| Q(content__icontains=...)` | 通过 `current_revision` 跨表查询 |
+| slug 路由 | `Post.slug` | `Post.current_revision.slug` (slug 变更在快照中体现) |
+| 修订 API | 不变 | 不变 (PostRevision 表结构无变化) |
+| RSS Feed | `post.title` | `post.current_revision.title` |
+
+> 核心原则：**API 不变，模板微调，前端无感**。
+
+---
+
 ## 3. 架构与文件组织
 
 V2 新增/修改文件：
@@ -405,11 +485,11 @@ PowerAdapterBlogs/settings/
 
 ## 4. 测试清单
 
-- [ ] P0: MongoLogger 写入正确的 `audit_logs` 集合
-- [ ] P0: `verify_log()` 正常日志返回 True，篡改日志返回 False
-- [ ] P0: `audit_all()` 返回正确的统计计数
-- [ ] P0: `LOG_HMAC_KEY` 未设置时启动警告但不 crash
-- [ ] P1: 创建文章 → 自动生成 v1.0 快照
+- [x] P0: MongoLogger 写入正确的 `audit_logs` 集合
+- [x] P0: `verify_log()` 正常日志返回 True，篡改日志返回 False
+- [x] P0: `audit_all()` 返回正确的统计计数
+- [x] P0: `LOG_HMAC_KEY` 开发环境有硬编码兜底，生产环境必须环境变量
+- [x] P1: 创建文章 → 自动生成 v1.0 快照
 - [ ] P1: 编辑文章（小修订）→ 自动生成 v1.1 快照
 - [ ] P1: 编辑文章（大版本）→ 自动生成 v2.0 快照
 - [ ] P1: 版本列表 API 按版本号降序返回

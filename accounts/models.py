@@ -1,5 +1,13 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+import logging
+
+from .thread_local import get_current_user
+
+logger = logging.getLogger(__name__)
+
+# 敏感权限字段：非 superuser 禁止修改
+SENSITIVE_FIELDS = {'is_superuser', 'is_staff', 'is_dashboard_user'}
 
 
 # Create your models here.
@@ -31,8 +39,8 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
 
     # 权限字段
     is_active = models.BooleanField(default=False)
-    is_staff = models.BooleanField(default=False)  # ✅ ← 必须添加这个字段
-    is_dashboard_user = models.BooleanField(default=False)  # 自定义后台登录权限
+    is_staff = models.BooleanField(default=False)
+    is_dashboard_user = models.BooleanField(default=False)
 
     objects = UserManager()
 
@@ -41,3 +49,39 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+    def save(self, *args, **kwargs):
+        """
+        模型层纵深防御：非 superuser 调用 save() 时，回滚敏感权限字段。
+
+        防御场景：
+        - Admin UI has_change_permission 被绕过
+        - 通过 ORM/API/Shell 直接修改敏感字段
+        - 第三方包的意外提权
+
+        注意：groups 和 user_permissions（M2M）由 admin.save_related() 守卫。
+        """
+        requesting_user = get_current_user()
+
+        if requesting_user and not requesting_user.is_superuser and self.pk:
+            # 拉取旧值（仅敏感字段，减少查询开销）
+            try:
+                old = MyUser.objects.only(*SENSITIVE_FIELDS).get(pk=self.pk)
+            except MyUser.DoesNotExist:
+                old = None
+
+            if old is not None:
+                for field in SENSITIVE_FIELDS:
+                    new_val = getattr(self, field)
+                    old_val = getattr(old, field)
+                    if new_val != old_val:
+                        # 回滚：非 superuser 不得修改敏感字段
+                        setattr(self, field, old_val)
+                        logger.warning(
+                            f"[SECURITY] 提权尝试被阻止: "
+                            f"operator={requesting_user.username}(id={requesting_user.id}) "
+                            f"target={self.username}(id={self.pk}) "
+                            f"field={field} old={old_val} new={new_val}"
+                        )
+
+        super().save(*args, **kwargs)

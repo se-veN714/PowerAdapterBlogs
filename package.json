@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@ckeditor/ckeditor5-markdown-gfm": "^46.0.0",
+    "@toast-ui/editor": "^3.1.0",
+    "@wiris/mathtype-ckeditor5": "^8.13.3"
+  }
+}

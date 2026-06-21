@@ -4,7 +4,7 @@ import logging
 
 from django.views.generic.edit import FormView
 from django.contrib.auth import authenticate, login
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from .forms import LoginForm
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,14 @@ logger = logging.getLogger(__name__)
 class LoginView(FormView):
     template_name = "accounts/login.html"
     form_class = LoginForm
-    success_url = reverse_lazy("index")  # 登录成功后的跳转
+    success_url = reverse_lazy("index")  # 默认跳转（非 dashboard 用户）
+
+    def get_success_url(self):
+        """dashboard 用户登录后直接跳转后台，普通用户跳首页"""
+        user = self.request.user
+        if user.is_authenticated and user.is_dashboard_user:
+            return reverse("cus_admin:index")  # AdminSite 的 URL 通过 namespace:name 反向解析
+        return super().get_success_url()
 
     def form_valid(self, form):
         username = form.cleaned_data["username"]

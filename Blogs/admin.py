@@ -3,7 +3,7 @@ from django.contrib.admin.models import LogEntry
 from django.urls import reverse
 from django.utils.html import format_html
 
-from PowerAdapterBlogs.base_admin import BaseOwnerAdmin
+from PowerAdapterBlogs.base_admin import BaseOwnerAdmin, DashboardAdminMixin
 from PowerAdapterBlogs.cus_site import custom_site
 from Blogs.adminforms import PostAdminForm
 from Blogs.models import Post, Category, Tag
@@ -22,7 +22,7 @@ class PostInline(admin.TabularInline):  # 可选择继承自 admin.StackedInline
 
 
 @admin.register(Category, site=custom_site)
-class CategoryAdmin(BaseOwnerAdmin):
+class CategoryAdmin(DashboardAdminMixin, BaseOwnerAdmin):
     inlines = (PostInline,)
     list_display = ('name', 'status', 'is_nav', 'created_time', 'owner')
     field = ('name', 'status', 'is_nav')
@@ -34,7 +34,7 @@ class CategoryAdmin(BaseOwnerAdmin):
 
 
 @admin.register(Tag, site=custom_site)
-class TagAdmin(BaseOwnerAdmin):
+class TagAdmin(DashboardAdminMixin, BaseOwnerAdmin):
     list_display = ('name', 'status', 'created_time')
     field = ('name', 'status')
 
@@ -57,7 +57,7 @@ class CategoryOwnerFilter(admin.SimpleListFilter):
 
 
 @admin.register(Post, site=custom_site)
-class PostAdmin(BaseOwnerAdmin):
+class PostAdmin(DashboardAdminMixin, BaseOwnerAdmin):
     form = PostAdminForm
     list_display = [
         'title', 'category', 'status',
@@ -113,6 +113,17 @@ class PostAdmin(BaseOwnerAdmin):
         )
 
 @admin.register(LogEntry,site=custom_site)
-class LogEntryAdmin(admin.ModelAdmin):
-    list_display = ('object_repr','object_id','action_flag', 'user','change_message')
+class LogEntryAdmin(DashboardAdminMixin, admin.ModelAdmin):
+    list_display = ('action_time', 'object_repr', 'object_id', 'action_flag', 'user', 'change_message')
+
+    # DashboardAdminMixin 已提供 has_module_permission/has_view_permission 基于 is_dashboard_user
+    # 这里只收紧 change/delete 到 superuser
+
+    def has_change_permission(self, request, obj=None):
+        """仅超级管理员可修改日志"""
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        """仅超级管理员可删除日志"""
+        return request.user.is_superuser
 

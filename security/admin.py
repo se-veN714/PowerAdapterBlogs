@@ -5,17 +5,29 @@ from django.utils.safestring import mark_safe
 
 from PowerAdapterBlogs.cus_site import custom_site
 from security.models import SecureLogEntry
+from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 
 # Register your models here.
 admin.site.register(SecureLogEntry)
 
 @admin.register(SecureLogEntry, site=custom_site)
-class SecureLogEntryAdmin(admin.ModelAdmin):
+class SecureLogEntryAdmin(DashboardAdminMixin, admin.ModelAdmin):
     list_display = ("log_entry", "status_display", "computed_at", "last_verified_at")
     readonly_fields = ("log_entry", "hmac_truncated", "status_display", "computed_at", "last_verified_at")
     exclude = ("is_tampered", "hmac")
 
     actions = ["audit_selected_logentries"]
+
+    # DashboardAdminMixin 已提供 has_module_permission/has_view_permission 基于 is_dashboard_user
+    # change/delete 仍收紧到 superuser
+
+    def has_change_permission(self, request, obj=None):
+        """仅超级管理员可修改完整性记录"""
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        """仅超级管理员可删除完整性记录"""
+        return request.user.is_superuser
 
     def status_display(self, obj):
         if obj.is_tampered:

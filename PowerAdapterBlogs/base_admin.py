@@ -28,3 +28,38 @@ class BaseOwnerAdmin(admin.ModelAdmin):
         obj.owner = request.user
         return super(BaseOwnerAdmin, self).save_model(request, obj, form, change)
 
+
+class DashboardAdminMixin:
+    """
+    用于 custom_site (/dashboard/) 注册的 Admin 类的权限 mixin。
+
+    Django ModelAdmin 默认权限检查基于 is_staff，但 /dashboard/ 入口的
+    权限检查应基于 is_dashboard_user。本 mixin 将 has_module_permission、
+    has_view_permission、has_change_permission、has_add_permission 全部
+    切换到 is_dashboard_user。
+
+    删除权限仍保留给 superuser，确保日志/用户等重要数据不会被误删。
+
+    get_queryset() 直接调用 ModelAdmin 实现，跳过 BaseOwnerAdmin 的
+    owner 过滤——dashboard 用户需要看到所有内容而非仅自己的记录。
+    """
+
+    def has_module_permission(self, request):
+        return request.user.is_active and request.user.is_dashboard_user
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_dashboard_user
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_dashboard_user
+
+    def has_add_permission(self, request):
+        return request.user.is_active and request.user.is_dashboard_user
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def get_queryset(self, request):
+        """dashboard 用户应看到所有数据，不受 BaseOwnerAdmin 的 owner 过滤限制"""
+        return admin.ModelAdmin.get_queryset(self, request)
+

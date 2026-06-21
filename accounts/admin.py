@@ -1,19 +1,15 @@
 from django.contrib import admin
-
-# Register your models here.
-from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import MyUser
 
 from PowerAdapterBlogs.cus_site import custom_site
+from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 
 
-@admin.register(MyUser, site=custom_site)
 class MyUserAdmin(UserAdmin):
     model = MyUser
     list_display = ('username', 'email', 'is_active', 'is_dashboard_user', 'is_superuser')
     list_filter = ('is_active', 'is_dashboard_user', 'is_superuser')
-    readonly_fields = ('username', 'email', 'is_active', 'is_dashboard_user', 'is_superuser')
     ordering = ('date_joined',)
 
     fieldsets = (
@@ -26,6 +22,80 @@ class MyUserAdmin(UserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'email', 'password1', 'password2', 'is_active', 'is_dashboard_user', 'is_superuser')}
+            'fields': ('username', 'email', 'password1', 'password2',
+                       'is_active', 'is_dashboard_user', 'is_superuser')}
          ),
     )
+
+    def get_readonly_fields(self, request, obj=None):
+        """
+        非超级管理员：仅 is_active 可编辑（用户审核）
+        超级管理员：全部字段可编辑
+        """
+        if request.user.is_superuser:
+            return self.readonly_fields
+        model_fields = {f.name for f in self.model._meta.fields}
+        m2m_fields = {'groups', 'user_permissions'}
+        all_fields = model_fields | m2m_fields
+        all_fields.discard('is_active')
+        return list(all_fields)
+
+    def get_fieldsets(self, request, obj=None):
+        """
+        非超级管理员：只显示用户审核视图（用户名 + 邮箱 + 激活状态）
+        超级管理员：完整 fieldsets
+        """
+        if request.user.is_superuser:
+            return self.fieldsets
+        return (
+            ('用户审核', {'fields': ('username', 'email', 'is_active')}),
+        )
+
+    def has_change_permission(self, request, obj=None):
+        """dashboard 用户可进入修改页面（非 superuser 字段受限）"""
+        return request.user.is_dashboard_user
+
+    def has_delete_permission(self, request, obj=None):
+        """仅 superuser 可删除用户"""
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        """仅 superuser 可新增用户"""
+        return request.user.is_superuser
+
+    def save_related(self, request, form, formsets, change):
+        """
+        非 superuser 修改用户时，禁止修改 M2M 关系（groups、user_permissions）。
+
+        MyUser.save() 保护了标量字段，但 M2M 在 save() 之后才提交，
+        需要在此处拦截。
+        """
+        if not request.user.is_superuser and change:
+            return  # 跳过 M2M 保存，仅提交 scalar 字段变更
+        super().save_related(request, form, formsets, change)
+
+
+# === 注册到默认 admin.site（/super_admin/，superuser 全权限） ===
+try:
+    admin.site.unregister(MyUser)
+except admin.sites.NotRegistered:
+    pass
+admin.site.register(MyUser, MyUserAdmin)
+
+
+# === 注册到 custom_site（/dashboard/，dashboard 用户仅审核） ===
+@admin.register(MyUser, site=custom_site)
+class CusMyUserAdmin(DashboardAdminMixin, MyUserAdmin):
+    """custom_site 版本，DashboardAdminMixin 提供 is_dashboard_user 基础权限"""
+
+    def has_change_permission(self, request, obj=None):
+        """非 superuser 不能编辑 superuser 账号（避免 dashboard 用户禁用超管）"""
+        if obj is not None and obj.is_superuser and not request.user.is_superuser:
+            return False
+        return super().has_change_permission(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        """双重保险：dashboard 用户面对 superuser 时全字段只读"""
+        if obj is not None and obj.is_superuser and not request.user.is_superuser:
+            return [f.name for f in self.model._meta.fields]
+        return super().get_readonly_fields(request, obj)

@@ -13,25 +13,33 @@
 
 # here put the import lib
 
+import logging
 from datetime import datetime, timezone
 
 from security.mongo_client import MongoLogger
+
+logger = logging.getLogger(__name__)
 
 
 class CommentEventLog:
     """
     评论事件日志（MongoDB版）
+    - 连接容错：MongoDB 不可用时所有写操作静默跳过，读操作返回空
     """
 
     def __init__(self):
         self.mongo = MongoLogger()
-        self.collection = self.mongo.collection  # 可直接使用
+        self.collection = self.mongo.collection  # None 时表示未连接
 
     # --- C ---
     def create(self, user_id, post_slug, client_ip, ua, action, extra=None):
         """
         插入一条评论事件日志
         """
+        if not self.mongo.connected:
+            logger.warning("MongoDB 不可用，跳过 CommentEventLog 写入")
+            return None
+
         data = {
             "user_id": user_id,
             "post_slug": post_slug,
@@ -46,19 +54,27 @@ class CommentEventLog:
     # --- R ---
     def get_all(self, limit=50):
         """返回最新的日志"""
-        return list(self.collection.find().sort("created_at", -1).limit(limit))
+        if not self.mongo.connected:
+            return []
+        return list(self.collection.find().sort("data.created_at", -1).limit(limit))
 
     def find_by_user(self, user_id):
         """按用户查询"""
+        if not self.mongo.connected:
+            return []
         return list(self.collection.find({"data.user_id": user_id}))
 
     def find_by_post(self, post_slug):
         """按文章 slug 查询"""
+        if not self.mongo.connected:
+            return []
         return list(self.collection.find({"data.post_slug": post_slug}))
 
     # --- U ---
     def update_log(self, log_id, update_fields: dict):
         """更新指定日志"""
+        if not self.mongo.connected:
+            return None
         return self.collection.update_one(
             {"_id": log_id},
             {"$set": update_fields}
@@ -67,4 +83,6 @@ class CommentEventLog:
     # --- D ---
     def delete_log(self, log_id):
         """删除指定日志"""
+        if not self.mongo.connected:
+            return None
         return self.collection.delete_one({"_id": log_id})

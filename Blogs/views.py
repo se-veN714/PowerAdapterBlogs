@@ -46,10 +46,12 @@ class CommonViewMixin(SideBarMixin, CategoryNavMixin):
     pass
 
 
+logger = logging.getLogger(__name__)
+
 class LoggingMixin:
+    """已弃用：保留以兼容旧代码，新日志直接在视图方法中调用 logger。"""
     def log_action(self, request, action, **kwargs):
         username = getattr(request.user, 'username', str(request.user))
-        logger = logging.getLogger(__name__)
         logger.info(f"用户-[{username}]:{action}", extra=kwargs)
 
 
@@ -91,15 +93,18 @@ class PostDetailView(CommonViewMixin, DetailView):
             cache.set(uv_key, 1, 24 * 60 * 60)  # 24h 有效
 
         # 使用事务
-        with transaction.atomic():
-            if increase_pv or increase_uv:
-                update_kwargs = {}
-                if increase_pv:
-                    update_kwargs['pv'] = F('pv') + 1
-                if increase_uv:
-                    update_kwargs['uv'] = F('uv') + 1
+        try:
+            with transaction.atomic():
+                if increase_pv or increase_uv:
+                    update_kwargs = {}
+                    if increase_pv:
+                        update_kwargs['pv'] = F('pv') + 1
+                    if increase_uv:
+                        update_kwargs['uv'] = F('uv') + 1
 
-                Post.objects.filter(pk=post.id).update(**update_kwargs)
+                    Post.objects.filter(pk=post.id).update(**update_kwargs)
+        except Exception as e:
+            logger.exception(f"PostVisit PV/UV 更新失败: post_id={post.id} uid={uid}")
 
         # 记录访问明细
         if increase_pv:
@@ -112,6 +117,8 @@ class PostDetailView(CommonViewMixin, DetailView):
                 )
             except IntegrityError:
                 pass
+            except Exception as e:
+                logger.exception(f"PostVisit PV 写入失败: post_id={post.id} uid={uid}")
 
         try:
             if increase_uv:
@@ -123,6 +130,8 @@ class PostDetailView(CommonViewMixin, DetailView):
                 )
         except IntegrityError:
             pass
+        except Exception as e:
+            logger.exception(f"PostVisit UV 写入失败: post_id={post.id} uid={uid}")
 
 class AnonymousPageCacheMixin:
     page_cache_timeout = 15 * 60
@@ -211,6 +220,8 @@ def clear_page_caches():
     except AttributeError:
         # 非 Redis 后端 (如 LocMemCache) 不支持 delete_pattern 通配符
         pass
+    except Exception as e:
+        logger.warning(f"缓存清除失败: error={e}")
     # 3. 清理 hot_posts 查询缓存
     cache.delete('hot_posts')
 
@@ -223,9 +234,15 @@ class PostCreateView(LoginRequiredMixin, LoggingMixin, CreateView):
     def form_valid(self, form):
         form.instance.owner = self.request.user
         response = super().form_valid(form)
-        self.log_action(self.request, f"post-{form.instance.title}")
+        logger.info(f"Post 创建: post_id={self.object.id} slug={self.object.slug} "
+                    f"user={self.request.user.id} category_id={self.object.category_id}")
         clear_page_caches()
         return response
+
+    def form_invalid(self, form):
+        logger.warning(f"Post 创建表单失败: user={self.request.user.id} "
+                       f"errors={form.errors}")
+        return super().form_invalid(form)
 
     def get_success_url(self):
         return reverse('Blogs:post_detail', kwargs={'slug': self.object.slug})
@@ -237,9 +254,23 @@ class PostEditView(LoginRequiredMixin, UpdateView):
     template_name = 'blog/post_form.html'
 
     def form_valid(self, form):
+        old_title = self.object.title
+        old_content = self.object.content
         response = super().form_valid(form)
+        changed = []
+        if old_title != self.object.title:
+            changed.append("title")
+        if old_content != self.object.content:
+            changed.append("content")
+        logger.info(f"Post 编辑: post_id={self.object.id} slug={self.object.slug} "
+                    f"user={self.request.user.id} changed={changed}")
         clear_page_caches()
         return response
+
+    def form_invalid(self, form):
+        logger.warning(f"Post 编辑表单失败: post_id={self.object.id} "
+                       f"user={self.request.user.id} errors={form.errors}")
+        return super().form_invalid(form)
 
     def get_success_url(self):
         return reverse('Blogs:post_detail', kwargs={'slug': self.object.slug})
@@ -256,8 +287,14 @@ def post_img_upload(request):
         save_path = os.path.join("post_images", filename)
 
         # 保存文件
-        path = default_storage.save(save_path, image)
-
-        return JsonResponse({"url": f"{settings.MEDIA_URL}{path}"})
+        try:
+            path = default_storage.save(save_path, image)
+            logger.info(f"图片上传: file={filename} size={image.size} "
+                        f"user={getattr(request.user, 'id', 'anon')}")
+            return JsonResponse({"url": f"{settings.MEDIA_URL}{path}"})
+        except Exception as e:
+            logger.exception(f"图片上传失败: file={filename} "
+                           f"user={getattr(request.user, 'id', 'anon')} error={e}")
+            return JsonResponse({"error": f"图片上传失败: {e}"}, status=500)
 
     return JsonResponse({"error": "No image uploaded"}, status=400)

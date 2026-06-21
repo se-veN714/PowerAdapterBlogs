@@ -10,6 +10,8 @@
 本模块提供了apis功能的类和函数。
 """
 # here put the import lib
+import logging
+
 from rest_framework import viewsets
 from rest_framework.permissions import IsAdminUser
 
@@ -18,6 +20,8 @@ from Blogs.serializers import (
     PostSerializer, PostDetailSerializer,
     CategorySerializer, CategoryDetailSerializer
 )
+
+logger = logging.getLogger(__name__)
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -34,6 +38,21 @@ class PostViewSet(viewsets.ModelViewSet):
         if category_id:
             queryset = queryset.filter(category__id=category_id)
         return queryset
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        logger.info(f"API Post 创建: post_id={instance.id} slug={instance.slug} "
+                    f"user={self.request.user.id}")
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        logger.info(f"API Post 编辑: post_id={instance.id} slug={instance.slug} "
+                    f"user={self.request.user.id}")
+
+    def perform_destroy(self, instance):
+        logger.info(f"API Post 删除: post_id={instance.id} slug={instance.slug} "
+                    f"user={self.request.user.id}")
+        instance.delete()
 
 
 class CategoryViewSet(viewsets.ModelViewSet):

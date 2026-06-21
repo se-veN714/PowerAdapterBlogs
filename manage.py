@@ -6,7 +6,7 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    profile = os.environ.get("PROJECT_PROFILE",'develop')
+    profile = os.environ.get("PROJECT_PROFILE",'develop') # develop or product
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "PowerAdapterBlogs.settings.%s" % profile)
     print("---\n"+profile+"\n---")
     try:

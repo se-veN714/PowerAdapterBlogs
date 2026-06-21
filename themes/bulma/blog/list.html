@@ -1,5 +1,4 @@
 {% extends "base/base.html" %}
-{% load cache %}
 {% load static %}
 {% block title %}Posts{% endblock %}
 
@@ -21,7 +20,6 @@
 {% block main %}
     <div class="section">
         <div class="container">
-            {% cache 900 post_list_page page_obj.number %}
             {% for post in post_list %}
             <div class="box">
                 <article class="media">
@@ -64,7 +62,6 @@
         {% empty %}
             <p>暂时还没有文章。</p>
         {% endfor %}
-            {% endcache %}
         </div>
     </div>
     <div class="block">

@@ -9,11 +9,15 @@
 """
 本模块提供了生成post测试用例功能的类和函数。
 """
+import logging
+
 from Blogs.models import Post
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
 from faker import Faker
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -28,6 +32,8 @@ class Command(BaseCommand):
         user = user_got.objects.first()
         faker = Faker("zh_CN")
 
+        logger.info(f"generate_posts 开始: count={count} user_id={user.id if user else 'N/A'}")
+
         for i in range(count):
             title = faker.sentence(nb_words=5)
             Post.objects.create(
@@ -39,4 +45,5 @@ class Command(BaseCommand):
                 category_id=1,
             )
 
+        logger.info(f"generate_posts 完成: created={count}")
         self.stdout.write(self.style.SUCCESS(f"成功生成 {count} 篇文章"))

@@ -11,10 +11,14 @@
 """
 
 # here put the import lib
+import logging
+
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
 
 from Blogs.models import Post
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -25,6 +29,8 @@ class Command(BaseCommand):
         if not posts.exists():
             self.stdout.write(self.style.SUCCESS("✅ No posts without slug. Nothing to do."))
             return
+
+        logger.info(f"init_slug 开始: posts_without_slug={posts.count()}")
 
         for post in posts:
             base_slug = slugify(post.title)
@@ -40,4 +46,5 @@ class Command(BaseCommand):
             post.save()
             self.stdout.write(self.style.SUCCESS(f"✔ Generated slug '{slug}' for post '{post.title}'"))
 
+        logger.info(f"init_slug 完成: fixed={posts.count()}")
         self.stdout.write(self.style.SUCCESS("🎉 All missing slugs have been initialized."))

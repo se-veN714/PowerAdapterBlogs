@@ -16,7 +16,11 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 # here put the import lib
+import logging
+
 from security.models import SecureLogEntry
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=LogEntry)
@@ -24,5 +28,9 @@ def create_secure_log_entry(sender, instance, created, **kwargs):
     if not created:
         return
 
-    secret_key = settings.LOG_HMAC_KEY
-    SecureLogEntry.compute_from_logentry(instance, secret_key)
+    try:
+        secret_key = settings.LOG_HMAC_KEY
+        SecureLogEntry.compute_from_logentry(instance, secret_key)
+    except Exception as e:
+        logger.exception(f"SecureLogEntry 同步失败: logentry_id={instance.id} "
+                         f"content_type_id={instance.content_type_id}")

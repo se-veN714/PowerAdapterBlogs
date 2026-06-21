@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib import admin
 from django.contrib import messages
-from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from PowerAdapterBlogs.cus_site import custom_site
 from security.models import SecureLogEntry
@@ -19,10 +19,10 @@ class SecureLogEntryAdmin(admin.ModelAdmin):
 
     def status_display(self, obj):
         if obj.is_tampered:
-            return format_html(
+            return mark_safe(
                 '<span title="日志已被篡改" style="color: red; font-size: 1.2em;">&#x274C;</span>'  # ❌
             )
-        return format_html(
+        return mark_safe(
             '<span title="日志完整" style="color: green; font-size: 1.2em;">&#x2705;</span>'  # ✅
         )
 

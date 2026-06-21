@@ -11,8 +11,12 @@
 """
 
 # here put the import lib
+import logging
+
 from security.models import Comment
 from security.mongo_client import MongoLogger
+
+logger = logging.getLogger(__name__)
 
 
 def moderate_comment(*, comment: Comment, new_status: str, request, reason: str | None = None):
@@ -20,7 +24,7 @@ def moderate_comment(*, comment: Comment, new_status: str, request, reason: str 
     Moderates a comment and logs the moderation event.
 
     This function updates the status of a comment (e.g., from pending to approved)
-    and records the action in CommentEventLog for auditing and traceability.
+    and records the action in MongoDB for auditing and traceability.
 
     Args:
         comment (Comment): The comment instance being moderated.
@@ -31,7 +35,7 @@ def moderate_comment(*, comment: Comment, new_status: str, request, reason: str 
 
     Side Effects:
         - Updates the `status` and `created_time` fields of the Comment object.
-        - Creates a new CommentEventLog entry with contextual client information.
+        - Writes an audit log to MongoDB (gracefully degrades if MongoDB is unavailable).
 
     """
     # 保存原状态
@@ -62,6 +66,9 @@ def moderate_comment(*, comment: Comment, new_status: str, request, reason: str 
         "user": str(getattr(request, "user", None)),  # 避免 Django User 对象无法 JSON 化
     }
 
-    # 写入 MongoDB 日志
-    mongo_logger = MongoLogger()
-    mongo_logger.insert_log(action="moderate_comment", data=log_data)
+    # 写入 MongoDB 日志（连接容错）
+    try:
+        mongo_logger = MongoLogger()
+        mongo_logger.insert_log(action="moderate_comment", data=log_data)
+    except Exception as e:
+        logger.warning(f"MongoDB 审核日志写入失败（评论状态已更新）: {e}")

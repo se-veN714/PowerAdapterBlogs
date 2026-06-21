@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -6,6 +8,8 @@ from django.views.generic import TemplateView
 
 from Blogs.models import Post
 from comment.form import CommentForm
+
+logger = logging.getLogger(__name__)
 
 
 # Create your views here.
@@ -39,16 +43,33 @@ class CommentView(LoginRequiredMixin, TemplateView):
         if not form.is_valid():
             errors = {field: [error for error in error_list]
                       for field, error_list in form.errors.items()}
+            logger.warning(f"Comment 提交失败: post_slug={post_slug} "
+                           f"user={request.user.id if request.user.is_authenticated else 'anon'} "
+                           f"errors={form.errors}")
             return JsonResponse({
                 'success': False,
                 'message': '请修正以下错误',
                 'errors': errors
             }, status=400)
 
-        instance = form.save(commit=False)
-        instance.post = post
-        instance.user = request.user  # 记录评论者
-        instance.save()
+        try:
+            instance = form.save(commit=False)
+            instance.post = post
+            instance.user = request.user  # 记录评论者
+            instance.save()
+
+            logger.info(f"Comment 提交: comment_id={instance.id} "
+                        f"post_slug={post_slug} "
+                        f"user={request.user.id if request.user.is_authenticated else 'anon'} "
+                        f"nickname={form.cleaned_data.get('nickname', '')[:20]}")
+        except Exception as e:
+            logger.exception(f"Comment 保存异常: post_slug={post_slug} "
+                           f"user={request.user.id if request.user.is_authenticated else 'anon'} "
+                           f"error={e}")
+            return JsonResponse({
+                'success': False,
+                'message': '评论保存失败，请稍后重试。',
+            }, status=500)
 
         return JsonResponse({
             'success': True,

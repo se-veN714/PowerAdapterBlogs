@@ -34,4 +34,13 @@ MIDDLEWARE = ['debug_toolbar.middleware.DebugToolbarMiddleware'] + MIDDLEWARE
 
 INTERNAL_IPS = ['127.0.0.1']
 
-LOG_HMAC_KEY = b'\x9dM\xb0\x01ss_>\xb3\xec\xb5w\xa1\xb3kY\xc3\xa4\x19\xb7\x8cE\xf3\xff};\x01by\xa7\xa22'
+# WhiteNoise — 开发环境自动检测静态文件变更，无需 collectstatic
+WHITENOISE_AUTOREFRESH = True
+
+# HMAC 密钥：优先从环境变量读取，开发环境提供硬编码兜底
+import base64
+_key_b64 = os.getenv('LOGINTEGRIY_HMAC_KEY_BASE64')
+if _key_b64:
+    LOG_HMAC_KEY = base64.b64decode(_key_b64)
+else:
+    LOG_HMAC_KEY = b'\x9dM\xb0\x01ss_>\xb3\xec\xb5w\xa1\xb3kY\xc3\xa4\x19\xb7\x8cE\xf3\xff};\x01by\xa7\xa22'

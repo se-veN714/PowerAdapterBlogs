@@ -29,11 +29,23 @@ class SecureLogEntry(models.Model):
     @staticmethod
     def compose_message(entry: LogEntry) -> str:
         """
-        处理LogEntry模型的字段并整合为字符串
+        处理LogEntry模型的字段并整合为字符串。
+        v2: 改用 JSON 序列化，避免 | 分隔符与字段内容冲突（Issue D）。
         :param entry: LogEntry 实例
-        :return: 日志信息
+        :return: JSON 字符串
         """
-        return f"{entry.id}|{entry.action_time}|{entry.user_id}|{entry.content_type_id}|{entry.object_id}|{entry.object_repr}|{entry.action_flag}|{entry.change_message}"
+        import json
+        data = {
+            "id": entry.id,
+            "action_time": entry.action_time.isoformat() if entry.action_time else None,
+            "user_id": entry.user_id,
+            "content_type_id": entry.content_type_id,
+            "object_id": entry.object_id,
+            "object_repr": entry.object_repr,
+            "action_flag": entry.action_flag,
+            "change_message": entry.change_message,
+        }
+        return json.dumps(data, sort_keys=True, ensure_ascii=False)
 
     @classmethod
     def calculate_hmac(cls, entry: LogEntry, secret_key: bytes) -> str:

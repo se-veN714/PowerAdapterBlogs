@@ -10,34 +10,44 @@
 本模块提供了comment的中间件功能的类和函数。
 """
 
-# here put the import lib
-from django.utils.deprecation import MiddlewareMixin
-
 from ipaddress import ip_address
+
+# here put the import lib
+import logging
+
+from django.utils.deprecation import MiddlewareMixin
 from gmssl import sm3, func
+
+logger = logging.getLogger(__name__)
 
 TRUSTED_PROXY_COUNT = 1  # Nginx/反代层数；自行按部署修改
 TRUSTED_PROXY_HEADERS = ["HTTP_X_FORWARDED_FOR", "HTTP_X_REAL_IP"]
 
 def get_client_ip(request):
-    xff = request.META.get("HTTP_X_FORWARDED_FOR")
-    if xff:
-        # 取链上倒数第 TRUSTED_PROXY_COUNT+1 个，避免伪造
-        parts = [p.strip() for p in xff.split(",")]
-        if len(parts) > TRUSTED_PROXY_COUNT:
-            candidate = parts[-(TRUSTED_PROXY_COUNT+1)]
-        else:
-            candidate = parts[0]
-        try:
-            ip_address(candidate)
-            return candidate
-        except ValueError:
-            pass
-    # 兜底 REMOTE_ADDR
-    return request.META.get("REMOTE_ADDR")
+    try:
+        xff = request.META.get("HTTP_X_FORWARDED_FOR")
+        if xff:
+            # 取链上倒数第 TRUSTED_PROXY_COUNT+1 个，避免伪造
+            parts = [p.strip() for p in xff.split(",")]
+            if len(parts) > TRUSTED_PROXY_COUNT:
+                candidate = parts[-(TRUSTED_PROXY_COUNT+1)]
+            else:
+                candidate = parts[0]
+            try:
+                ip_address(candidate)
+                return candidate
+            except ValueError:
+                pass
+        # 兜底 REMOTE_ADDR
+        return request.META.get("REMOTE_ADDR")
+    except Exception as e:
+        logger.warning(f"Client IP 提取异常: path={request.path} "
+                       f"x_forwarded_for={request.META.get('HTTP_X_FORWARDED_FOR', 'N/A')}")
+        return "0.0.0.0"
 
 class ClientMetaMiddleware(MiddlewareMixin):
-    def process_request(self, request):
+    @staticmethod
+    def process_request(request):
         request.client_ip = get_client_ip(request)
         request.client_ua = request.META.get("HTTP_USER_AGENT", "")
         request.client_referrer = request.META.get("HTTP_REFERER", "")

@@ -1,0 +1,134 @@
+/* ============================================
+   Account Pages — Devenir Theme
+   Styles: login
+   ============================================ */
+
+/* ===== Login Page ===== */
+.auth-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 200px);
+}
+
+.auth-card {
+    max-width: 420px;
+    width: 100%;
+    padding: 2.5rem 2rem;
+    border: 1px solid var(--fragment-border);
+    background: var(--bg-elevated);
+}
+
+.auth-card .auth-title {
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.auth-card .field {
+    margin-bottom: 1.25rem;
+}
+
+.auth-card label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent-soft);
+    margin-bottom: 0.4rem;
+}
+
+.auth-card input[type="text"],
+.auth-card input[type="password"] {
+    width: 100%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.6rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+}
+
+.auth-card input[type="text"]:focus,
+.auth-card input[type="password"]:focus {
+    outline: none;
+    border-color: var(--accent-soft);
+}
+
+.auth-card input.is-danger {
+    border-color: var(--error-accent);
+}
+
+.auth-card .error-msg {
+    padding: 0.35rem 0.75rem;
+    border-left: 3px solid var(--error-accent);
+    background: rgba(201, 120, 120, 0.1);
+    color: var(--error-accent);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.auth-card .btn-login {
+    width: 100%;
+    padding: 0.7rem;
+    background: var(--accent-deep);
+    color: var(--accent);
+    border: 1px solid var(--accent-deep);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.auth-card .btn-login:hover {
+    background: var(--accent-muted);
+    color: var(--accent-primary);
+}
+
+.auth-card .auth-links {
+    text-align: center;
+    margin-top: 1.25rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.auth-card .auth-links a {
+    color: var(--accent-soft);
+    text-decoration: none;
+}
+.auth-card .auth-links a:hover {
+    color: var(--accent);
+}
+
+/* Progress bar (decorative) */
+.auth-progress {
+    margin-bottom: 1.5rem;
+}
+.auth-progress .progress-track {
+    width: 100%;
+    height: 2px;
+    background: var(--fragment-border);
+    overflow: hidden;
+}
+.auth-progress .progress-fill {
+    width: 40%;
+    height: 2px;
+    background: var(--accent-deep);
+    animation: progress-slide 2s ease-in-out infinite;
+}
+@keyframes progress-slide {
+    0% { width: 20%; }
+    50% { width: 60%; }
+    100% { width: 20%; }
+}

@@ -1,0 +1,14 @@
+{% load static %}
+
+<div class="comment-item">
+    <img class="comment-avatar" src="{% static 'img/avatar.jpg' %}" alt="评论头像">
+    <div class="comment-body">
+        <div>
+            <strong class="comment-nickname">
+                {% if comment.nickname %}{{ comment.nickname }}{% else %}匿名{% endif %}
+            </strong>
+            <span class="comment-time">{{ comment.created_time }}</span>
+        </div>
+        <p class="comment-content">{{ comment.content }}</p>
+    </div>
+</div>

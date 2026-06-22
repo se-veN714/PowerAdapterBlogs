@@ -1,0 +1,375 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PowerAdapter{% endblock %}</title>
+    <link rel="icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
+
+    {% block head_link %}
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{% static 'css/typography.css' %}">
+    <link rel="stylesheet" href="{% static 'css/editorial.css' %}">
+    {% endblock %}
+
+    {% block mathjax %}
+    <script>
+        window.MathJax = {
+            loader: { load: ['input/tex-base', 'output/chtml', '[tex]/ams'] },
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true, tags: 'ams',
+                packages: {'[+]': ['ams']}
+            },
+            chtml: { fontURL: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/startup.js"></script>
+    {% endblock %}
+
+    {% block head_script %}
+    <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+    {% endblock %}
+
+    {% block extra_css %}{% endblock %}
+
+    <style>
+        /* ===== Reset & Base ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--font-mono);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ===== CSS Variables — Devenir Theme ===== */
+        :root {
+            --bg-primary: rgb(13, 16, 16);
+            --bg-secondary: rgb(20, 24, 24);
+            --bg-elevated: rgb(28, 35, 35);
+            --accent-primary: rgb(216, 255, 225);
+            --accent-soft: rgb(143, 163, 148);
+            --accent-muted: rgb(111, 129, 119);
+            --accent-deep: rgb(62, 88, 72);
+            --text-primary: rgb(235, 240, 235);
+            --text-secondary: rgb(170, 180, 170);
+            --text-tertiary: rgb(95, 105, 100);
+            --scanline: rgba(255, 255, 255, 0.03);
+            --noise: rgba(216, 255, 225, 0.04);
+            --fragment-border: rgba(216, 255, 225, 0.08);
+            --fragment-highlight: rgba(216, 255, 225, 0.12);
+            --error-accent: rgb(201, 120, 120);
+            --warning-accent: rgb(207, 181, 126);
+            --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', 'SF Mono', monospace;
+            --bg: var(--bg-primary);
+            --bg-card: var(--bg-elevated);
+            --border: var(--fragment-border);
+            --text: var(--text-primary);
+            --text-muted: var(--text-secondary);
+            --accent: var(--accent-primary);
+            --accent-glow: var(--fragment-highlight);
+            --max-width: 1200px;
+            --ease-glitch: cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        h1, h2, h3 { font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+        h1 { font-size: clamp(2.5rem, 6vw, 5rem); }
+
+        /* ===== Container ===== */
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 2rem; }
+
+        /* ===== Scanline Layer ===== */
+        .scanline-layer {
+            position: fixed; inset: 0; pointer-events: none; z-index: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, var(--scanline) 2px, var(--scanline) 4px),
+                        radial-gradient(ellipse at 70% 30%, var(--noise) 0%, transparent 60%);
+        }
+
+        /* ===== Header ===== */
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(13, 16, 16, 0.9);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .header .container { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+        .logo {
+            font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em;
+            color: var(--text); text-decoration: none;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .logo-dot { width: 8px; height: 8px; background: var(--accent); }
+        .nav { display: flex; align-items: center; gap: 2rem; }
+        .nav a {
+            color: var(--text-muted); text-decoration: none;
+            font-size: 0.9rem; font-weight: 500; transition: color 0.2s;
+        }
+        .nav a:hover, .nav a.active { color: var(--text); }
+        .nav a.active { color: var(--accent); }
+
+        /* Search form in nav */
+        .nav-search {
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .nav-search input {
+            background: var(--bg-elevated); border: 1px solid var(--border);
+            color: var(--text); padding: 0.4rem 0.75rem; font-size: 0.85rem;
+            font-family: var(--font-mono); width: 160px;
+            transition: border-color 0.2s;
+        }
+        .nav-search input:focus { outline: none; border-color: var(--accent-soft); }
+        .nav-search input::placeholder { color: var(--text-tertiary); }
+        .nav-search button {
+            background: var(--accent-deep); color: var(--accent);
+            border: 1px solid var(--accent-deep); padding: 0.4rem 0.75rem;
+            font-size: 0.85rem; cursor: pointer; font-family: var(--font-mono);
+            transition: all 0.2s;
+        }
+        .nav-search button:hover { background: var(--accent-muted); border-color: var(--accent-soft); }
+
+        /* Nav buttons */
+        .nav-buttons { display: flex; align-items: center; gap: 0.75rem; }
+        .btn-ghost {
+            background: transparent; color: var(--text-muted);
+            border: 1px solid var(--border); padding: 0.4rem 0.85rem;
+            font-size: 0.85rem; cursor: pointer; text-decoration: none;
+            font-family: var(--font-mono); transition: all 0.2s;
+        }
+        .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-accent {
+            background: var(--accent-deep); color: var(--accent);
+            border: 1px solid var(--accent-deep); padding: 0.4rem 0.85rem;
+            font-size: 0.85rem; cursor: pointer; text-decoration: none;
+            font-family: var(--font-mono); transition: all 0.2s;
+        }
+        .btn-accent:hover { background: var(--accent-muted); }
+
+        /* Hamburger */
+        .menu-toggle {
+            display: none; width: 40px; height: 40px;
+            border: 1px solid var(--border); background: transparent;
+            cursor: pointer; align-items: center; justify-content: center;
+            color: var(--text); font-size: 1.3rem; transition: all 0.2s;
+        }
+        .menu-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Sidebar overlay */
+        .sidebar-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.5); z-index: 199;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        .sidebar-overlay.open { opacity: 1; pointer-events: auto; }
+
+        /* Sidebar drawer */
+        .sidebar {
+            position: fixed; top: 0; right: -280px; width: 280px; height: 100vh;
+            background: var(--bg-secondary); border-left: 1px solid var(--border);
+            z-index: 200; padding: 1.5rem; transition: right 0.35s var(--ease-glitch);
+            display: flex; flex-direction: column;
+        }
+        .sidebar.open { right: 0; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
+        .sidebar-close {
+            width: 36px; height: 36px; border: 1px solid var(--border);
+            background: transparent; cursor: pointer; color: var(--text-muted);
+            font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .sidebar-close:hover { border-color: var(--accent); color: var(--accent); }
+        .sidebar-nav { display: flex; flex-direction: column; gap: 0; }
+        .sidebar-nav a {
+            display: block; padding: 1rem 0; color: var(--text-muted);
+            text-decoration: none; font-size: 1rem; font-weight: 500;
+            border-bottom: 1px solid var(--border); transition: color 0.2s;
+        }
+        .sidebar-nav a:hover, .sidebar-nav a.active { color: var(--accent); }
+
+        /* ===== Page Header (subpage hero) ===== */
+        .page-header {
+            padding: 7rem 0 3rem; text-align: center;
+            position: relative; z-index: 1;
+        }
+        .page-header .page-title {
+            font-family: var(--font-mono); font-size: clamp(1.8rem, 4vw, 3rem);
+            color: var(--accent); font-weight: 700;
+        }
+        .page-header .page-subtitle {
+            color: var(--text-muted); font-size: 0.95rem; margin-top: 0.5rem;
+        }
+
+        /* ===== Main content area ===== */
+        .main-content {
+            position: relative; z-index: 1; min-height: 60vh;
+            padding: 2rem 0 4rem;
+        }
+
+        /* ===== Footer ===== */
+        .footer {
+            padding: 4rem 0; border-top: 1px solid var(--border);
+            text-align: center; position: relative; z-index: 1;
+        }
+        .footer-quote {
+            font-size: 1.2rem; font-style: italic; color: var(--text-muted);
+            max-width: 600px; margin: 0 auto 3rem; line-height: 1.8;
+        }
+        .footer-quote cite {
+            display: block; font-style: normal; font-size: 0.85rem;
+            margin-top: 0.75rem; color: var(--text-muted); opacity: 0.7;
+        }
+        .social-links {
+            display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 2rem;
+        }
+        .social-links a {
+            width: 40px; height: 40px; border: 1px solid var(--border);
+            background: var(--bg-elevated); display: flex; align-items: center;
+            justify-content: center; color: var(--text-muted); text-decoration: none;
+            transition: all 0.3s; font-size: 0.85rem;
+        }
+        .social-links a:hover { border-color: var(--accent); color: var(--accent); }
+        .footer-copy { font-size: 0.8rem; color: var(--text-muted); opacity: 0.5; }
+        .footer-legal {
+            display: flex; justify-content: center; align-items: center;
+            gap: 1rem; margin-top: 1rem; font-size: 0.75rem; color: var(--text-tertiary);
+        }
+        .footer-legal a { color: var(--text-tertiary); text-decoration: none; }
+        .footer-legal a:hover { color: var(--accent-soft); }
+
+        /* ===== Scroll Reveal ===== */
+        .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.8s ease, transform 0.8s ease; }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+
+        /* ===== Fragment Border (reusable card style) ===== */
+        .fragment-card {
+            border: 1px solid var(--fragment-border);
+            background: var(--bg-elevated);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .fragment-card:hover {
+            border-color: var(--fragment-highlight);
+            box-shadow: 0 4px 20px var(--fragment-highlight);
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            .nav { display: none; }
+            .menu-toggle { display: flex; }
+            .sidebar-overlay { display: block; }
+            .container { padding: 0 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Scanline texture -->
+<div class="scanline-layer"></div>
+
+<!-- ===== Header ===== -->
+<header class="header">
+    <div class="container">
+        <a href="{% url 'index' %}" class="logo">
+            <span class="logo-dot"></span> PowerAdapter
+        </a>
+        <nav class="nav">
+            <a href="{% url 'Blogs:post_list' %}" class="{% if '/posts' in request.path %}active{% endif %}">Posts</a>
+            <a href="{% url 'links' %}" class="{% if '/links' in request.path %}active{% endif %}">Links</a>
+            <form class="nav-search" action="{% url 'Blogs:search' %}" method="GET">
+                <input type="text" name="keyword" placeholder="搜索…" value="{{ keyword|default:'' }}">
+                <button type="submit">搜索</button>
+            </form>
+            <div class="nav-buttons">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'Blogs:post_create' %}" class="btn-accent">新文章</a>
+                    <form id="logout-form" action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-ghost">登出</button>
+                    </form>
+                    <span style="color:var(--accent-soft);font-size:0.85rem;">{{ user.username }}</span>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn-ghost">登录</a>
+                {% endif %}
+            </div>
+        </nav>
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu" title="Menu">&#9776;</button>
+    </div>
+</header>
+
+<!-- Sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar drawer -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <a href="{% url 'index' %}" class="logo" style="font-size:1.1rem;">
+            <span class="logo-dot"></span> PowerAdapter
+        </a>
+        <button class="sidebar-close" id="sidebarClose" aria-label="Close menu">&#10005;</button>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="{% url 'Blogs:post_list' %}">Posts</a>
+        <a href="{% url 'links' %}">Links</a>
+        {% if user.is_authenticated %}
+            <a href="{% url 'Blogs:post_create' %}">新文章</a>
+            <a href="#" onclick="document.getElementById('logout-form-mobile').submit(); return false;">登出</a>
+            <form id="logout-form-mobile" action="{% url 'accounts:logout' %}" method="post" style="display:none;">
+                {% csrf_token %}
+            </form>
+        {% else %}
+            <a href="{% url 'accounts:login' %}">登录</a>
+        {% endif %}
+    </nav>
+</aside>
+
+<!-- ===== Main Content ===== -->
+{% block hero %}{% endblock %}
+
+<main class="main-content">
+    {% block content %}{% endblock %}
+</main>
+
+<!-- ===== Footer ===== -->
+<footer class="footer">
+    <div class="container reveal" style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; text-align: left; align-items: start;">
+        <blockquote class="footer-quote" style="margin:0; max-width:none;">
+            <span style="color:var(--accent-primary); font-size:2rem; line-height:0;">&#8220;</span>
+            <p style="font-style:normal; font-size:1rem; color:var(--text-secondary); line-height:1.8; margin-top:0.5rem;">
+                专注于优雅的自动化、加密、算法、<br>与精神节律的构建探索。
+            </p>
+            <cite style="display:block; font-style:normal; font-size:0.85rem; margin-top:1.25rem; color:var(--accent-muted);">
+                — PowerAdapter
+            </cite>
+        </blockquote>
+        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+            <p style="font-family:var(--font-mono); font-size:0.75rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent-soft); margin-bottom:1.5rem;">
+                &#9776; Stay in Touch
+            </p>
+            <div class="social-links" style="justify-content: flex-start; margin-bottom:0;">
+                <a href="mailto:sevencdxxiv@qq.com" title="Email">EM</a>
+                <a href="https://github.com/PowerAdapter" title="GitHub" target="_blank" rel="noopener">GH</a>
+            </div>
+        </div>
+    </div>
+    <div class="container" style="border-top:1px solid var(--fragment-border); padding-top:1.5rem; display:flex; justify-content:space-between; align-items:center; margin-top:3rem;">
+        <p class="footer-copy" style="opacity:0.4;">&#9632;</p>
+        <p class="footer-copy" style="opacity:0.4;">&copy; PowerAdapter &middot; 愿代码之美，与精神秩序并行。</p>
+    </div>
+    <div class="footer-legal">
+        <span>内容遵循 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></span>
+        <span>|</span>
+        <a href="https://beian.miit.gov.cn" target="_blank" rel="noopener">ICP-num-placeholder</a>
+    </div>
+</footer>
+
+{% block extra_js %}{% endblock %}
+
+<!-- ===== Global JS ===== -->
+<script src="{% static 'js/main.js' %}"></script>
+
+</body>
+</html>

@@ -1,0 +1,12 @@
+{% for comment in comments %}
+<div class="sidebar-item" style="margin-bottom:0.5rem;">
+    <span style="color:var(--accent-soft);font-size:0.85rem;font-weight:600;">
+        {% if comment.nickname %}{{ comment.nickname }}{% else %}匿名{% endif %}
+    </span>
+    <span style="color:var(--text-muted);font-size:0.8rem;display:block;">
+        {{ comment.content|truncatechars:40 }}
+    </span>
+</div>
+{% empty %}
+<div style="color:var(--text-tertiary);font-size:0.8rem;font-family:var(--font-mono);">暂无评论</div>
+{% endfor %}

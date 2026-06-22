@@ -1,0 +1,9 @@
+{% for post in posts %}
+<div class="sidebar-item" style="margin-bottom:0.5rem;">
+    <a href="{{ post.get_absolute_url }}" style="color:var(--text-muted);text-decoration:none;font-size:0.85rem;transition:color 0.2s;">
+        {{ post.title }}
+    </a>
+</div>
+{% empty %}
+<div style="color:var(--text-tertiary);font-size:0.8rem;font-family:var(--font-mono);">暂无文章</div>
+{% endfor %}

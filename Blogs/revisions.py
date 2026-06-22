@@ -33,7 +33,7 @@ def get_next_version(post, change_type: str) -> tuple[int, int]:
 
 def create_revision(post, editor, change_type: str = 'minor',
                     edit_summary: str = '') -> Model:
-    """为指定文章创建修订快照
+    """为指定文章创建修订快照（含预计算 diff）
 
     :param post: Post 实例（已保存）
     :param editor: User 实例
@@ -44,6 +44,17 @@ def create_revision(post, editor, change_type: str = 'minor',
     from .models import PostRevision
 
     major, minor = get_next_version(post, change_type)
+    new_version = f"{major}.{minor}"
+
+    # 预计算与前一个版本的 diff（写时计算，读时零成本）
+    diff_html = None
+    previous = post.revisions.order_by('-major', '-minor').first()
+    if previous:
+        diff_html = render_diff(
+            previous.content, post.content,
+            previous.version, new_version,
+        )
+
     revision = PostRevision.objects.create(
         post=post,
         major=major, minor=minor,  # version 在 save() 中自动生成
@@ -54,9 +65,11 @@ def create_revision(post, editor, change_type: str = 'minor',
         editor=editor,
         change_type=change_type,
         edit_summary=edit_summary,
+        diff_from_previous=diff_html,
     )
     logger.info(f"PostRevision 创建: post_id={post.id} version=v{revision.version} "
-                f"change_type={change_type} editor_id={editor.id}")
+                f"change_type={change_type} editor_id={editor.id} "
+                f"diff_stored={'yes' if diff_html else 'no'}")
     return revision
 
 

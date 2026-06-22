@@ -19,7 +19,7 @@ from comment.models import Comment
 register = template.Library()
 
 
-@register.inclusion_tag('comment/form.html')
+@register.inclusion_tag('pages/comment/form.html')
 def form_block(target):
     print('target', target)
     return {
@@ -28,7 +28,7 @@ def form_block(target):
     }
 
 
-@register.inclusion_tag('comment/list.html')
+@register.inclusion_tag('pages/comment/list.html')
 def list_block(target):
     return {
         'target': target,

@@ -9,8 +9,8 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.db import transaction, IntegrityError
 from django.db.models import Q, F
-from django.http import Http404, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.http import Http404, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, render
 from django.urls.base import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import cache_page
@@ -57,12 +57,12 @@ class LoggingMixin:
 
 
 class IndexView(CommonViewMixin, TemplateView):
-    template_name = '../bulma/base/index.html'
+    template_name = 'pages/index.html'
 
 
 class PostDetailView(CommonViewMixin, DetailView):
     queryset = Post.get_normal_posts()
-    template_name = 'blog/detail.html'
+    template_name = 'pages/blog/detail.html'
     context_object_name = 'post'
 
     def get(self, request, *args, **kwargs):
@@ -78,6 +78,15 @@ class PostDetailView(CommonViewMixin, DetailView):
                            f"user={getattr(self.request.user, 'id', 'anon')}")
             raise Http404("文章不存在")
         return post
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        post = self.object
+        revisions = post.revisions.all().order_by('-major', '-minor')
+        context['revisions'] = revisions
+        context['revision_count'] = len(revisions)
+        context['show_timeline'] = len(revisions) > 1
+        return context
 
     def handle_visit(self):
 
@@ -161,7 +170,7 @@ class PostListView(AnonymousPageCacheMixin, ListView):
     queryset = Post.get_normal_posts().select_related("owner", "category")
     paginate_by = 10
     context_object_name = 'post_list'
-    template_name = 'blog/list.html'
+    template_name = 'pages/blog/list.html'
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -172,7 +181,7 @@ class PostListView(AnonymousPageCacheMixin, ListView):
 
 class CategoryView(CommonViewMixin, ListView):
     paginate_by = 10
-    template_name = 'blog/cate_list.html'
+    template_name = 'pages/blog/cate_list.html'
     context_object_name = 'cate_posts'
     cate_list = None
 
@@ -208,7 +217,7 @@ class TagView(PostListView):
 
 
 class SearchView(PostListView):
-    template_name = 'blog/search_result.html'
+    template_name = 'pages/blog/search_result.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -245,7 +254,7 @@ def clear_page_caches():
 class PostCreateView(LoginRequiredMixin, LoggingMixin, CreateView):
     model = Post
     form_class = PostForm
-    template_name = 'blog/post_form.html'
+    template_name = 'pages/blog/post_form.html'
 
     def form_valid(self, form):
         form.instance.owner = self.request.user
@@ -270,7 +279,7 @@ class PostCreateView(LoginRequiredMixin, LoggingMixin, CreateView):
 class PostEditView(LoginRequiredMixin, UpdateView):
     model = Post
     form_class = PostForm
-    template_name = 'blog/post_form.html'
+    template_name = 'pages/blog/post_form.html'
 
     def form_valid(self, form):
         old_title = self.object.title
@@ -325,70 +334,73 @@ def post_img_upload(request):
 
 
 # ============================================================
-# 修订历史 API（v2.0 P1 — 前端 fetch 消费）
+# 修订历史（v2.0 P2 — htmx HTML 片段端点）
 # ============================================================
 
-def revision_list_api(request, slug):
-    """GET /api/post/{slug}/revisions/ — 返回版本列表 JSON"""
-    post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
-    revisions = post.revisions.all().values(
-        'major', 'minor', 'version', 'change_type',
-        'edit_summary', 'editor__username', 'created_at',
-    ).order_by('-major', '-minor')
-    return JsonResponse({
-        'slug': slug,
-        'versions': list(revisions),
-    })
-
-
-def revision_detail_api(request, slug, version):
-    """GET /api/post/{slug}/revision/v{major}.{minor}/ — 返回指定版本完整内容"""
+def revision_body(request, slug, version):
+    """GET /post/{slug}/revision/v{major}.{minor}/ — 返回版本内容的 HTML 片段（htmx）"""
     post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
     parts = version.lstrip('v').split('.')
     if len(parts) != 2 or not all(p.isdigit() for p in parts):
-        return JsonResponse({'error': '版本号格式无效，应为 v{major}.{minor}'}, status=400)
+        return HttpResponse('版本号格式无效', status=400)
     major, minor = int(parts[0]), int(parts[1])
     revision = get_object_or_404(
         post.revisions, major=major, minor=minor
     )
-    return JsonResponse({
-        'version': revision.version,
-        'title': revision.title,
-        'desc': revision.desc,
-        'content': revision.content,
-        'slug': revision.slug,
-        'change_type': revision.change_type,
-        'edit_summary': revision.edit_summary,
-        'editor': revision.editor.username if revision.editor else None,
-        'created_at': revision.created_at,
+    return render(request, 'pages/blog/_revision_body.html', {
+        'revision': revision,
+        'post': post,
     })
 
 
-def revision_diff_api(request, slug):
-    """GET /api/post/{slug}/diff/?from=1.0&to=2.0 — 返回 diff HTML 片段"""
-    from .revisions import render_diff
+def revision_diff(request, slug):
+    """GET /post/{slug}/diff/?from=1.0&to=2.0 — 返回 diff HTML 片段（htmx）
+    
+    优先使用预计算的 diff_from_previous（零计算开销）。
+    非相邻版本或旧数据无预计算时，实时生成。
+    """
+    from .revisions import render_diff as compute_diff
 
     post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
     from_ver = request.GET.get('from', '')
     to_ver = request.GET.get('to', '')
 
     if not from_ver or not to_ver:
-        return JsonResponse({'error': '请提供 ?from= 和 ?to= 参数'}, status=400)
+        return HttpResponse('请选择两个版本进行对比', status=400)
 
     try:
         rev_from = _get_revision_by_version(post, from_ver)
         rev_to = _get_revision_by_version(post, to_ver)
     except ValueError as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        return HttpResponse(str(e), status=400)
 
     if not rev_from or not rev_to:
-        return JsonResponse({'error': '版本号不存在'}, status=404)
+        return HttpResponse('版本号不存在', status=404)
 
-    diff_html = render_diff(rev_from.content, rev_to.content, from_ver, to_ver)
-    return JsonResponse({
+    # 优先使用预计算 diff（写时计算，读时零成本）
+    diff_html = None
+    if from_ver == '1.0' and rev_to and rev_to.major == 1 and rev_to.minor == 0:
+        pass  # v1.0 没有前驱
+    elif rev_to and rev_to.diff_from_previous:
+        # 检查是否正好是相邻版本，且 diff 对应
+        prev = post.revisions.filter(
+            major__lt=rev_to.major
+        ).order_by('-major', '-minor').first() or \
+               post.revisions.filter(
+                   major=rev_to.major, minor__lt=rev_to.minor
+               ).order_by('-major', '-minor').first()
+        if prev and prev.version == from_ver:
+            diff_html = rev_to.diff_from_previous
+
+    if not diff_html:
+        diff_html = compute_diff(rev_from.content, rev_to.content, from_ver, to_ver)
+
+    return render(request, 'pages/blog/_revision_diff.html', {
+        'diff_html': diff_html,
         'from_version': from_ver,
         'to_version': to_ver,
-        'diff_html': diff_html,
+        'from_title': rev_from.title,
+        'to_title': rev_to.title,
     })
 
 

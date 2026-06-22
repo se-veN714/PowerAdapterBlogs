@@ -1,0 +1,29 @@
+{% load static %}
+{% load widget_tweaks %}
+
+{% block form %}
+<div class="comment-form">
+    <div class="avatar-col">
+        <img src="{% static 'img/avatar.jpg' %}" alt="头像">
+    </div>
+    <form class="form-col" id="comment-form" action="{% url 'Blogs:post_comment' slug=target.slug %}" method="post">
+        {% csrf_token %}
+        <div class="form-row">
+            <label for="nickname" style="display:none;">昵称</label>
+            {{ comment_form.nickname }}
+        </div>
+        <label for="id_content_comment" style="display:none;">内容</label>
+        {{ comment_form.content }}
+        {% if comment_form.content.errors %}
+            <p style="color:var(--error-accent);font-size:0.75rem;">{{ comment_form.content.errors.0 }}</p>
+        {% endif %}
+        <button id="submit-button" type="submit" class="btn-comment">
+            <span id="button-text">写好了！</span>
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script src="{% static 'js/form-comment.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,226 @@
+/* ============================================
+   Links Page — Devenir Theme
+   Layout mirrors Bulma: hero banner + progress + card grid
+   ============================================ */
+
+/* ===== Links Hero (Bulma hero is-light is-bold) ===== */
+.links-hero {
+    padding: 7rem 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.links-hero-body {
+    text-align: center;
+    padding: 2rem 1rem 1.5rem;
+}
+
+.links-hero-title {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 800;
+    color: var(--accent);
+    text-decoration: none;
+    letter-spacing: -0.01em;
+    transition: color 0.2s;
+}
+.links-hero-title:hover {
+    color: var(--accent-primary);
+}
+
+.links-hero-subtitle {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-top: 0.75rem;
+    font-family: var(--font-mono);
+}
+
+.links-hero-divider {
+    max-width: 600px;
+    margin: 0 auto 1.5rem;
+    border: none;
+    border-top: 1px solid var(--border);
+}
+
+/* ===== Hero Image ===== */
+.links-hero-image {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.links-hero-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+
+/* ===== Progress Bar (Bulma progress is-small is-info) ===== */
+.links-progress-wrapper {
+    max-width: 600px;
+    margin: 1.25rem auto 0;
+    animation: progress-glow 2.4s ease-in-out infinite;
+}
+
+.links-progress-bar {
+    height: 6px;
+    background: var(--bg-secondary);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 8px rgba(216, 255, 225, 0.06);
+}
+
+.links-progress-fill {
+    height: 100%;
+    width: 100%;
+    position: relative;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+/* Base gradient fill with moving background */
+.links-progress-fill::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+        var(--accent-deep) 0%,
+        var(--accent-soft) 25%,
+        var(--accent) 50%,
+        var(--accent-soft) 75%,
+        var(--accent-deep) 100%
+    );
+    background-size: 300% 100%;
+    animation: progress-flow 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Striped overlay */
+.links-progress-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        -35deg,
+        transparent,
+        transparent 8px,
+        rgba(13, 16, 16, 0.25) 8px,
+        rgba(13, 16, 16, 0.25) 16px
+    );
+    animation: progress-stripes 0.8s linear infinite;
+}
+
+/* Bar width oscillation */
+@keyframes progress-flow {
+    0%   { background-position: 100% 0; }
+    25%  { background-position: 50% 0; }
+    50%  { background-position: 0% 0; }
+    75%  { background-position: 50% 0; }
+    100% { background-position: 100% 0; }
+}
+
+/* Stripes slide */
+@keyframes progress-stripes {
+    from { background-position: 0 0; }
+    to   { background-position: 32px 0; }
+}
+
+/* Glow pulse on the bar wrapper */
+@keyframes progress-glow {
+    0%, 100% { box-shadow: 0 0 6px rgba(216, 255, 225, 0.04); }
+    50%      { box-shadow: 0 0 14px rgba(216, 255, 225, 0.12); }
+}
+
+/* ===== Links Main Section ===== */
+.links-main {
+    padding: 2rem 2rem 4rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* ===== Links Heading (Bulma title is-1) ===== */
+.links-heading {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 2.5rem;
+    letter-spacing: 0.04em;
+}
+
+/* ===== Links Grid (Bulma columns is-multiline is-centered) ===== */
+.links-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    max-width: 960px;
+    margin: 0 auto;
+    justify-items: center;
+}
+
+/* ===== Links Card (Bulma card) ===== */
+.links-card {
+    width: 100%;
+    border: 1px solid var(--fragment-border);
+    background: var(--bg-elevated);
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+}
+.links-card:hover {
+    border-color: var(--fragment-highlight);
+    box-shadow: 0 4px 24px var(--fragment-highlight);
+    transform: translateY(-2px);
+}
+
+.links-card-content {
+    padding: 1.5rem;
+}
+
+.links-card-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
+}
+.links-card-title a {
+    color: var(--accent-soft);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.links-card-title a:hover {
+    color: var(--accent);
+}
+
+.links-card-url {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+    .links-grid {
+        grid-template-columns: 1fr;
+    }
+    .links-hero-image {
+        max-width: 100%;
+    }
+    .links-hero {
+        padding: 6rem 0 1.5rem;
+    }
+    .links-main {
+        padding: 1.5rem 1rem 3rem;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .links-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

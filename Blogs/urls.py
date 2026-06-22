@@ -22,7 +22,7 @@ from Blogs.apis import PostViewSet, CategoryViewSet
 from Blogs.views import (
     CategoryView, TagView, PostDetailView,
     PostListView, SearchView, PostCreateView, PostEditView,
-    revision_list_api, revision_detail_api, revision_diff_api,
+    revision_body, revision_diff,
 )
 from Blogs.views import post_img_upload
 from comment.views import CommentView
@@ -58,10 +58,9 @@ urlpatterns = [
     # img_upload
     path("img_upload/", post_img_upload, name="post_img_upload"),
 
-    # 修订历史 API（v2.0 P1）
-    path("api/post/<slug:slug>/revisions/", revision_list_api, name="revision_list"),
-    path("api/post/<slug:slug>/revision/<str:version>/", revision_detail_api, name="revision_detail"),
-    path("api/post/<slug:slug>/diff/", revision_diff_api, name="revision_diff"),
+    # 修订历史（v2.0 P2 — htmx HTML 片段端点）
+    path("post/<slug:slug>/revision/<str:version>/", revision_body, name="revision_body"),
+    path("post/<slug:slug>/diff/", revision_diff, name="revision_diff"),
 
     # API
     path("api/",include((api_urlpatterns,"Blogs"))),

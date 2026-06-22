@@ -1,0 +1,43 @@
+{# htmx 片段：两个版本之间的 diff #}
+
+<div class="diff-header mb-3">
+    <span class="tag is-warning">v{{ from_version }}</span>
+    <span class="mx-2 has-text-grey">→</span>
+    <span class="tag is-info">v{{ to_version }}</span>
+    <small class="has-text-grey ml-2">{{ from_title }} → {{ to_title }}</small>
+</div>
+
+<hr class="my-2">
+
+<div class="diff-table-wrapper" style="overflow-x:auto;">
+    <style>
+        /* difflib HtmlDiff 默认样式兼容调整 */
+        .diff-table-wrapper table.diff {
+            font-family: monospace;
+            font-size: 0.85rem;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .diff-table-wrapper table.diff td {
+            padding: 2px 6px;
+            vertical-align: top;
+        }
+        .diff-table-wrapper .diff_header {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+        .diff-table-wrapper .diff_next {
+            background: #e8e8e8;
+        }
+        .diff-table-wrapper .diff_add {
+            background: #e6ffed;
+        }
+        .diff-table-wrapper .diff_chg {
+            background: #fff5b1;
+        }
+        .diff-table-wrapper .diff_sub {
+            background: #ffeef0;
+        }
+    </style>
+    {{ diff_html|safe }}
+</div>

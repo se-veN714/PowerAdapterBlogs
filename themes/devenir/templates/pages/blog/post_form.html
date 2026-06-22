@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}
+    {% if object.pk %}{{ object.title }} - 编辑{% else %}Blog - 新建{% endif %}
+{% endblock %}
+
+{% block head_script %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css"/>
+    <link rel="stylesheet" href="https://uicdn.toast.com/editor-plugin-code-syntax-highlight/latest/toastui-editor-plugin-code-syntax-highlight.min.css"/>
+    <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/theme/toastui-editor-dark.min.css"/>
+    <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/blog.css' %}">
+{% endblock %}
+
+{% block hero %}
+<div class="page-header">
+    <h1 class="page-title">{% if object.pk %}编辑文章{% else %}新建文章{% endif %}</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="post-form-wrapper">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- Cover upload -->
+            <div class="cover-upload" id="cover-upload-box" onclick="document.getElementById('id_cover').click();">
+                <input class="file-input" type="file" name="{{ form.cover.name }}" id="id_cover" style="display:none;"
+                       accept="image/*"/>
+                {% if form.instance.cover %}
+                    <img src="{{ form.instance.cover.url }}" alt="当前封面" id="cover-preview">
+                {% else %}
+                    <div style="padding:2rem;color:var(--text-muted);font-family:var(--font-mono);font-size:0.85rem;">
+                        &#128247; 点击或拖拽上传封面图
+                    </div>
+                {% endif %}
+                <span id="cover-filename" style="font-size:0.75rem;color:var(--text-tertiary);font-family:var(--font-mono);">
+                    {% if form.instance.cover %}{{ form.instance.cover.name }}{% else %}未选择文件{% endif %}
+                </span>
+            </div>
+
+            <!-- Title -->
+            <div class="field-group">
+                <label for="id_title">标题</label>
+                {{ form.title|add_class:"textarea" }}
+            </div>
+
+            <!-- Content (Toast UI Editor) -->
+            <div class="field-group">
+                <label>内容</label>
+                <textarea id="id_content" name="content" hidden>{{ form.content.value|default_if_none:"" }}</textarea>
+                <div id="tui-editor"></div>
+            </div>
+
+            <!-- Desc -->
+            <div class="field-group">
+                <label for="id_desc">摘要</label>
+                {{ form.desc|add_class:"textarea" }}
+            </div>
+
+            <!-- Category & Tags -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+                <div class="field-group">
+                    <label for="id_category">分类</label>
+                    {{ form.category }}
+                </div>
+                <div class="field-group">
+                    <label for="id_tag">标签</label>
+                    {{ form.tag }}
+                </div>
+            </div>
+
+            <!-- Errors -->
+            {% if form.errors %}
+            <div class="form-errors">
+                {{ form.errors }}
+            </div>
+            {% endif %}
+
+            <!-- Submit -->
+            <div class="form-actions">
+                <button class="btn-submit" type="submit" onclick="submitPostForm()">
+                    发布
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script>
+        // Cover preview
+        document.getElementById('id_cover').addEventListener('change', function(e) {
+            document.getElementById('cover-filename').textContent =
+                e.target.files.length > 0 ? e.target.files[0].name : '未选择文件';
+            if (e.target.files.length > 0) {
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    var box = document.getElementById('cover-upload-box');
+                    var existing = box.querySelector('img');
+                    if (existing) {
+                        existing.src = ev.target.result;
+                    } else {
+                        var img = document.createElement('img');
+                        img.src = ev.target.result;
+                        img.id = 'cover-preview';
+                        box.insertBefore(img, box.firstChild);
+                    }
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        // Toast UI Editor
+        var editor = null;
+        document.addEventListener('DOMContentLoaded', function() {
+            editor = new toastui.Editor({
+                el: document.querySelector('#tui-editor'),
+                height: '600px',
+                initialEditType: 'markdown',
+                previewStyle: 'vertical',
+                theme: 'dark',
+                initialValue: document.getElementById('id_content').value,
+            });
+
+            editor.eventEmitter.removeEventHandler('addImageBlobHook');
+            editor.eventEmitter.listen('addImageBlobHook', function(blob, callback) {
+                var formData = new FormData();
+                var uploadUrl = "{% url 'Blogs:post_img_upload' %}";
+                formData.append('image', blob);
+                fetch(uploadUrl, { method: 'POST', body: formData })
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) { callback(data.url); })
+                    .catch(function(err) { console.error(err); });
+                return false;
+            });
+        });
+
+        function submitPostForm() {
+            var contentField = document.getElementById('id_content');
+            if (editor && contentField) {
+                contentField.value = editor.getMarkdown();
+            }
+        }
+    </script>
+{% endblock %}

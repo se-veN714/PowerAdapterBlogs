@@ -1,0 +1,11 @@
+{% load static %}
+
+{% block list %}
+<div id="comments-container" class="comment-list">
+    {% for comment in comment_list %}
+        {% include 'pages/comment/item.html' with comment=comment %}
+    {% empty %}
+        <div class="comment-empty">be the first to comment</div>
+    {% endfor %}
+</div>
+{% endblock %}

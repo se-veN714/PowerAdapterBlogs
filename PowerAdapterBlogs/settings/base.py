@@ -84,12 +84,12 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "PowerAdapterBlogs.urls"
 
-THEMES = 'bulma'  # 更改切换主题
+THEMES = 'devenir'  # 更改切换主题
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'themes' / THEMES],
+        "DIRS": [BASE_DIR / 'themes' / THEMES / 'templates', BASE_DIR / 'themes' / THEMES],
 
         "APP_DIRS": True,
         "OPTIONS": {
@@ -151,6 +151,7 @@ STATIC_ROOT = BASE_DIR / "common_static"
 
 STATICFILES_DIRS = [
     BASE_DIR / "static",
+    BASE_DIR / "themes" / THEMES / "static",
 ]
 
 MEDIA_URL = "/media/"

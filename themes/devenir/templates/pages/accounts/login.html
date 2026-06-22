@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}登录{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% endblock %}
+
+{% block hero %}
+<div class="page-header">
+    <h1 class="page-title">登录</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-title">Sign In</div>
+
+        <div class="auth-progress">
+            <div class="progress-track">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+
+        <form method="post" id="login-form">
+            {% csrf_token %}
+
+            <div class="field">
+                <label for="id_username">账号</label>
+                {{ form.username|add_class:"input" }}
+            </div>
+
+            <div class="field">
+                <label for="id_password">口令</label>
+                {{ form.password|add_class:"input" }}
+            </div>
+
+            {% if form.non_field_errors %}
+            <div class="error-msg" id="error-msg">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <button class="btn-login" type="submit">登录</button>
+        </form>
+
+        <div class="auth-links">
+            <a href="{% url 'index' %}">&#8592; 返回首页</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var errors = document.querySelector("#error-msg");
+            if (errors) {
+                var inputs = document.querySelectorAll("#login-form input[type='text'], #login-form input[type='password']");
+                inputs.forEach(function(input) { input.classList.add("is-danger"); });
+            }
+        });
+    </script>
+{% endblock %}

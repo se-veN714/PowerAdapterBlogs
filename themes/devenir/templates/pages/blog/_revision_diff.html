@@ -1,0 +1,48 @@
+{# htmx 片段：两个版本之间的 diff #}
+
+<div class="diff-header">
+    <span class="tag-from">v{{ from_version }}</span>
+    <span class="diff-arrow">&#8594;</span>
+    <span class="tag-to">v{{ to_version }}</span>
+    <span style="font-size:0.75rem;color:var(--text-tertiary);margin-left:0.5rem;">{{ from_title }} &#8594; {{ to_title }}</span>
+</div>
+
+<hr style="border:none;border-top:1px solid var(--border);margin:0.5rem 0;">
+
+<div class="diff-table-wrapper" style="overflow-x:auto;">
+    <style>
+        /* difflib HtmlDiff 默认样式兼容调整 */
+        .diff-table-wrapper table.diff {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .diff-table-wrapper table.diff td {
+            padding: 2px 6px;
+            vertical-align: top;
+        }
+        .diff-table-wrapper .diff_header {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--accent-soft);
+        }
+        .diff-table-wrapper .diff_next {
+            background: var(--bg-secondary);
+            color: var(--text-tertiary);
+        }
+        .diff-table-wrapper .diff_add {
+            background: rgba(62, 88, 72, 0.4);
+            color: var(--accent);
+        }
+        .diff-table-wrapper .diff_chg {
+            background: rgba(207, 181, 126, 0.15);
+            color: var(--warning-accent);
+        }
+        .diff-table-wrapper .diff_sub {
+            background: rgba(201, 120, 120, 0.15);
+            color: var(--error-accent);
+        }
+    </style>
+    {{ diff_html|safe }}
+</div>

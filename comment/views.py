@@ -73,6 +73,6 @@ class CommentView(LoginRequiredMixin, TemplateView):
 
         return JsonResponse({
             'success': True,
-            'html': render_to_string('comment/item.html', {'comment': instance}),
+            'html': render_to_string('pages/comment/item.html', {'comment': instance}),
             'message': '评论提交成功!',
         })

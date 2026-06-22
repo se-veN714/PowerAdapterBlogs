@@ -1,0 +1,19 @@
+{# htmx 片段：单个版本的内容 #}
+{% load md_extras %}
+
+<div class="revision-body-header mb-3">
+    <span class="tag is-primary is-medium">v{{ revision.version }}</span>
+    <small class="has-text-grey ml-2">{{ revision.created_at|date:"Y-m-d H:i" }}</small>
+    {% if revision.editor %}
+    <small class="has-text-grey ml-2">编辑：{{ revision.editor.username }}</small>
+    {% endif %}
+    {% if revision.edit_summary %}
+    <p class="is-size-7 has-text-grey mt-1">{{ revision.edit_summary }}</p>
+    {% endif %}
+</div>
+
+<hr class="my-2">
+
+<article class="content markdown-body">
+    {{ revision.content|markdown_to_html }}
+</article>

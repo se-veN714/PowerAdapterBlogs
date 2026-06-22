@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load comment_block %}
+{% load md_extras %}
+
+{% block title %}Blog-{{ post.id }}-{{ post.title }}{% endblock %}
+
+{% block head_script %}
+    {{ block.super }}
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/blog.css' %}">
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+{% endblock %}
+
+{% block hero %}
+<div class="page-header">
+    <p style="font-family:var(--font-mono);font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent-muted);">
+        Article
+    </p>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="post-detail">
+        <!-- Title & Meta -->
+        <div class="post-detail-header">
+            <h1 class="post-detail-title">{{ post.title }}</h1>
+            <div class="post-detail-meta">
+                <img class="post-card-avatar" src="{% static 'img/avatar.jpg' %}" alt="作者头像" style="width:24px;height:24px;border-radius:50%;">
+                <span>{{ post.owner.username }}</span>
+                <span class="meta-sep" style="color:var(--text-tertiary);opacity:0.5;">|</span>
+                <span class="meta-tag">{{ post.category.name }}</span>
+                <span class="meta-sep" style="color:var(--text-tertiary);opacity:0.5;">|</span>
+                <span style="color:var(--text-tertiary);">浏览 {{ post.pv }}</span>
+            </div>
+        </div>
+
+        <!-- Markdown Body -->
+        <article class="content markdown-body">
+            {{ post.content|markdown_to_html }}
+        </article>
+
+        <!-- Post Nav (prev / next) -->
+        {% if post.get_previous_by_created_time or post.get_next_by_created_time %}
+        <div class="post-nav">
+            {% with prev=post.get_previous_by_created_time %}
+            {% if prev %}
+                <a href="{{ prev.get_absolute_url }}" class="prev">&#8592; {{ prev.title }}</a>
+            {% else %}
+                <span></span>
+            {% endif %}
+            {% endwith %}
+            {% with next=post.get_next_by_created_time %}
+            {% if next %}
+                <a href="{{ next.get_absolute_url }}" class="next">{{ next.title }} &#8594;</a>
+            {% else %}
+                <span></span>
+            {% endif %}
+            {% endwith %}
+        </div>
+        {% endif %}
+
+        {# ====== 修订 Timeline（v2.0 P2 — htmx） ====== #}
+        {% if show_timeline %}
+        <div class="revision-section">
+            <p class="revision-toggle" onclick="this.nextElementSibling.classList.toggle('is-hidden');
+                     this.querySelector('.toggle-icon').textContent =
+                     this.nextElementSibling.classList.contains('is-hidden') ? '&#9654;' : '&#9660;';">
+                <span>&#9998; 当前 v{{ revisions.0.version }} · {{ revision_count }} 个版本</span>
+                <span class="toggle-icon">&#9660;</span>
+            </p>
+
+            <div class="timeline-body">
+                {% for rev in revisions %}
+                <div class="timeline-row">
+                    <div class="timeline-rail">
+                        <div class="timeline-dot {% if rev.change_type == 'major' %}major{% else %}minor{% endif %}">
+                            {% if rev.change_type == 'major' %}&#9679;{% else %}&#9675;{% endif %}
+                        </div>
+                        {% if not forloop.last %}<div class="timeline-line"></div>{% endif %}
+                    </div>
+                    <div class="timeline-card">
+                        <div class="timeline-card-header">
+                            <span class="version-tag {% if rev.change_type == 'major' %}major{% else %}minor{% endif %}">v{{ rev.version }}</span>
+                            <span class="version-date">{{ rev.created_at|date:"Y-m-d" }}</span>
+                        </div>
+                        {% if rev.edit_summary %}
+                        <p class="timeline-summary">{{ rev.edit_summary }}</p>
+                        {% endif %}
+                        <div class="timeline-actions">
+                            <button class="btn-tiny"
+                                    hx-get="{% url 'Blogs:revision_body' slug=post.slug version=rev.version %}"
+                                    hx-target="#revision-viewer"
+                                    hx-swap="innerHTML"
+                                    hx-indicator="#revision-spinner">
+                                查看
+                            </button>
+                            <button class="btn-tiny diff-selector" data-version="{{ rev.version }}" data-role="from">A</button>
+                            <button class="btn-tiny diff-selector" data-version="{{ rev.version }}" data-role="to">B</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {# Diff 比较栏 #}
+            <div id="diff-bar" class="diff-bar is-hidden">
+                <span id="diff-label-from" class="diff-tag from" data-version="">v-</span>
+                <span class="diff-vs">vs</span>
+                <span id="diff-label-to" class="diff-tag to" data-version="">v-</span>
+                <button id="diff-btn" class="btn-diff"
+                        hx-get=""
+                        hx-target="#revision-viewer"
+                        hx-swap="innerHTML"
+                        hx-indicator="#revision-spinner">
+                    对比差异
+                </button>
+            </div>
+
+            {# 懒加载内容区 #}
+            <div id="revision-viewer" class="revision-viewer"></div>
+            <div id="revision-spinner" class="htmx-indicator htmx-spinner">
+                loading...
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {# Comments #}
+    <div class="comment-section">
+        {% form_block object %}
+        {% list_block object %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script>
+        // ===== Diff 版本对比选择器 =====
+        document.querySelectorAll('.diff-selector').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var version = this.dataset.version;
+                var role = this.dataset.role;
+
+                // 取消同角色的所有选中
+                document.querySelectorAll('.diff-selector[data-role="' + role + '"]').forEach(function(b) {
+                    b.classList.remove('is-selected');
+                });
+                // 选中当前
+                this.classList.add('is-selected');
+
+                // 更新 diff 标签
+                var labelEl = document.getElementById('diff-label-' + role);
+                labelEl.textContent = 'v' + version;
+                labelEl.dataset.version = version;
+
+                // 两个版本都选中后才显示 diff 按钮
+                var fromVer = document.getElementById('diff-label-from').dataset.version;
+                var toVer = document.getElementById('diff-label-to').dataset.version;
+                var diffBar = document.getElementById('diff-bar');
+                if (fromVer && toVer) {
+                    diffBar.classList.remove('is-hidden');
+                    var diffBtn = document.getElementById('diff-btn');
+                    diffBtn.setAttribute('hx-get',
+                        '/post/{{ post.slug }}/diff/?from=' + fromVer + '&to=' + toVer);
+                    htmx.process(diffBtn);
+                }
+            });
+        });
+
+        // ===== Toggle is-hidden class utility =====
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.revision-toggle')) {
+                var body = e.target.closest('.revision-toggle').nextElementSibling;
+                if (body) body.classList.toggle('is-hidden');
+            }
+        });
+    </script>
+    <style>
+        .is-hidden { display: none !important; }
+    </style>
+{% endblock %}

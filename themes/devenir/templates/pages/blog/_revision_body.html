@@ -1,0 +1,19 @@
+{# htmx 片段：单个版本的内容 #}
+{% load md_extras %}
+
+<div class="revision-body-header">
+    <span class="version-tag">v{{ revision.version }}</span>
+    <span class="version-meta">{{ revision.created_at|date:"Y-m-d H:i" }}</span>
+    {% if revision.editor %}
+    <span class="version-meta">编辑：{{ revision.editor.username }}</span>
+    {% endif %}
+    {% if revision.edit_summary %}
+    <p class="version-summary">{{ revision.edit_summary }}</p>
+    {% endif %}
+</div>
+
+<hr style="border:none;border-top:1px solid var(--border);margin:0.5rem 0;">
+
+<article class="content markdown-body">
+    {{ revision.content|markdown_to_html }}
+</article>

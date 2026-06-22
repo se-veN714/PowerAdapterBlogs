@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Links{% endblock %}
+
+{% block hero %}
+<!-- ===== Links Hero (Bulma-style banner) ===== -->
+<div class="links-hero">
+    <div class="container">
+        <div class="links-hero-body">
+            <a class="links-hero-title" href="{% url 'index' %}">PowerAdapter Blogs</a>
+            <p class="links-hero-subtitle">Love Programing, Music &amp; Skateboard!!!!</p>
+        </div>
+        <hr class="links-hero-divider">
+        <div class="links-hero-image">
+            <img src="{% static 'img/bgimg.png' %}" alt="Banner">
+        </div>
+        <div class="links-progress-wrapper">
+            <div class="links-progress-bar">
+                <div class="links-progress-fill"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- ===== Links Main ===== -->
+<div class="container links-main">
+    <h1 class="links-heading">Links</h1>
+
+    <div class="links-grid">
+        {% for link in link_list %}
+            <div class="links-card">
+                <div class="links-card-content">
+                    <p class="links-card-title">
+                        <a href="{{ link.href }}" target="_blank" rel="noopener">
+                            {{ link.title }}
+                        </a>
+                    </p>
+                    <p class="links-card-url">
+                        {{ link.href|slice:":40" }}{% if link.href|length > 50 %}...{% endif %}
+                    </p>
+                </div>
+            </div>
+        {% empty %}
+            <div class="empty-state" style="grid-column:1/-1;">
+                <div class="empty-icon">&#9744;</div>
+                <p class="empty-text">no links yet</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/links.css' %}">
+{% endblock %}

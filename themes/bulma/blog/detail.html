@@ -15,11 +15,113 @@
     <style class="cp-pen-styles">
         .markdown-body strong {
             font-weight: bold;
-            color: #4A90E2; /* 或 #D9822B, #7E57C2 中任选其一 */
+            color: #4A90E2;
         }
 
         .markdown-body blockquote {
             color: #00b894;
+        }
+
+        /* ====== v2.0 P2: 竖排 Timeline ====== */
+        .revision-section {
+            border-top: 1px solid #eee;
+            padding-top: 1rem;
+        }
+        .revision-toggle {
+            margin-bottom: 0.75rem;
+        }
+        .revision-toggle:hover {
+            color: #4a4a4a !important;
+        }
+        .timeline-body {
+            padding-left: 1rem;
+        }
+        .timeline-row {
+            display: flex;
+            align-items: flex-start;
+            min-height: 3.5rem;
+        }
+        .timeline-rail {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 24px;
+            flex-shrink: 0;
+        }
+        .timeline-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            line-height: 12px;
+            font-size: 10px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .timeline-dot.major {
+            background: #00d1b2;
+            color: white;
+            width: 14px;
+            height: 14px;
+            font-size: 11px;
+            line-height: 14px;
+        }
+        .timeline-dot.minor {
+            background: transparent;
+            border: 2px solid #b5b5b5;
+            color: #b5b5b5;
+        }
+        .timeline-line {
+            width: 2px;
+            flex-grow: 1;
+            background: #dbdbdb;
+            min-height: 1.5rem;
+        }
+        .timeline-card {
+            margin-left: 0.75rem;
+            padding: 0.35rem 0.75rem;
+            background: #fafafa;
+            border-radius: 6px;
+            flex-grow: 1;
+            margin-bottom: 0.5rem;
+        }
+        .timeline-card:hover {
+            background: #f0f0f0;
+        }
+        .timeline-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.2rem;
+        }
+        .timeline-summary {
+            margin-bottom: 0.2rem;
+            line-height: 1.4;
+        }
+        .timeline-actions {
+            display: flex;
+            gap: 0.3rem;
+        }
+        .timeline-actions .button.is-small {
+            font-size: 0.65rem;
+        }
+        .diff-selector.is-selected {
+            /* overridden by is-primary when selected */;
+        }
+        .revision-viewer {
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 1rem;
+            background: #fafafa;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .htmx-indicator {
+            opacity: 0;
+            transition: opacity 200ms ease-in;
+        }
+        .htmx-request .htmx-indicator,
+        .htmx-request.htmx-indicator {
+            opacity: 1;
         }
     </style>
     <script src="{% static "js/form.js" %}" defer></script>
@@ -46,6 +148,79 @@
                         </div>
                     {% endif %}
                 </div>
+
+                {# ====== 修订 Timeline（v2.0 P2 — htmx 懒加载） ====== #}
+                {% if show_timeline %}
+                <div class="revision-section mt-5">
+                    <p class="revision-toggle is-size-7 has-text-grey"
+                       onclick="this.nextElementSibling.classList.toggle('is-hidden');
+                                this.querySelector('.toggle-icon').textContent =
+                                this.nextElementSibling.classList.contains('is-hidden') ? '▸' : '▾';"
+                       style="cursor:pointer; user-select:none;">
+                        📝 当前 v{{ revisions.0.version }} · {{ revision_count }} 个版本
+                        <span class="toggle-icon">▾</span>
+                    </p>
+
+                    <div class="timeline-body">
+                        {% for rev in revisions %}
+                        <div class="timeline-row">
+                            <div class="timeline-rail">
+                                <div class="timeline-dot {% if rev.change_type == 'major' %}major{% else %}minor{% endif %}">
+                                    {% if rev.change_type == 'major' %}●{% else %}○{% endif %}
+                                </div>
+                                {% if not forloop.last %}<div class="timeline-line"></div>{% endif %}
+                            </div>
+                            <div class="timeline-card">
+                                <div class="timeline-card-header">
+                                    <span class="tag {% if rev.change_type == 'major' %}is-primary{% else %}is-info is-light{% endif %} is-small">
+                                        v{{ rev.version }}
+                                    </span>
+                                    <small class="has-text-grey">{{ rev.created_at|date:"Y-m-d" }}</small>
+                                </div>
+                                {% if rev.edit_summary %}
+                                <p class="timeline-summary is-size-7 has-text-grey-dark">{{ rev.edit_summary }}</p>
+                                {% endif %}
+                                <div class="timeline-actions mt-1">
+                                    <button class="button is-small is-light"
+                                            hx-get="{% url 'Blogs:revision_body' slug=post.slug version=rev.version %}"
+                                            hx-target="#revision-viewer"
+                                            hx-swap="innerHTML"
+                                            hx-indicator="#revision-spinner">
+                                        查看
+                                    </button>
+                                    <button class="button is-small is-light diff-selector"
+                                            data-version="{{ rev.version }}"
+                                            data-role="from">A</button>
+                                    <button class="button is-small is-light diff-selector"
+                                            data-version="{{ rev.version }}"
+                                            data-role="to">B</button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {# Diff 比较栏 #}
+                    <div id="diff-bar" class="diff-bar is-hidden mt-3 p-2" style="background:#f5f5f5;border-radius:4px;">
+                        <span id="diff-label-from" class="tag is-warning" data-version=""></span>
+                        <span class="mx-1 has-text-grey">vs</span>
+                        <span id="diff-label-to" class="tag is-info" data-version=""></span>
+                        <button id="diff-btn" class="button is-small is-primary ml-2"
+                                hx-get=""
+                                hx-target="#revision-viewer"
+                                hx-swap="innerHTML"
+                                hx-indicator="#revision-spinner">
+                            对比差异
+                        </button>
+                    </div>
+
+                    {# 懒加载内容区 #}
+                    <div id="revision-viewer" class="revision-viewer mt-3"></div>
+                    <div id="revision-spinner" class="htmx-indicator has-text-centered mt-2">
+                        <span class="tag is-light">加载中...</span>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             <div class="toc-menu cell" style="float: right; width: 300px;">
                 {% block sidebar %}
@@ -67,12 +242,42 @@
 
         toc.querySelectorAll("ul").forEach(li => {
             li.classList.add("menu-list");
-            // 如果你想加 icon 或者层级缩进，也可以在这里处理
         });
 
-        // 如果是链接样式调整
         toc.querySelectorAll("a").forEach(a => {
-            a.classList.add("has-text-link");  // Bulma 风格的链接颜色
+            a.classList.add("has-text-link");
+        });
+
+        // ====== v2.0 P2: Diff 版本对比选择器 ======
+        document.querySelectorAll('.diff-selector').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const version = this.dataset.version;
+                const role = this.dataset.role;
+
+                // 取消同角色的所有选中
+                document.querySelectorAll(`.diff-selector[data-role="${role}"]`).forEach(b => {
+                    b.classList.remove('is-selected', 'is-primary');
+                });
+                // 选中当前
+                this.classList.add('is-selected', 'is-primary');
+
+                // 更新 diff 标签
+                const labelEl = document.getElementById('diff-label-' + role);
+                labelEl.textContent = 'v' + version;
+                labelEl.dataset.version = version;
+
+                // 两个版本都选中后才显示 diff 按钮
+                const fromVer = document.getElementById('diff-label-from').dataset.version;
+                const toVer = document.getElementById('diff-label-to').dataset.version;
+                const diffBar = document.getElementById('diff-bar');
+                if (fromVer && toVer) {
+                    diffBar.classList.remove('is-hidden');
+                    const btn = document.getElementById('diff-btn');
+                    btn.setAttribute('hx-get',
+                        '/post/{{ post.slug }}/diff/?from=' + fromVer + '&to=' + toVer);
+                    htmx.process(btn);
+                }
+            });
         });
     </script>
 {% endblock %}

@@ -25,6 +25,8 @@
 {% endblock %}
 
 {% block content %}
+
+{# ====== Section 1: 文章 ====== #}
 <div class="container">
     <div class="post-detail">
         <!-- Title & Meta -->
@@ -64,125 +66,252 @@
             {% endwith %}
         </div>
         {% endif %}
-
-        {# ====== 修订 Timeline（v2.0 P2 — htmx） ====== #}
-        {% if show_timeline %}
-        <div class="revision-section">
-            <p class="revision-toggle" onclick="this.nextElementSibling.classList.toggle('is-hidden');
-                     this.querySelector('.toggle-icon').textContent =
-                     this.nextElementSibling.classList.contains('is-hidden') ? '&#9654;' : '&#9660;';">
-                <span>&#9998; 当前 v{{ revisions.0.version }} · {{ revision_count }} 个版本</span>
-                <span class="toggle-icon">&#9660;</span>
-            </p>
-
-            <div class="timeline-body">
-                {% for rev in revisions %}
-                <div class="timeline-row">
-                    <div class="timeline-rail">
-                        <div class="timeline-dot {% if rev.change_type == 'major' %}major{% else %}minor{% endif %}">
-                            {% if rev.change_type == 'major' %}&#9679;{% else %}&#9675;{% endif %}
-                        </div>
-                        {% if not forloop.last %}<div class="timeline-line"></div>{% endif %}
-                    </div>
-                    <div class="timeline-card">
-                        <div class="timeline-card-header">
-                            <span class="version-tag {% if rev.change_type == 'major' %}major{% else %}minor{% endif %}">v{{ rev.version }}</span>
-                            <span class="version-date">{{ rev.created_at|date:"Y-m-d" }}</span>
-                        </div>
-                        {% if rev.edit_summary %}
-                        <p class="timeline-summary">{{ rev.edit_summary }}</p>
-                        {% endif %}
-                        <div class="timeline-actions">
-                            <button class="btn-tiny"
-                                    hx-get="{% url 'Blogs:revision_body' slug=post.slug version=rev.version %}"
-                                    hx-target="#revision-viewer"
-                                    hx-swap="innerHTML"
-                                    hx-indicator="#revision-spinner">
-                                查看
-                            </button>
-                            <button class="btn-tiny diff-selector" data-version="{{ rev.version }}" data-role="from">A</button>
-                            <button class="btn-tiny diff-selector" data-version="{{ rev.version }}" data-role="to">B</button>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            {# Diff 比较栏 #}
-            <div id="diff-bar" class="diff-bar is-hidden">
-                <span id="diff-label-from" class="diff-tag from" data-version="">v-</span>
-                <span class="diff-vs">vs</span>
-                <span id="diff-label-to" class="diff-tag to" data-version="">v-</span>
-                <button id="diff-btn" class="btn-diff"
-                        hx-get=""
-                        hx-target="#revision-viewer"
-                        hx-swap="innerHTML"
-                        hx-indicator="#revision-spinner">
-                    对比差异
-                </button>
-            </div>
-
-            {# 懒加载内容区 #}
-            <div id="revision-viewer" class="revision-viewer"></div>
-            <div id="revision-spinner" class="htmx-indicator htmx-spinner">
-                loading...
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
-    {# Comments #}
-    <div class="comment-section">
-        {% form_block object %}
-        {% list_block object %}
     </div>
 </div>
+
+{# ====== Section 2: 版本变更（全宽 diff） ====== #}
+{% if show_timeline %}
+<div class="revision-section">
+    <div class="container">
+        <p class="revision-toggle">
+            <span>&#9998; 当前 v{{ revisions.0.version }} · {{ revision_count }} 个版本</span>
+            <span class="toggle-icon">&#9660;</span>
+        </p>
+
+        <div class="timeline-body">
+            {% for rev in revisions %}
+            <div class="timeline-row">
+                <div class="timeline-rail">
+                    <div class="timeline-dot {% if rev.change_type == 'major' %}major{% else %}minor{% endif %}">
+                        {% if rev.change_type == 'major' %}&#9679;{% else %}&#9675;{% endif %}
+                    </div>
+                    {% if not forloop.last %}<div class="timeline-line"></div>{% endif %}
+                </div>
+                <div class="timeline-card">
+                    <div class="timeline-card-header">
+                        <span class="version-tag {% if rev.change_type == 'major' %}major{% else %}minor{% endif %}">v{{ rev.version }}</span>
+                        <span class="version-date">{{ rev.created_at|date:"Y-m-d" }}</span>
+                    </div>
+                    {% if rev.edit_summary %}
+                    <p class="timeline-summary">{{ rev.edit_summary }}</p>
+                    {% endif %}
+                    <div class="timeline-actions">
+                        <a class="btn-tiny" href="{% url 'Blogs:revision_body' slug=post.slug version=rev.version %}">查看</a>
+                        <button class="btn-tiny"
+                                hx-get="{% url 'Blogs:revision_body' slug=post.slug version=rev.version %}"
+                                hx-target="#revision-viewer"
+                                hx-swap="innerHTML"
+                                hx-indicator="#revision-spinner">
+                            查看 (内联)
+                        </button>
+                        {% if rev.prev_version %}
+                        <button class="btn-tiny btn-diff-prev"
+                                hx-get="{% url 'Blogs:revision_diff' slug=post.slug %}?from={{ rev.prev_version }}&to={{ rev.version }}"
+                                hx-target="#revision-viewer"
+                                hx-swap="innerHTML"
+                                hx-indicator="#revision-spinner">
+                            vs v{{ rev.prev_version }}
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# 懒加载内容区 — 全宽 #}
+    <div id="revision-viewer" class="revision-viewer"></div>
+    <div id="revision-spinner" class="htmx-indicator htmx-spinner">
+        loading...
+    </div>
+</div>
+{% endif %}
+
+{# ====== Section 3: 评论 ====== #}
+<div class="container">
+    <div class="post-detail">
+        <div class="comment-section">
+            {% form_block object %}
+            {% list_block object %}
+        </div>
+    </div>
+</div>
+
+{# Floating Prev/Next Nav — 桌面端左右悬浮 #}
+{% with prev=post.get_previous_by_created_time next=post.get_next_by_created_time %}
+{% if prev %}
+<div class="post-floating-nav prev">
+    <a href="{{ prev.get_absolute_url }}">
+        <span class="nav-arrow">&#8592;</span>
+        <span class="nav-label">Prev</span>
+        <span class="nav-title">{{ prev.title }}</span>
+    </a>
+</div>
+{% endif %}
+{% if next %}
+<div class="post-floating-nav next">
+    <a href="{{ next.get_absolute_url }}">
+        <span class="nav-title">{{ next.title }}</span>
+        <span class="nav-label">Next</span>
+        <span class="nav-arrow">&#8594;</span>
+    </a>
+</div>
+{% endif %}
+{% endwith %}
 {% endblock %}
 
 {% block extra_js %}
     {{ block.super }}
+
     <script>
-        // ===== Diff 版本对比选择器 =====
-        document.querySelectorAll('.diff-selector').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var version = this.dataset.version;
-                var role = this.dataset.role;
+        (function() {
+            var CHAR_POOL = '{}[]()<>;:=!&|/\\\\#@$%^*+-_0123456789abcdef<>?`~';
+            var CHARS_PER_FRAME = 10;   // resolve 10 chars per rAF tick (~600 chars/sec — smooth & visible)
+            var BLOCK_STAGGER = 50;     // ms between adjacent blocks
+            var activeJobs = [];        // track ongoing scramble jobs for fast-scroll cancel
 
-                // 取消同角色的所有选中
-                document.querySelectorAll('.diff-selector[data-role="' + role + '"]').forEach(function(b) {
-                    b.classList.remove('is-selected');
+            function removeJob(job) {
+                var idx = activeJobs.indexOf(job);
+                if (idx >= 0) activeJobs.splice(idx, 1);
+            }
+
+            // Immediately restore all ongoing scramble blocks to finished state
+            function fastResolve() {
+                var jobs = activeJobs.splice(0);
+                jobs.forEach(function(job) {
+                    job.cancelled = true;
+                    job.el.innerHTML = job.originalHTML;
+                    job.el.classList.remove('scramble-active');
+                    job.el.classList.add('scramble-done');
                 });
-                // 选中当前
-                this.classList.add('is-selected');
+            }
 
-                // 更新 diff 标签
-                var labelEl = document.getElementById('diff-label-' + role);
-                labelEl.textContent = 'v' + version;
-                labelEl.dataset.version = version;
+            // Scramble + progressive reveal using rAF batching.
+            // One text node per block (no per-char <span> explosion), one rAF loop.
+            function scrambleBlock(el, pool, staggerDelay) {
+                var originalHTML = el.innerHTML;
+                var text = el.textContent;
+                if (!text || !text.trim()) return;
 
-                // 两个版本都选中后才显示 diff 按钮
-                var fromVer = document.getElementById('diff-label-from').dataset.version;
-                var toVer = document.getElementById('diff-label-to').dataset.version;
-                var diffBar = document.getElementById('diff-bar');
-                if (fromVer && toVer) {
-                    diffBar.classList.remove('is-hidden');
-                    var diffBtn = document.getElementById('diff-btn');
-                    diffBtn.setAttribute('hx-get',
-                        '/post/{{ post.slug }}/diff/?from=' + fromVer + '&to=' + toVer);
-                    htmx.process(diffBtn);
+                var total = text.length;
+
+                // Build scrambled plain text in one string pass
+                var scrambled = '';
+                for (var i = 0; i < total; i++) {
+                    var ch = text[i];
+                    if (ch === ' ' || ch === '\n' || ch === '\t') {
+                        scrambled += ch;
+                    } else {
+                        scrambled += pool[Math.floor(Math.random() * pool.length)];
+                    }
                 }
-            });
-        });
+                el.textContent = scrambled;
+                el.classList.add('scramble-active');
 
-        // ===== Toggle is-hidden class utility =====
+                var revealed = 0;
+                var job = { el: el, originalHTML: originalHTML, text: text, total: total, cancelled: false };
+                activeJobs.push(job);
+
+                function tick() {
+                    if (job.cancelled) return;
+
+                    // Reveal CHARS_PER_FRAME more characters; re-scramble unrevealed tail
+                    var goal = Math.min(revealed + CHARS_PER_FRAME, total);
+                    var result = '';
+                    for (var i = 0; i < total; i++) {
+                        if (i < goal) {
+                            result += text[i];
+                        } else {
+                            var c = text[i];
+                            if (c === ' ' || c === '\n' || c === '\t') {
+                                result += c;
+                            } else {
+                                result += pool[Math.floor(Math.random() * pool.length)];
+                            }
+                        }
+                    }
+                    el.textContent = result;
+                    revealed = goal;
+
+                    if (revealed < total) {
+                        requestAnimationFrame(tick);
+                    } else {
+                        // Done — restore rich HTML formatting
+                        el.innerHTML = originalHTML;
+                        el.classList.remove('scramble-active');
+                        el.classList.add('scramble-done');
+                        removeJob(job);
+                    }
+                }
+
+                setTimeout(function() {
+                    if (!job.cancelled) requestAnimationFrame(tick);
+                }, staggerDelay);
+            }
+
+            // ===== Title =====
+            var titleEl = document.querySelector('.post-detail-title');
+            if (titleEl) {
+                var titleObserver = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) {
+                            scrambleBlock(entry.target, CHAR_POOL, 0);
+                            titleObserver.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.3 });
+                titleObserver.observe(titleEl);
+            }
+
+            // ===== Article body =====
+            var article = document.querySelector('.markdown-body');
+            if (article) {
+                var started = false;
+
+                // Fast-scroll guard: if article leaves viewport, immediately resolve all blocks
+                var exitObserver = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (!entry.isIntersecting && activeJobs.length > 0) {
+                            fastResolve();
+                        }
+                    });
+                }, { threshold: 0 });
+
+                var articleObserver = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting && !started) {
+                            started = true;
+                            exitObserver.observe(entry.target);
+
+                            var blocks = entry.target.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote, td, th');
+                            blocks.forEach(function(block, idx) {
+                                scrambleBlock(block, CHAR_POOL, idx * BLOCK_STAGGER);
+                            });
+
+                            articleObserver.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.1, rootMargin: '0px 0px -5% 0px' });
+                articleObserver.observe(article);
+            }
+        })();
+    </script>
+
+    <script>
+        // Toggle revision timeline
         document.addEventListener('click', function(e) {
             if (e.target.closest('.revision-toggle')) {
-                var body = e.target.closest('.revision-toggle').nextElementSibling;
-                if (body) body.classList.toggle('is-hidden');
+                var toggle = e.target.closest('.revision-toggle');
+                var body = toggle.nextElementSibling;
+                var icon = toggle.querySelector('.toggle-icon');
+                if (body) {
+                    body.classList.toggle('is-hidden');
+                    if (icon) {
+                        icon.textContent = body.classList.contains('is-hidden') ? '\u25B6' : '\u25BC';
+                    }
+                }
             }
         });
     </script>
-    <style>
-        .is-hidden { display: none !important; }
-    </style>
 {% endblock %}

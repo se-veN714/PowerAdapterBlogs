@@ -7,11 +7,22 @@
 
 import difflib
 import logging
+import re
 from typing import Optional
 
 from django.db.models import Model
 
 logger = logging.getLogger(__name__)
+
+# Markdown 结构型行的正则：标题、代码围栏、表格、水平线、引用、admonition
+_STRUCTURAL_LINE_RE = re.compile(
+    r'^(\s{0,3}#|'          # 标题（含 ATX 和 setext）
+    r'\s{0,3}```|'          # 代码围栏起止
+    r'\s{0,3}\|.*\|'        # 表格行
+    r'|^\s{0,3}([-*_]{3,})\s*$|'  # 水平线
+    r'^\s{0,3}>|'           # 引用
+    r'^\s{0,3}\|)'          # 表格（续）
+)
 
 
 def get_next_version(post, change_type: str) -> tuple[int, int]:
@@ -73,19 +84,65 @@ def create_revision(post, editor, change_type: str = 'minor',
     return revision
 
 
-def render_diff(old_text: str, new_text: str, from_ver: str, to_ver: str) -> str:
+def _word_wrap(text: str, width: int = 80) -> str:
+    """按单词边界对文本换行，提升行级 diff 颗粒度。
+
+    规律：
+    - Markdown 结构型行（标题、代码围栏、表格、引用等）保持原样不换行
+    - 普通段落按 width 个字符在单词边界处强制换行
+    - 空行保留，维持段落分隔
+    """
+    lines = text.splitlines()
+    result = []
+    for line in lines:
+        stripped = line.strip()
+
+        # 结构型行 → 原样保留
+        if (not stripped
+                or stripped.startswith('#')
+                or stripped.startswith('```')
+                or stripped.startswith('|')
+                or stripped.startswith('>')
+                or stripped.startswith('!!!')
+                or (stripped.startswith(('- ', '* ', '+ ')) and len(stripped) < width)
+                or re.match(r'^\s{0,3}([-*_]{3,})\s*$', stripped)
+                or re.match(r'^(\d{1,2}\.\s)', stripped) and len(stripped) < width):
+            result.append(line)
+            continue
+
+        # 普通文本行 → 单词边界换行
+        words = line.split()
+        wrapped_line = ''
+        for word in words:
+            if wrapped_line and len(wrapped_line) + 1 + len(word) > width:
+                result.append(wrapped_line)
+                wrapped_line = word
+            else:
+                wrapped_line = (wrapped_line + ' ' + word) if wrapped_line else word
+        if wrapped_line:
+            result.append(wrapped_line)
+
+    return '\n'.join(result)
+
+
+def render_diff(old_text: str, new_text: str, from_ver: str, to_ver: str,
+                line_width: int = 80) -> str:
     """生成 HTML 格式 side-by-side diff
 
-    使用 difflib.HtmlDiff（Python 标准库，零依赖）
+    先对内容做单词边界换行预处理，再使用 difflib.HtmlDiff 做行级对比。
+    这样一篇文章的每个段落会被拆成多行，只有真正变更的行才会出现在 diff 中。
     """
-    differ = difflib.HtmlDiff(tabsize=4, wrapcolumn=80)
+    wrapped_old = _word_wrap(old_text, line_width)
+    wrapped_new = _word_wrap(new_text, line_width)
+
+    differ = difflib.HtmlDiff(tabsize=4, wrapcolumn=line_width)
     return differ.make_table(
-        old_text.splitlines(),
-        new_text.splitlines(),
+        wrapped_old.splitlines(),
+        wrapped_new.splitlines(),
         fromdesc=f'v{from_ver}',
         todesc=f'v{to_ver}',
         context=True,
-        numlines=3,
+        numlines=1,  # 上下文 1 行即可，换行后颗粒度已经够细
     )
 
 

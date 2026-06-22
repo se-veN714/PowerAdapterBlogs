@@ -12,6 +12,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-06-22 | v2.3 | **Dashboard 分行 Action**: rewrap_content_action + rewrap_posts 管理命令 |
+| 2026-06-22 | v2.2 | **Diff 优化**: _word_wrap() 预处理 + backfill_diffs 命令 + diff 布局分离 |
 | 2026-06-22 | v2.0 | **P1 修订追踪**: PostRevision 模型 + 3个API + visibility 权限 + PostForm 字段扩展 |
 | 2026-06-22 | v1.1 | 日志代码补全 (Create/Edit/Visit/Upload/Cache 全链路) |
 | 2025-08-04 | v1.0 | 初始：Post/Category/Tag 模型 + CBV 视图 + DRF API |
@@ -620,6 +622,22 @@ MEDIA_ROOT = BASE_DIR / "media"
 ### C. 管理命令速查
 
 ```bash
+# 文章内容分行（单词边界 80 字换行，提升 diff 颗粒度）
+python manage.py rewrap_posts --post-ids 1,2,3        # 指定文章
+python manage.py rewrap_posts --all                   # 全部正常文章
+python manage.py rewrap_posts --all --dry-run         # 预览模式
+
+# Dashboard admin action（勾选文章 → 下拉 → "📝 对选中文章内容执行单词边界分行"）
+# 位置：/dashboard/Blogs/post/
+
+# Diff 回填/重算
+python manage.py backfill_diffs --limit 60            # 回填 NULL diff
+python manage.py backfill_diffs --force               # 强制重算所有
+python manage.py backfill_diffs --force --dry-run     # 预览
+
+# 测试数据生成
+python manage.py bump_versions --count 10             # 对最近文章生成修订版本
+
 # 同步 PostVisit UV → Post.uv 缓存字段 (全量)
 python manage.py shell -c "
 from Blogs.models import Post

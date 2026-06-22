@@ -116,6 +116,13 @@ document.addEventListener('DOMContentLoaded', function () {
         editorialObserver.observe(section);
     });
 
+    // ===== Glitch Color Hover (boards) =====
+    // 将 data-glitch-color 注入 CSS 变量 --glitch-c，
+    // 供 editorial-visual::after 的伪元素叠加使用。
+    document.querySelectorAll('.editorial-visual[data-glitch-color]').forEach(function (visual) {
+        visual.style.setProperty('--glitch-c', visual.dataset.glitchColor);
+    });
+
     // ===== Waveform Bars (for music section, if present) =====
     const waveform = document.getElementById('waveform');
     if (waveform) {

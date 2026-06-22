@@ -1,0 +1,31 @@
+[MASTER]
+load-plugins=pylint_django
+
+[DJANGO]
+django-settings-module=PowerAdapterBlogs.settings.base
+
+[BASIC]
+# Google Python 风格 docstring
+docstring-min-length=3
+good-names=i,j,k,ex,_,pk,id,ip,db,ok
+
+[FORMAT]
+max-line-length=120
+
+[DESIGN]
+max-args=8
+max-attributes=12
+
+[MESSAGES CONTROL]
+# Django 模型/视图常见豁免
+disable=
+    too-few-public-methods,
+    no-member,
+    duplicate-code,
+    too-many-ancestors,
+    abstract-method,
+    arguments-differ,
+    attribute-defined-outside-init,
+    unused-argument,
+    invalid-name,
+    missing-timeout,

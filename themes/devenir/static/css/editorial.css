@@ -153,6 +153,156 @@
     padding: 2rem;
 }
 
+/* ===== Glitch Core v4 — fragmented blocks, exaggerated amplitude ===== */
+
+/* RGB channel ghosting — wider split, more saturated */
+.editorial-visual:hover {
+    filter:
+        drop-shadow(4px 0 0 rgba(220, 60, 60, 0.25))
+        drop-shadow(-4px 0 0 rgba(60, 140, 200, 0.22));
+    animation: glitch-core-shake 0.5s steps(5) 1;
+}
+
+/* Shake — big lateral jumps + skew for diagonal tearing feel */
+@keyframes glitch-core-shake {
+    0%   { transform: translate(0, 0) skewX(0deg); }
+    10%  { transform: translate(-8px, 2px) skewX(-3deg); }
+    25%  { transform: translate(6px, -3px) skewX(2deg); }
+    40%  { transform: translate(-3px, -1px) skewX(-1.5deg); }
+    55%  { transform: translate(9px, 1px) skewX(3.5deg); }
+    70%  { transform: translate(-5px, -2px) skewX(-2deg); }
+    85%  { transform: translate(4px, 3px) skewX(1deg); }
+    100% { transform: translate(0, 0) skewX(0deg); }
+}
+
+/* Fragmented horizontal bands — content torn into 4~5 strips with large X offset */
+.editorial-visual:hover > * {
+    animation: glitch-core-slice 0.4s steps(5) 1;
+}
+
+@keyframes glitch-core-slice {
+    /* stage 0 — full */
+    0% {
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+        transform: translateX(0);
+    }
+    /* stage 1 — 4 bands, shifted left */
+    14% {
+        clip-path: polygon(
+            0 3%, 100% 3%, 100% 17%, 0 17%,
+            0 26%, 100% 26%, 100% 44%, 0 44%,
+            0 55%, 100% 55%, 100% 70%, 0 70%,
+            0 82%, 100% 82%, 100% 96%, 0 96%
+        );
+        transform: translateX(-22px);
+    }
+    /* stage 2 — full briefly */
+    28% {
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+        transform: translateX(0);
+    }
+    /* stage 3 — 5 bands, shifted right */
+    42% {
+        clip-path: polygon(
+            0 0%, 100% 0%, 100% 10%, 0 10%,
+            0 18%, 100% 18%, 100% 32%, 0 32%,
+            0 40%, 100% 40%, 100% 58%, 0 58%,
+            0 66%, 100% 66%, 100% 78%, 0 78%,
+            0 87%, 100% 87%, 100% 100%, 0 100%
+        );
+        transform: translateX(18px);
+    }
+    /* stage 4 — full briefly */
+    56% {
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+        transform: translateX(0);
+    }
+    /* stage 5 — 4 bands, severely shifted left */
+    70% {
+        clip-path: polygon(
+            0 6%, 100% 6%, 100% 22%, 0 22%,
+            0 31%, 100% 31%, 100% 47%, 0 47%,
+            0 60%, 100% 60%, 100% 73%, 0 73%,
+            0 84%, 100% 84%, 100% 95%, 0 95%
+        );
+        transform: translateX(-26px);
+    }
+    /* stage 6 — 3 bands, shifted right */
+    85% {
+        clip-path: polygon(
+            0 4%, 100% 4%, 100% 22%, 0 22%,
+            0 38%, 100% 38%, 100% 62%, 0 62%,
+            0 76%, 100% 76%, 100% 92%, 0 92%
+        );
+        transform: translateX(14px);
+    }
+    100% {
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+        transform: translateX(0);
+    }
+}
+
+/* Color overlay flash — extreme opacity swings, wide X offsets */
+.editorial-visual::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--glitch-c, transparent);
+    opacity: 0;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    z-index: 5;
+    transition: opacity 0.1s ease;
+}
+
+.editorial-visual:hover::after {
+    opacity: 0.75;
+    animation: glitch-core-flash 0.45s steps(8) 1 0.03s;
+}
+
+@keyframes glitch-core-flash {
+    0%   { opacity: 0.05; transform: translateX(0); }
+    12%  { opacity: 0.90; transform: translateX(-12px); }
+    25%  { opacity: 0.15; transform: translateX(8px); }
+    37%  { opacity: 0.80; transform: translateX(-6px); }
+    50%  { opacity: 0.25; transform: translateX(14px); }
+    62%  { opacity: 0.70; transform: translateX(-10px); }
+    75%  { opacity: 0.35; transform: translateX(5px); }
+    87%  { opacity: 0.85; transform: translateX(-3px); }
+    100% { opacity: 0.75; transform: translateX(0); }
+}
+
+/* Scanlines — denser, faster, more visible */
+.editorial-visual::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 6;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.10) 2px,
+        rgba(0, 0, 0, 0.10) 4px
+    );
+    opacity: 0;
+    transition: opacity 0.05s ease;
+}
+
+.editorial-visual:hover::before {
+    opacity: 1;
+    animation: glitch-core-scan 0.06s linear 5;
+}
+
+@keyframes glitch-core-scan {
+    0%   { background-position: 0 0; }
+    25%  { background-position: 0 6px; }
+    50%  { background-position: 0 2px; }
+    75%  { background-position: 0 -3px; }
+    100% { background-position: 0 0; }
+}
+
 /* ============================================
    Column 4 — Keywords (vertical, dash-separated)
    ============================================ */

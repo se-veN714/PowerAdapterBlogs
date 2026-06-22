@@ -200,6 +200,22 @@
     color: var(--text);
 }
 
+/* ===== Text Scramble (rAF-batched inline decrypt, no per-char spans) ===== */
+.scramble-active {
+    opacity: 0.82;
+    transition: opacity 0.15s;
+}
+
+.markdown-body .scramble-done {
+    animation: decrypt-flash 0.4s ease-out;
+}
+
+@keyframes decrypt-flash {
+    0%   { filter: brightness(1.3); }
+    50%  { filter: brightness(1.15); }
+    100% { filter: brightness(1); }
+}
+
 .markdown-body p {
     margin-bottom: 1.2em;
 }
@@ -319,7 +335,7 @@
 
 /* ===== Post Nav (prev/next) ===== */
 .post-nav {
-    display: grid;
+    display: none; /* 移动端保留底部导航 */
     grid-template-columns: 1fr 1fr;
     gap: 1.25rem;
     margin-top: 3rem;
@@ -346,6 +362,90 @@
 
 .post-nav .prev { justify-content: flex-start; }
 .post-nav .next { justify-content: flex-end; text-align: right; }
+
+/* ===== Floating Prev/Next Nav (桌面端) ===== */
+.post-floating-nav {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 90;
+    pointer-events: none;
+}
+.post-floating-nav.prev { left: 0; }
+.post-floating-nav.next { right: 0; }
+
+.post-floating-nav a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: var(--text-muted);
+    pointer-events: auto;
+    padding: 0.75rem 1rem;
+    transition: all 0.25s ease;
+    max-width: 42px;
+    overflow: hidden;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+}
+
+.post-floating-nav a:hover {
+    max-width: 320px;
+    border-color: var(--fragment-highlight);
+    background: var(--bg-elevated);
+    color: var(--accent);
+    box-shadow: 0 4px 20px rgba(13, 16, 16, 0.6);
+}
+
+.post-floating-nav.prev a {
+    justify-content: flex-start;
+    border-radius: 0 6px 6px 0;
+}
+
+.post-floating-nav.next a {
+    justify-content: flex-end;
+    border-radius: 6px 0 0 6px;
+}
+
+.post-floating-nav .nav-arrow {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    color: var(--accent-muted);
+    transition: color 0.25s;
+}
+
+.post-floating-nav a:hover .nav-arrow {
+    color: var(--accent);
+}
+
+.post-floating-nav .nav-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-tertiary);
+    opacity: 0;
+    transition: opacity 0.25s;
+    flex-shrink: 0;
+}
+
+.post-floating-nav a:hover .nav-label {
+    opacity: 1;
+}
+
+.post-floating-nav .nav-title {
+    font-size: 0.9rem;
+    opacity: 0;
+    transition: opacity 0.25s;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.post-floating-nav a:hover .nav-title {
+    opacity: 1;
+}
 
 /* ===== TOC Sidebar ===== */
 .toc-sidebar {
@@ -402,8 +502,10 @@
 /* ===== Revision Timeline (v2.0 P2) ===== */
 .revision-section {
     border-top: 1px solid var(--border);
-    padding-top: 1.25rem;
-    margin-top: 2rem;
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem 0;
+    margin: 2rem 0;
+    background: var(--bg-secondary);
 }
 
 .revision-toggle {
@@ -538,62 +640,48 @@
     color: var(--text-muted);
     cursor: pointer;
     transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
 }
 .timeline-actions .btn-tiny:hover {
     border-color: var(--accent-soft);
     color: var(--accent);
 }
 
-.timeline-actions .diff-selector.is-selected {
-    border-color: var(--accent) !important;
-    color: var(--accent) !important;
-    background: rgba(216, 255, 225, 0.10);
+.timeline-actions .btn-diff-prev {
+    border-color: var(--accent-deep);
+    color: var(--accent-muted);
 }
-
-/* Diff bar */
-.diff-bar {
-    padding: 0.5rem 0.75rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    margin-top: 0.75rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-}
-.diff-bar .diff-tag {
-    padding: 0.15rem 0.4rem;
-    font-size: 0.7rem;
-}
-.diff-bar .diff-tag.from { border: 1px solid var(--warning-accent); color: var(--warning-accent); }
-.diff-bar .diff-tag.to { border: 1px solid var(--accent-soft); color: var(--accent-soft); }
-.diff-bar .diff-vs { color: var(--text-tertiary); }
-.diff-bar .btn-diff {
-    margin-left: 0.5rem;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.75rem;
-    font-family: var(--font-mono);
+.timeline-actions .btn-diff-prev:hover {
     background: var(--accent-deep);
     color: var(--accent);
-    border: 1px solid var(--accent-deep);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.diff-bar .btn-diff:hover {
-    background: var(--accent-muted);
+    border-color: var(--accent-soft);
 }
 
-/* Revision viewer */
+/* Revision viewer — 默认阅读宽度（查看历史版本内容） */
 .revision-viewer {
+    max-width: 800px;
+    margin: 0.75rem auto 0;
+    padding: 1rem;
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 1rem;
-    background: var(--bg-secondary);
-    max-height: 60vh;
+    background: var(--bg-elevated);
+    max-height: 70vh;
     overflow-y: auto;
-    margin-top: 0.75rem;
+}
+
+/* 当 viewer 中包含 diff 时 → 全宽展示 */
+.revision-viewer:has(.diff-table-wrapper) {
+    max-width: none;
+    width: 100%;
+    margin: 0.75rem 0 0;
+    padding: 1.5rem max(2rem, calc((100vw - 1400px) / 2));
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    max-height: none;
+    overflow-y: visible;
 }
 
 .revision-body-header {
@@ -617,7 +705,7 @@
     margin-top: 0.25rem;
 }
 
-/* ===== Diff Table (dark theme) ===== */
+/* ===== Diff Table ===== */
 .diff-header {
     margin-bottom: 0.75rem;
     font-family: var(--font-mono);
@@ -639,25 +727,43 @@
     color: var(--text-tertiary);
     margin: 0 0.4rem;
 }
+.diff-header .diff-meta {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-left: 0.5rem;
+}
 
+/* difflib HtmlDiff 表格 — 全宽无约束 */
+.diff-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
 .diff-table-wrapper table.diff {
     font-family: var(--font-mono);
     font-size: 0.8rem;
     border-collapse: collapse;
     width: 100%;
+    table-layout: auto;
 }
 .diff-table-wrapper table.diff td {
-    padding: 2px 6px;
+    padding: 2px 8px;
     vertical-align: top;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 .diff-table-wrapper .diff_header {
     background: var(--bg-secondary);
     font-weight: 600;
     color: var(--accent-soft);
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 .diff-table-wrapper .diff_next {
     background: var(--bg-secondary);
     color: var(--text-tertiary);
+    font-size: 0.7rem;
 }
 .diff-table-wrapper .diff_add {
     background: rgba(62, 88, 72, 0.4);
@@ -1038,7 +1144,10 @@
         height: 180px;
     }
     .post-nav {
-        grid-template-columns: 1fr;
+        display: grid;
+    }
+    .post-floating-nav {
+        display: none;
     }
     .toc-sidebar {
         position: static;

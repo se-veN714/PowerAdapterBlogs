@@ -7,7 +7,7 @@ from .thread_local import get_current_user
 logger = logging.getLogger(__name__)
 
 # 敏感权限字段：非 superuser 禁止修改
-SENSITIVE_FIELDS = {'is_superuser', 'is_staff', 'is_dashboard_user'}
+SENSITIVE_FIELDS = {'is_superuser', 'is_staff', 'is_dashboard_user', 'is_reviewer'}
 
 
 # Create your models here.
@@ -25,6 +25,7 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_active", True)
         extra_fields.setdefault("is_dashboard_user", True)
+        extra_fields.setdefault("is_reviewer", True)
         extra_fields.setdefault("is_superuser", True)
         return self.create_user(email, username, password, **extra_fields)
 
@@ -37,10 +38,11 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
     is_cert_verified = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
 
-    # 权限字段
-    is_active = models.BooleanField(default=False)
-    is_staff = models.BooleanField(default=False)
-    is_dashboard_user = models.BooleanField(default=False)
+    # 权限字段（四旗模型 + 审核角色）
+    is_active = models.BooleanField(default=False, verbose_name="账号启用")
+    is_staff = models.BooleanField(default=False, verbose_name="超级管理员入口")
+    is_dashboard_user = models.BooleanField(default=False, verbose_name="仪表盘入口")
+    is_reviewer = models.BooleanField(default=False, verbose_name="内容审核权限")
 
     objects = UserManager()
 

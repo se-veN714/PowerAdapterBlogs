@@ -1,8 +1,8 @@
 # PowerAdapterBlogs V2 — 开发指南
 
-> **版本**: v2.0-prerelease  
+> **版本**: v2.3-prerelease  
 > **更新**: 2026-06-22  
-> **状态**: P0 已完成，P1 后端完成，下一项 v2.1 演进  
+> **状态**: P0/P1/P2 已完成，v2.2 diff 优化完成，下一项 v2.1 演进  
 > **继承**: V1 所有基础设施（Bulma 主题、Redis 缓存、Waitress/Nginx 部署）
 
 ---
@@ -14,6 +14,8 @@
 | **P0** | MongoDB 日志完整性修复 | 🐛 Bugfix | 3-4h |
 | **P1** | 文章修订追踪 · Phase 1（后端） | ✨ Feature | 6-8h |
 | **P2** | 文章修订追踪 · Phase 2（前端） | ✨ Feature | WebStorm 完成 |
+| **P3** | Boards 首页板块管理 + Glitch 颜色效果 | ✨ Feature | 2-3h |
+| **P4** | Dashboard 批量分行 Action + rewrap_posts 命令 | ✨ Feature | 1-2h |
 
 > **前端说明**：前端（devenir 主题、timeline CSS/JS）在 WebStorm 中独立完成，不在本指南后端范围内。
 
@@ -512,11 +514,299 @@ PowerAdapterBlogs/settings/
 
 ---
 
-## 6. 已完成修复记录（2026-06-22）
+## 6. 编码规范
+
+### 6.1 Google Python 风格注释
+
+本项目采用 **Google Python Style Guide** 注释风格，所有模块、类、方法、函数均需遵循。
+
+#### 模块级 docstring
+
+```python
+"""一句话描述模块用途。
+
+细节段落（可选），说明设计思路、限制条件、调用方注意事项等。
+"""
+```
+
+#### 函数/方法 docstring
+
+```python
+def fetch_smalltable_rows(table_handle, keys, require_all_keys=False):
+    """从 SmallTable 获取多行数据。
+
+    没有该风格的函数说明（PEP 257）。细节写在后文，与参数之间空一行。
+
+    Args:
+        table_handle: open smalltable.Table 实例。
+        keys: 要获取数据的字符串键序列。
+        require_all_keys: 如果为 True，键缺失时抛出 KeyError。
+
+    Returns:
+        一个 dict，将键映射到对应的 table_handle 数据。
+        如果 require_all_keys 为 False，缺失键不出现。
+
+    Raises:
+        IOError: 如果 table_handle 不可读。
+    """
+```
+
+#### 类 docstring
+
+```python
+class SampleClass:
+    """类的概要说明。
+
+    更详细的描述（可选）。可包含使用示例：
+
+    Example:
+        >>> obj = SampleClass(123)
+        >>> obj.public_method()
+        'hello'
+
+    Attributes:
+        likes_spam: 布尔值，指示是否喜欢午餐肉。
+        eggs: 统计已计数鸡蛋的整数。
+    """
+
+    def __init__(self, likes_spam=False):
+        """初始化 SampleClass。
+
+        Args:
+            likes_spam: 初始化 likes_spam 属性。
+        """
+```
+
+#### 管理命令 docstring
+
+```python
+"""
+管理命令简要说明。
+用法：python manage.py command_name [--option VALUE]
+"""
+```
+
+#### 关键规则
+
+| 规则 | 说明 |
+|------|------|
+| 第一行 | `"""` 后紧跟概要，不空行 |
+| 空行 | 概要段落后空一行再写详细描述 |
+| Args | 参数名 + 冒号 + 空格 + 类型/描述 |
+| Returns | 返回值类型和含义，多类型用 `or` 分隔 |
+| Raises | 每个异常一行，注明触发条件 |
+| 中文 | 当前项目使用中文描述（便于团队理解） |
+
+#### 示例对照
+
+```python
+# ✅ Google 风格
+def _word_wrap(text: str, width: int = 80) -> str:
+    """按单词边界对文本换行，提升行级 diff 颗粒度。
+
+    规律：
+    - Markdown 结构型行保持原样不换行
+    - 普通段落按 width 个字符在单词边界处强制换行
+
+    Args:
+        text: 原始文本内容。
+        width: 每行最大字符数，默认 80。
+
+    Returns:
+        换行后的文本字符串。
+    """
+```
+
+```python
+# ❌ 旧风格（需要逐步迁移）
+def render_diff(old_text, new_text, from_ver, to_ver):
+    """生成 HTML 格式 side-by-side diff
+    使用 difflib.HtmlDiff（Python 标准库，零依赖）
+    """
+```
+
+### 6.2 Pylint 配置
+
+#### 安装
+
+```bash
+pip install pylint pylint-django
+```
+
+#### `.pylintrc` 配置文件
+
+项目根目录创建 `.pylintrc`：
+
+```ini
+[MASTER]
+# 使用 pylint-django 插件
+load-plugins=pylint_django
+
+# Django 项目：settings 模块
+django-settings-module=PowerAdapterBlogs.settings.develop
+
+# 忽略虚拟环境和缓存
+ignore=.venv,venv,node_modules,__pycache__,migrations
+
+# 并行检查（加速）
+jobs=0
+
+[MESSAGES CONTROL]
+# 禁用的检查项（Django 项目常见豁免）
+disable=
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring（改为手动审查）
+    R0903,  # too-few-public-methods（Django views/models 常见）
+    R0801,  # duplicate-code（暂时关闭，后续分阶段开启）
+    W0212,  # protected-access（Django _meta 常用）
+    E1101,  # no-member（Django ORM 动态属性，pylint-django 已处理大部分）
+
+[FORMAT]
+# 每行最大字符数
+max-line-length=100
+
+# 缩进
+indent-string='    '
+
+[DESIGN]
+# 参数数量警告阈值
+max-args=8
+
+# 方法/函数行数警告
+max-locals=20
+
+[BASIC]
+# 变量名风格
+good-names=i,j,k,ex,_,pk,id,url,db,ip,ok
+
+# 类属性名
+class-attribute-naming-style=any
+
+# Django 的 objects 不应告警
+const-naming-style=any
+```
+
+#### 运行方式
+
+```bash
+# 全项目检查
+pylint Blogs/ security/ accounts/ comment/ config/
+
+# 单文件检查
+pylint Blogs/views.py
+
+# 仅显示错误（跳过警告和约定）
+pylint --errors-only Blogs/
+
+# Git pre-commit hook 集成（可选）
+# pylint --fail-under=8.0 Blogs/ security/
+```
+
+#### Google 风格兼容说明
+
+| pylint 规则 | 与 Google 风格的关系 |
+|------------|---------------------|
+| `C0116` (missing-function-docstring) | 禁用以手动审查，Google 风格要求全部函数有 docstring |
+| `R0903` (too-few-public-methods) | Django CBV / Model 常见，豁免 |
+| `max-line-length=100` | Google 风格建议 80，本项目放宽到 100（Django 惯例） |
+| `good-names` | `pk` `id` `db` `ip` 是 Django 项目中合法的短变量名 |
+
+#### 迭代迁移计划
+
+现有代码不要求一次性全部符合 Google 风格，按以下优先级逐步迁移：
+
+| 优先级 | 目标 | 触发条件 |
+|--------|------|---------|
+| **P0** | 新建文件严格遵循 Google 风格 | 创建新模块/命令/视图时 |
+| **P1** | 修改文件时顺带更新 docstring | 修改已有文件时 |
+| **P2** | 全局 pylint 检查通过 ≥8.0 分 | 特性冻结前统一处理 |
+| **P3** | 启用 `C0116` 严格检查 | P2 完成后 |
+
+---
+
+## 8. 前端效果库参考
+
+> 候选库，尚未引入项目。记录于此供未来参考，避免遗忘。
+
+### 8.1 glitch-text-effect · 已移除 ❌
+
+| 项目 | 信息 |
+|------|------|
+| **原版本** | `1.0.2` (2025-08-06) |
+| **移除原因** | ① overlay 遮罩方案与项目风格不统一 ② `glitch()` 忽略 `trigger` 参数 ③ 缺失 @keyframes 注入 ④ 效果对浏览器性能压力大 |
+| **替换者** | 自研 rAF 批处理 scramble（§8.2），零外部依赖 |
+| **移除日期** | 2026-06-22，已从 `package.json` 卸载 |
+
+### 8.2 Post Detail Scramble · rAF 批处理内联解密 ✅ 已集成
+
+| 项目 | 信息 |
+|------|------|
+| **风格参考** | KAMITSUBAKI STORY R&D DIV (`shuffle-text` + `<span class="shuffle trigger">`) |
+| **实现方式** | 自研 `scrambleBlock()` — rAF 批处理 + 单文本节点更新，零 DOM 膨胀 |
+| **触发方式** | IntersectionObserver，滚动到视口才开始解密 |
+| **字符集** | `CHAR_POOL = '{}[]()<>;:=!&|/\\#@$%^*+-_0123456789abcdef<>?`~'`（代码符号风） |
+| **优化** | ① rAF 批处理替代 n 个 `setTimeout`（1000 字符块从 ~3000 个 timer → 1 个 rAF loop） ② 单文本节点替代 n 个 `<span>`（500 字文章从 2500+ 个 span → 零） ③ `fastResolve()` 快速滚动即时解密 |
+
+**核心算法**：每个文本块保持单文本节点，`requestAnimationFrame` 每帧揭示 10 个字符，未揭示部分每帧重新随机化。块间 stagger 50ms。全部揭示后恢复 `innerHTML`（保留 Markdown 格式化）。
+
+**快速滚动保护**：`exitObserver` 监听文章容器离开视口 → `fastResolve()` 立即恢复所有进行中的块到原始 `innerHTML` + flash 动画。不阻塞用户浏览。
+
+**性能对比**：
+
+| 指标 | 旧方案（per-char spans） | 新方案（rAF batch） |
+|------|--------------------------|---------------------|
+| DOM 节点 | 2500+ spans/文章 | 1 text node/block |
+| 定时器 | ~2500 setTimeout | 1 rAF loop |
+| CSS 动画 | 每帧 2000+ 元素 jitter | 仅 flash 完成时 |
+| 10 块文章完成时间 | 2-5 秒 | ~1.2 秒 |
+| 快速滚动 | 卡顿，动画继续跑 | 即时 resolve |
+
+**CSS**：`.scramble-active` (opacity 0.82) / `.scramble-done` (decrypt-flash 0.4s)。定义于 `blog.css`。
+
+```javascript
+// 标题 — single-block rAF scramble
+scrambleBlock(titleEl, CHAR_POOL, 0);
+
+// 正文 — per-block rAF scramble + fast-scroll guard
+blocks.forEach(function(block, idx) {
+    scrambleBlock(block, CHAR_POOL, idx * BLOCK_STAGGER);
+});
+
+// 文章离开视口 → 即时解密所有块
+exitObserver: if (!isIntersecting && activeJobs.length > 0) fastResolve();
+```
+
+### 8.2 powerglitch · 图像故障效果
+
+| 项目 | 信息 |
+|------|------|
+| **用途** | `<img>` 元素的 RGB 色散、抖动、切片、颜色反转等复杂 glitch 动画 |
+| **体积** | ~5KB (min + gzip ~2KB) |
+| **许可证** | MIT |
+| **仓库** | `github.com/7PH/powerglitch` |
+| **适用场景** | 文章封面图、board visual SVG→raster 化后的 glitch、未来可能的图片画廊 |
+| **注意** | 纯 Canvas 渲染，需要 `<img>` 源。不适合当前 boards 的 CSS 视觉区（SVG/波形/代码行）。 |
+| **引入时机** | 等有真正的图像内容需要 glitch 时再 `npm install powerglitch` |
+
+```javascript
+// 示例用法（未来图片 glitch）
+import { PowerGlitch } from 'powerglitch';
+PowerGlitch.glitch('.article-cover', {
+    playMode: 'hover',
+    glitchTimeSpan: false,
+    shake: { amplitudeX: 4, amplitudeY: 2 },
+    slice: { count: 6, velocity: 12 },
+});
+```
+
+---
+
+## 7. 已完成修复记录（2026-06-22）
 
 > 详细记录见 `CHANGELOG.md`，此处仅做架构级概述。
 
-### 6.1 双后台入口权限分离
+### 7.1 双后台入口权限分离
 
 `/super_admin/` 和 `/dashboard/` 两个入口的权限模型完全解耦：
 
@@ -530,7 +820,7 @@ PowerAdapterBlogs/settings/
 - 登录 `NoReverseMatch` 修复：AdminSite URL 必须用 `namespace:name` 反解（`cus_admin:index`），不能用外层 `path()` 的 `name=`
 - `DashboardAdminMixin`（`base_admin.py`）：7 个方法统一基于 `is_dashboard_user` 授权，覆盖权限检查 + queryset（dashboard 用户看全量数据，不受 owner 过滤）
 
-### 6.2 纵深防御（4 层）
+### 7.2 纵深防御（4 层）
 
 ```
 Layer1: Admin UI 守卫 (has_change/delete)
@@ -541,7 +831,7 @@ Layer4: pre_save/pre_delete 信号拦截（LogEntry/SecureLogEntry）
 
 **新增文件**：`accounts/thread_local.py` + `accounts/middleware.py` RequestUserMiddleware
 
-### 6.3 superuser 保护
+### 7.3 superuser 保护
 
 dashboard 用户不能编辑 superuser 账号（双重保险）：
 - `has_change_permission(obj=...)`：目标为 superuser 且请求者非 superuser → 直接拒绝

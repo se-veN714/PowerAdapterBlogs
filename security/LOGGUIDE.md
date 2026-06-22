@@ -4,6 +4,35 @@
 
 ---
 
+## 日志级别快速参考
+
+| Python Logger | Kaomoji | 含义 | 使用场景 |
+|---------------|---------|------|---------|
+| `logger.info()` | `(✿◕‿◕)` | 一切安好 | init_log_hmac 开始/完成、MongoDB 连接成功（可选） |
+| `logger.warning()` | `(ಠ_ಠ)` | 不对劲了 | MongoDB 写入失败/降级、审计发现篡改 |
+| `logger.error()` | `(╯°□°）╯︵ ┻━┻` | 出大问题了 | SecureLogEntry 同步失败、审计链异常 |
+
+### 日志级别决策树
+
+```mermaid
+flowchart TD
+    A["发生什么了?"] --> B{"操作类型?"}
+    B -->|"SecureLogEntry 同步"| C{"同步成功?"}
+    C -->|"是（高频）"| D["不打日志"]
+    C -->|"失败"| E["ERROR<br/>(╯°□°）╯︵ ┻━┻<br/>logentry_id + error"]
+    B -->|"MongoDB 写入"| F{"写入成功?"}
+    F -->|"是"| G["不打日志<br/>(审计链已覆盖)"]
+    F -->|"降级/失败"| H["WARNING<br/>(ಠ_ಠ)<br/>comment_id + error"]
+    B -->|"MongoDB 连接"| I{"连接成功?"}
+    I -->|"是"| J["INFO 可选<br/>(✿◕‿◕)"]
+    I -->|"失败"| K["WARNING<br/>(ಠ_ಠ)"]
+    B -->|"审计命令"| L{"audit_log_integrity"}
+    L -->|"无篡改"| M["不打日志"]
+    L -->|"发现篡改"| N["WARNING<br/>(ಠ_ಠ) counts"]
+```
+
+---
+
 ## 职责边界
 
 Security app 负责两套审计日志体系的防篡改保护：
@@ -127,3 +156,33 @@ logger.info(f"init_log_hmac 完成: created={created_count} updated={updated_cou
 | `SecureLogEntry.compute_from_logentry()` 正常执行 | 高频触发的自动签名 |
 | `hmac_utils.py` 内部函数 | 纯计算，无副作用 |
 | `mongo_client.py` 每次读/写成功 | 审计日志本身已在 verify 层面覆盖 |
+
+---
+
+## 安全规则（重点）
+
+```
+┌─────────────────────────────────────────────────┐
+│  ❌ 绝不记录: HMAC key (LOG_HMAC_KEY)             │
+│  ❌ 绝不记录: SM3 签名原始内容                     │
+│  ❌ 绝不记录: MongoDB 连接字符串（含密码）         │
+│  ✅ 应用日志与审计日志分离                         │
+│  ✅ 审计日志仅记录 logentry_id + 签名结果          │
+│  ✅ 正常同步不打日志（每个 Admin 操作都触发）      │
+│  ✅ MongoDB 降级时打 WARNING 而非 ERROR（不影响主流程） │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+## 与其他 App 对比
+
+| App | 复杂度 | 日志量 | 主要日志来源 |
+|-----|--------|--------|-------------|
+| Blogs | 高 | 高 | 文章 CRUD + 修订 + diff |
+| comment | 中 | 中 | 评论提交 + 审核 |
+| **security** | **中** | **低** | 审计链验证 |
+| accounts | 低 | 低 | 登录/注册/密码修改 |
+| boards | 低 | 极低 | seed 命令（一次性） |
+| config | 低 | 低 | 侧边栏配置变更 |
+| music | 空壳 | 无 | 暂无功能 |

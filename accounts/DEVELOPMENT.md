@@ -4,7 +4,7 @@
 > **职责**: 自定义用户模型 (MyUser)、登录/登出、权限体系、纵深防御  
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-06-22 — 纵深防御 (S1+S2) + dashboard 入口修复
+> **最后更新**: 2026-06-22 — 权限颗粒化 v3.0 + 审核工作流
 
 ---
 
@@ -12,13 +12,14 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-06-22 | v3.0 | **权限颗粒化**: 四旗模型 (is_reviewer)、Post 审核工作流 (DRAFT→REVIEW→NORMAL)、自定义 Django Permissions、最小权限原则 |
 | 2026-06-22 | v2.2 | **dashboard 入口修复**: `CustomSite.has_permission()` 检查 `is_dashboard_user`；登录自动跳转 `/dashboard/` |
 | 2026-06-22 | v2.1 | **纵深防御 S1+S2**: `MyUser.save()` 字段回滚 + `save_related()` M2M 拦截 + `LogEntry/SecureLogEntry` 信号防护 |
 | 2026-06-22 | v2.0 | **权限重构**: dual Admin 注册 (super_admin + dashboard)；staff 权限收紧为仅审核 (is_active)；移除 readonly_fields 硬锁 |
 | 2026-06-22 | v1.1 | 登录日志补全（INFO 成功 / WARNING 失败 + reason code）；LOGGUIDE.md |
 | 2025-07-11 | v1.0 | 初始：自定义用户模型 MyUser + 登录/登出 |
 
-### v2.0–v2.2 详细变更
+### v2.0–v3.0 详细变更
 
 | Issue | 状态 | 描述 |
 |-------|------|------|
@@ -28,6 +29,9 @@
 | staff 可改/删日志 | ✅ 已修复 | `security/signals.py` 新增 `pre_save`/`pre_delete` 信号拦截 |
 | dashboard_user 无法访问后台 | ✅ 已修复 | `CustomSite.has_permission()` → `is_dashboard_user` |
 | 登录后不跳转 dashboard | ✅ 已修复 | `get_success_url()` → dashboard 用户跳转 `/dashboard/` |
+| db 权限粗粒度（all-or-nothing） | ✅ 已修复 | v3.0 四旗模型 + 自定义 Django Permissions + 审核工作流 |
+| 无 Post 审核/草稿机制 | ✅ 已修复 | Post 新增 DRAFT/REVIEW 状态，审核者通过 action 发布/驳回 |
+| Post 直接修改不产生审核记录 | ✅ 已修复 | 所有 admin 修改自动创建 PostRevision 快照 |
 
 ---
 
@@ -42,12 +46,33 @@ flowchart TD
     end
 
     subgraph auth["认证与用户模型"]
-        MYU["MyUser<br/>AbstractBaseUser + PermissionsMixin"]
+        MYU["MyUser<br/>AbstractBaseUser + PermissionsMixin<br/>五旗模型"]
         UM["UserManager"]
     end
 
+    subgraph roles["角色体系 (五旗)"]
+        R1["👤 普通用户<br/>is_active=True"]
+        R2["✏️ 编辑者<br/>+ is_dashboard_user"]
+        R3["✅ 审核者<br/>+ is_reviewer"]
+        R4["🔧 超级管理员<br/>+ is_staff + is_superuser"]
+    end
+
+    subgraph perms["自定义 Django Permissions"]
+        P1["Blogs.publish_post<br/>可发布/下架"]
+        P2["Blogs.review_post<br/>可审核内容"]
+        P3["Blogs.manage_category<br/>可管理分类"]
+        P4["Blogs.manage_tag<br/>可管理标签"]
+    end
+
+    subgraph workflow["审核工作流"]
+        W1["DRAFT (草稿)<br/>编辑者创建/编辑"]
+        W2["REVIEW (审核中)<br/>编辑者提交审核"]
+        W3["NORMAL (已发布)<br/>审核者通过"]
+        W4["DELETE (已删除)<br/>审核者下架"]
+    end
+
     subgraph defense["纵深防御层 (4 Layers)"]
-        L1["Layer1: Admin UI<br/>has_change/delete/add"]
+        L1["Layer1: Admin UI<br/>get_actions / get_readonly_fields"]
         L2["Layer2: save_related<br/>M2M 拦截"]
         L3["Layer3: MyUser.save()<br/>SENSITIVE_FIELDS 回滚"]
         L4["Layer4: Signals (security)<br/>pre_save/pre_delete"]
@@ -62,6 +87,10 @@ flowchart TD
     SA -->|"is_staff?"| MYU
     DB -->|"is_dashboard_user?"| MYU
 
+    MYU --> roles
+    roles --> perms
+    perms --> workflow
+
     SA --> L1
     DB --> L1
     L1 --> L2
@@ -75,15 +104,21 @@ flowchart TD
     style MYU fill:#e8f5e9,stroke:#388e3c
     style L3 fill:#fff3e0,stroke:#f57c00
     style L4 fill:#ffebee,stroke:#c62828
+    style W1 fill:#e3f2fd,stroke:#1976d2
+    style W2 fill:#fff8e1,stroke:#fbc02d
+    style W3 fill:#e8f5e9,stroke:#388e3c
+    style W4 fill:#ffebee,stroke:#c62828
 ```
 
 **核心设计原则**：
-- **三旗权限模型**：`is_staff` (超级管理员入口) / `is_dashboard_user` (运维入口) / `is_superuser` (特权)
+- **五旗权限模型**：`is_active` → `is_dashboard_user` → `is_reviewer` → `is_staff` → `is_superuser`（逐级递进）
 - **纵深防御**：4 层防护，模型层是最后一道防线
 - **双 Admin 注册**：同一 `MyUserAdmin` 注册到 `admin.site` 和 `custom_site`，使用不同的 `has_permission()` 逻辑
+- **审核工作流**：编辑者写草稿 → 提交审核 → 审核者通过/驳回，所有变更自动产生 PostRevision 快照
 
 > 🟠 橙色 = 模型层防御 (SENSITIVE_FIELDS 回滚)  
-> 🔴 红色 = 跨模块信号防护 (security/signals.py)
+> 🔴 红色 = 跨模块信号防护 (security/signals.py)  
+> 🔵 蓝色 = 草稿 — 🟡 黄色 = 审核中 — 🟢 绿色 = 已发布
 
 ---
 
@@ -91,7 +126,7 @@ flowchart TD
 
 | 文件 | 核心类/函数 | 职责 |
 |------|------------|------|
-| `models.py` | `MyUser`, `UserManager`, `SENSITIVE_FIELDS` | 自定义用户模型 + 创建工厂 + 模型层防御 |
+| `models.py` | `MyUser`, `UserManager`, `SENSITIVE_FIELDS` | 自定义用户模型（五旗）+ 创建工厂 + 模型层防御 |
 | `admin.py` | `MyUserAdmin`, `CusMyUserAdmin` | 双 Admin 注册 + 字段权限 + M2M 拦截 |
 | `views.py` | `LoginView` | 登录视图 + 跳转逻辑 + 日志 |
 | `forms.py` | `LoginForm` | 登录表单 |
@@ -101,31 +136,91 @@ flowchart TD
 | `apps.py` | `AccountsConfig` | AppConfig |
 | `LOGGUIDE.md` | — | 日志规范（含安全红线） |
 
+### 2.1 协同模块（审核工作流）
+
+| 模块 | 关键变更 | 职责 |
+|------|---------|------|
+| `Blogs/models.py` | Post STATUS_DRAFT/REVIEW, custom permissions | 文章状态机 + 权限定义 |
+| `Blogs/admin.py` | PostAdmin review actions, granular perms | 编辑者/审核者分离，审核操作 |
+| `PowerAdapterBlogs/base_admin.py` | DashboardAdminMixin | dashboard 基础权限（查看/模块可见） |
+
 ---
 
-## 3. 三旗权限模型
+## 3. 五旗权限模型
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                     MyUser                           │
-│                                                     │
-│  is_active         账号启用（可登录）                 │
-│  is_staff          可访问 /super_admin/ (默认 Django) │
-│  is_dashboard_user 可访问 /dashboard/  (CustomSite)   │
-│  is_superuser      拥有所有模型层特权                  │
-│                                                     │
-│  groups            Django 权限组 (M2M)               │
-│  user_permissions  Django 单独权限 (M2M)              │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│                     MyUser                            │
+│                                                      │
+│  is_active         账号启用（可登录）                   │
+│  is_dashboard_user 可访问 /dashboard/ (CustomSite)     │
+│  is_reviewer       内容审核权限（通过/驳回/发布文章）     │  ← v3.0 新增
+│  is_staff          可访问 /super_admin/ (默认 Django)   │
+│  is_superuser      拥有所有模型层特权                    │
+│                                                      │
+│  groups            Django 权限组 (M2M)                │
+│  user_permissions  Django 单独权限 (M2M)               │
+│  ────────────────────────────────────────────────     │
+│  自定义 Permissions (Blogs app):                      │
+│    publish_post    可发布/下架文章                      │
+│    review_post     可审核文章内容                       │
+│    manage_category 可管理分类                          │
+│    manage_tag      可管理标签                          │
+└──────────────────────────────────────────────────────┘
 ```
 
-**角色矩阵**：
+### 3.1 角色矩阵（最小权限原则）
 
-| 角色 | is_active | is_staff | is_dashboard_user | is_superuser | 入口 |
-|------|:---:|:---:|:---:|:---:|------|
-| 普通用户 | ✅ | ❌ | ❌ | ❌ | 前台 |
-| 运维 | ✅ | ❌ | ✅ | ❌ | `/dashboard/` |
-| 超级管理员 | ✅ | ✅ | ✅ | ✅ | `/super_admin/` + `/dashboard/` |
+| 角色 | is_active | is_dashboard | is_reviewer | is_staff | is_superuser | 入口 | 能力 |
+|------|:---:|:---:|:---:|:---:|:---:|------|------|
+| 普通用户 | ✅ | ❌ | ❌ | ❌ | ❌ | 前台 | 浏览已发布文章 |
+| **编辑者** | ✅ | ✅ | ❌ | ❌ | ❌ | `/dashboard/` | 创建/编辑草稿，提交审核 |
+| **审核者** | ✅ | ✅ | ✅ | ❌ | ❌ | `/dashboard/` | 审核通过/驳回，发布/下架，查看全部文章 |
+| 超级管理员 | ✅ | ✅ | ✅ | ✅ | ✅ | `/super_admin/` + `/dashboard/` | 全部权限，用户管理，日志审计 |
+
+### 3.2 权限详细矩阵（dashboard 内）
+
+| 操作 | 编辑者 | 审核者 | superuser |
+|------|:---:|:---:|:---:|
+| 查看 dashboard | ✅ | ✅ | ✅ |
+| 创建文章（自动草稿） | ✅ | ✅ | ✅ |
+| 编辑自己的文章 | ✅ | ✅ | ✅ |
+| 编辑他人文章 | ❌ | ✅ | ✅ |
+| 提交审核（DRAFT→REVIEW） | ✅ | ✅ | ✅ |
+| 通过审核/发布（REVIEW→NORMAL） | ❌ | ✅ | ✅ |
+| 驳回（REVIEW→DRAFT） | ❌ | ✅ | ✅ |
+| 下架（NORMAL→DELETE） | ❌ | ✅ | ✅ |
+| 删除文章 | ❌ | ❌ | ✅ |
+| 编辑已发布文章 | ❌* | ✅ | ✅ |
+| 查看全部文章列表 | 仅自己的 | ✅ | ✅ |
+| 查看修订历史 | ✅ | ✅ | ✅ |
+| 管理分类/标签 | ❌† | ✅† | ✅† |
+| 管理用户（启停 is_active） | ❌ | ❌ | ✅ |
+| 查看操作日志 | ❌ | ❌ | ✅ |
+
+> \* 编辑者修改已发布文章时，状态自动回退到 DRAFT，需要重新审核  
+> † 审核者可通过 `has_perm('Blogs.manage_category')` / `has_perm('Blogs.manage_tag')` 细分权限
+
+### 3.3 文章状态流转（审核工作流）
+
+```
+编辑者创建/编辑 → 自动进入 DRAFT
+                        │
+                        ▼
+       ┌──────────┐  提交审核 (action)  ┌──────────┐  通过审核 (action)  ┌──────────┐
+       │  DRAFT   │ ──────────────────→ │  REVIEW  │ ─────────────────→ │  NORMAL  │
+       │  草稿    │ ←────────────────── │  审核中  │                    │  已发布  │
+       └──────────┘   驳回 (action)     └──────────┘                    └────┬─────┘
+              ▲                                                              │
+              │                         编辑者修改已发布文章（自动回退）         │ 下架 (action)
+              └──────────────────────────────────────────────────────────────┘
+                                                                             │
+                                                                             ▼
+                                                                       ┌──────────┐
+                                                                       │  DELETE  │
+                                                                       │  已删除  │
+                                                                       └──────────┘
+```
 
 **入口分离逻辑**：
 - `admin.site` (Django 默认) → `AdminSite.has_permission()` → 检查 `is_active and is_staff`
@@ -246,7 +341,7 @@ sequenceDiagram
 ├──────────────────────────────────────────────────┤
 │  Layer 3: Model.save() 字段回滚                    │
 │  - SENSITIVE_FIELDS = {is_superuser, is_staff,    │ ← 最后一道防线
-│    is_dashboard_user}                             │
+│    is_dashboard_user, is_reviewer}                │
 │  - 检测变更 → 回滚到旧值 → SECURITY WARNING 日志    │
 ├──────────────────────────────────────────────────┤
 │  Layer 4: pre_save/pre_delete 信号拦截             │
@@ -287,7 +382,7 @@ class RequestUserMiddleware:
 
 ```python
 # models.py
-SENSITIVE_FIELDS = {'is_superuser', 'is_staff', 'is_dashboard_user'}
+SENSITIVE_FIELDS = {'is_superuser', 'is_staff', 'is_dashboard_user', 'is_reviewer'}
 
 def save(self, *args, **kwargs):
     requesting_user = get_current_user()
@@ -303,9 +398,10 @@ def save(self, *args, **kwargs):
 ```
 
 **设计考虑**：
-- 使用 `.only()` 减少查询开销（只取 3 个布尔字段）
+- 使用 `.only()` 减少查询开销（只取 4 个布尔字段）
 - 回滚而非抛异常 — 静默拒绝，避免 `PermissionDenied` 在非 HTTP 上下文崩溃
 - 每次修改都查询旧值，这是 O(1) 的性能代价换取安全
+- v3.0 扩展 `is_reviewer`：审核权限只能通过 `/super_admin/` 授予，dashboard 用户不可自行提权
 
 ---
 
@@ -327,16 +423,36 @@ class CusMyUserAdmin(MyUserAdmin):
 
 两个 Admin 共享同一个 `MyUserAdmin` 类，权限行为通过 `get_*` 方法动态判断。
 
-### 6.2 动态字段权限
+### 6.2 动态字段权限（v3.0 颗粒化）
 
-| 方法 | superuser 行为 | staff 行为 |
+| 方法 | superuser 行为 | dashboard 行为 (CusMyUserAdmin) |
 |------|---------------|------------|
-| `get_readonly_fields()` | 全部可编辑 | 除 `is_active` 外全部只读 |
+| `get_readonly_fields()` | 全部可编辑 | 除 `is_active` 外全部只读（含 `is_reviewer`） |
 | `get_fieldsets()` | 4 个字段集（基本信息/证书/权限/其他） | 1 个字段集「用户审核」 |
-| `has_change_permission()` | ✅ | ✅ (仅 is_active) |
+| `has_change_permission()` | ✅ | ✅ (仅 is_active；不可编辑 superuser) |
 | `has_delete_permission()` | ✅ | ❌ |
 | `has_add_permission()` | ✅ | ❌ |
 | `save_related()` | M2M 正常保存 | 跳过 M2M 保存 |
+
+### 6.3 PostAdmin 角色分离（Blogs/admin.py）
+
+| 方法 | superuser | 审核者 | 编辑者 |
+|------|:---:|:---:|:---:|
+| `get_queryset()` | 全部文章 | 全部文章 | 仅自己的文章 |
+| `get_actions()` | 全部操作 | 通过审核/驳回/下架 | 提交审核 |
+| `has_add_permission()` | ✅ | ✅ | ✅ |
+| `has_change_permission()` | ✅ | ✅ (全部) | ✅ (仅自己的) |
+| `has_delete_permission()` | ✅ | ❌ | ❌ |
+| `get_readonly_fields()` | 无 | 无 | `status` 只读 |
+| `save_model()` 状态 | 自由设置 | 自由设置 | 强制 DRAFT；已发布文章自动回退 |
+| 修订快照 | ✅ 自动创建 | ✅ 自动创建 | ✅ 自动创建 |
+
+### 6.4 CategoryAdmin / TagAdmin 权限
+
+| 方法 | superuser | 审核者 (has manage perm) | 编辑者 |
+|------|:---:|:---:|:---:|
+| add/change/delete | ✅ | ✅ | ❌ |
+| view | ✅ | ✅ | ✅ |
 
 ---
 
@@ -400,8 +516,9 @@ erDiagram
         bool is_cert_verified "证书已验证"
         datetime date_joined "auto_now_add"
         bool is_active "账号启用"
-        bool is_staff "super_admin 入口"
+        bool is_reviewer "内容审核权限 (v3.0)"
         bool is_dashboard_user "dashboard 入口"
+        bool is_staff "super_admin 入口"
         bool is_superuser "模型层特权"
     }
 ```
@@ -415,8 +532,10 @@ erDiagram
 | staff 仍可修改日志（模型层） | 🟡 中 | 当前通过 `security/signals.py` 信号拦截，但重写 Django `LogEntry` 能提供更强保护。**搁置中**，工作量较大。 |
 | 无用户注册功能 | 🟢 低 | 当前仅 superuser 可通过 Admin 创建用户。如需开放注册需补充视图 + 验证流程。 |
 | 无反暴力破解 | 🟢 低 | `LoginView` 无连续失败计数/临时锁定。LOGGUIDE 已规划 WARNING + attempts 日志格式，待实现。 |
-| 无自定义 Permission | 🟢 低 | 当前权限粗粒度（superuser vs staff），如需字段级权限可引入自定义 Permission（S4 计划）。 |
+| 自定义 Permission 已实现 | ✅ v3.0 | `Blogs.publish_post` / `Blogs.review_post` / `Blogs.manage_category` / `Blogs.manage_tag` 已添加，Admin 已集成 |
 | thread-local 仅 HTTP 上下文 | 🟢 低 | `manage.py shell` 中 `get_current_user()` 返回 None，防御回退。属于设计决策，暂不修改。 |
+| 审核通知 | 🟡 新 | 当前审核通过/驳回无邮件或站内通知，建议补充 `messaging` 模块或简单邮件通知 |
+| 编辑者无法选择分类/标签 | ⚠️ 注意 | 当前 `manage_category` / `manage_tag` perm 默认只有审核者/superuser 拥有；若允许编辑者管理分类，需在 admin 中手动授权 |
 
 ---
 
@@ -436,11 +555,29 @@ erDiagram
 # 创建超级管理员
 python manage.py createsuperuser
 
+# 执行迁移（v3.0 新增）
+python manage.py migrate accounts
+python manage.py migrate Blogs
+
+# 授予现有 dashboard 用户审核权限
+python manage.py shell -c "
+from accounts.models import MyUser
+# 将 user1 设为审核者
+u = MyUser.objects.get(username='user1')
+u.is_reviewer = True
+u.save()
+# 授予 manage_category 权限（Django Permission）
+from django.contrib.auth.models import Permission
+perm = Permission.objects.get(codename='manage_category')
+u.user_permissions.add(perm)
+"
+
 # Django shell 验证权限逻辑
 python manage.py shell -c "
 from accounts.models import MyUser
-u = MyUser.objects.get(username='staff_user')
-print(u.is_dashboard_user, u.is_staff, u.is_superuser)
+u = MyUser.objects.get(username='reviewer_user')
+print(u.is_dashboard_user, u.is_reviewer, u.is_superuser)
+print('perms:', u.get_all_permissions())
 "
 ```
 
@@ -472,3 +609,21 @@ MIDDLEWARE = [
 # settings/develop.py
 LOG_HMAC_KEY = "..."  # 用于 security 模块 HMAC，不影响 accounts
 ```
+
+### E. v3.0 迁移说明
+
+**新增迁移文件**：
+- `accounts/migrations/0002_add_is_reviewer.py` — MyUser 添加 `is_reviewer` 字段
+- `Blogs/migrations/0006_add_post_status_and_permissions.py` — Post 新增 DRAFT/REVIEW 状态 + 自定义权限
+
+**执行**：
+```bash
+python manage.py migrate accounts
+python manage.py migrate Blogs
+```
+
+**向后兼容**：
+- `STATUS_NORMAL=1` 和 `STATUS_DELETE=0` 值不变，存量文章不受影响
+- `is_reviewer` 默认为 False，现有用户行为完全不变
+- 现有 superuser 自动获得所有自定义权限（Django 默认行为）
+- 自定义 permissions 不会自动授予现有用户，需手动分配或通过 group 管理

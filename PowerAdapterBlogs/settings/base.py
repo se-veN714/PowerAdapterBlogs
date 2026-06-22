@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "config",
     "comment",
     "accounts",
+    "boards.apps.BoardsConfig",
 ]
 
 MIDDLEWARE = [
@@ -99,6 +100,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.static",
+                "boards.views.boards_context",
             ],
         },
     },

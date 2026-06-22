@@ -1,0 +1,54 @@
+{# Board visual partial — renders the editorial-visual content per board slug #}
+{% if board.slug == 'skateboard' %}
+<svg viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+    <rect width="400" height="300" fill="url(#skyGrad01)"/>
+    <defs><linearGradient id="skyGrad01" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0D1010"/><stop offset="100%" stop-color="#1C2323"/>
+    </linearGradient></defs>
+    <path d="M0 300 L50 120 L150 120 L200 300" fill="none" stroke="rgb(216,255,225)" stroke-width="3" opacity="0.4"/>
+    <path d="M250 300 Q300 150 400 180 L400 300" fill="none" stroke="rgb(143,163,148)" stroke-width="2" opacity="0.3"/>
+    <circle cx="50" cy="40" r="1.5" fill="rgb(216,255,225)" opacity="0.4"/>
+    <circle cx="120" cy="25" r="1" fill="rgb(216,255,225)" opacity="0.35"/>
+    <circle cx="200" cy="50" r="1.5" fill="rgb(216,255,225)" opacity="0.3"/>
+    <circle cx="300" cy="30" r="1" fill="rgb(216,255,225)" opacity="0.4"/>
+    <circle cx="350" cy="60" r="1.5" fill="rgb(216,255,225)" opacity="0.25"/>
+    <circle cx="80" cy="70" r="1" fill="rgb(216,255,225)" opacity="0.35"/>
+    <g transform="translate(130, 100) rotate(-15)">
+        <circle cx="0" cy="-20" r="10" fill="none" stroke="rgb(235,240,235)" stroke-width="2"/>
+        <line x1="0" y1="-10" x2="0" y2="20" stroke="rgb(235,240,235)" stroke-width="2"/>
+        <line x1="0" y1="0" x2="-15" y2="10" stroke="rgb(235,240,235)" stroke-width="1.5"/>
+        <line x1="0" y1="0" x2="15" y2="5" stroke="rgb(235,240,235)" stroke-width="1.5"/>
+        <line x1="-8" y1="20" x2="8" y2="30" stroke="rgb(235,240,235)" stroke-width="1.5"/>
+        <line x1="5" y1="20" x2="15" y2="25" stroke="rgb(235,240,235)" stroke-width="1.5"/>
+        <path d="M-20 35 Q0 38 20 35" stroke="rgb(216,255,225)" stroke-width="2"/>
+    </g>
+</svg>
+
+{% elif board.slug == 'music' %}
+<div class="waveform-bars" id="waveform"></div>
+
+{% elif board.slug == 'coding' %}
+<div class="code-visual-grid" style="display:grid;grid-template-columns:auto 1fr;align-items:start;width:100%;height:100%;">
+    <div class="code-line-numbers" style="padding:2rem 0.75rem 2rem 1rem;text-align:right;color:var(--text-tertiary);opacity:0.35;font-size:0.7rem;line-height:1.7;user-select:none;border-right:1px solid var(--fragment-border);">
+        01<br>02<br>03<br>04<br>05<br>06<br>07<br>08<br>09<br>10<br>11<br>12<br>13<br>14<br>15<br>
+    </div>
+    <div class="code-lines" style="padding:2rem 1.5rem 2rem 1rem;display:flex;flex-direction:column;gap:0.15rem;font-family:var(--font-mono);font-size:0.78rem;line-height:1.7;">
+        <div class="code-line"><span class="code-keyword">def</span> <span class="code-func">solve_problem</span>(<span class="code-var">problem</span>):</div>
+        <div class="code-line"><span class="code-var">observed</span> = <span class="code-func">analyze</span>(<span class="code-var">problem</span>)</div>
+        <div class="code-line"><span class="code-keyword">if</span> <span class="code-var">insight</span>:</div>
+        <div class="code-line"><span class="code-keyword">return</span> <span class="code-func">iterate</span>(<span class="code-var">problem</span>)</div>
+        <div class="code-line">&nbsp;</div>
+        <div class="code-line"><span class="code-comment">// Write less.</span></div>
+        <div class="code-line"><span class="code-comment">// Do more.</span></div>
+        <div class="code-line"><span class="code-comment">// Repeat.</span></div>
+    </div>
+</div>
+
+{% else %}
+{# Generic fallback visual: colored gradient panel #}
+<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;">
+    <span style="font-family:var(--font-mono);font-size:3rem;font-weight:700;color:{{ board.glitch_color }};opacity:0.2;letter-spacing:0.05em;text-transform:uppercase;">
+        {{ board.name|slice:':3' }}
+    </span>
+</div>
+{% endif %}

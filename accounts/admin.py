@@ -8,14 +8,18 @@ from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 
 class MyUserAdmin(UserAdmin):
     model = MyUser
-    list_display = ('username', 'email', 'is_active', 'is_dashboard_user', 'is_superuser')
-    list_filter = ('is_active', 'is_dashboard_user', 'is_superuser')
+    list_display = ('username', 'email', 'is_active', 'is_reviewer',
+                    'is_dashboard_user', 'is_superuser')
+    list_filter = ('is_active', 'is_reviewer', 'is_dashboard_user', 'is_superuser')
     ordering = ('date_joined',)
 
     fieldsets = (
         (None, {'fields': ('username', 'email', 'password')}),
         ('证书信息', {'fields': ('cert_sn', 'cert_subject_dn', 'is_cert_verified')}),
-        ('权限', {'fields': ('is_active', 'is_dashboard_user', 'is_superuser', 'groups', 'user_permissions')}),
+        ('权限', {'fields': (
+            'is_active', 'is_reviewer', 'is_dashboard_user',
+            'is_superuser', 'groups', 'user_permissions',
+        )}),
         ('其他信息', {'fields': ('last_login',)}),
     )
 
@@ -23,14 +27,14 @@ class MyUserAdmin(UserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': ('username', 'email', 'password1', 'password2',
-                       'is_active', 'is_dashboard_user', 'is_superuser')}
+                       'is_active', 'is_reviewer', 'is_dashboard_user', 'is_superuser')}
          ),
     )
 
     def get_readonly_fields(self, request, obj=None):
         """
-        非超级管理员：仅 is_active 可编辑（用户审核）
-        超级管理员：全部字段可编辑
+        权限颗粒化：非 superuser 仅可编辑 is_active（用户启停）。
+        is_reviewer 由 superuser 在 /super_admin/ 中授权。
         """
         if request.user.is_superuser:
             return self.readonly_fields
@@ -42,8 +46,8 @@ class MyUserAdmin(UserAdmin):
 
     def get_fieldsets(self, request, obj=None):
         """
-        非超级管理员：只显示用户审核视图（用户名 + 邮箱 + 激活状态）
-        超级管理员：完整 fieldsets
+        非 superuser：仅显示用户审核视图。
+        superuser：完整 fieldsets（含 reviewer 授权）。
         """
         if request.user.is_superuser:
             return self.fieldsets
@@ -67,8 +71,8 @@ class MyUserAdmin(UserAdmin):
         """
         非 superuser 修改用户时，禁止修改 M2M 关系（groups、user_permissions）。
 
-        MyUser.save() 保护了标量字段，但 M2M 在 save() 之后才提交，
-        需要在此处拦截。
+        MyUser.save() 保护了标量字段（含 is_reviewer），
+        但 M2M 在 save() 之后才提交，需要在此处拦截。
         """
         if not request.user.is_superuser and change:
             return  # 跳过 M2M 保存，仅提交 scalar 字段变更
@@ -83,16 +87,20 @@ except admin.sites.NotRegistered:
 admin.site.register(MyUser, MyUserAdmin)
 
 
-# === 注册到 custom_site（/dashboard/，dashboard 用户仅审核） ===
+# === 注册到 custom_site（/dashboard/，dashboard 用户仅审核 is_active） ===
 @admin.register(MyUser, site=custom_site)
 class CusMyUserAdmin(DashboardAdminMixin, MyUserAdmin):
-    """custom_site 版本，DashboardAdminMixin 提供 is_dashboard_user 基础权限"""
+    """custom_site 版本，最小权限：只能启停非超管账号"""
 
     def has_change_permission(self, request, obj=None):
         """非 superuser 不能编辑 superuser 账号（避免 dashboard 用户禁用超管）"""
         if obj is not None and obj.is_superuser and not request.user.is_superuser:
             return False
         return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        """dashboard 用户无删除权限"""
+        return False
 
     def get_readonly_fields(self, request, obj=None):
         """双重保险：dashboard 用户面对 superuser 时全字段只读"""

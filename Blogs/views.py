@@ -82,7 +82,16 @@ class PostDetailView(CommonViewMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         post = self.object
-        revisions = post.revisions.all().order_by('-major', '-minor')
+        revisions = list(post.revisions.all().order_by('-major', '-minor'))
+
+        # 为每个 revision 标注其直接前驱版本
+        for i, rev in enumerate(revisions):
+            # 下一个（按降序）即是前驱版本（更早的版本）
+            if i + 1 < len(revisions):
+                rev.prev_version = revisions[i + 1].version
+            else:
+                rev.prev_version = None
+
         context['revisions'] = revisions
         context['revision_count'] = len(revisions)
         context['show_timeline'] = len(revisions) > 1
@@ -338,7 +347,11 @@ def post_img_upload(request):
 # ============================================================
 
 def revision_body(request, slug, version):
-    """GET /post/{slug}/revision/v{major}.{minor}/ — 返回版本内容的 HTML 片段（htmx）"""
+    """GET /post/{slug}/revision/v{major}.{minor}/
+    
+    htmx 请求 → 返回 HTML 片段（内联查看）
+    普通请求 → 返回完整页面（独立页面）
+    """
     post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
     parts = version.lstrip('v').split('.')
     if len(parts) != 2 or not all(p.isdigit() for p in parts):
@@ -347,17 +360,34 @@ def revision_body(request, slug, version):
     revision = get_object_or_404(
         post.revisions, major=major, minor=minor
     )
-    return render(request, 'pages/blog/_revision_body.html', {
-        'revision': revision,
+
+    # htmx 请求 → 返回片段
+    if request.headers.get('HX-Request'):
+        return render(request, 'pages/blog/_revision_body.html', {
+            'revision': revision,
+            'post': post,
+        })
+
+    # 普通请求 → 返回完整页面（用 revision 内容覆盖 post 内容）
+    post.title = f"{revision.title} — v{revision.version}"
+    post.content = revision.content
+    revisions = list(post.revisions.all().order_by('-major', '-minor'))
+    for i, rev in enumerate(revisions):
+        rev.prev_version = revisions[i + 1].version if i + 1 < len(revisions) else None
+    return render(request, 'pages/blog/detail.html', {
         'post': post,
+        'revisions': revisions,
+        'revision_count': len(revisions),
+        'show_timeline': len(revisions) > 1,
+        'object': post,
     })
 
 
 def revision_diff(request, slug):
-    """GET /post/{slug}/diff/?from=1.0&to=2.0 — 返回 diff HTML 片段（htmx）
-    
-    优先使用预计算的 diff_from_previous（零计算开销）。
-    非相邻版本或旧数据无预计算时，实时生成。
+    """GET /post/{slug}/diff/?from=1.0&to=2.0 — 仅允许相邻版本对比
+
+    严格校验：from 必须是 to 的直接前驱，否则返回 400。
+    优先使用预计算的 diff_from_previous。
     """
     from .revisions import render_diff as compute_diff
 
@@ -368,6 +398,9 @@ def revision_diff(request, slug):
     if not from_ver or not to_ver:
         return HttpResponse('请选择两个版本进行对比', status=400)
 
+    if from_ver == to_ver:
+        return HttpResponse('不能对比相同版本', status=400)
+
     try:
         rev_from = _get_revision_by_version(post, from_ver)
         rev_to = _get_revision_by_version(post, to_ver)
@@ -377,23 +410,18 @@ def revision_diff(request, slug):
     if not rev_from or not rev_to:
         return HttpResponse('版本号不存在', status=404)
 
-    # 优先使用预计算 diff（写时计算，读时零成本）
-    diff_html = None
-    if from_ver == '1.0' and rev_to and rev_to.major == 1 and rev_to.minor == 0:
-        pass  # v1.0 没有前驱
-    elif rev_to and rev_to.diff_from_previous:
-        # 检查是否正好是相邻版本，且 diff 对应
-        prev = post.revisions.filter(
-            major__lt=rev_to.major
-        ).order_by('-major', '-minor').first() or \
-               post.revisions.filter(
-                   major=rev_to.major, minor__lt=rev_to.minor
-               ).order_by('-major', '-minor').first()
-        if prev and prev.version == from_ver:
-            diff_html = rev_to.diff_from_previous
+    # 严格检查：必须是相邻版本（to 的直接前驱是 from）
+    prev = _get_adjacent_previous(post, rev_to)
+    if not prev or prev.version != from_ver:
+        return HttpResponse(
+            f'仅支持相邻版本对比。v{to_ver} 的直接前驱是 v{prev.version if prev else "?"}',
+            status=400,
+        )
 
-    if not diff_html:
-        diff_html = compute_diff(rev_from.content, rev_to.content, from_ver, to_ver)
+    # 优先预计算 diff
+    diff_html = rev_to.diff_from_previous or compute_diff(
+        rev_from.content, rev_to.content, from_ver, to_ver,
+    )
 
     return render(request, 'pages/blog/_revision_diff.html', {
         'diff_html': diff_html,
@@ -410,3 +438,11 @@ def _get_revision_by_version(post, ver_str: str):
     if len(parts) != 2 or not all(p.isdigit() for p in parts):
         raise ValueError(f"版本号格式无效: {ver_str}")
     return post.revisions.filter(major=int(parts[0]), minor=int(parts[1])).first()
+
+
+def _get_adjacent_previous(post, revision):
+    """获取指定 revision 的直接前驱（按 major.minor 排序）"""
+    return post.revisions.filter(
+        Q(major__lt=revision.major) |
+        Q(major=revision.major, minor__lt=revision.minor)
+    ).order_by('-major', '-minor').first()

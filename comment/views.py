@@ -1,6 +1,8 @@
 import logging
 
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
@@ -8,8 +10,29 @@ from django.views.generic import TemplateView
 
 from Blogs.models import Post
 from comment.form import CommentForm
+from comment.models import Comment
 
 logger = logging.getLogger(__name__)
+
+
+def _comment_rate_key(request):
+    client_ip = getattr(request, 'client_ip', request.META.get('REMOTE_ADDR', 'unknown'))
+    return f"comment-rate:{request.user.pk}:{client_ip}"
+
+
+def _consume_comment_quota(request):
+    """返回是否允许提交，以及当前窗口剩余秒数。"""
+    key = _comment_rate_key(request)
+    limit = getattr(settings, 'COMMENT_RATE_LIMIT', 5)
+    window = getattr(settings, 'COMMENT_RATE_WINDOW', 60)
+    if cache.add(key, 1, timeout=window):
+        return True, window
+    try:
+        attempts = cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=window)
+        attempts = 1
+    return attempts <= limit, window
 
 
 # Create your views here.
@@ -38,6 +61,16 @@ class CommentView(LoginRequiredMixin, TemplateView):
     def post(self, request, *args, **kwargs):
         post_slug = kwargs.get('slug')
         post = get_object_or_404(Post, slug=post_slug)
+
+        allowed, retry_after = _consume_comment_quota(request)
+        if not allowed:
+            logger.warning("Comment 提交限流: post_slug=%s user=%s", post_slug, request.user.id)
+            response = JsonResponse({
+                'success': False,
+                'message': f'提交过于频繁，请在 {retry_after} 秒后重试。',
+            }, status=429)
+            response['Retry-After'] = str(retry_after)
+            return response
 
         form = CommentForm(request.POST)
         if not form.is_valid():
@@ -73,6 +106,27 @@ class CommentView(LoginRequiredMixin, TemplateView):
 
         return JsonResponse({
             'success': True,
-            'html': render_to_string('pages/comment/item.html', {'comment': instance}),
+            'html': render_to_string(
+                'pages/comment/item.html', {'comment': instance}, request=request
+            ),
             'message': '评论提交成功!',
         })
+
+
+class CommentDeleteView(LoginRequiredMixin, TemplateView):
+    """评论作者软删除自己的评论；superuser 也可执行。"""
+
+    http_method_names = ['post']
+    redirect_field_name = None
+
+    def handle_no_permission(self):
+        return JsonResponse({'success': False, 'message': '请先登录。'}, status=401)
+
+    def post(self, request, *args, **kwargs):
+        comment = get_object_or_404(Comment, pk=kwargs['pk'])
+        if comment.user_id != request.user.id and not request.user.is_superuser:
+            return JsonResponse({'success': False, 'message': '无权删除这条评论。'}, status=403)
+        comment.status = Comment.Status.DELETED
+        comment.save(update_fields=['status'])
+        logger.info("Comment 用户删除: comment_id=%s user=%s", comment.id, request.user.id)
+        return JsonResponse({'success': True, 'message': '评论已删除。'})

@@ -4,7 +4,7 @@
 > **职责**: Django Admin 日志 HMAC 完整性保护 + MongoDB 审计日志  
 > **依赖**: `gmssl` (SM3), `pymongo` (MongoDB), Django `LogEntry`  
 > **创建**: 2026-06-21  
-> **最后更新**: 2026-06-21 — P0 修复完成 (v2.0)
+> **最后更新**: 2026-07-12 — 旧 ORM 审计模型删除迁移 + Admin 审核链统一
 
 ---
 
@@ -12,6 +12,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-12 | v2.1 | **审计链收口**: 删除已迁往 MongoDB 的 ORM CommentEventLog；CommentAdmin action 统一调用 moderate_comment；补日志防篡改和审核写入测试 |
 | 2026-06-21 | v2.0 | **P0 修复完成**: Issue A/B/C/D 全部修复 |
 | 2026-06-21 | v1.0 | 初始文档，记录模块架构和已知问题 |
 
@@ -27,7 +28,7 @@
 **额外改进**:
 - `MongoLogger` 新增连接容错：MongoDB 不可用时降级为 no-op，不阻塞主流程
 - `moderate_comment()` 新增 try/except，评论状态更新不受 MongoDB 故障影响
-- `cel_model.py` CommentEventLog 所有方法新增 `connected` 检查
+- MongoDB `cel_model.py` 保留为可选封装；旧 Django ORM `CommentEventLog` 已由 `0003` 删除
 - `init_log_hmac` 新增 `--force` 选项，用于 message 格式变更后重建 HMAC
 - `requirements.txt` 新增 `pymongo==4.10.1`
 
@@ -92,7 +93,7 @@ flowchart TD
 
 | 文件 | 核心类/函数 | 职责 |
 |------|------------|------|
-| `models.py` | `SecureLogEntry` | PostgreSQL 日志完整性记录，1对1关联 `LogEntry` |
+| `models.py` | `SecureLogEntry` | PostgreSQL 日志完整性记录，1对1关联 `LogEntry`；旧 ORM `CommentEventLog` 已迁移至 MongoDB 并删除 |
 | `mongo_client.py` | `MongoLogger`, `dict_to_bytes()` | MongoDB 日志写入客户端，含 HMAC 签名 |
 | `services.py` | `moderate_comment()` | 评论审核业务函数，状态变更 + MongoDB 留痕 |
 | `signals.py` | `create_secure_log_entry` | `post_save` 信号处理器，自动为 LogEntry 签名 |

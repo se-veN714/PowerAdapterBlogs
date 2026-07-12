@@ -2,6 +2,7 @@ import logging
 
 from django.contrib import admin
 from .models import Comment
+from security.services import moderate_comment
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,12 @@ class CommentAdmin(admin.ModelAdmin):
     def approve_comments(self, request, queryset):
         for comment in queryset:
             old_status = comment.status
-            comment.status = Comment.Status.PUBLISHED
-            comment.save(update_fields=['status'])
+            moderate_comment(
+                comment=comment,
+                new_status=Comment.Status.PUBLISHED,
+                request=request,
+                reason='Admin 批量审核通过',
+            )
             logger.info(f"Comment 审核通过: comment_id={comment.id} "
                         f"old_status={old_status} user={request.user.id}")
         self.message_user(request, f"已通过 {queryset.count()} 条评论")
@@ -35,8 +40,12 @@ class CommentAdmin(admin.ModelAdmin):
     def reject_comments(self, request, queryset):
         for comment in queryset:
             old_status = comment.status
-            comment.status = Comment.Status.REJECTED
-            comment.save(update_fields=['status'])
+            moderate_comment(
+                comment=comment,
+                new_status=Comment.Status.REJECTED,
+                request=request,
+                reason='Admin 批量审核拒绝',
+            )
             logger.info(f"Comment 审核拒绝: comment_id={comment.id} "
                         f"old_status={old_status} user={request.user.id}")
         self.message_user(request, f"已拒绝 {queryset.count()} 条评论")
@@ -45,8 +54,12 @@ class CommentAdmin(admin.ModelAdmin):
     def mark_spam(self, request, queryset):
         for comment in queryset:
             old_status = comment.status
-            comment.status = Comment.Status.DELETED
-            comment.save(update_fields=['status'])
+            moderate_comment(
+                comment=comment,
+                new_status=Comment.Status.DELETED,
+                request=request,
+                reason='Admin 标记为垃圾',
+            )
             logger.info(f"Comment 标记垃圾: comment_id={comment.id} "
                         f"old_status={old_status} user={request.user.id}")
         self.message_user(request, f"已标记 {queryset.count()} 条评论为垃圾")

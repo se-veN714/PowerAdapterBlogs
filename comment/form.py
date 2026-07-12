@@ -14,7 +14,6 @@
 from django import forms
 
 from comment.models import Comment
-import markdown
 
 
 class CommentForm(forms.ModelForm):

@@ -25,7 +25,7 @@ from Blogs.views import (
     revision_body, revision_diff,
 )
 from Blogs.views import post_img_upload
-from comment.views import CommentView
+from comment.views import CommentDeleteView, CommentView
 
 router = DefaultRouter()
 router.register('posts', PostViewSet, basename='api_post')
@@ -51,6 +51,7 @@ urlpatterns = [
     path("search/", SearchView.as_view(), name="search"),
     # comment post
     path("post/<slug:slug>/comment/", CommentView.as_view(), name="post_comment"),
+    path("comment/<int:pk>/delete/", CommentDeleteView.as_view(), name="comment_delete"),
     # post_create
     path("post/new/", PostCreateView.as_view(), name="post_create"),
     # post_edit

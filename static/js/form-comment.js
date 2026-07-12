@@ -5,7 +5,6 @@ const buttonText = document.getElementById('button-text');
 
 // 监听表单提交事件
 commentForm.addEventListener('submit', async function (event) {
-    console.log('submit');
     // 1. 阻止表单默认的提交行为
     event.preventDefault();
 
@@ -106,5 +105,24 @@ commentForm.addEventListener('submit', async function (event) {
         submitButton.classList.remove('is-loading');
         submitButton.disabled = false;
         buttonText.textContent = '写好了！';
+    }
+});
+
+document.getElementById('comments-container')?.addEventListener('click', async function (event) {
+    const button = event.target.closest('.comment-delete');
+    if (!button) return;
+    button.disabled = true;
+    try {
+        const csrfToken = document.querySelector('#comment-form [name="csrfmiddlewaretoken"]')?.value;
+        const response = await fetch(button.dataset.deleteUrl, {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || '删除失败');
+        button.closest('.comment-item')?.remove();
+    } catch (error) {
+        button.disabled = false;
+        Toastify({text: `⚠️ ${error.message}`, duration: 4000, gravity: 'top', position: 'right'}).showToast();
     }
 });

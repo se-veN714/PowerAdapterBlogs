@@ -13,13 +13,13 @@
 # here put the import lib
 import logging
 
-from security.models import Comment
+from comment.models import Comment
 from security.mongo_client import MongoLogger
 
 logger = logging.getLogger(__name__)
 
 
-def moderate_comment(*, comment: Comment, new_status: str, request, reason: str | None = None):
+def moderate_comment(*, comment: Comment, new_status: int, request, reason: str | None = None):
     """
     Moderates a comment and logs the moderation event.
 
@@ -40,8 +40,8 @@ def moderate_comment(*, comment: Comment, new_status: str, request, reason: str 
     """
     # 保存原状态
     old_status = comment.status
-    comment.status = new_status
-    comment.save(update_fields=["status", "created_time"])
+    comment.status = int(new_status)
+    comment.save(update_fields=["status"])
 
     # 构造快照（留痕）
     snapshot = {
@@ -71,4 +71,11 @@ def moderate_comment(*, comment: Comment, new_status: str, request, reason: str 
         mongo_logger = MongoLogger()
         mongo_logger.insert_log(action="moderate_comment", data=log_data)
     except Exception as e:
-        logger.warning(f"MongoDB 审核日志写入失败（评论状态已更新）: {e}")
+        logger.warning(
+            "MongoDB 审核日志写入失败（评论状态已更新）: "
+            "comment_id=%s old_status=%s new_status=%s error=%s",
+            comment.id,
+            old_status,
+            comment.status,
+            e,
+        )

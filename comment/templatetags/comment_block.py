@@ -21,7 +21,6 @@ register = template.Library()
 
 @register.inclusion_tag('pages/comment/form.html')
 def form_block(target):
-    print('target', target)
     return {
         'target': target,
         'comment_form': CommentForm(),

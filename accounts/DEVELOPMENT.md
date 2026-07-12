@@ -4,7 +4,7 @@
 > **职责**: 自定义用户模型 (MyUser)、登录/登出、权限体系、纵深防御  
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-06-22 — 权限颗粒化 v3.0 + 审核工作流
+> **最后更新**: 2026-07-12 — 登录反暴力破解 + 日志保护回归测试
 
 ---
 
@@ -12,6 +12,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-12 | v3.1 | **认证加固**: 用户名+IP 哈希计数，失败 5 次锁定 15 分钟，成功登录清零；补日志修改/删除保护测试 |
 | 2026-06-22 | v3.0 | **权限颗粒化**: 四旗模型 (is_reviewer)、Post 审核工作流 (DRAFT→REVIEW→NORMAL)、自定义 Django Permissions、最小权限原则 |
 | 2026-06-22 | v2.2 | **dashboard 入口修复**: `CustomSite.has_permission()` 检查 `is_dashboard_user`；登录自动跳转 `/dashboard/` |
 | 2026-06-22 | v2.1 | **纵深防御 S1+S2**: `MyUser.save()` 字段回滚 + `save_related()` M2M 拦截 + `LogEntry/SecureLogEntry` 信号防护 |
@@ -529,12 +530,12 @@ erDiagram
 
 | Issue | 严重 | 描述 |
 |-------|------|------|
-| staff 仍可修改日志（模型层） | 🟡 中 | 当前通过 `security/signals.py` 信号拦截，但重写 Django `LogEntry` 能提供更强保护。**搁置中**，工作量较大。 |
+| staff 修改日志（模型层） | ✅ 已验证 | `security/signals.py` 在 pre_save/pre_delete 拦截非 superuser，已补修改和删除回归测试；无需重写 Django LogEntry |
 | 无用户注册功能 | 🟢 低 | 当前仅 superuser 可通过 Admin 创建用户。如需开放注册需补充视图 + 验证流程。 |
-| 无反暴力破解 | 🟢 低 | `LoginView` 无连续失败计数/临时锁定。LOGGUIDE 已规划 WARNING + attempts 日志格式，待实现。 |
+| 登录反暴力破解 | ✅ 已修复 | 按用户名 + IP 的哈希 key 计数；默认失败 5 次锁定 15 分钟，成功登录清零 |
 | 自定义 Permission 已实现 | ✅ v3.0 | `Blogs.publish_post` / `Blogs.review_post` / `Blogs.manage_category` / `Blogs.manage_tag` 已添加，Admin 已集成 |
 | thread-local 仅 HTTP 上下文 | 🟢 低 | `manage.py shell` 中 `get_current_user()` 返回 None，防御回退。属于设计决策，暂不修改。 |
-| 审核通知 | 🟡 新 | 当前审核通过/驳回无邮件或站内通知，建议补充 `messaging` 模块或简单邮件通知 |
+| 审核通知 | ⏸ 已评估 | 个人站当前 dashboard 状态与 Admin 即时反馈足够，暂不为此新增完整 messaging 模块；开放注册时采用邮件验证，评论通知按实际需要再做轻量站内实现 |
 | 编辑者无法选择分类/标签 | ⚠️ 注意 | 当前 `manage_category` / `manage_tag` perm 默认只有审核者/superuser 拥有；若允许编辑者管理分类，需在 admin 中手动授权 |
 
 ---
@@ -543,7 +544,7 @@ erDiagram
 
 ### A. 测试现状
 
-- `tests.py` — 空文件，**无单元测试**
+- `tests.py` — 已覆盖登录失败锁定与成功后计数清理；其余权限路径继续逐步补齐
 - 建议优先覆盖：
   1. `MyUser.save()` SENSITIVE_FIELDS 回滚逻辑
   2. `LoginView` 登录成功/失败/不活跃三种路径

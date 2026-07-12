@@ -10,6 +10,7 @@
 本模块提供了基本的Django设置功能的类和函数。
 """
 import os
+from pathlib import Path
 # here put the import lib
 """
 Django settings for PowerAdapterBlogs project.
@@ -22,8 +23,6 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
-from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -272,6 +271,12 @@ CACHES = {
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "sessions"
+
+# 滥用防护（均使用默认 cache，可通过环境专属 settings 覆盖）
+LOGIN_MAX_FAILURES = 5
+LOGIN_LOCKOUT_SECONDS = 15 * 60
+COMMENT_RATE_LIMIT = 5
+COMMENT_RATE_WINDOW = 60
 
 MONGO = {
     "HOST": os.getenv("MONGO_HOST", "localhost"),

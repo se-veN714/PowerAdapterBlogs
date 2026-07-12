@@ -8,8 +8,6 @@
 import difflib
 import logging
 import re
-from typing import Optional
-
 from django.db.models import Model
 
 logger = logging.getLogger(__name__)

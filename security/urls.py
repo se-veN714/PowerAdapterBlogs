@@ -13,7 +13,6 @@
 # here put the import lib
 # urls.py
 from django.urls import path
-from comment.views import CommentView
 from security.views import CommentModerationView
 
 urlpatterns = [

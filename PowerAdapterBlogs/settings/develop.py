@@ -9,6 +9,9 @@
 """
 本模块提供了开发环境下的设置
 """
+import base64
+import os
+
 from .base import *  # NOQA
 
 # here put the import lib
@@ -21,16 +24,16 @@ ALLOWED_HOSTS = ['*']
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",  # noqa: F405
     }
 
 }
 
-INSTALLED_APPS += [
+INSTALLED_APPS += [  # noqa: F405
     "debug_toolbar",
 ]
 
-MIDDLEWARE = ['debug_toolbar.middleware.DebugToolbarMiddleware'] + MIDDLEWARE
+MIDDLEWARE = ['debug_toolbar.middleware.DebugToolbarMiddleware'] + MIDDLEWARE  # noqa: F405
 
 INTERNAL_IPS = ['127.0.0.1']
 
@@ -38,8 +41,7 @@ INTERNAL_IPS = ['127.0.0.1']
 WHITENOISE_AUTOREFRESH = True
 
 # HMAC 密钥：优先从环境变量读取，开发环境提供硬编码兜底
-import base64
-_key_b64 = os.getenv('LOGINTEGRIY_HMAC_KEY_BASE64')
+_key_b64 = os.getenv('LOGINTEGRITY_HMAC_KEY_BASE64')
 if _key_b64:
     LOG_HMAC_KEY = base64.b64decode(_key_b64)
 else:

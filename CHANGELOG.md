@@ -1,5 +1,26 @@
 # CHANGE LOG
 
+## [2026-07-12]
+
+### 安全、滥用防护与审计链收口
+- `hot_posts` 公开/内部缓存隔离，公开榜单排除 STAFF_ONLY
+- 登录失败按用户名+IP 哈希计数，默认 5 次锁定 15 分钟
+- Comment 强制关联用户，增加每用户+IP 限流和作者软删除
+- CommentAdmin 审核 action 统一进入 `moderate_comment → MongoLogger → SM3-HMAC`
+- 增加 `security.0003_delete_commenteventlog`，移除已迁往 MongoDB 的旧 ORM 模型
+- 自动化测试由 1 个增加到 10 个
+- 优化 `.codebuddy/skills` 四个 Skill，修复乱码、精简流程并删除空占位资源
+
+### 图片上传与生产配置加固
+- 正文图片上传移除 `csrf_exempt`，要求 dashboard 身份并执行 CSRF 校验
+- 正文图片和文章封面统一校验 5MB 上限、MIME、真实图片格式与像素总量
+- STAFF_ONLY 修订正文/diff 端点补齐 404 权限边界，前台写作入口对齐 dashboard 角色
+- production settings 对 SECRET_KEY、ALLOWED_HOSTS、HMAC key 显式校验，统一环境变量拼写
+- `requirements.txt` 从 UTF-16 规范化为 UTF-8，显式声明 Pillow 与 python-dotenv
+- 修复 DRF `PostSerializer.tags` 的 M2M source，`check --deploy` Schema 警告清零
+- 移除运行路径遗留 `print()` 与评论提交调试输出
+- 自动化测试增加至 16 个
+
 ## [2026-06-22]
 
 ### 全项目日志代码补全

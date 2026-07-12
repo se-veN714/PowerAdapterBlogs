@@ -40,7 +40,7 @@ def get_client_ip(request):
                 pass
         # 兜底 REMOTE_ADDR
         return request.META.get("REMOTE_ADDR")
-    except Exception as e:
+    except Exception:
         logger.warning(f"Client IP 提取异常: path={request.path} "
                        f"x_forwarded_for={request.META.get('HTTP_X_FORWARDED_FOR', 'N/A')}")
         return "0.0.0.0"

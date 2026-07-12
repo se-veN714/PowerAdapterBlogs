@@ -2,6 +2,7 @@
 MongoDB 日志完整性验证脚本
 测试：连接 -> 写入 HMAC -> 验证 -> 审计
 """
+# ruff: noqa: E402
 import os
 import sys
 import logging
@@ -40,7 +41,7 @@ def run():
     print(f"    集合:   {col_name}")
 
     # 2. 写入测试
-    print(f"\n[2] 写入测试日志 (HMAC 签名)...")
+    print("\n[2] 写入测试日志 (HMAC 签名)...")
     result = m.insert_log("test_verify", {
         "msg": "hello mongo",
         "ts": "2026-06-21T23:30:00",
@@ -52,7 +53,7 @@ def run():
         return
 
     # 3. 查询验证
-    print(f"\n[3] 查询并验证 HMAC...")
+    print("\n[3] 查询并验证 HMAC...")
     docs = m.find_all(3)
     print(f"    最新 3 条: {len(docs)} 条")
     if docs:
@@ -62,16 +63,16 @@ def run():
         print(f"    最新文档 HMAC 验证: {vstatus}")
 
     # 4. 全量审计
-    print(f"\n[4] 全量审计...")
+    print("\n[4] 全量审计...")
     audit = m.audit_all()
     print(f"    总计: {audit['total']} 条")
     print(f"    完整: {audit['healthy']} 条")
     print(f"    篡改: {audit['tampered']} 条")
 
     # 5. 清理测试数据
-    print(f"\n[5] 清理测试数据...")
+    print("\n[5] 清理测试数据...")
     m.collection.delete_many({"action": "test_verify"})
-    print(f"    已清理")
+    print("    已清理")
 
     m.close()
 

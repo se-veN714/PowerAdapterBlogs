@@ -9,10 +9,13 @@
 """
 本模块提供了上线时正式的设置
 """
+# ruff: noqa: F403, F405
 
 # here put the import lib
 import base64
+import os
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 from .base import *
@@ -20,8 +23,17 @@ from .base import *
 DEBUG = False
 
 load_dotenv(BASE_DIR / '.env')
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS').split(',')
+
+
+def required_env(name):
+    value = os.getenv(name)
+    if not value:
+        raise ImproperlyConfigured(f'生产环境必须设置 {name}')
+    return value
+
+
+SECRET_KEY = required_env('DJANGO_SECRET_KEY')
+ALLOWED_HOSTS = [host.strip() for host in required_env('DJANGO_ALLOWED_HOSTS').split(',') if host.strip()]
 
 DATABASES = {
     "default": {
@@ -34,8 +46,13 @@ DATABASES = {
     }
 }
 
-key_base64 = os.getenv('LOGINTEGRYIT_HMAC_KEY_BASE64')
-LOG_HMAC_KEY = base64.b64decode(key_base64)
+key_base64 = required_env('LOGINTEGRITY_HMAC_KEY_BASE64')
+try:
+    LOG_HMAC_KEY = base64.b64decode(key_base64, validate=True)
+except (ValueError, TypeError) as exc:
+    raise ImproperlyConfigured('LOGINTEGRITY_HMAC_KEY_BASE64 不是有效 Base64') from exc
+if len(LOG_HMAC_KEY) < 32:
+    raise ImproperlyConfigured('LOGINTEGRITY_HMAC_KEY_BASE64 解码后至少需要 32 bytes')
 
 CSRF_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = True
@@ -45,3 +62,17 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SECURE_REFERRER_POLICY = 'same-origin'
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+
+# 仅在可信反向代理确实覆盖 X-Forwarded-Proto 时启用。
+if os.getenv('DJANGO_TRUST_X_FORWARDED_PROTO', '').lower() in {'1', 'true', 'yes'}:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

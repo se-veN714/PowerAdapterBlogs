@@ -5,6 +5,9 @@ from datetime import date
 
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
+from django.core.exceptions import ValidationError
 from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.db import transaction, IntegrityError
@@ -12,13 +15,15 @@ from django.db.models import Q, F
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls.base import reverse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.views.decorators.cache import cache_page
 from django.views.generic import DetailView, ListView
 from django.views.generic.base import TemplateView
 from django.views.generic.edit import CreateView, UpdateView
+from django.contrib.auth.mixins import UserPassesTestMixin
 
 from Blogs.forms import PostForm
+from Blogs.image_validation import validate_uploaded_image
 from Blogs.models import Post, PostVisit, Tag, Category
 from Blogs.revisions import create_revision, can_view_staff_only
 from config.models import SideBar
@@ -31,7 +36,6 @@ class SideBarMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['sidebar'] = SideBar.get_sidebars()
-        print("This is sidebar context:(T_T)", context['sidebar'])
         return context
 
 
@@ -39,7 +43,6 @@ class CategoryNavMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update(Category.get_navs())
-        print("This is nav context:(T_T)", context['cate_navs'])
         return context
 
 
@@ -128,7 +131,7 @@ class PostDetailView(CommonViewMixin, DetailView):
                         update_kwargs['uv'] = F('uv') + 1
 
                     Post.objects.filter(pk=post.id).update(**update_kwargs)
-        except Exception as e:
+        except Exception:
             logger.exception(f"PostVisit PV/UV 更新失败: post_id={post.id} uid={uid}")
 
         # 记录访问明细
@@ -142,7 +145,7 @@ class PostDetailView(CommonViewMixin, DetailView):
                 )
             except IntegrityError:
                 pass
-            except Exception as e:
+            except Exception:
                 logger.exception(f"PostVisit PV 写入失败: post_id={post.id} uid={uid}")
 
         try:
@@ -155,7 +158,7 @@ class PostDetailView(CommonViewMixin, DetailView):
                 )
         except IntegrityError:
             pass
-        except Exception as e:
+        except Exception:
             logger.exception(f"PostVisit UV 写入失败: post_id={post.id} uid={uid}")
 
 class AnonymousPageCacheMixin:
@@ -205,7 +208,6 @@ class CategoryView(CommonViewMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["cate"] = self.cate_list
-        print("This is cate_list context:(T_T)", context['cate_posts'])
         return context
 
 class TagView(PostListView):
@@ -257,10 +259,23 @@ def clear_page_caches():
     except Exception as e:
         logger.warning(f"缓存清除失败: error={e}")
     # 3. 清理 hot_posts 查询缓存
-    cache.delete('hot_posts')
+    cache.delete_many(['hot_posts', 'hot_posts:public', 'hot_posts:staff'])
 
 
-class PostCreateView(LoginRequiredMixin, LoggingMixin, CreateView):
+class DashboardAuthorMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """前台写作入口仅开放给 dashboard 用户；编辑者只能修改自己的文章。"""
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_active or not (user.is_dashboard_user or user.is_superuser):
+            return False
+        if isinstance(self, UpdateView):
+            post = self.get_object()
+            return user.is_superuser or user.is_reviewer or post.owner_id == user.id
+        return True
+
+
+class PostCreateView(DashboardAuthorMixin, LoggingMixin, CreateView):
     model = Post
     form_class = PostForm
     template_name = 'pages/blog/post_form.html'
@@ -285,7 +300,7 @@ class PostCreateView(LoginRequiredMixin, LoggingMixin, CreateView):
         return reverse('Blogs:post_detail', kwargs={'slug': self.object.slug})
 
 
-class PostEditView(LoginRequiredMixin, UpdateView):
+class PostEditView(DashboardAuthorMixin, UpdateView):
     model = Post
     form_class = PostForm
     template_name = 'pages/blog/post_form.html'
@@ -318,14 +333,26 @@ class PostEditView(LoginRequiredMixin, UpdateView):
         return reverse('Blogs:post_detail', kwargs={'slug': self.object.slug})
 
 
-@csrf_exempt
+@login_required
+@user_passes_test(lambda user: user.is_active and (user.is_dashboard_user or user.is_superuser))
+@require_POST
 def post_img_upload(request):
-    if request.method == "POST" and request.FILES.get("image"):
+    if request.FILES.get("image"):
         image = request.FILES["image"]
 
-        # 生成安全文件名
-        ext = image.name.split('.')[-1].lower()
-        filename = f"{uuid.uuid4().hex}.{ext}"
+        try:
+            safe_extension = validate_uploaded_image(image)
+        except ValidationError as exc:
+            logger.warning(
+                "图片上传拒绝: user=%s size=%s content_type=%s reason=%s",
+                request.user.id,
+                image.size,
+                image.content_type,
+                exc.messages[0],
+            )
+            return JsonResponse({'error': exc.messages[0]}, status=400)
+
+        filename = f"{uuid.uuid4().hex}{safe_extension}"
         save_path = os.path.join("post_images", filename)
 
         # 保存文件
@@ -336,10 +363,10 @@ def post_img_upload(request):
             return JsonResponse({"url": f"{settings.MEDIA_URL}{path}"})
         except Exception as e:
             logger.exception(f"图片上传失败: file={filename} "
-                           f"user={getattr(request.user, 'id', 'anon')} error={e}")
+                           f"user={request.user.id} error={e}")
             return JsonResponse({"error": f"图片上传失败: {e}"}, status=500)
 
-    return JsonResponse({"error": "No image uploaded"}, status=400)
+    return JsonResponse({"error": "未提供图片文件"}, status=400)
 
 
 # ============================================================
@@ -353,6 +380,8 @@ def revision_body(request, slug, version):
     普通请求 → 返回完整页面（独立页面）
     """
     post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
+    if post.visibility == Post.VISIBILITY_STAFF_ONLY and not can_view_staff_only(request.user):
+        raise Http404("文章不存在")
     parts = version.lstrip('v').split('.')
     if len(parts) != 2 or not all(p.isdigit() for p in parts):
         return HttpResponse('版本号格式无效', status=400)
@@ -392,6 +421,8 @@ def revision_diff(request, slug):
     from .revisions import render_diff as compute_diff
 
     post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
+    if post.visibility == Post.VISIBILITY_STAFF_ONLY and not can_view_staff_only(request.user):
+        raise Http404("文章不存在")
     from_ver = request.GET.get('from', '')
     to_ver = request.GET.get('to', '')
 

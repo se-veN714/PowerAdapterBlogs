@@ -1125,6 +1125,16 @@
     margin-top: 0.25rem;
 }
 
+.comment-delete {
+    margin-top: 0.35rem;
+    padding: 0.1rem 0.45rem;
+    border: 1px solid var(--error-accent);
+    background: transparent;
+    color: var(--error-accent);
+    font: 0.7rem var(--font-mono);
+    cursor: pointer;
+}
+
 /* Comment empty */
 .comment-empty {
     text-align: center;

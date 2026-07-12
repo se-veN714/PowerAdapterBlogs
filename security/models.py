@@ -2,9 +2,6 @@
 from django.contrib.admin.models import LogEntry
 from django.db import models
 from django.utils import timezone
-from django.conf import settings
-
-from comment.models import Comment
 from security.sec_utils.hmac_utils import sm3_hmac
 
 

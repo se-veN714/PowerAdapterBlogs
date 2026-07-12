@@ -15,6 +15,7 @@
 from django import forms
 
 from Blogs.models import Post
+from Blogs.image_validation import validate_uploaded_image
 
 
 class PostForm(forms.ModelForm):
@@ -94,3 +95,9 @@ class PostForm(forms.ModelForm):
         from .models import Tag, Category  # 防止循环导入
         self.fields['tag'].queryset = Tag.objects.all()
         self.fields['category'].queryset = Category.objects.all()
+
+    def clean_cover(self):
+        cover = self.cleaned_data.get('cover')
+        if cover:
+            validate_uploaded_image(cover)
+        return cover

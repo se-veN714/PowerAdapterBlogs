@@ -25,6 +25,7 @@ package-lock.json
 *.swo
 
 # ====== Project-specific ======
+/.local/
 /.venv/
 /sundry/
 /themes/devenir/static/fonts

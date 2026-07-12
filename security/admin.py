@@ -64,5 +64,4 @@ class SecureLogEntryAdmin(DashboardAdminMixin, admin.ModelAdmin):
             if 'secret_key' in locals():
                 secret_key = b"\x00" * len(secret_key)
                 del secret_key
-            print("审计结束")
 

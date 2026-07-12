@@ -48,7 +48,9 @@ Comment app 负责博客评论的提交、审核、展示，以及客户端元�
 |------|------|------|
 | 提交成功 | INFO | comment_id, post_slug, user_id, nickname |
 | 表单验证失败 | WARNING | post_slug, user_id, errors |
+| 触发提交限流 | WARNING | post_slug, user_id；响应 429，不记录评论正文 |
 | 保存异常 | ERROR | post_slug, user_id, error |
+| 作者软删除 | INFO | comment_id, user_id |
 
 ```python
 def form_valid(self, form):
@@ -129,14 +131,9 @@ except PyMongoError as e:
 
 Comment 模型的 `save()` 不需要额外日志。评论创建通过视图层日志覆盖，审核操作通过 `moderate_comment()` 覆盖。
 
-#### E2. Comment.delete()
+#### E2. 评论删除
 
-```python
-# 如果未来实现评论删除（当前可能没有）
-def delete(self, *args, **kwargs):
-    logger.info(f"Comment 删除: comment_id={self.id} post_id={self.post_id}")
-    super().delete(*args, **kwargs)
-```
+当前通过 `CommentDeleteView` 将状态更新为 `DELETED`，保留审核与追溯数据；作者和 superuser 可操作，成功记录 `comment_id` 与 `user_id`。
 
 ---
 

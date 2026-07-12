@@ -4,6 +4,7 @@
 > **职责**: 管理首页 Editorial 板块（Skateboard / Music / Coding 等）  
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
+> **最后更新**: 2026-07-12 — 新增 Board 级权限颗粒度设计
 
 ---
 
@@ -11,6 +12,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-12 | v1.1 | 新增 `PERMISSIONS_GUIDE.md`：Group + BoardMembership + Policy 三层权限建议（尚未实施） |
 | 2026-06-22 | v1.0 | 初始：Board 模型 + 种子数据 + Dashboard 管理 + 上下文处理器 |
 
 ---
@@ -96,6 +98,8 @@ python manage.py seed_boards --dry-run
 - 行内编辑：`sort_order`、`is_active`
 - 颜色预览：列表显示色块 + 颜色值
 - 搜索：name、slug、keywords
+
+> 当前权限仍为全局 `is_dashboard_user`，存在跨 Board 越权风险。目标模型与迁移建议见 [`PERMISSIONS_GUIDE.md`](PERMISSIONS_GUIDE.md)。
 
 ---
 

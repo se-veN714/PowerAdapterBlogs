@@ -6,4 +6,4 @@ class SecurityConfig(AppConfig):
     name = "security"
 
     def ready(self):
-        import security.signals
+        import security.signals  # noqa: F401

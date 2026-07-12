@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -17,6 +18,12 @@ class Comment(models.Model):
 
 
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments', verbose_name="关联文章",default=1)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name="评论者",
+    )
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies',
                                verbose_name="父评论")
 

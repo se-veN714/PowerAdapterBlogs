@@ -4,7 +4,7 @@
 > **职责**: 博客文章 CRUD、分类/标签管理、PV/UV 统计、修订追踪 (v2.0)、可见性控制  
 > **依赖**: Django CBV (ListView/DetailView/CreateView/UpdateView), DRF ViewSet, Redis 缓存  
 > **创建**: 2025-08-04  
-> **最后更新**: 2026-06-22 — P1 修订追踪 + visibility 权限完成
+> **最后更新**: 2026-07-12 — hot_posts visibility 缓存隔离
 
 ---
 
@@ -12,6 +12,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-12 | v2.5 | **上传与权限加固**: 图片恢复 CSRF、登录和角色检查，校验大小/MIME/真实格式/像素；修订端点补 visibility；前台写作入口对齐 dashboard 角色；修复 serializer tags source |
+| 2026-07-12 | v2.4 | **缓存安全**: 公开/内部 hot_posts 分离，公开榜单排除 STAFF_ONLY；补回归测试 |
 | 2026-06-22 | v2.3 | **Dashboard 分行 Action**: rewrap_content_action + rewrap_posts 管理命令 |
 | 2026-06-22 | v2.2 | **Diff 优化**: _word_wrap() 预处理 + backfill_diffs 命令 + diff 布局分离 |
 | 2026-06-22 | v2.0 | **P1 修订追踪**: PostRevision 模型 + 3个API + visibility 权限 + PostForm 字段扩展 |
@@ -576,11 +578,12 @@ flowchart TD
 | Issue | 严重 | 描述 |
 |-------|------|------|
 | PostImage 无 CRUD 视图 | 🟢 低 | 模型已定义，无前端上传/管理界面 |
-| hot_posts 缓存不区分 visibility | 🟡 中 | 缓存 key 单一，STAFF_ONLY 文章可能泄露到公开 hot_posts。**待 P2 修复** |
+| 图片上传安全 | ✅ 已修复 | 正文与封面共用图片校验器；限制 5MB、2500 万像素及 JPEG/PNG/GIF/WEBP，正文上传恢复 CSRF 与 dashboard 权限 |
+| hot_posts 缓存不区分 visibility | ✅ 已修复 | 公开/内部使用独立 cache key，公开榜单强制过滤 STAFF_ONLY，并有回归测试 |
 | PV/UV 非原子操作 | 🟢 低 | `F('pv')+1` 在 Django ORM 中是原子 UPDATE，但 `PostVisit.objects.get_or_create` 存在竞态。当前依赖 `IntegrityError` 降级，可接受 |
 | slug 唯一性由 DB 保证 | 🟢 低 | `save()` 中手动生成 slug，并发创建可能冲突。概率极低 |
 | 修订历史无分页 | 🟢 低 | `revision_list_api` 返回全量版本，文章版本数 < 100 时无问题 |
-| 无单元测试 | 🟡 中 | `tests.py` 为空 |
+| 核心测试覆盖仍有限 | 🟡 中 | 已补 hot_posts visibility 回归测试；修订、权限和访问统计仍需逐步覆盖 |
 
 ---
 

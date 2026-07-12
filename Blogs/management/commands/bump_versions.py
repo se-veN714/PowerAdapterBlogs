@@ -105,7 +105,7 @@ class Command(BaseCommand):
                 post=post,
                 editor=editor,
                 change_type="minor",
-                edit_summary=f"精简：删除末尾段落",
+                edit_summary="精简：删除末尾段落",
             )
 
             self.stdout.write(

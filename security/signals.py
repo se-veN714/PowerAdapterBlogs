@@ -70,6 +70,6 @@ def create_secure_log_entry(sender, instance, created, **kwargs):
     try:
         secret_key = settings.LOG_HMAC_KEY
         SecureLogEntry.compute_from_logentry(instance, secret_key)
-    except Exception as e:
+    except Exception:
         logger.exception(f"SecureLogEntry 同步失败: logentry_id={instance.id} "
                          f"content_type_id={instance.content_type_id}")

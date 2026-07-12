@@ -1,1 +1,365 @@
-"""博客应用的模型定义改模块定义了博客的数据类型，包括博客文章、分类、标签等。Article:博客文章Category:博客文章的分类模型，用于分类博客文章。"""import loggingfrom django.conf import settingsfrom django.core.cache import cachefrom django.db import modelsfrom django.urls.base import reversefrom django.utils.functional import cached_propertyfrom django.utils.text import slugify# Create your models here.logger = logging.getLogger(__name__)class Category(models.Model):    # 状态字段    STATUS_NORMAL = 1    STATUS_DELETE = 0    STATUS_ITEMS = (        (STATUS_NORMAL, "正常"),        (STATUS_DELETE, "删除"),    )    # 基本信息字段    name = models.CharField(max_length=50, verbose_name="名称")    status = models.PositiveIntegerField(default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态")    is_nav = models.BooleanField(default=False, verbose_name="是否为导航")    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="作者")    created_time = models.DateTimeField(auto_now_add=True)    def __str__(self):        return self.name    class Meta:        verbose_name = verbose_name_plural = "分类"        permissions = [            ("manage_category", "可管理分类"),        ]       @classmethod    def get_navs(cls):        categories = cls.objects.filter(status=cls.STATUS_NORMAL)        nav_categories = []        normal_categories = []        for category in categories:            if category.is_nav:                nav_categories.append(category)            else:                normal_categories.append(category)        return {            "categories": normal_categories,            "cate_navs": nav_categories,        }class Tag(models.Model):    # 状态字段    STATUS_NORMAL = 1    STATUS_DELETE = 0    STATUS_ITEMS = (        (STATUS_NORMAL, "正常"),        (STATUS_DELETE, "删除"),    )    # 基本信息字段    name = models.CharField(max_length=50, verbose_name="名称")    status = models.PositiveIntegerField(default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态")    is_nav = models.BooleanField(default=False, verbose_name="是否为导航")    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="作者")    created_time = models.DateTimeField(auto_now_add=True)    def __str__(self):        return self.name    class Meta:        verbose_name = verbose_name_plural = "标签"        permissions = [            ("manage_tag", "可管理标签"),        ]class Post(models.Model):    # 状态字段    STATUS_DELETE = 0    STATUS_NORMAL = 1    STATUS_DRAFT = 2    STATUS_REVIEW = 3    STATUS_ITEMS = (        (STATUS_DELETE, "删除"),        (STATUS_NORMAL, "已发布"),        (STATUS_DRAFT, "草稿"),        (STATUS_REVIEW, "审核中"),    )    # 可见性    VISIBILITY_PUBLIC = 0    VISIBILITY_STAFF_ONLY = 1    VISIBILITY_ITEMS = (        (VISIBILITY_PUBLIC, "公开"),        (VISIBILITY_STAFF_ONLY, "仅 staff 可见"),    )    # 文章基本内容    title = models.CharField(max_length=255, verbose_name="标题")    desc = models.CharField(max_length=1024, blank=True, verbose_name="摘要")    content = models.TextField(verbose_name="正文", help_text="正文必须为 Markdown 格式")    status = models.PositiveIntegerField(default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态")    visibility = models.PositiveIntegerField(        default=VISIBILITY_PUBLIC, choices=VISIBILITY_ITEMS, verbose_name="可见性"    )    # 文章基本信息    slug = models.SlugField(max_length=255, unique=True, verbose_name="slug", blank=True)    category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="分类")    tag = models.ManyToManyField(Tag, related_name="posts", verbose_name="标签")    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="作者")    cover = models.ImageField(upload_to='post-covers/%Y/%m/', blank=True, null=True, verbose_name="封面")    pv = models.PositiveIntegerField(default=0, verbose_name="页面访问")    # uv 是 PostVisit 的去冗余缓存字段，方便快速排序/展示（如 hot_posts）。    # 真实 UV 数据源在 PostVisit（visit_type=0），可通过 get_uv_count() 实时计算。    uv = models.PositiveIntegerField(default=0, verbose_name="用户访问")    # 文章时间戳    created_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")    update_time = models.DateTimeField(auto_now=True, verbose_name="上次修改时间")    def __str__(self):        return self.title    class Meta:        verbose_name = verbose_name_plural = "文章"        ordering = ['-created_time']        indexes = [            models.Index(fields=['status', '-pv'], name='pv_status_idx', ),        ]        permissions = [            ("publish_post", "可发布/下架文章"),            ("review_post", "可审核文章内容"),        ]    def save(self, *args, **kwargs):        if not self.slug:            # 生成base_slug            base_slug = slugify(self.title)            unique_slug = f"{base_slug}-{self.pk}"            counter = 0            while Post.objects.filter(slug=unique_slug).exists():                unique_slug = f"{base_slug}-{counter}"                counter += 1            self.slug = unique_slug        super().save(*args, **kwargs)    def get_absolute_url(self):        return reverse("Blogs:post_detail", kwargs={"slug": self.slug})    @staticmethod    def get_by_tag(tag_id):        """        该方法通过 标签id 过滤所需文章        :param tag_id: 标签id        :return: (标签文章QuerySet, 标签对象)        """        try:            tag = Tag.objects.get(id=tag_id)        except Tag.DoesNotExist:            return None, None        # ManyToMany: 通过 related_name='posts' 反向查询        posts = tag.posts.filter(status=Post.STATUS_NORMAL).select_related("owner", "category")        return posts, tag    def get_uv_count(self):        """从 PostVisit 实时计算 UV（visit_type=0），用于校验 uv 缓存字段。"""        return PostVisit.objects.filter(post=self, visit_type=PostVisit.UV_VISIT).count()    @classmethod    def sync_uv_from_visits(cls, post_id=None):        """        将 PostVisit 的真实 UV 数据同步到 Post.uv 缓存字段。        :param post_id: 可选，指定同步某篇文章；不传则全量同步。        """        posts = cls.objects.filter(status=cls.STATUS_NORMAL)        if post_id:            posts = posts.filter(id=post_id)        for post in posts:            real_uv = post.get_uv_count()            if post.uv != real_uv:                post.uv = real_uv                post.save(update_fields=['uv'])    @classmethod    def get_by_category(cls, cate_id):        """        该方法通过 分类id 过滤所需文章        :param category_id: 分类id        :return: 分类文章        """        return cls.objects.filter(category_id=cate_id)    @cached_property    def tags(self):        return ','.join(self.tag.values_list("name", flat=True))    @classmethod    def get_normal_posts(cls):        return cls.objects.filter(status=Post.STATUS_NORMAL)    @classmethod    def get_by_id(cls, post_id):        return cls.objects.get(id=post_id)    @classmethod    def latest_posts(cls, num=5, with_related=True):        """        :return: 返回最近投稿的文章        """        return cls.objects.filter(status=cls.STATUS_NORMAL).order_by('-created_time')[:num]    @classmethod    def hot_posts(cls, with_related=True):        """        :return: 返回最多访问的文章--只返回标题和id        """        result = cache.get('hot_posts')        if not result:            result = cls.objects.filter(status=cls.STATUS_NORMAL).order_by('-pv').only("title", "id")[:3]            cache.set('hot_posts', result, 10 * 60)        return resultclass PostVisit(models.Model):    # 访问方式    UV_VISIT = 0    PV_VISIT = 1    STATUS_ITEMS = (        (UV_VISIT, "用户访问"),        (PV_VISIT, "页面访问"),    )    uid = models.CharField(max_length=64, db_index=True)    post = models.ForeignKey(Post, on_delete=models.CASCADE)    visit_type = models.PositiveIntegerField(default=UV_VISIT, choices=STATUS_ITEMS, verbose_name="访问模式")    created_time = models.DateTimeField(auto_now_add=True)    class Meta:        unique_together = ('uid', 'post', 'visit_type')  # 保证每个用户对同一篇文章只计一次 UVclass PostRevision(models.Model):    """文章修订快照 — v2.0 与 Post 共存，v2.1 后成为内容唯一来源"""    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='revisions')    # 语义化版本号    major = models.PositiveSmallIntegerField(default=1, verbose_name="大版本")    minor = models.PositiveSmallIntegerField(default=0, verbose_name="小修订")    version = models.CharField(max_length=16, editable=False, verbose_name="版本号")  # "1.0", "2.3"    # 内容快照（v2.1 后成为唯一内容来源）    title = models.CharField(max_length=255, verbose_name="标题快照")    desc = models.CharField(max_length=1024, blank=True, verbose_name="摘要快照")    content = models.TextField(verbose_name="正文快照")    slug = models.SlugField(max_length=255, verbose_name="slug快照")    # 版本元信息    editor = models.ForeignKey(        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="编辑者"    )    change_type = models.CharField(        max_length=16,        choices=[('major', '大版本'), ('minor', '小修订')],        verbose_name="变更类型",    )    edit_summary = models.CharField(max_length=200, blank=True, verbose_name="编辑摘要")    # 预计算的 diff（与前一个版本的 HTML 差异，v1.0 为 None）    diff_from_previous = models.TextField(blank=True, null=True, verbose_name="与上一版本差异")    created_at = models.DateTimeField(auto_now_add=True, verbose_name="快照时间")    class Meta:        unique_together = ('post', 'major', 'minor')        ordering = ['-major', '-minor']        verbose_name = verbose_name_plural = "文章修订"    def __str__(self):        return f"{self.post.title} - v{self.version}"    def save(self, *args, **kwargs):        self.version = f"{self.major}.{self.minor}"        super().save(*args, **kwargs)class PostImage(models.Model):    STATUS_NORMAL = 1    STATUS_DELETE = 0    STATUS_ITEMS = (        (STATUS_NORMAL, "正常"),        (STATUS_DELETE, "隐藏"),    )    post = models.ForeignKey(Post, on_delete=models.CASCADE)    post_image = models.ImageField(upload_to="post_images/%Y/%m/")    alt_text = models.CharField(max_length=255, blank=True, null=True, default='Post-Image')    position = models.PositiveIntegerField(default=0)    def __str__(self):        return f"{self.post.title} - {self.post_image.name}"
+"""
+博客应用的模型定义
+改模块定义了博客的数据类型，包括博客文章、分类、标签等。
+
+Article:博客文章
+Category:博客文章的分类模型，用于分类博客文章。
+"""
+
+import logging
+
+from django.conf import settings
+from django.core.cache import cache
+from django.db import models
+from django.urls.base import reverse
+from django.utils.functional import cached_property
+from django.utils.text import slugify
+
+# Create your models here.
+
+logger = logging.getLogger(__name__)
+
+
+class Category(models.Model):
+    # 状态字段
+    STATUS_NORMAL = 1
+    STATUS_DELETE = 0
+    STATUS_ITEMS = (
+        (STATUS_NORMAL, "正常"),
+        (STATUS_DELETE, "删除"),
+    )
+    # 基本信息字段
+    name = models.CharField(max_length=50, verbose_name="名称")
+    status = models.PositiveIntegerField(
+        default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态"
+    )
+    is_nav = models.BooleanField(default=False, verbose_name="是否为导航")
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="作者"
+    )
+    created_time = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = verbose_name_plural = "分类"
+        permissions = [
+            ("manage_category", "可管理分类"),
+        ]
+
+    @classmethod
+    def get_navs(cls):
+        categories = cls.objects.filter(status=cls.STATUS_NORMAL)
+        nav_categories = []
+        normal_categories = []
+
+        for category in categories:
+            if category.is_nav:
+                nav_categories.append(category)
+            else:
+                normal_categories.append(category)
+
+        return {
+            "categories": normal_categories,
+            "cate_navs": nav_categories,
+        }
+
+
+class Tag(models.Model):
+    # 状态字段
+    STATUS_NORMAL = 1
+    STATUS_DELETE = 0
+    STATUS_ITEMS = (
+        (STATUS_NORMAL, "正常"),
+        (STATUS_DELETE, "删除"),
+    )
+    # 基本信息字段
+    name = models.CharField(max_length=50, verbose_name="名称")
+    status = models.PositiveIntegerField(
+        default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态"
+    )
+    is_nav = models.BooleanField(default=False, verbose_name="是否为导航")
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="作者"
+    )
+    created_time = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = verbose_name_plural = "标签"
+        permissions = [
+            ("manage_tag", "可管理标签"),
+        ]
+
+
+class Post(models.Model):
+    # 状态字段
+    STATUS_DELETE = 0
+    STATUS_NORMAL = 1
+    STATUS_DRAFT = 2
+    STATUS_REVIEW = 3
+    STATUS_ITEMS = (
+        (STATUS_DELETE, "删除"),
+        (STATUS_NORMAL, "已发布"),
+        (STATUS_DRAFT, "草稿"),
+        (STATUS_REVIEW, "审核中"),
+    )
+
+    # 可见性
+    VISIBILITY_PUBLIC = 0
+    VISIBILITY_STAFF_ONLY = 1
+    VISIBILITY_ITEMS = (
+        (VISIBILITY_PUBLIC, "公开"),
+        (VISIBILITY_STAFF_ONLY, "仅 staff 可见"),
+    )
+
+    # 文章基本内容
+    title = models.CharField(max_length=255, verbose_name="标题")
+    desc = models.CharField(max_length=1024, blank=True, verbose_name="摘要")
+    content = models.TextField(
+        verbose_name="正文", help_text="正文必须为 Markdown 格式"
+    )
+    status = models.PositiveIntegerField(
+        default=STATUS_NORMAL, choices=STATUS_ITEMS, verbose_name="状态"
+    )
+    visibility = models.PositiveIntegerField(
+        default=VISIBILITY_PUBLIC, choices=VISIBILITY_ITEMS, verbose_name="可见性"
+    )
+
+    # 文章基本信息
+    slug = models.SlugField(
+        max_length=255, unique=True, verbose_name="slug", blank=True
+    )
+    category = models.ForeignKey(
+        Category, on_delete=models.CASCADE, verbose_name="分类"
+    )
+    tag = models.ManyToManyField(Tag, related_name="posts", verbose_name="标签")
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="作者"
+    )
+    cover = models.ImageField(
+        upload_to="post-covers/%Y/%m/", blank=True, null=True, verbose_name="封面"
+    )
+    pv = models.PositiveIntegerField(default=0, verbose_name="页面访问")
+    # uv 是 PostVisit 的去冗余缓存字段，方便快速排序/展示（如 hot_posts）。
+    # 真实 UV 数据源在 PostVisit（visit_type=0），可通过 get_uv_count() 实时计算。
+    uv = models.PositiveIntegerField(default=0, verbose_name="用户访问")
+
+    # 文章时间戳
+    created_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    update_time = models.DateTimeField(auto_now=True, verbose_name="上次修改时间")
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name = verbose_name_plural = "文章"
+        ordering = ["-created_time"]
+        indexes = [
+            models.Index(
+                fields=["status", "-pv"],
+                name="pv_status_idx",
+            ),
+        ]
+        permissions = [
+            ("publish_post", "可发布/下架文章"),
+            ("review_post", "可审核文章内容"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            # 生成base_slug
+            base_slug = slugify(self.title)
+            unique_slug = f"{base_slug}-{self.pk}"
+            counter = 0
+            while Post.objects.filter(slug=unique_slug).exists():
+                unique_slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = unique_slug
+
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        return reverse("Blogs:post_detail", kwargs={"slug": self.slug})
+
+    @staticmethod
+    def get_by_tag(tag_id):
+        """
+        该方法通过 标签id 过滤所需文章
+        :param tag_id: 标签id
+        :return: (标签文章QuerySet, 标签对象)
+        """
+        try:
+            tag = Tag.objects.get(id=tag_id)
+        except Tag.DoesNotExist:
+            return None, None
+        # ManyToMany: 通过 related_name='posts' 反向查询
+        posts = tag.posts.filter(status=Post.STATUS_NORMAL).select_related(
+            "owner", "category"
+        )
+        return posts, tag
+
+    def get_uv_count(self):
+        """从 PostVisit 实时计算 UV（visit_type=0），用于校验 uv 缓存字段。"""
+        return PostVisit.objects.filter(
+            post=self, visit_type=PostVisit.UV_VISIT
+        ).count()
+
+    @classmethod
+    def sync_uv_from_visits(cls, post_id=None):
+        """
+        将 PostVisit 的真实 UV 数据同步到 Post.uv 缓存字段。
+        :param post_id: 可选，指定同步某篇文章；不传则全量同步。
+        """
+        posts = cls.objects.filter(status=cls.STATUS_NORMAL)
+        if post_id:
+            posts = posts.filter(id=post_id)
+        for post in posts:
+            real_uv = post.get_uv_count()
+            if post.uv != real_uv:
+                post.uv = real_uv
+                post.save(update_fields=["uv"])
+
+    @classmethod
+    def get_by_category(cls, cate_id):
+        """
+        该方法通过 分类id 过滤所需文章
+        :param category_id: 分类id
+        :return: 分类文章
+        """
+        return cls.objects.filter(category_id=cate_id)
+
+    @cached_property
+    def tags(self):
+        return ",".join(self.tag.values_list("name", flat=True))
+
+    @classmethod
+    def get_normal_posts(cls):
+        return cls.objects.filter(status=Post.STATUS_NORMAL)
+
+    @classmethod
+    def get_by_id(cls, post_id):
+        return cls.objects.get(id=post_id)
+
+    @classmethod
+    def latest_posts(cls, num=5, with_related=True):
+        """
+        :return: 返回最近投稿的文章
+        """
+        return cls.objects.filter(status=cls.STATUS_NORMAL).order_by("-created_time")[
+            :num
+        ]
+
+    @classmethod
+    def hot_posts(cls, with_related=True, include_staff_only=False):
+        """
+        :return: 返回最多访问的文章--只返回标题和id
+        """
+        cache_key = "hot_posts:staff" if include_staff_only else "hot_posts:public"
+        result = cache.get(cache_key)
+        if not result:
+            queryset = cls.objects.filter(status=cls.STATUS_NORMAL)
+            if not include_staff_only:
+                queryset = queryset.filter(visibility=cls.VISIBILITY_PUBLIC)
+            result = list(queryset.order_by("-pv").only("title", "id")[:3])
+            cache.set(cache_key, result, 10 * 60)
+        return result
+
+
+class PostVisit(models.Model):
+    # 访问方式
+    UV_VISIT = 0
+    PV_VISIT = 1
+
+    STATUS_ITEMS = (
+        (UV_VISIT, "用户访问"),
+        (PV_VISIT, "页面访问"),
+    )
+
+    uid = models.CharField(max_length=64, db_index=True)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    visit_type = models.PositiveIntegerField(
+        default=UV_VISIT, choices=STATUS_ITEMS, verbose_name="访问模式"
+    )
+    created_time = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (
+            "uid",
+            "post",
+            "visit_type",
+        )  # 保证每个用户对同一篇文章只计一次 UV
+
+
+class PostRevision(models.Model):
+    """文章修订快照 — v2.0 与 Post 共存，v2.1 后成为内容唯一来源"""
+
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="revisions")
+
+    # 语义化版本号
+    major = models.PositiveSmallIntegerField(default=1, verbose_name="大版本")
+    minor = models.PositiveSmallIntegerField(default=0, verbose_name="小修订")
+    version = models.CharField(
+        max_length=16, editable=False, verbose_name="版本号"
+    )  # "1.0", "2.3"
+
+    # 内容快照（v2.1 后成为唯一内容来源）
+    title = models.CharField(max_length=255, verbose_name="标题快照")
+    desc = models.CharField(max_length=1024, blank=True, verbose_name="摘要快照")
+    content = models.TextField(verbose_name="正文快照")
+    slug = models.SlugField(max_length=255, verbose_name="slug快照")
+
+    # 版本元信息
+    editor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name="编辑者",
+    )
+    change_type = models.CharField(
+        max_length=16,
+        choices=[("major", "大版本"), ("minor", "小修订")],
+        verbose_name="变更类型",
+    )
+    edit_summary = models.CharField(max_length=200, blank=True, verbose_name="编辑摘要")
+
+    # 预计算的 diff（与前一个版本的 HTML 差异，v1.0 为 None）
+    diff_from_previous = models.TextField(
+        blank=True, null=True, verbose_name="与上一版本差异"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="快照时间")
+
+    class Meta:
+        unique_together = ("post", "major", "minor")
+        ordering = ["-major", "-minor"]
+        verbose_name = verbose_name_plural = "文章修订"
+
+    def __str__(self):
+        return f"{self.post.title} - v{self.version}"
+
+    def save(self, *args, **kwargs):
+        self.version = f"{self.major}.{self.minor}"
+        super().save(*args, **kwargs)
+
+
+class PostImage(models.Model):
+    STATUS_NORMAL = 1
+    STATUS_DELETE = 0
+    STATUS_ITEMS = (
+        (STATUS_NORMAL, "正常"),
+        (STATUS_DELETE, "隐藏"),
+    )
+
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    post_image = models.ImageField(upload_to="post_images/%Y/%m/")
+    alt_text = models.CharField(
+        max_length=255, blank=True, null=True, default="Post-Image"
+    )
+    position = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.post.title} - {self.post_image.name}"

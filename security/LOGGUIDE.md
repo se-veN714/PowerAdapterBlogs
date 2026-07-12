@@ -40,6 +40,8 @@ Security app 负责两套审计日志体系的防篡改保护：
 1. **PostgreSQL 链**：`LogEntry → SecureLogEntry`（SM3-HMAC 签名）
 2. **MongoDB 链**：`MongoLogger` 评论审核审计日志（SM3-HMAC 签名）
 
+旧 Django ORM `CommentEventLog` 已在迁移 `0003_delete_commenteventlog` 中删除；当前评论 Admin action 和审核服务统一走 `moderate_comment() → MongoLogger`。
+
 **注意**：这里的"应用日志"和"审计日志"是两个不同概念 — 本条指南讲的是应用日志（排查问题用），不是审计日志（防篡改用）。审计日志的完整性由 `verify_log()` / `audit_all()` 保证。
 
 ---
@@ -69,18 +71,9 @@ def on_log_entry_created(sender, instance, created, **kwargs):
 
 > 正常同步不要打日志 — 每个 Django Admin 操作都触发（编辑/删除/创建），日志洪水。
 
-#### A2. pre_delete SecureLogEntry 联动
+#### A2. pre_save / pre_delete 不可变性保护
 
-Django Admin `LogEntry` 删除（极少发生）不应独立删除对应的 `SecureLogEntry`。如有联动删除逻辑，记录：
-
-```python
-@receiver(pre_delete, sender=LogEntry)
-def on_log_entry_deleted(sender, instance, **kwargs):
-    try:
-        SecureLogEntry.objects.filter(logentry=instance).delete()
-    except Exception as e:
-        logger.exception(f"SecureLogEntry 清理失败: logentry_id={instance.id}")
-```
+非 superuser 修改或删除 `LogEntry`、删除 `SecureLogEntry` 时直接抛出 `PermissionDenied`。这是安全拒绝，不额外记录敏感内容；对应修改与删除路径已有回归测试。
 
 ### B. 服务层 (services.py)
 

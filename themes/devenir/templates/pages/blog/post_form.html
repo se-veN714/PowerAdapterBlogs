@@ -137,9 +137,19 @@
                 var formData = new FormData();
                 var uploadUrl = "{% url 'Blogs:post_img_upload' %}";
                 formData.append('image', blob);
-                fetch(uploadUrl, { method: 'POST', body: formData })
-                    .then(function(res) { return res.json(); })
-                    .then(function(data) { callback(data.url); })
+                var csrfToken = document.querySelector('[name="csrfmiddlewaretoken"]').value;
+                fetch(uploadUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {'X-CSRFToken': csrfToken}
+                })
+                    .then(function(res) {
+                        return res.json().then(function(data) {
+                            if (!res.ok) throw new Error(data.error || '上传失败');
+                            return data;
+                        });
+                    })
+                    .then(function(data) { callback(data.url, blob.name || '图片'); })
                     .catch(function(err) { console.error(err); });
                 return false;
             });

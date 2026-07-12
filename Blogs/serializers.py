@@ -22,6 +22,7 @@ class PostSerializer(serializers.ModelSerializer):
         slug_field='name',
     )
     tags = serializers.SlugRelatedField(
+        source='tag',
         many=True,
         read_only=True,
         slug_field='name',

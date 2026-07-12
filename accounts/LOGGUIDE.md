@@ -61,7 +61,8 @@ logger.warning(f"User 注册失败: reason={reason}")
 |------|------|------|
 | 登录成功 | INFO | user_id |
 | 登录失败 | WARNING | 用户名（非邮箱），失败原因（密码错误/用户不存在） |
-| 连续失败 | WARNING | 用户名，连续失败次数（暴力破解检测） |
+| 连续失败 | WARNING | 用户名，连续失败次数 |
+| 达到锁定阈值 | WARNING | 用户名；默认锁定 15 分钟 |
 
 ```python
 # 登录成功
@@ -70,11 +71,14 @@ logger.info(f"User 登录: user_id={user.id}")
 # 登录失败
 logger.warning(f"User 登录失败: username={username} reason=invalid_password")
 
-# 连续失败（如 3 次）
-logger.warning(f"User 连续登录失败: username={username} attempts={attempt_count}")
+# 连续失败
+logger.warning("User 登录失败: username=%s reason=invalid_password attempts=%s", username, attempts)
+
+# 已锁定
+logger.warning("User 登录锁定: username=%s", username)
 ```
 
-> 如果需要反暴力破解：连续 5 次失败后打 `WARNING`，10 次后考虑临时锁定。
+> 已实现反暴力破解：按“用户名 + 客户端 IP”的 SHA-256 cache key 计数；默认失败 5 次后锁定 15 分钟，成功登录清零。日志不得记录 cache key 或密码。
 
 ### C. 登出
 

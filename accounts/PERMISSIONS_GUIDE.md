@@ -1,0 +1,419 @@
+# Accounts 权限颗粒度设计指南（Board Scope）
+
+> **文档权重**：90（当前 Board Scope 权限与 `accounts_linear` 主设计）
+> **归档模块**：`accounts/`
+> **主要作用域**：`boards.Board`
+> **状态**：`accounts_linear` 阶段 0–2 已完成；Policy 与运行时入口尚未接入
+> **日期**：2026-07-19（明确 Group、跨 App Board Scope 与 Board 创建边界）
+> **目标**：以后续功能围绕 Board 展开，在不引入第三方对象权限库的前提下实现最小权限、职责分离和可测试的板块级授权。
+
+## 1. 当前问题
+
+当前 `BoardAdmin` 继承 `DashboardAdminMixin`，实际权限只有一个全局开关：
+
+```text
+is_dashboard_user=True → 可以查看、新增、修改所有 Board
+is_superuser=True      → 可以删除 Board
+```
+
+这无法表达“只能管理某个板块”“能投稿但不能改视觉配置”“能审核他人文章但不能审核自己”等对象级规则。Board 与 Post 目前通过 `Board.category → Post.category` 间接关联，Comment 再通过 Post 继承板块归属，也需要在权限策略中明确跨 App 归属。
+
+本项目的 Board 不是可由业务用户动态扩张的论坛分区。每个新 Board 都伴随独立的模板、SVG、CSS 或 JavaScript，因此新增和删除 Board 属于代码结构变更，只允许 superuser；`BoardCreators` 全局 Group 不再进入设计。
+
+## 2. 推荐的三层授权模型
+
+```mermaid
+flowchart TD
+    USER["MyUser"] --> GROUP["Django Group<br/>仅全站职责"]
+    USER --> MEMBERSHIP["BoardMembership<br/>板块角色的唯一事实来源"]
+    GROUP --> GLOBAL["全局 Permission<br/>账号管理 / 审计"]
+    MEMBERSHIP --> POLICY["Board Policy<br/>跨 App 对象授权"]
+    BOARD["boards.Board"] --> POLICY
+    POST["Blogs.Post<br/>经 Category 归属 Board"] --> POLICY
+    COMMENT["comment.Comment<br/>经 Post 继承 Board"] --> POLICY
+    GLOBAL --> ENTRY["全局 Admin / Service"]
+    POLICY --> ENTRY2["Board / Post / Comment<br/>View / API / Admin / htmx"]
+```
+
+| 层级 | 职责 | 示例 |
+|---|---|---|
+| Group | 仅承载不带 Board 范围的全站职责 | `SiteOperators`、`UserManagers` |
+| Permission | 全局模型或运维动作能力 | `security.run_integrity_audit`、`accounts.manage_user_accounts` |
+| BoardMembership | 用户在某个 Board 内是什么角色 | Coding 的 Editor、Music 的 Reviewer |
+| Policy | 结合板块角色、对象归属、作者和状态作最终判断 | 只能编辑所属 Board 的文章 |
+
+`is_active`、`is_staff`、`is_superuser` 保留 Django 原生语义；`is_dashboard_user` 暂时只作为 dashboard 入口开关，不再代表具体业务权限。`is_reviewer` 在迁移完成后可删除。
+
+## 3. 建议数据模型
+
+```python
+class BoardMembership(models.Model):
+    class Role(models.TextChoices):
+        CONTRIBUTOR = 'contributor', '投稿者'
+        EDITOR = 'editor', '编辑者'
+        REVIEWER = 'reviewer', '审核者'
+        MANAGER = 'manager', '板块管理员'
+
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name='memberships')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             related_name='board_memberships')
+    role = models.CharField(max_length=16, choices=Role.choices)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL,
+                                   related_name='created_board_memberships')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['board', 'user'], name='unique_board_member'),
+        ]
+```
+
+第一阶段继续使用 `Board.category` 判断文章所属板块。若未来一个分类可进入多个 Board，或一篇文章可跨板块展示，再增加明确的 `Post.board` 或中间表，不要长期依赖隐式推断。
+
+## 4. 板块内角色建议
+
+| 能力 | 普通用户 | Contributor | Editor | Reviewer | Manager | SiteOperator | superuser |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 查看公开板块/文章 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 在所属板块投稿 | — | ✅ | ✅ | — | ✅ | — | ✅ |
+| 编辑自己的草稿 | — | ✅ | ✅ | — | ✅ | — | ✅ |
+| 编辑自己已提交/发布的文章 | — | — | ✅，发布内容回退草稿 | — | ✅，发布内容回退草稿 | — | ✅ |
+| 编辑他人正文 | — | — | ⚠️ 可选 | — | ✅ | — | ✅ |
+| 提交审核 | — | ✅ | ✅ | — | ✅ | — | ✅ |
+| 查看所属板块审核队列 | — | — | — | ✅ | ✅ | — | ✅ |
+| 通过/驳回他人文章 | — | — | — | ✅ | ✅ | — | ✅ |
+| 审核自己的文章 | — | — | — | ❌ | ❌ | — | ✅ |
+| 管理评论 | — | — | — | ✅ | ✅ | — | ✅ |
+| 修改 Board 运营文案/关键词 | — | — | — | — | ✅ | — | ✅ |
+| 修改 Board slug/前端代码绑定 | — | — | — | — | ❌ | — | ✅ |
+| 管理板块成员 | — | — | — | — | ✅ | — | ✅ |
+| 查看/运行全站审计 | — | — | — | — | — | ✅ | ✅ |
+| 创建/删除 Board | — | — | — | — | ❌ | ❌ | ✅ |
+
+建议默认不允许 Editor 修改他人正文；需要协作编辑时再单独开放，并保留修订记录。Reviewer 只负责审核，不能直接改正文。
+
+## 5. 建议 Permission 划分
+
+### Boards
+
+```text
+boards.apply_board_access
+boards.view_board_dashboard
+boards.change_board_settings
+boards.activate_board
+boards.manage_board_members
+```
+
+Board 的新增和删除不通过 Group 分配：只使用 superuser 边界。上述 Board 内 codename 是 Policy 动作标识，不表示要把 Contributor / Editor / Reviewer / Manager 写入 Django Group。
+
+### Blogs
+
+```text
+Blogs.create_board_post
+Blogs.change_own_board_post
+Blogs.change_any_board_post
+Blogs.submit_board_post
+Blogs.view_board_review_queue
+Blogs.review_board_post
+Blogs.publish_board_post
+Blogs.unpublish_board_post
+Blogs.view_staff_post
+```
+
+### Comment / Security
+
+```text
+comment.moderate_board_comment
+security.view_audit_log
+security.run_integrity_audit
+```
+
+### Accounts
+
+```text
+accounts.manage_user_accounts
+```
+
+Django 自带的 `add/change/delete/view` 权限继续保留；自定义权限用于表达业务语义，避免把 `change_post` 同时解释成编辑、审核和发布。
+
+## 6. 统一 Policy 建议
+
+所有 View、API、Admin 和模板调用同一组纯函数，避免重复手写布尔判断：
+
+```python
+can_access_dashboard(user)
+get_board_role(user, board)
+can_create_post(user, board)
+can_edit_post(user, post)
+can_submit_post(user, post)
+can_review_post(user, post)
+can_manage_comments(user, board)
+can_change_board_settings(user, board)
+can_manage_board_members(user, board)
+```
+
+关键约束：
+
+```python
+def can_review_post(user, post):
+    board = board_for_post(post)
+    return (
+        user.is_superuser
+        or (
+            get_board_role(user, board) in {'reviewer', 'manager'}
+            and post.owner_id != user.id
+        )
+    )
+```
+
+权限失败对外统一返回 403；隐藏内容和 STAFF_ONLY 内容为避免泄露是否存在，继续返回 404。
+
+## 7. Django Group / Permission 如何与 Board 权限协作
+
+Django 原生授权和板块授权解决的是两个不同维度：
+
+| 组件 | 回答的问题 | 是否带 Board 范围 |
+|---|---|:---:|
+| `Permission` | 系统中是否定义了某个动作 | ❌ |
+| `Group.permissions` | 哪类全局角色默认获得哪些动作 | ❌ |
+| `user_permissions` | 某个用户的少量例外授权 | ❌ |
+| `BoardMembership` | 用户在某个 Board 中担任什么角色 | ✅ |
+| Policy | 此用户现在能否对这个对象执行该动作 | ✅，最终裁决 |
+
+Django 的 `user.has_perm()` 默认只判断全局权限。即使 Permission 的名字包含 `board`，它也不会自动理解“只能操作 Coding Board”。因此任何 Board 对象操作都不能只调用 `has_perm()`；必须进入统一 Policy，并同时检查对象所属 Board。
+
+### 7.1 推荐协作规则
+
+1. `Group` 只打包真正跨 Board 的全局职责，不表示任何板块角色，也不为每个 Board 动态创建 Group。
+2. `BoardMembership.role` 是板块内角色的唯一事实来源，负责 Contributor / Editor / Reviewer / Manager。
+3. Policy 先处理 `is_active` 与 `is_superuser`，再根据动作分别检查全局 Permission 或 BoardMembership。
+4. Board 范围内的编辑、审核、成员管理必须命中相应 Membership；拥有同名全局 Permission 也不能绕过范围检查。
+5. `user_permissions` 只用于临时或极少量全局例外，不用于代替 Membership。
+
+推荐的全局 Group：
+
+| Group | 用途 |
+|---|---|
+| `SiteOperators` | 查看并运行审计，不具备文章或成员管理权 |
+| `UserManagers` | 激活账号、分配板块成员；不能授予 superuser/staff |
+| `VerifiedUsers` | 邮箱验证后的基础组，可提交 Board 权限申请；不直接获得任何 Board 操作权 |
+
+Contributor、Editor、Reviewer、Manager 属于板块内角色，应放在 `BoardMembership.role`，否则用户加入 `Editors` Group 后会自动获得所有板块的编辑能力，违反最小权限原则。
+
+### 7.2 权限配置的实际交互
+
+```mermaid
+flowchart LR
+    SU["superuser"] -->|创建并维护| GROUP["Django Group<br/>SiteOperators / UserManagers / VerifiedUsers"]
+    SU -->|把 Permission 加入 Group| GPERM["Group.permissions"]
+    GROUP --> GPERM
+    SU -->|分配全局职责| UGROUP["MyUser.groups"]
+    GPERM --> GLOBAL["全局动作资格<br/>user.has_perm()"]
+    UGROUP --> GLOBAL
+
+    SU -->|建立或复核| MEMBER["BoardMembership"]
+    SU -->|独占新增 / 删除| BOARD["Board<br/>新板块意味着新前端代码"]
+    MANAGER["Board Manager"] -->|仅管理自己的 Board| MEMBER
+    MEMBER --> ROLE["板块角色与作用域<br/>board + user + role + is_active"]
+
+    GLOBAL --> POLICY["boards/policies.py"]
+    ROLE --> POLICY
+    OBJECT["Board / Post / Comment"] -->|解析所属 Board| POLICY
+    POLICY --> RESULT{"允许操作?"}
+    RESULT -->|是| ALLOW["执行并写审计日志"]
+    RESULT -->|否| DENY["403；敏感对象使用 404"]
+```
+
+职责边界：
+
+- superuser 维护 Group、Group 中的 Permission，以及用户的全局 Group 归属。
+- Manager 只能在自己管理的 Board 中增删 Membership，不能分配 Group、`user_permissions`、`is_staff` 或 `is_superuser`。
+- Group 变化只影响全局职责；Membership 变化只影响指定 Board 及其关联的 Post / Comment。
+- 两类配置都只提供 Policy 输入，不能绕过 Policy 直接授权对象操作。
+
+### 7.3 一次请求中的实际判定顺序
+
+```mermaid
+sequenceDiagram
+    actor User as 已登录用户
+    participant Entry as Admin / View / API
+    participant Auth as Django Auth Backend
+    participant Object as Board Object Resolver
+    participant Member as BoardMembership
+    participant Policy as boards/policies.py
+    participant Audit as MongoDB HMAC Audit
+
+    User->>Entry: 请求执行 action(object)
+    Entry->>Policy: can_action(user, object)
+    Policy->>Policy: 检查 authenticated / is_active
+    alt user.is_superuser
+        Policy-->>Entry: allow（应急全权路径）
+    else 全局动作
+        Policy->>Auth: user.has_perm(codename)
+        Auth->>Auth: 合并 user_permissions + Group.permissions
+        Auth-->>Policy: True / False
+        Policy-->>Entry: allow / deny
+    else Board 范围动作
+        Policy->>Object: board_for_object(object)
+        Object-->>Policy: board
+        Policy->>Member: 查询 active membership(user, board)
+        Member-->>Policy: role / None
+        Policy->>Policy: 校验角色、owner、自审限制、对象状态
+        Policy-->>Entry: allow / deny
+    end
+    alt 允许且属于敏感操作
+        Entry->>Audit: 记录主体、Board、动作与结果
+    else 拒绝
+        Entry-->>User: 403；防枚举场景返回 404
+    end
+```
+
+上述流程中的关键点是：Django Auth Backend 会合并用户直接权限和其所有 Group 的权限，但它不解析 Board；BoardMembership 也不产生 Django 全局 Permission。两者只在 Policy 层汇合。
+
+### 7.4 最终判定方式
+
+```python
+def can_review_post(user, post):
+    if not user.is_authenticated or not user.is_active:
+        return False
+    if user.is_superuser:
+        return True
+
+    membership = get_active_membership(user, board_for_post(post))
+    return (
+        membership is not None
+        and membership.role in {Role.REVIEWER, Role.MANAGER}
+        and post.owner_id != user.id
+    )
+```
+
+全局 Group 动作仍走 Django Permission；Board 新增是本项目的 superuser 专属结构变更：
+
+```python
+def can_create_board(user):
+    return user.is_active and user.is_superuser
+```
+
+这意味着 Group 和 Membership 可以叠加，但不会互相扩大作用域。例如，一个用户可以属于 `SiteOperators` Group，同时只是 Music Board 的 Reviewer：他可以执行全站日志完整性审计，也只能审核 Music Board 中他人提交的文章。Board 的新增和删除仍只属于 superuser。
+
+### 7.5 Admin 中的协作边界
+
+Django Admin 的全局账号和审计模块可以使用 Group Permission 决定菜单和入口是否出现；涉及 Board、Post 或 Comment 时，模块入口、`has_change_permission()`、action、queryset 过滤和保存路径都必须调用 Board Policy。隐藏按钮只是界面层，后端 Policy 才是授权边界。
+
+首期不建议建立 `CodingEditors`、`MusicEditors` 这类组合 Group。Board 增多后会形成“板块数 × 角色数”的 Group 膨胀，也容易发生 Group 与 Membership 状态漂移。
+
+## 8. 推荐迁移顺序
+
+1. 为 Board、Blogs、comment、security 增加业务 Permission。
+2. 新建 `BoardMembership` 和数据迁移。
+3. 将现有 `is_dashboard_user=True, is_reviewer=False` 用户迁为默认 Board 的 Editor/Manager，由 superuser 人工复核。
+4. 将 `is_reviewer=True` 用户迁为相应 Board 的 Reviewer。
+5. 建立 `boards/policies.py`，先让测试使用，再逐步替换 View/API/Admin 判断。
+6. dashboard 入口保留 `is_dashboard_user`，模型操作改查 Policy。
+7. 权限矩阵测试通过后，停止读取 `is_reviewer`。
+8. 最后删除 `is_reviewer` 字段；是否删除 `is_dashboard_user` 另行评估。
+
+不要在同一个迁移中同时创建 Membership、迁数据、删除旧字段，确保每一步可回滚和核验。
+
+## 9. 必测矩阵
+
+- 普通用户不能进入 dashboard，也不能上传正文图片。
+- Contributor 只能在所属 Board 投稿和编辑自己的草稿。
+- Editor 不能编辑其他 Board 的文章。
+- Reviewer 只能看到所属 Board 的审核队列，且不能审核自己的文章。
+- Manager 不能查看全站审计，除非同时属于 `SiteOperators`。
+- SiteOperator 不能编辑文章、评论或 Board 配置。
+- 被停用的 Membership 立即失效。
+- superuser 始终可恢复和管理系统。
+- View、API 与 Admin 对同一操作给出一致结果。
+
+## 10. 决策建议
+
+| 决策 | 建议 |
+|---|---|
+| 是否引入 django-guardian | 暂不引入；BoardMembership + Policy 足够，未来对象规则爆炸时再评估 |
+| 审核者能否改正文 | 默认不能 |
+| 能否审核自己文章 | 禁止，superuser 应急除外 |
+| Manager 能否查看审计 | 默认不能，职责与 SiteOperator 分离 |
+| 一个用户能否有多个板块角色 | 首期每个 Board 一个互斥角色；不同 Board 可不同。角色变更不表示能力必然累计 |
+| Group 是否表示 Editor/Reviewer | 不建议，避免权限扩散到全部 Board |
+
+## 11. 已知风险 / TODO
+
+| 严重度 | 问题 | 建议 |
+|---|---|---|
+| 🔴 高 | 当前所有 dashboard 用户可修改全部 Board | 实施 BoardMembership 与 BoardAdmin Policy |
+| 🔴 高 | 审核权限目前是全局 `is_reviewer` | 迁为板块级 Reviewer，并禁止自审 |
+| 🟡 中 | Board 与 Post 仅通过 Category 间接关联 | 第一阶段封装 `board_for_post()`；未来按产品关系显式建模 |
+| 🟡 中 | View/API/Admin 权限判断分散 | 收敛到 `boards/policies.py` |
+| ✅ | 纯角色矩阵与核心拒绝路径已有测试 | ORM、Admin、View、API 一致性测试在阶段 2–5 继续补齐 |
+
+## 12. accounts_linear
+
+以下步骤严格按顺序推进；每一步完成验收后再进入下一步，避免同时修改模型、数据和所有入口。
+
+| 阶段 | 工作 | 完成条件 |
+|---:|---|---|
+| 0 ✅ | 固化角色矩阵、Group 名称和 Permission codename | 2026-07-19 修订：移除 BoardCreators，Board 新增/删除仅限 superuser；未改运行时授权入口 |
+| 1 ✅ | 先写 Policy 拒绝路径与角色矩阵测试 | `boards/tests/test_access_rules.py` 已覆盖跨 Board、禁止自审、停用成员与角色矩阵 |
+| 2 ✅ | 新建 `BoardMembership` 模型、约束和 Admin 只读观察入口 | 2026-07-13 已完成；同一用户在同一 Board 只有一条记录，观察入口仅限 superuser |
+| 3 | 实现 `boards/policies.py` 与 `board_for_post()` | Policy 单测通过，尚不替换旧入口 |
+| 4 | 接入 Board/Post/Comment 的 queryset 与对象操作 | dashboard 不再能看到或操作非所属 Board 对象 |
+| 5 | 接入审核 action、上传接口、普通 View/API | 同一动作在 Admin、View、API 的结果一致 |
+| 6 | 创建全局 Group 并迁移现有用户 | Group 只承载全局职责；Membership 由 superuser 复核 |
+| 7 | 停止读取 `is_reviewer`，观察一个发布周期 | 日志中无旧字段授权路径，回归测试全部通过 |
+| 8 | 删除 `is_reviewer`；单独评估 `is_dashboard_user` | 迁移可回滚，文档与权限矩阵同步更新 |
+
+### 12.1 阶段 0 冻结结果
+
+#### 角色语义
+
+| 角色 | 能力定位 | 是否继承前一角色 |
+|---|---|:---:|
+| Contributor | 投稿、编辑自己的草稿、提交审核 | — |
+| Editor | Contributor 能力；可编辑自己的已提交/发布文章，发布内容修改后回退草稿；不能编辑他人正文 | ✅ |
+| Reviewer | 查看审核队列、审核/发布他人文章、管理评论；不能编辑正文 | ❌，职责分离 |
+| Manager | 投稿、编辑、审核、评论、运营文案和成员管理；不能创建/删除 Board 或修改前端代码绑定 | 组合角色，但仍禁止自审 |
+
+首期 `BoardMembership` 对 `(board, user)` 保持唯一，一次只有一个角色。Editor 切换为 Reviewer 后会失去编辑能力；确实需要同时编辑与审核时，应申请 Manager，而不是给同一 Board 堆叠多个隐式角色。
+
+#### Group 与 Permission 固定名称
+
+| Group | 自动获得的 Permission | 分配者 |
+|---|---|---|
+| `VerifiedUsers` | `boards.apply_board_access` | 邮箱验证服务自动加入 |
+| `SiteOperators` | `security.view_audit_log`、`security.run_integrity_audit` | superuser |
+| `UserManagers` | `accounts.manage_user_accounts` | superuser |
+
+Board 内动作的 codename 继续采用第 5 节定义，但不放入全局 Group；Policy 将其作为动作标识，与 Membership role 对照。Django Group 不创建 Contributor/Editor/Reviewer/Manager，也不创建 `CodingEditors` 之类的动态组。
+
+Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。原因不是 Django 无法表达 `add_board`，而是本项目新增 Board 等价于引入一组新的前端代码和部署变更，不属于可委派的日常业务操作。
+
+#### 审批边界
+
+- Manager 可审批自己 Board 的 Contributor、Editor、Reviewer 申请及三者之间的角色变更。
+- Manager 不得审批自己的申请，不得授予 Manager、全局 Group、`is_staff` 或 `is_superuser`。
+- Manager 申请、全局 Group 申请和权限恢复只能由 superuser 审批。
+- superuser 保留应急全权，但审批服务仍记录操作者、申请人、Board、原角色、目标角色和结果。
+
+#### 阶段 1 测试边界
+
+阶段 1 只建立不访问数据库的纯规则内核 `boards/access_rules.py`，用于冻结角色矩阵和拒绝条件；它尚未替换任何 View/Admin/API。阶段 2 创建 Membership，阶段 3 再由 `boards/policies.py` 将 ORM 对象适配到这些规则。
+
+### 12.2 阶段 2 实现结果
+
+- `boards.models.BoardMembership` 已实现 Contributor / Editor / Reviewer / Manager 单角色模型。
+- 数据库约束 `unique_board_member` 保证同一 `(board, user)` 只有一条记录；角色变化和停用直接更新原记录。
+- `created_by` 使用 `SET_NULL`，允许系统初始化或迁移记录没有人工创建者，同时保留成员本身。
+- `/super_admin/boards/boardmembership/` 提供完全只读的观察入口，仅激活的 superuser 可见；在 Board 范围 queryset 落地前不注册到 `/dashboard/`。
+- ORM、角色枚举对齐、唯一约束和 Admin 拒绝路径已有 5 个测试；完整测试集共 28 个测试通过。
+- 本阶段没有改变任何 View、API、BoardAdmin 或 PostAdmin 的运行时授权逻辑。
+
+当前下一步为 **阶段 3：实现 `boards/policies.py` 与 `board_for_post()`，先通过单测固定 ORM 适配行为，仍不替换旧入口**。
+
+## 13. 参考依据
+
+- [Django 5.2：用户、Group 与 Permission](https://docs.djangoproject.com/en/5.2/topics/auth/default/#groups)
+- [Django 5.2：自定义授权后端](https://docs.djangoproject.com/en/5.2/topics/auth/customizing/#handling-authorization-in-custom-backends)

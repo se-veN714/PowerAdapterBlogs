@@ -1,5 +1,6 @@
 # Blogs 模块 — 开发文档
 
+> **文档权重**：85（Blogs 当前实现与模块 TODO）
 > **模块**: `Blogs/`  
 > **职责**: 博客文章 CRUD、分类/标签管理、PV/UV 统计、修订追踪 (v2.0)、可见性控制  
 > **依赖**: Django CBV (ListView/DetailView/CreateView/UpdateView), DRF ViewSet, Redis 缓存  

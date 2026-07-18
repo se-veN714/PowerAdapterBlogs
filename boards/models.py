@@ -4,6 +4,7 @@ Board 模型：首页 Editorial 板块的元数据。
 每个板块对应首页一个 editorial-section，包含名称、颜色、关键词等信息。
 """
 
+from django.conf import settings
 from django.db import models
 
 
@@ -75,3 +76,60 @@ class Board(models.Model):
             idx = len(words) % len(name_words) if name_words else 0
             words.append(name_words[idx] if name_words else self.name[:6].upper())
         return words[:3]
+
+
+class BoardMembership(models.Model):
+    """A user's single role within one Board.
+
+    Membership rows are updated or deactivated instead of duplicated so that
+    later approval and audit flows have one stable record to reference.
+    """
+
+    class Role(models.TextChoices):
+        CONTRIBUTOR = "contributor", "投稿者"
+        EDITOR = "editor", "编辑者"
+        REVIEWER = "reviewer", "审核者"
+        MANAGER = "manager", "板块管理员"
+
+    board = models.ForeignKey(
+        Board,
+        on_delete=models.CASCADE,
+        related_name="memberships",
+        verbose_name="板块",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="board_memberships",
+        verbose_name="用户",
+    )
+    role = models.CharField(
+        max_length=16,
+        choices=Role.choices,
+        verbose_name="板块角色",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="启用")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_board_memberships",
+        verbose_name="创建人",
+        help_text="自动迁移或系统初始化的记录可以为空。",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        ordering = ["board_id", "user_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["board", "user"],
+                name="unique_board_member",
+            ),
+        ]
+        verbose_name = "板块成员"
+        verbose_name_plural = "板块成员"
+
+    def __str__(self):
+        return f"{self.board.name} / {self.user.username} / {self.get_role_display()}"

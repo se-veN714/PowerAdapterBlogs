@@ -7,7 +7,7 @@ from django.contrib import admin
 
 from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 from PowerAdapterBlogs.cus_site import custom_site
-from boards.models import Board
+from boards.models import Board, BoardMembership
 
 
 @admin.register(Board, site=custom_site)
@@ -53,3 +53,42 @@ class BoardAdmin(DashboardAdminMixin, admin.ModelAdmin):
 
     glitch_color_preview.short_description = "Glitch 颜色"
     glitch_color_preview.allow_tags = True
+
+
+@admin.register(BoardMembership)
+class BoardMembershipObservationAdmin(admin.ModelAdmin):
+    """Super-admin-only, read-only observation of Board memberships.
+
+    Membership writes will be introduced through the reviewed approval flow in
+    a later accounts_linear stage. Keeping this view off ``custom_site`` avoids
+    exposing cross-Board membership data before scoped querysets exist.
+    """
+
+    list_display = ["board", "user", "role", "is_active", "created_by", "created_at"]
+    list_filter = ["board", "role", "is_active"]
+    search_fields = ["board__name", "board__slug", "user__username", "user__email"]
+    list_select_related = ["board", "user", "created_by"]
+    ordering = ["board__sort_order", "user__username"]
+    readonly_fields = [
+        "board",
+        "user",
+        "role",
+        "is_active",
+        "created_by",
+        "created_at",
+    ]
+
+    def has_module_permission(self, request):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

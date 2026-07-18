@@ -1,10 +1,11 @@
 # Boards 模块 — 开发文档
 
+> **文档权重**：85（boards 当前实现与模块 TODO）
 > **模块**: `boards/`  
 > **职责**: 管理首页 Editorial 板块（Skateboard / Music / Coding 等）  
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-07-12 — 新增 Board 级权限颗粒度设计
+> **最后更新**: 2026-07-19 — 明确跨 App Scope 与 superuser 独占创建 Board
 
 ---
 
@@ -12,6 +13,10 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-19 | v1.5 | 冻结 Board 为 Blogs/comment 跨 App 授权边界；新增/删除 Board 仅限 superuser，当前 Admin 尚待 Stage 4 收紧 |
+| 2026-07-13 | v1.4 | 新增 `BoardMembership`、唯一约束、super_admin 只读观察入口及 5 个 ORM/Admin 测试 |
+| 2026-07-13 | v1.3 | 新增 `access_rules.py` 纯权限规则与 7 个角色矩阵/拒绝路径测试；尚未接入 ORM 和运行时入口 |
+| 2026-07-13 | v1.2 | 权限指南移至 `accounts/PERMISSIONS_GUIDE.md`，Board app 仅保留领域模型与 Policy 实现职责 |
 | 2026-07-12 | v1.1 | 新增 `PERMISSIONS_GUIDE.md`：Group + BoardMembership + Policy 三层权限建议（尚未实施） |
 | 2026-06-22 | v1.0 | 初始：Board 模型 + 种子数据 + Dashboard 管理 + 上下文处理器 |
 
@@ -23,9 +28,13 @@
 boards/
 ├── __init__.py
 ├── apps.py              # BoardsConfig
-├── models.py            # Board 模型
-├── admin.py             # BoardAdmin (Dashboard)
+├── models.py            # Board、BoardMembership 模型
+├── admin.py             # BoardAdmin + Membership 只读观察入口
 ├── views.py             # boards_context 上下文处理器
+├── access_rules.py      # Board 角色动作矩阵与纯拒绝规则（无 ORM）
+├── tests/
+│   ├── test_access_rules.py  # accounts_linear 阶段 1 契约测试
+│   └── test_membership.py    # 阶段 2 ORM 与 Admin 边界测试
 ├── management/
 │   └── commands/
 │       └── seed_boards.py   # 种子数据命令
@@ -69,6 +78,19 @@ editorial-section × N (动态渲染)
 - `keywords_list` → list（逗号拆分）
 - `metadata_words` → list（取前三词，不足时用 name 填充）
 
+### BoardMembership
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `board` | FK → Board | 权限所属板块；删除 Board 时级联删除 |
+| `user` | FK → MyUser | 成员用户；删除用户时级联删除 |
+| `role` | CharField(16) | Contributor / Editor / Reviewer / Manager 单一角色 |
+| `is_active` | BooleanField | 停用后不授予任何 Board 动作 |
+| `created_by` | FK → MyUser, nullable | 人工创建者；删除创建者时保留记录并置空 |
+| `created_at` | DateTimeField | 创建时间 |
+
+数据库约束 `unique_board_member` 保证同一用户在同一 Board 只有一条记录。角色调整或停用更新原记录，不堆叠历史角色；后续审批和审计流程引用这条稳定记录。
+
 ---
 
 ## 3. 种子数据
@@ -99,7 +121,35 @@ python manage.py seed_boards --dry-run
 - 颜色预览：列表显示色块 + 颜色值
 - 搜索：name、slug、keywords
 
-> 当前权限仍为全局 `is_dashboard_user`，存在跨 Board 越权风险。目标模型与迁移建议见 [`PERMISSIONS_GUIDE.md`](PERMISSIONS_GUIDE.md)。
+> 当前权限仍为全局 `is_dashboard_user`，存在跨 Board 越权风险。授权模型、Django Group 协作方式与迁移建议见 [`accounts/PERMISSIONS_GUIDE.md`](../accounts/PERMISSIONS_GUIDE.md)。
+
+> 目标边界：新增或删除 Board 只允许 superuser，因为新 Board 会引入专属模板、SVG、CSS 或 JavaScript，等价于代码和部署变更。当前 `BoardAdmin` 仍允许任意 dashboard 用户新增，这是 Stage 4 必须修复的运行时差距，不应将文档中的目标误认为已经生效。
+
+> `BoardMembership` 已建立，但 `access_rules.py` 和 Membership 尚未被 Board/Post/Comment 的运行时入口调用。下一阶段由 `boards/policies.py` 适配 ORM 对象。
+
+### BoardMembership 观察入口
+
+- URL：`/super_admin/boards/boardmembership/`
+- 仅激活的 superuser 可查看。
+- 禁止新增、修改和删除；成员写入将在后续审核入组流程中实现。
+- 暂不注册到 `/dashboard/`，避免 Board 范围 queryset 尚未接入时泄露跨板块成员关系。
+
+### 跨 App 授权关系
+
+```mermaid
+flowchart LR
+    MEMBER["BoardMembership"] --> BOARD["boards.Board"]
+    POST["Blogs.Post"] --> CATEGORY["Blogs.Category"]
+    CATEGORY --> BOARD
+    COMMENT["comment.Comment"] --> POST
+    MEMBER --> POLICY["boards Policy"]
+    BOARD --> POLICY
+    POST --> POLICY
+    COMMENT --> POLICY
+    POLICY --> RESULT["文章 CRUD / 审核 / 评论管理"]
+```
+
+Board 是授权边界，不是 Django Group：Group 只承载 `SiteOperators`、`UserManagers` 等全局职责；Contributor / Editor / Reviewer / Manager 的唯一事实来源是 `BoardMembership`。
 
 ---
 

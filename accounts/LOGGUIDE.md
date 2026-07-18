@@ -1,5 +1,6 @@
 # Accounts App — 日志指南
 
+> **文档权重**：70（accounts 日志细节；服从根目录 LOGGUIDE）
 > 配套：[根目录 LOGGUIDE.md](../LOGGUIDE.md)
 
 ---

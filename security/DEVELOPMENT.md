@@ -1,5 +1,6 @@
 # Security 模块 — 开发文档
 
+> **文档权重**：85（security 当前实现与模块 TODO）
 > **模块**: `security/`  
 > **职责**: Django Admin 日志 HMAC 完整性保护 + MongoDB 审计日志  
 > **依赖**: `gmssl` (SM3), `pymongo` (MongoDB), Django `LogEntry`  

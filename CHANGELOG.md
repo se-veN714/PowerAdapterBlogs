@@ -1,5 +1,31 @@
 # CHANGE LOG
 
+> **文档权重**：60（历史变更记录；不覆盖当前架构文档）
+
+## [2026-07-19]
+
+### Board 权限边界澄清
+- Django Group 仅承载邮箱验证、账号管理和全站审计等全局职责；Board 角色只存入 `BoardMembership`
+- Board 作为跨 App 授权边界，通过 Category 控制 Blogs.Post，并通过 Post 延伸到 comment.Comment
+- 取消 `BoardCreators` 设计；新增和删除 Board 仅限 superuser，因为新板块意味着新的前端代码与部署
+
+### Comment 开发库迁移修复
+- `comment.0003_comment_user` 在新增非空 `user_id` 前显式删除无法归属的旧评论，避免 SQLite 表重建触发 `NOT NULL` 错误
+- 开发数据库迁移已成功应用，修复前端读取评论时的 `no such column: comment_comment.user_id`
+
+## [2026-07-13]
+
+### accounts_linear Stage 2
+- 新增 `boards.BoardMembership`，固化 Contributor / Editor / Reviewer / Manager 单角色模型
+- 增加 `unique_board_member` 约束，同一用户在同一 Board 只保留一条可更新或停用的成员记录
+- 在 `/super_admin/` 增加仅 superuser 可见的完全只读成员观察入口，暂不向 dashboard 暴露跨 Board 数据
+- 新增 5 个 ORM/Admin 边界测试；完整 Django 测试集增加至 28 个并全部通过
+
+### 文档权重体系
+- 为 28 份项目自有 Markdown 增加 `0–100` 文档权重，`V2GUIDE.md` 设为最高权重 `100`
+- 新增 `DOCUMENTATION_GUIDE.md`，定义 Agent 阅读顺序、作用域补充和冲突裁决规则
+- 旧文档保留为历史基线，但不得覆盖更高权重的新架构、安全和版本决策
+
 ## [2026-07-12]
 
 ### 安全、滥用防护与审计链收口

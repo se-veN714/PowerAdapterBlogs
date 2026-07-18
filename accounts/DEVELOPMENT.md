@@ -1,10 +1,11 @@
 # Accounts 模块 — 开发文档
 
+> **文档权重**：85（accounts 当前实现与模块 TODO）
 > **模块**: `accounts/`  
 > **职责**: 自定义用户模型 (MyUser)、登录/登出、权限体系、纵深防御  
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-12 — 登录反暴力破解 + 日志保护回归测试
+> **最后更新**: 2026-07-19 — 明确 Group 与跨 App Board Scope 职责
 
 ---
 
@@ -12,6 +13,10 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-19 | v3.5 | Group 收敛为全站职责；BoardMembership 成为 Blogs/comment 板块角色唯一来源；取消 BoardCreators 设计 |
+| 2026-07-13 | v3.4 | `boards.BoardMembership`、唯一约束和 super_admin 只读观察入口落地；Policy 尚未接入运行时 |
+| 2026-07-13 | v3.3 | 权限指南补充 Django Group 与 Board Policy 实际交互图；新增 `SECURITY_ROADMAP.md`，规划特权 TOTP MFA 和密钥全生命周期实践 |
+| 2026-07-13 | v3.2 | 新增 `PERMISSIONS_GUIDE.md`：明确 Django Group / Permission 与 BoardMembership / Policy 的协作边界，并增加 `accounts_linear` 实施路线 |
 | 2026-07-12 | v3.1 | **认证加固**: 用户名+IP 哈希计数，失败 5 次锁定 15 分钟，成功登录清零；补日志修改/删除保护测试 |
 | 2026-06-22 | v3.0 | **权限颗粒化**: 四旗模型 (is_reviewer)、Post 审核工作流 (DRAFT→REVIEW→NORMAL)、自定义 Django Permissions、最小权限原则 |
 | 2026-06-22 | v2.2 | **dashboard 入口修复**: `CustomSite.has_permission()` 检查 `is_dashboard_user`；登录自动跳转 `/dashboard/` |
@@ -112,6 +117,8 @@ flowchart TD
 ```
 
 **核心设计原则**：
+- **Board 权限迁移状态**：`BoardMembership` ORM 已落地，但现有五旗授权仍在运行；以 `PERMISSIONS_GUIDE.md` 的 `accounts_linear` 为迁移准绳
+- **单一事实来源**：Contributor / Editor / Reviewer / Manager 不写入 Group；BoardMembership + Policy 跨 App 控制 Post 与 Comment
 - **五旗权限模型**：`is_active` → `is_dashboard_user` → `is_reviewer` → `is_staff` → `is_superuser`（逐级递进）
 - **纵深防御**：4 层防护，模型层是最后一道防线
 - **双 Admin 注册**：同一 `MyUserAdmin` 注册到 `admin.site` 和 `custom_site`，使用不同的 `has_permission()` 逻辑
@@ -136,6 +143,8 @@ flowchart TD
 | `middleware.py` | `RequestUserMiddleware` | 请求生命周期捕获 `request.user` |
 | `apps.py` | `AccountsConfig` | AppConfig |
 | `LOGGUIDE.md` | — | 日志规范（含安全红线） |
+| `PERMISSIONS_GUIDE.md` | — | Group + Permission + BoardMembership + Policy 授权设计与线性实施路线 |
+| `SECURITY_ROADMAP.md` | — | v2.5+ TOTP MFA 与密钥全生命周期的规划、风险和验收边界 |
 
 ### 2.1 协同模块（审核工作流）
 

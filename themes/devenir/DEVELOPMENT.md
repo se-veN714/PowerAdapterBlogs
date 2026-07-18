@@ -1,5 +1,6 @@
 # Devenir Theme — 开发文档
 
+> **文档权重**：78（Devenir 当前主题实现；全局路线服从 V2GUIDE）
 > **主题**: `themes/devenir/`
 > **类型**: Django 模板主题 + 自定义 CSS/JS
 > **设计风格**: 暗色 CRT 扫描线 + 绿色调 + 社刊 Editorial 排版

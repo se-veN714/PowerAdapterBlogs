@@ -1,5 +1,6 @@
 # Config 模块 — 开发文档
 
+> **文档权重**：85（config 当前实现与模块 TODO）
 > **模块**: `config/`  
 > **职责**: 管理博客站点全局配置项（友链、侧边栏）  
 > **依赖**: `Blogs.models.Post`, `comment.models.Comment`, `base_admin.BaseOwnerAdmin`  

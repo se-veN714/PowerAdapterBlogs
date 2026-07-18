@@ -1,9 +1,10 @@
 # PowerAdapterBlogs V2 — 开发指南
 
-> **版本**: v2.3-prerelease  
-> **更新**: 2026-06-22  
-> **状态**: P0/P1/P2 已完成，v2.2 diff 优化完成，下一项 v2.1 演进  
-> **继承**: V1 所有基础设施（Bulma 主题、Redis 缓存、Waitress/Nginx 部署）
+> **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
+> **版本**: v2.4-planning
+> **更新**: 2026-07-13
+> **状态**: 安全收口已完成；下一项为 Board Scope 权限，复杂认证与密钥生命周期默认进入 v2.5+
+> **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
 
@@ -18,6 +19,64 @@
 | **P4** | Dashboard 批量分行 Action + rewrap_posts 命令 | ✨ Feature | 1-2h |
 
 > **前端说明**：前端（devenir 主题、timeline CSS/JS）在 WebStorm 中独立完成，不在本指南后端范围内。
+
+### 0.1 v2.4—v2.5+ 路线
+
+| 版本 | 目标 | 主文档 |
+|---|---|---|
+| v2.4 | 全局 Group + BoardMembership + 跨 App Policy 权限落地；Board 创建仅限 superuser | `accounts/PERMISSIONS_GUIDE.md` |
+| v2.5 | superuser / Board Manager 强制 TOTP MFA，兼容 Android Microsoft Authenticator | `accounts/SECURITY_ROADMAP.md` |
+| v2.5+ | 密钥产生、分发、存储、使用、更新、归档、撤销、备份、恢复和销毁 | `accounts/SECURITY_ROADMAP.md` |
+| v2.6+ 候选 | Passkey、外部 IdP/Entra 或合规密码设备 | 需求成熟后再立项 |
+
+复杂功能可以后移；只有在前置测试、恢复方案和回滚路径提前成熟时才允许前移。v2.1 内容模型对接仍由另一项目完成后再推进，不与本路线强绑定。
+
+### 0.2 前端架构决策：Devenir HDA，不做全面分离
+
+> **决策日期**：2026-07-13
+> **结论**：浏览器端继续采用 Django Template + htmx 的 Hypermedia-Driven Application（HDA）模式，不把 Devenir 重写为消费 JSON 的独立 SPA。
+
+```mermaid
+flowchart LR
+    BROWSER["浏览器 / Devenir"] -->|完整页面或 hx-request| HTML["HTML Application API<br/>Django 页面 + HTML fragment"]
+    CLIENT["未来安卓端 / 其他项目"] -->|/api/v1/ JSON| DATA["Versioned Data API<br/>DRF"]
+    HTML --> POLICY["共享 Policy / Service"]
+    DATA --> POLICY
+    POLICY --> ORM["Django ORM"]
+```
+
+这不是未完成的“半耦合”，而是有意选择的服务端驱动架构：状态、权限与可执行操作由服务端决定并编码在 HTML 中，htmx 负责局部交换，JavaScript 只增强视觉和复杂控件。
+
+#### 浏览器端约束
+
+1. htmx 端点默认返回 HTML fragment，不返回 JSON 后再由前端拼接 DOM。
+2. 普通请求优先保留完整页面或 POST/Redirect/GET 回退，不能把可用性完全绑定到 JavaScript。
+3. HTML、Admin、API 必须共享 Policy / Service，禁止在模板或前端复制授权规则。
+4. Devenir 的页面结构、SEO、Session、CSRF 和表单验证继续由 Django 负责。
+5. 复杂前端状态仅限编辑器、动画、图表等确有必要的局部组件，不为简单 CRUD 引入 SPA 状态层。
+
+#### JSON API 边界
+
+DRF 是给程序消费的 Data API，不作为 Devenir 的内部渲染依赖。只有出现真实的安卓客户端、第三方消费者、离线工作流或独立前端团队时，才评估扩大 `/api/v1/`；届时必须版本化并保持兼容。
+
+当前 API 尚不能作为分离式前端基础：
+
+| 严重度 | 现状 | 后续要求 |
+|---|---|---|
+| 🔴 高 | `CategoryViewSet` 使用 `ModelViewSet` 且没有显式权限类；全局 DRF 也没有默认权限 | 扩展 API 前改为只读或显式接入 Policy |
+| 🔴 高 | `PostViewSet` 使用 `IsAdminUser`，只理解 `is_staff`，不理解 BoardMembership | accounts_linear 阶段 5 接入相同 Board Policy |
+| 🟡 中 | API 仅覆盖 Post / Category，未覆盖评论、修订、Board 和权限申请 | 没有真实第二客户端前不补“为完整而完整”的通用 API |
+
+#### 重新评估全面分离的触发条件
+
+- 出现需要长期维护的第二客户端。
+- 出现离线编辑、大量客户端状态或实时协同等 HDA 明显不适合的需求。
+- 前后端由独立团队和发布周期维护。
+- 经过度量确认服务端 HTML 是实际瓶颈，而不是数据库、缓存、静态资源或查询问题。
+
+在这些条件出现前，全面分离属于额外复杂度，不列入 v2.4–v2.5+ 主路线。
+
+参考：[htmx Documentation](https://htmx.org/docs/)、[Hypermedia APIs vs. Data APIs](https://htmx.org/essays/hypermedia-apis-vs-data-apis/)、[Hypermedia-Driven Applications](https://htmx.org/essays/hypermedia-driven-applications/)。
 
 ---
 
@@ -289,47 +348,26 @@ flowchart TD
     SNAP --> CALC["计算版本号<br/>根据 change_type 递增"]
     CALC --> CREATE["创建快照<br/>title, desc, content, slug,<br/>editor, change_type, edit_summary"]
     
-    API["修订历史 API<br/>GET /api/post/{slug}/revisions/"]
-    DIFF_API["Diff API<br/>GET /api/post/{slug}/diff/?from=v1.0&to=v2.0"]
+    PAGE["PostDetailView<br/>完整页面含版本时间线"]
+    BODY["HTML fragment<br/>GET /post/{slug}/revision/vX.Y/"]
+    DIFF["HTML fragment<br/>GET /post/{slug}/diff/?from=X.Y&to=X.Z"]
     
-    API --> LIST["返回版本列表 JSON<br/>{versions: [{version, date, summary, change_type}, ...]}"]
-    DIFF_API --> DIFF["difflib.HtmlDiff.make_table()<br/>返回 HTML 片段"]
+    PAGE --> BODY
+    PAGE --> DIFF
+    BODY --> BODY_HTML["服务端渲染 _revision_body.html"]
+    DIFF --> DIFF_HTML["服务端渲染 _revision_diff.html"]
 ```
 
-### 2.8 后端 API 设计
+### 2.8 htmx HTML 端点（实际实现）
 
-两个轻量 API，前端（WebStorm）通过 fetch 消费：
+修订交互属于浏览器 Application API，返回 HTML 而不是 JSON：
 
-```python
-# GET /api/post/{slug}/revisions/
-# 返回版本列表
-{
-    "versions": [
-        {"version": "3.2", "major": 3, "minor": 2, "change_type": "minor",
-         "edit_summary": "修正错别字", "created_at": "2026-06-21T..."},
-        {"version": "3.1", "major": 3, "minor": 1, "change_type": "minor",
-         "edit_summary": "补充性能测试", "created_at": "2026-06-18T..."},
-        ...
-    ]
-}
+| 请求 | htmx 响应 | 普通请求 |
+|---|---|---|
+| `GET /Blogs/post/{slug}/revision/{version}/` | `_revision_body.html` | 使用历史版本内容渲染完整 `detail.html` |
+| `GET /Blogs/post/{slug}/diff/?from=X.Y&to=X.Z` | `_revision_diff.html` | 当前仍返回相同 HTML 片段 |
 
-# GET /api/post/{slug}/diff/?from=1.0&to=2.0
-# 返回 diff HTML 片段
-{
-    "from_version": "1.0",
-    "to_version": "2.0",
-    "diff_html": "<table class='diff'>...</table>"
-}
-
-# GET /api/post/{slug}/revision/v2.0/
-# 返回指定版本的完整内容
-{
-    "version": "2.0",
-    "title": "...",
-    "content": "...",
-    "created_at": "2026-06-10T..."
-}
-```
+时间线元数据由 `PostDetailView` 随完整页面一次返回，不再额外请求 JSON 版本列表。diff 严格只允许相邻版本，并优先读取写时预计算的 `diff_from_previous`。
 
 ### 2.9 Diff 渲染
 
@@ -351,9 +389,9 @@ def render_diff(old_text: str, new_text: str, from_ver: str, to_ver: str) -> str
     )
 ```
 
-### 2.10 Diff 渲染
+### 2.10 响应与前端职责
 
-使用 `difflib.HtmlDiff`（Python 标准库，零依赖），通过 API 返回 HTML 片段，前端内联插入到时间线节点下方。
+服务端完成版本解析、可见性校验、相邻版本校验、diff 生成和 HTML 渲染；htmx 只把响应片段交换到 `#revision-viewer`。前端不保存独立的版本数据模型，也不使用 fetch 重建模板。
 
 ### 2.11 实施步骤（Phase 1 · 后端）
 
@@ -362,16 +400,17 @@ def render_diff(old_text: str, new_text: str, from_ver: str, to_ver: str) -> str
 3. 在 `PostCreateView.form_valid()` 中自动生成 v1.0 初始快照
 4. 在 `PostEditView.form_valid()` 中插入快照逻辑（`save()` 之后）
 5. 实现 `get_next_version()` 版本号计算
-6. 编写修订历史 API + Diff API
+6. 编写修订正文与 Diff HTML fragment 端点
 7. `PostAdmin` 中注册 `PostRevision` 只读 inline
 8. `clear_page_caches()` 中无需额外处理（快照不缓存）
 
-### 2.12 Phase 2 · 前端（WebStorm 完成）
+### 2.12 Phase 2 · Devenir + htmx（✅ 已完成）
 
-- CSS timeline 组件样式（竖线+节点+动画）
-- JS 交互逻辑：展开/折叠、版本选择、diff 加载
-- 响应式适配（移动端 timeline 转横向）
-- 可选：升级为 Mermaid gitGraph 可视化
+- CSS timeline 组件样式（竖线、节点、折叠）
+- htmx 懒加载版本正文与相邻 diff
+- 普通请求可渲染完整历史版本页面
+- Devenir 响应式布局与全宽 diff
+- 少量 vanilla JS 只负责折叠、scramble 和视觉增强
 
 ---
 
@@ -494,8 +533,9 @@ PowerAdapterBlogs/settings/
 - [x] P1: 创建文章 → 自动生成 v1.0 快照
 - [ ] P1: 编辑文章（小修订）→ 自动生成 v1.1 快照
 - [ ] P1: 编辑文章（大版本）→ 自动生成 v2.0 快照
-- [ ] P1: 版本列表 API 按版本号降序返回
-- [ ] P1: Diff API 正确渲染中文/代码块/Markdown 差异
+- [x] P2: 版本时间线按版本号降序随详情页返回
+- [x] P2: htmx 正文与 diff 端点执行 STAFF_ONLY 可见性检查
+- [ ] P2: Diff HTML 对中文/代码块/Markdown 的完整回归测试
 - [ ] P1: slug 变更后，历史快照 slug 不受影响
 
 ---
@@ -504,8 +544,11 @@ PowerAdapterBlogs/settings/
 
 | 项目 | 决策 | 原因 |
 |------|------|------|
-| diff 独立页面 `/post/slug/diff/` | ❌ 不做 | 改为嵌入式组件 + API |
-| devenir 主题页面 | ❌ V2 不做 | 独立工作流，WebStorm 推进 |
+| Devenir 全面前后端分离 / SPA 重写 | ❌ 不做 | 与当前 htmx HDA 路线相违，且没有真实第二客户端 |
+| htmx 消费 JSON 再拼 DOM | ❌ 不做 | htmx 端点直接返回服务端渲染 HTML fragment |
+| 为浏览器建设通用 JSON API | ❌ 不做 | 浏览器走 HTML Application API；JSON API 仅服务真实外部消费者 |
+| diff 独立页面 `/post/slug/diff/` | ❌ 不做 | 采用嵌入式 htmx HTML fragment |
+| Devenir 主题迁移 | ✅ 已完成 | 当前唯一启用主题，继续按 HDA 演进 |
 | PostImage 模型 CRUD | ❌ 不做 | 已有但无视图，暂不启用 |
 | music App 功能 | ❌ 不做 | 空壳，无计划 |
 | 文章无变化跳过版本 | ❌ 不做 | 简化逻辑，编辑即保存 |

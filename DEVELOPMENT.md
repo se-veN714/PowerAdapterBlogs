@@ -1,9 +1,10 @@
 # PowerAdapterBlogs — 项目开发文档
 
+> **文档权重**：82（项目结构与通用开发入口）
 > **项目**: 基于 Django 5.2 的个人博客系统  
 > **作者**: seveN1foR / PowerAdapter  
 > **许可证**: MIT  
-> **最后更新**: 2026-06-22
+> **最后更新**: 2026-07-13 — 新增 Python 编码与 Mixin 约束
 
 ---
 
@@ -161,7 +162,10 @@ DjangoProject/                 # 项目根目录
 
 | 文档 | 内容 |
 |------|------|
+| `V2GUIDE.md` | 最高权重：当前版本、架构与路线决策 |
+| `DOCUMENTATION_GUIDE.md` | 文档权重、阅读顺序与冲突处理规则 |
 | `CHANGELOG.md` | 全项目变更日志 |
+| `CODING_GUIDE.md` | Python 之禅、Django 分层、Mixin/继承准入条件与 Code Review 清单 |
 | `requirements.txt` | 依赖清单 |
 | `accounts/DEVELOPMENT.md` | 用户模块详细架构 |
 | `security/DEVELOPMENT.md` | 日志完整性详细架构 |

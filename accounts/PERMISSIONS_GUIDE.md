@@ -3,6 +3,7 @@
 > **文档权重**：90（当前 Board Scope 权限与 `accounts_linear` 主设计）
 > **归档模块**：`accounts/`
 > **主要作用域**：`boards.Board`
+> **文档职责**：治理整个授权架构；BoardMembership、申请审批与 Policy 的实现归 `boards` App
 > **状态**：`accounts_linear` 阶段 0–3 已完成；Policy 已实现但运行时入口尚未接入
 > **日期**：2026-07-19（完成跨 App ORM Policy 与 Board 创建边界热修）
 > **目标**：以后续功能围绕 Board 展开，在不引入第三方对象权限库的前提下实现最小权限、职责分离和可测试的板块级授权。
@@ -43,6 +44,32 @@ flowchart TD
 | Policy | 结合板块角色、对象归属、作者和状态作最终判断 | 只能编辑所属 Board 的文章 |
 
 `is_active`、`is_staff`、`is_superuser` 保留 Django 原生语义；`is_dashboard_user` 暂时只作为 dashboard 入口开关，不再代表具体业务权限。`is_reviewer` 在迁移完成后可删除。
+
+### 2.1 App 职责边界
+
+```mermaid
+flowchart LR
+    ACCOUNTS["accounts<br/>身份、认证、全局职责"] --> USER["MyUser"]
+    ACCOUNTS --> GROUP["Django Group 分配<br/>VerifiedUsers / UserManagers / SiteOperators"]
+    USER --> MEMBER["boards.BoardMembership"]
+    BOARD["boards.Board"] --> MEMBER
+    MEMBER --> POLICY["boards Policy<br/>板块对象授权"]
+    BLOGS["Blogs<br/>Post / Category / Revision"] --> POLICY
+    COMMENT["comment<br/>Comment / moderation"] --> POLICY
+    SECURITY["security<br/>审计能力与日志"] --> GROUP
+```
+
+| App | 拥有的业务事实 | 不应承担 |
+|---|---|---|
+| `accounts` | MyUser、登录/登出、账号启停、邮箱/证书验证、MFA、全局 Group 的编排与用户归组 | Board 角色、板块申请审批、Post/Comment 对象授权 |
+| `boards` | Board、BoardMembership、角色矩阵、Policy、未来的 BoardAccessRequest 与审批服务 | 密码、登录、MFA、全局 Group 管理 |
+| `Blogs` | Post、Category、文章状态机、修订及 Blogs Permission 定义 | 判断用户属于哪个 Board 或复制 Membership 规则 |
+| `comment` | Comment、评论状态、提交与审核执行及 comment Permission 定义 | 自行判断 Reviewer 的 Board 范围 |
+| `security` | 审计日志、完整性能力及 security Permission 定义 | 分配 Board 角色或维护用户 Group 关系 |
+
+判断口诀：`accounts` 回答 **Who are you globally?**；`boards` 回答 **What can you do here?**。业务 App 拥有自己的模型和动作，在入口处调用 `boards.policies`，不把 Policy 复制回各 App。
+
+`accounts/PERMISSIONS_GUIDE.md` 继续放在 accounts，是因为它治理全局身份、Group 与 Board Scope 的协作边界；这不表示 Board Policy 或 Membership 模型属于 accounts。
 
 ## 3. 建议数据模型
 
@@ -95,6 +122,8 @@ class BoardMembership(models.Model):
 建议默认不允许 Editor 修改他人正文；需要协作编辑时再单独开放，并保留修订记录。Reviewer 只负责审核，不能直接改正文。
 
 ## 5. 建议 Permission 划分
+
+Permission 由动作所属的 App 定义；`accounts` 只负责把真正的全局 Permission 编排进 Group，并管理用户的全局 Group 归属。Board 范围动作即使存在 codename，也由 `boards.policies` 结合 Membership 作最终裁决。
 
 ### Boards
 
@@ -354,6 +383,8 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 
 以下步骤严格按顺序推进；每一步完成验收后再进入下一步，避免同时修改模型、数据和所有入口。
 
+`accounts_linear` 名称为既有路线标识，继续保留以便 Agent 交接；从阶段 2 开始，BoardMembership、Policy、BoardAccessRequest 和审批服务的代码所有权均属于 `boards`，accounts 只参与用户身份和全局 Group 部分。
+
 | 阶段 | 工作 | 完成条件 |
 |---:|---|---|
 | 0 ✅ | 固化角色矩阵、Group 名称和 Permission codename | 2026-07-19 修订：移除 BoardCreators，Board 新增/删除仅限 superuser；未改运行时授权入口 |
@@ -362,7 +393,8 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 | 3 ✅ | 实现 `boards/policies.py` 与跨 App Board resolver | 2026-07-19 已完成；12 个新增 Admin/Policy 测试通过，尚不替换旧入口 |
 | 4 | 接入 Board/Post/Comment 的 queryset 与对象操作 | dashboard 不再能看到或操作非所属 Board 对象 |
 | 5 | 接入审核 action、上传接口、普通 View/API | 同一动作在 Admin、View、API 的结果一致 |
-| 6 | 创建全局 Group 并迁移现有用户 | Group 只承载全局职责；Membership 由 superuser 复核 |
+| 6a | accounts 创建全局 Group 并迁移全局身份 | Group 只承载 VerifiedUsers、UserManagers、SiteOperators 等全站职责 |
+| 6b | boards 实现 BoardAccessRequest、审批与 Membership 迁移 | Manager/superuser 审批边界生效，用户无需手工勾选权限 |
 | 7 | 停止读取 `is_reviewer`，观察一个发布周期 | 日志中无旧字段授权路径，回归测试全部通过 |
 | 8 | 删除 `is_reviewer`；单独评估 `is_dashboard_user` | 迁移可回滚，文档与权限矩阵同步更新 |
 

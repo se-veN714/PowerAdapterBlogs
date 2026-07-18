@@ -4,6 +4,12 @@
 
 ## [2026-07-19]
 
+### Accounts / Boards 业务边界
+- accounts 负责 MyUser、认证、账号状态、MFA 规划和全局 Group 编排，不拥有 Board 角色或对象 Policy
+- boards 负责 Board、BoardMembership、角色规则、跨 App Policy，以及后续 BoardAccessRequest 和审批服务
+- Blogs、comment、security 各自拥有模型和 Permission 定义；Board 范围操作统一调用 boards Policy
+- `accounts_linear` 名称为交接兼容继续保留，阶段 6 拆分为 accounts 全局身份迁移与 boards 申请审批两部分
+
 ### accounts_linear Stage 3
 - 新增 `boards/policies.py`，统一解析 Post/Comment 的 Board 归属并适配 BoardMembership 角色规则
 - 未映射或重复 Category→Board 映射默认拒绝；停用用户、Board、Membership 和跨 Board 操作均拒绝

@@ -2,10 +2,10 @@
 
 > **文档权重**：85（accounts 当前实现与模块 TODO）
 > **模块**: `accounts/`  
-> **职责**: 自定义用户模型 (MyUser)、登录/登出、权限体系、纵深防御  
+> **职责**: 自定义用户模型、认证、账号状态、全局 Group 编排与用户安全；不拥有 Board Policy
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-19 — accounts_linear 阶段 3 Policy 完成
+> **最后更新**: 2026-07-19 — 冻结 accounts 与 boards 业务边界
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-19 | v3.7 | accounts 收敛为身份/认证/全局 Group 编排；Board 角色、申请审批与 Policy 明确归 boards |
 | 2026-07-19 | v3.6 | Stage 3 跨 App ORM Policy 完成，Board 新增/删除收紧为 superuser；运行时入口待 Stage 4 |
 | 2026-07-19 | v3.5 | Group 收敛为全站职责；BoardMembership 成为 Blogs/comment 板块角色唯一来源；取消 BoardCreators 设计 |
 | 2026-07-13 | v3.4 | `boards.BoardMembership`、唯一约束和 super_admin 只读观察入口落地；Policy 尚未接入运行时 |
@@ -118,6 +119,7 @@ flowchart TD
 ```
 
 **核心设计原则**：
+- **App 边界**：accounts 回答全局身份与职责；boards 回答指定 Board 内可以执行的动作
 - **Board 权限迁移状态**：`BoardMembership` ORM 已落地，但现有五旗授权仍在运行；以 `PERMISSIONS_GUIDE.md` 的 `accounts_linear` 为迁移准绳
 - **单一事实来源**：Contributor / Editor / Reviewer / Manager 不写入 Group；BoardMembership + Policy 跨 App 控制 Post 与 Comment
 - **五旗权限模型**：`is_active` → `is_dashboard_user` → `is_reviewer` → `is_staff` → `is_superuser`（逐级递进）
@@ -154,6 +156,19 @@ flowchart TD
 | `Blogs/models.py` | Post STATUS_DRAFT/REVIEW, custom permissions | 文章状态机 + 权限定义 |
 | `Blogs/admin.py` | PostAdmin review actions, granular perms | 编辑者/审核者分离，审核操作 |
 | `PowerAdapterBlogs/base_admin.py` | DashboardAdminMixin | dashboard 基础权限（查看/模块可见） |
+| `boards/models.py` / `policies.py` | BoardMembership、Policy | 拥有板块角色与跨 App 对象授权；accounts 只提供 MyUser |
+
+### 2.2 与 boards 的明确边界
+
+| accounts 拥有 | boards 拥有 |
+|---|---|
+| MyUser、UserManager、登录/登出 | Board、BoardMembership |
+| `is_active`、`is_staff`、`is_superuser` 等全局账号状态 | Contributor / Editor / Reviewer / Manager 板块角色 |
+| 邮箱/证书验证、后续 MFA | `access_rules.py`、`policies.py` |
+| VerifiedUsers、UserManagers、SiteOperators 的归组编排 | 后续 BoardAccessRequest、角色审批与 Membership 变更 |
+| 全局 Group 与 `user_permissions` 的管理边界 | Post/Comment 的 Board Scope 最终裁决 |
+
+各业务 App 自己定义 Permission；accounts 负责全局 Group 的组合和分配，不接管 security、Blogs 或 comment 的领域模型。Board 申请属于 boards，因为申请对象和审批结果都围绕一个 Board。
 
 ---
 

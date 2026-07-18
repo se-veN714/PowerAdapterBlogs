@@ -2,10 +2,10 @@
 
 > **文档权重**：85（boards 当前实现与模块 TODO）
 > **模块**: `boards/`  
-> **职责**: 管理首页 Editorial 板块（Skateboard / Music / Coding 等）  
+> **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及后续板块申请审批
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-07-19 — accounts_linear 阶段 3 ORM Policy
+> **最后更新**: 2026-07-19 — 冻结 boards 与 accounts 业务边界
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-19 | v1.7 | 明确 boards 拥有 Membership、Policy 和未来 BoardAccessRequest；accounts 仅提供身份与全局职责 |
 | 2026-07-19 | v1.6 | 新增 `policies.py` 跨 App resolver/Policy；Board 新增删除已收紧为 superuser；运行时对象过滤待 Stage 4 |
 | 2026-07-19 | v1.5 | 冻结 Board 为 Blogs/comment 跨 App 授权边界；新增/删除 Board 仅限 superuser，当前 Admin 尚待 Stage 4 收紧 |
 | 2026-07-13 | v1.4 | 新增 `BoardMembership`、唯一约束、super_admin 只读观察入口及 5 个 ORM/Admin 测试 |
@@ -24,6 +25,26 @@
 ---
 
 ## 1. 架构概览
+
+### 1.1 App 所有权
+
+boards 是 Board Scope 授权领域的所有者：
+
+- 当前拥有 `Board`、`BoardMembership`、`access_rules.py` 和 `policies.py`。
+- Stage 4–5 由 boards Policy 被 Blogs/comment 的 Admin、View、API 调用，但 Post 和 Comment 模型仍归各自 App。
+- Stage 6b 的 `BoardAccessRequest`、审批服务和 Membership 变更放在 boards；它们只通过 `settings.AUTH_USER_MODEL` 引用申请人和审批人。
+- boards 不处理密码、登录、邮箱验证、MFA 或全局 Group；这些属于 accounts。
+
+```mermaid
+flowchart LR
+    ACCOUNTS["accounts<br/>提供 MyUser 与全局状态"] --> BOARDS["boards<br/>Membership / Request / Policy"]
+    BOARDS --> BLOGS["Blogs 执行文章动作"]
+    BOARDS --> COMMENT["comment 执行评论动作"]
+    BLOGS --> BOARDS
+    COMMENT --> BOARDS
+```
+
+图中的双向箭头表示运行时协作，不表示模型所有权互相转移：业务对象仍由 Blogs/comment 保存，最终 Board Scope 判定集中在 boards。
 
 ```
 boards/
@@ -129,7 +150,7 @@ python manage.py seed_boards --dry-run
 
 > 新增或删除 Board 已只允许 superuser，因为新 Board 会引入专属模板、SVG、CSS 或 JavaScript，等价于代码和部署变更。普通 dashboard 用户仍能修改所有现有 Board，这是 Stage 4 必须修复的运行时差距。
 
-> `BoardMembership` 已建立，但 `access_rules.py` 和 Membership 尚未被 Board/Post/Comment 的运行时入口调用。下一阶段由 `boards/policies.py` 适配 ORM 对象。
+> `BoardMembership` 与 `policies.py` 已建立，但尚未被 Board/Post/Comment 的运行时入口调用。Stage 4 将接入 queryset、对象和字段权限。
 
 ### BoardMembership 观察入口
 
@@ -166,6 +187,8 @@ Board 是授权边界，不是 Django Group：Group 只承载 `SiteOperators`、
 - `user_permissions` 和 Group 不会扩大 Board Scope。
 
 因此当前测试可以证明 Policy 自身正确，但 Dashboard 页面仍使用旧授权；Stage 4 才会接入 queryset、对象和字段权限。
+
+未来的板块权限申请与审批也属于 boards：accounts 只确认用户已登录、激活和完成邮箱验证，boards 负责申请的目标 Board、目标角色、审批人边界、结果及 Membership 更新。
 
 ---
 

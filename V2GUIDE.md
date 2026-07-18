@@ -2,7 +2,7 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-07-13
+> **更新**: 2026-07-19
 > **状态**: 安全收口已完成；下一项为 Board Scope 权限，复杂认证与密钥生命周期默认进入 v2.5+
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
@@ -24,7 +24,7 @@
 
 | 版本 | 目标 | 主文档 |
 |---|---|---|
-| v2.4 | 全局 Group + BoardMembership + 跨 App Policy 权限落地；Board 创建仅限 superuser | `accounts/PERMISSIONS_GUIDE.md` |
+| v2.4 | accounts 管身份/全局 Group，boards 管 Membership/申请审批/跨 App Policy；Board 创建仅限 superuser | `accounts/PERMISSIONS_GUIDE.md` |
 | v2.5 | superuser / Board Manager 强制 TOTP MFA，兼容 Android Microsoft Authenticator | `accounts/SECURITY_ROADMAP.md` |
 | v2.5+ | 密钥产生、分发、存储、使用、更新、归档、撤销、备份、恢复和销毁 | `accounts/SECURITY_ROADMAP.md` |
 | v2.6+ 候选 | Passkey、外部 IdP/Entra 或合规密码设备 | 需求成熟后再立项 |

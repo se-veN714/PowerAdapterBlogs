@@ -6,7 +6,7 @@
 > **设计风格**: 暗色 CRT 扫描线 + 绿色调 + 社刊 Editorial 排版
 > **前身**: `themes/bulma/`（Bulma CSS 框架，已弃用）
 > **创建**: 2026-06-22
-> **最后更新**: 2026-06-22 — v1.0 全站迁移完成
+> **最后更新**: 2026-07-19 — v1.2 Jazzmin 后台视觉统一
 
 ---
 
@@ -14,6 +14,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-19 | v1.2 | Jazzmin 后台接入 Devenir 配色、字体、导航层级与响应式视觉；不改变 Admin 行为 |
 | 2026-06-22 | v1.1 | Links 页重构（Bulma 结构复刻 + 3层进度条动画）+ links.css 独立文件 |
 | 2026-06-22 | v1.0 | 全站迁移：14 个页面模板 + 4 个 CSS + 1 个 JS + sidebar configs + sitemap |
 
@@ -143,6 +144,7 @@ flowchart TD
 | `css/editorial.css` | ~450 | 首页 Editorial Section + Glitch 文字效果 + Cate Cards |
 | `css/blog.css` | ~1050 | 文章列表/详情/Markdown/TOC/Timeline/Diff/评论/表单/搜索 |
 | `css/accounts.css` | ~60 | 登录页卡片/输入框/按钮/错误提示 |
+| `css/admin_theme.css` | ~440 | Jazzmin 后台 Devenir 视觉覆盖；表格、表单、导航、登录页与移动端适配 |
 | `css/links.css` | ~230 | Links Hero/图片/3层进度条动画/卡片网格 |
 | `css/errors/page-error.css` | ~230 | 500 错误页视觉区域 |
 | `js/main.js` | ~100 | Sidebar开关/Scroll Reveal/Glitch入场/Waveform条 |
@@ -185,7 +187,16 @@ STATICFILES_DIRS = [
 - `comment/templatetags/comment_block.py`：2 个 `inclusion_tag` → `pages/comment/...`
 - `comment/views.py`：1 个 `render_to_string()` → `pages/comment/item.html`
 
-### 5.3 模板中引用静态资源
+### 5.3 Jazzmin 后台视觉
+
+`PowerAdapterBlogs/settings/base.py` 的 `JAZZMIN_SETTINGS` 负责品牌文案、图标、导航顺序和
+`custom_css = "css/admin_theme.css"`；`JAZZMIN_UI_TWEAKS` 选择暗色布局及按钮语义色。
+`admin_theme.css` 只覆盖视觉层，不修改 Django Admin/Jazzmin 的权限、表单或 action 行为。
+
+后台静态资源继续由现有 `STATICFILES_DIRS` 查找；字体不存在时降级到 Cascadia Code、
+Consolas 和系统等宽字体。
+
+### 5.4 模板中引用静态资源
 
 ```django
 {% load static %}

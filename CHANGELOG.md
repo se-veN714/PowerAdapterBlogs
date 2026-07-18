@@ -4,6 +4,12 @@
 
 ## [2026-07-19]
 
+### PostgreSQL 日志完整性热修
+- `SecureLogEntry` 使用带版本号的规范 JSON 载荷，消除 Admin 创建前后 `object_id` 整数/字符串漂移导致的误报
+- 默认 HMAC 初始化改为只补缺，不再覆盖已有审计证据；新增 `--repair-known` 安全升级已验证旧签名
+- 无法由旧版管道格式或 JSON-v2 算法验证的记录保持可疑，不被批量重签洗白
+- 新增 8 个日志完整性回归测试；已完成的实现细节从 `V2GUIDE.md` 下移到 `security/DEVELOPMENT.md`
+
 ### Accounts / Boards 业务边界
 - accounts 负责 MyUser、认证、账号状态、MFA 规划和全局 Group 编排，不拥有 Board 角色或对象 Policy
 - boards 负责 Board、BoardMembership、角色规则、跨 App Policy，以及后续 BoardAccessRequest 和审批服务

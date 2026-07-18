@@ -136,10 +136,17 @@ if tampered > 0:
 #### D2. init_log_hmac
 
 ```python
-logger.info(f"init_log_hmac 开始: mode={'force' if force else 'init'}")
+logger.info("init_log_hmac 开始: mode=%s", mode)
 # ... 处理 ...
-logger.info(f"init_log_hmac 完成: created={created_count} updated={updated_count}")
+logger.info(
+    "init_log_hmac 完成: mode=%s created=%d updated=%d skipped=%d unknown=%d",
+    mode, created_count, updated_count, skipped_count, unknown_count,
+)
 ```
+
+默认 `init` 只补建缺失记录；`repair-known` 仅升级能由旧算法验证的签名；`force`
+会覆盖审计证据，只能在完成取证并明确重建基线时使用。日志只记录计数，不记录
+HMAC、密钥或签名原始载荷。
 
 ---
 

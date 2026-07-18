@@ -5,7 +5,7 @@
 > **职责**: Django Admin 日志 HMAC 完整性保护 + MongoDB 审计日志  
 > **依赖**: `gmssl` (SM3), `pymongo` (MongoDB), Django `LogEntry`  
 > **创建**: 2026-06-21  
-> **最后更新**: 2026-07-12 — 旧 ORM 审计模型删除迁移 + Admin 审核链统一
+> **最后更新**: 2026-07-19 — PostgreSQL LogEntry 规范载荷热修设计
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-19 | v2.2 | **完整性误报热修**：规范签名载荷；初始化改为只补缺；历史记录仅按可验证旧算法安全升级；8 个回归测试通过 |
 | 2026-07-12 | v2.1 | **审计链收口**: 删除已迁往 MongoDB 的 ORM CommentEventLog；CommentAdmin action 统一调用 moderate_comment；补日志防篡改和审核写入测试 |
 | 2026-06-21 | v2.0 | **P0 修复完成**: Issue A/B/C/D 全部修复 |
 | 2026-06-21 | v1.0 | 初始文档，记录模块架构和已知问题 |
@@ -30,8 +31,29 @@
 - `MongoLogger` 新增连接容错：MongoDB 不可用时降级为 no-op，不阻塞主流程
 - `moderate_comment()` 新增 try/except，评论状态更新不受 MongoDB 故障影响
 - MongoDB `cel_model.py` 保留为可选封装；旧 Django ORM `CommentEventLog` 已由 `0003` 删除
-- `init_log_hmac` 新增 `--force` 选项，用于 message 格式变更后重建 HMAC
+- `init_log_hmac` 历史上新增 `--force`；v2.2 起默认只补缺，优先使用 `--repair-known` 安全升级
 - `requirements.txt` 新增 `pymongo==4.10.1`
+
+### v2.2 热修根因与约束（已完成）
+
+现有 `compose_message()` 虽然使用 JSON，但直接序列化 Model 实例中的字段值。
+Django Admin 调用 `LogEntryManager.log_actions(single_object=True)` 时，刚保存实例的
+`object_id` 仍可能是整数；数据库字段是 `TextField`，重新查询后则为字符串。首次签名
+因此可能包含 JSON 数字，审计重算却包含 JSON 字符串，形成误报。
+
+只读数据核对结果：现有 24 条记录中，16 条匹配上述 JSON-v2 类型漂移，7 条匹配旧版
+`|` 拼接算法，1 条无法由已知历史算法解释。界面首次显示的绿色状态只来自
+`is_tampered=False` 默认值，不代表已经回验成功。
+
+热修必须遵守：
+
+1. `compose_message()` 输出规范载荷；`object_id` 固定为字符串或 `null`，其他字段也使用确定类型。
+2. 创建签名和审计验证调用同一规范化函数，并用测试覆盖保存前后类型变化。
+3. `compute_from_logentry()` 不得覆盖已经存在的 HMAC；默认初始化只补建缺失记录。
+4. 历史升级只重签能够被已知旧算法验证的记录，无法解释的记录保留并继续报告为篡改。
+5. `--force` 会重建信任基线，只能在完成取证并明确授权后使用。
+6. Django `bulk_create()` 不触发 `post_save`；批量删除产生的 `LogEntry` 可能缺少
+   `SecureLogEntry`，作为独立高优先级缺口处理。
 
 ---
 
@@ -104,7 +126,7 @@ flowchart TD
 | `sec_utils/hmac_utils.py` | `sm3_hmac()`, `generate_key()` | SM3-HMAC 核心算法实现 |
 | `mongo_models/cel_model.py` | `CommentEventLog` | 评论事件日志 CRUD（对 `MongoLogger` 的上层封装） |
 | `management/commands/audit_log_integrity.py` | `Command` | Django manage.py 命令：全量审计 PSQL 日志 |
-| `management/commands/init_log_hmac.py` | `Command` | 初始化命令：为历史 LogEntry 补建 HMAC |
+| `management/commands/init_log_hmac.py` | `Command` | 默认补建缺失 HMAC；`--repair-known` 安全升级旧格式；`--force` 人工重建基线 |
 | `middleware/__init__.py` | — | 空包占位（无实际中间件） |
 
 ---
@@ -128,10 +150,10 @@ sequenceDiagram
 
     Signal->>SL: compute_from_logentry(entry, secret_key)
     SL->>SL: compose_message(entry)
-    Note over SL: "1|2025-06-21...|user_id|<br/>content_type_id|obj_id|<br/>obj_repr|action_flag|change_msg"
+    Note over SL: 生成类型稳定的 JSON 规范载荷<br/>object_id 固定为 string/null
     SL->>HMAC: sm3_hmac(key, message.encode())
     HMAC-->>SL: hmac_value (64字符hex)
-    SL->>DB: update_or_create(<br/>log_entry=entry,<br/>hmac=hmac_value,<br/>is_tampered=False)
+    SL->>DB: get_or_create(<br/>log_entry=entry,<br/>hmac=hmac_value,<br/>is_tampered=False)
     DB-->>SL: SecureLogEntry 记录
 ```
 
@@ -242,6 +264,13 @@ self.collection = self.db[conf["DB_NAME"]]
 self.collection = self.db[self._collection_name]  # defaults to "logs"
 ```
 
+若部署仍保留修复前误写入的同名集合，先备份并在 `mongosh` 中迁移：
+
+```javascript
+use poweradapter_mongo
+db.poweradapter_mongo.renameCollection("audit_logs")
+```
+
 ### 🔴 Issue B: MongoDB 日志无验证能力 → ✅ 已修复
 
 `MongoLogger` 新增 `verify_log(doc)` 和 `audit_all()` 方法，与 `SecureLogEntry` 对等。
@@ -254,7 +283,20 @@ self.collection = self.db[self._collection_name]  # defaults to "logs"
 ### 🟢 Issue D: compose_message 分隔符冲突 → ✅ 已修复
 
 `compose_message()` 改用 `json.dumps()`，消除 `|` 分隔符冲突风险。
-已存在的 HMAC 需执行：`python manage.py init_log_hmac --force`
+旧版分隔符冲突已消除；但 JSON-v2 的字段类型仍不稳定，见 v2.2 热修。
+历史记录应执行安全升级命令 `python manage.py init_log_hmac --repair-known`，不得直接
+用 `--force` 覆盖无法验证的记录。
+
+### 🔴 Issue E: JSON 字段类型漂移导致首次审计误报 → ✅ 已修复
+
+签名创建时的 `object_id` 可能为整数，数据库重读后为字符串。v2.2 使用带版本号的
+规范 JSON 载荷，统一 ID、时间和字符串字段类型；已覆盖“创建后立即审计通过”、
+“保存前后类型一致”和“真实字段变更仍被检出”的回归测试。
+
+### 🔴 Issue F: `bulk_create()` 绕过 `post_save` → ⏳ 独立待修
+
+Django 批量删除通过 `LogEntry.objects.log_actions()` 批量创建日志，不触发当前签名信号。
+该问题影响审计覆盖率，但与 Issue E 的误报根因不同，不通过扩大本次算法修改掩盖。
 
 ## 5. 配置参考
 
@@ -475,9 +517,9 @@ erDiagram
 
 - `test/test_middleware.py` — 测试 `ClientMetaMiddleware`（位于 `comment/middleware.py`，非 security 模块）
 - `test/t_urls.py` — 测试专用 echo 视图
-- 无 `SecureLogEntry` 单元测试
-- 无 `MongoLogger` 单元测试
-- 无 `moderate_comment` 单元测试
+- `test/test_log_protection.py` — 非 superuser 修改/删除 `LogEntry` 的拒绝路径
+- `test/test_log_integrity.py` — 8 个规范载荷、真实篡改、证据保留和历史安全升级测试
+- `test/test_mongo_verify.py` — MongoDB 手工连接/写入/验证脚本，不属于隔离单元测试
 
 ### B. 管理命令速查
 
@@ -485,7 +527,10 @@ erDiagram
 # 为历史 LogEntry 补建/重建 HMAC 记录
 python manage.py init_log_hmac
 
-# 强制重新计算所有存在的 HMAC（compose_message 格式变更后）
+# 安全升级能够由旧算法验证的历史 HMAC
+python manage.py init_log_hmac --repair-known
+
+# 覆盖全部 HMAC（会重建信任基线，仅限取证完成后）
 python manage.py init_log_hmac --force
 
 # 全量审计所有 SecureLogEntry

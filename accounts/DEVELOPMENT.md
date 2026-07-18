@@ -5,7 +5,7 @@
 > **职责**: 自定义用户模型 (MyUser)、登录/登出、权限体系、纵深防御  
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-19 — 明确 Group 与跨 App Board Scope 职责
+> **最后更新**: 2026-07-19 — accounts_linear 阶段 3 Policy 完成
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-19 | v3.6 | Stage 3 跨 App ORM Policy 完成，Board 新增/删除收紧为 superuser；运行时入口待 Stage 4 |
 | 2026-07-19 | v3.5 | Group 收敛为全站职责；BoardMembership 成为 Blogs/comment 板块角色唯一来源；取消 BoardCreators 设计 |
 | 2026-07-13 | v3.4 | `boards.BoardMembership`、唯一约束和 super_admin 只读观察入口落地；Policy 尚未接入运行时 |
 | 2026-07-13 | v3.3 | 权限指南补充 Django Group 与 Board Policy 实际交互图；新增 `SECURITY_ROADMAP.md`，规划特权 TOTP MFA 和密钥全生命周期实践 |

@@ -42,6 +42,14 @@ class BoardAdmin(DashboardAdminMixin, admin.ModelAdmin):
         }),
     )
 
+    def has_add_permission(self, request):
+        """A new Board implies new frontend code and is superuser-only."""
+        return request.user.is_active and request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        """Deleting a Board changes the site structure and is superuser-only."""
+        return request.user.is_active and request.user.is_superuser
+
     def glitch_color_preview(self, obj):
         """在列表中展示颜色预览色块。"""
         return (

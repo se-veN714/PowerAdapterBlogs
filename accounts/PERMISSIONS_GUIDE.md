@@ -3,8 +3,8 @@
 > **文档权重**：90（当前 Board Scope 权限与 `accounts_linear` 主设计）
 > **归档模块**：`accounts/`
 > **主要作用域**：`boards.Board`
-> **状态**：`accounts_linear` 阶段 0–2 已完成；Policy 与运行时入口尚未接入
-> **日期**：2026-07-19（明确 Group、跨 App Board Scope 与 Board 创建边界）
+> **状态**：`accounts_linear` 阶段 0–3 已完成；Policy 已实现但运行时入口尚未接入
+> **日期**：2026-07-19（完成跨 App ORM Policy 与 Board 创建边界热修）
 > **目标**：以后续功能围绕 Board 展开，在不引入第三方对象权限库的前提下实现最小权限、职责分离和可测试的板块级授权。
 
 ## 1. 当前问题
@@ -12,8 +12,8 @@
 当前 `BoardAdmin` 继承 `DashboardAdminMixin`，实际权限只有一个全局开关：
 
 ```text
-is_dashboard_user=True → 可以查看、新增、修改所有 Board
-is_superuser=True      → 可以删除 Board
+is_dashboard_user=True → 仍可查看、修改所有现有 Board
+is_superuser=True      → 可以新增、删除 Board
 ```
 
 这无法表达“只能管理某个板块”“能投稿但不能改视觉配置”“能审核他人文章但不能审核自己”等对象级规则。Board 与 Post 目前通过 `Board.category → Post.category` 间接关联，Comment 再通过 Post 继承板块归属，也需要在权限策略中明确跨 App 归属。
@@ -344,7 +344,7 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 
 | 严重度 | 问题 | 建议 |
 |---|---|---|
-| 🔴 高 | 当前所有 dashboard 用户可修改全部 Board | 实施 BoardMembership 与 BoardAdmin Policy |
+| 🔴 高 | 当前所有 dashboard 用户仍可修改全部现有 Board | Stage 4 接入 BoardMembership 与 BoardAdmin Policy；新增/删除已先收紧为 superuser |
 | 🔴 高 | 审核权限目前是全局 `is_reviewer` | 迁为板块级 Reviewer，并禁止自审 |
 | 🟡 中 | Board 与 Post 仅通过 Category 间接关联 | 第一阶段封装 `board_for_post()`；未来按产品关系显式建模 |
 | 🟡 中 | View/API/Admin 权限判断分散 | 收敛到 `boards/policies.py` |
@@ -359,7 +359,7 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 | 0 ✅ | 固化角色矩阵、Group 名称和 Permission codename | 2026-07-19 修订：移除 BoardCreators，Board 新增/删除仅限 superuser；未改运行时授权入口 |
 | 1 ✅ | 先写 Policy 拒绝路径与角色矩阵测试 | `boards/tests/test_access_rules.py` 已覆盖跨 Board、禁止自审、停用成员与角色矩阵 |
 | 2 ✅ | 新建 `BoardMembership` 模型、约束和 Admin 只读观察入口 | 2026-07-13 已完成；同一用户在同一 Board 只有一条记录，观察入口仅限 superuser |
-| 3 | 实现 `boards/policies.py` 与 `board_for_post()` | Policy 单测通过，尚不替换旧入口 |
+| 3 ✅ | 实现 `boards/policies.py` 与跨 App Board resolver | 2026-07-19 已完成；12 个新增 Admin/Policy 测试通过，尚不替换旧入口 |
 | 4 | 接入 Board/Post/Comment 的 queryset 与对象操作 | dashboard 不再能看到或操作非所属 Board 对象 |
 | 5 | 接入审核 action、上传接口、普通 View/API | 同一动作在 Admin、View、API 的结果一致 |
 | 6 | 创建全局 Group 并迁移现有用户 | Group 只承载全局职责；Membership 由 superuser 复核 |
@@ -411,7 +411,20 @@ Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。�
 - ORM、角色枚举对齐、唯一约束和 Admin 拒绝路径已有 5 个测试；完整测试集共 28 个测试通过。
 - 本阶段没有改变任何 View、API、BoardAdmin 或 PostAdmin 的运行时授权逻辑。
 
-当前下一步为 **阶段 3：实现 `boards/policies.py` 与 `board_for_post()`，先通过单测固定 ORM 适配行为，仍不替换旧入口**。
+### 12.3 阶段 3 实现结果
+
+- `boards.policies` 成为 Board、Post、Comment 业务授权的统一 ORM 适配入口。
+- `board_for_post()` 通过 Category 解析 Board；未映射或同一 Category 对应多个 Board 时返回 `None`，默认拒绝。
+- `board_for_comment()` 通过 Comment → Post → Category → Board 继承相同作用域。
+- `get_active_membership()` 同时要求账号、Board 和 Membership 有效。
+- Contributor / Editor / Reviewer / Manager 的创建、编辑、提交、审核、发布、评论管理、运营设置和成员管理规则已接入阶段 1 的纯规则内核。
+- Contributor 提交文章补充“必须是作者本人”的拒绝条件；Reviewer 与 Manager 继续禁止自审和自发布。
+- Django `user_permissions` 即使拥有 `Blogs.change_post` 也不能扩大 Board Scope，已有回归测试固定该边界。
+- `can_create_board()`、`can_delete_board()` 和 `can_change_board_structure()` 只允许激活的 superuser。
+- `BoardAdmin` 已先行禁止普通 dashboard 用户新增和删除 Board；修改现有 Board 的字段级 Policy 留给阶段 4。
+- 完整测试集共 40 个测试通过；本阶段仍未替换任何 Post/Comment View、Admin action 或 API 授权入口。
+
+当前下一步为 **阶段 4：将 Policy 接入 Board/Post/Comment 的 queryset、对象权限和字段权限，使 dashboard 不再看到或修改非所属 Board 对象**。
 
 ## 13. 参考依据
 

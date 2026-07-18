@@ -35,8 +35,13 @@ class BoardAccessRulesTest(SimpleTestCase):
             BoardAction.EDIT_OWN_DRAFT,
             owns_object=True,
         )
-        self.assert_allowed(BoardRole.CONTRIBUTOR, BoardAction.SUBMIT_POST)
+        self.assert_allowed(
+            BoardRole.CONTRIBUTOR,
+            BoardAction.SUBMIT_POST,
+            owns_object=True,
+        )
         self.assert_denied(BoardRole.CONTRIBUTOR, BoardAction.EDIT_OWN_DRAFT)
+        self.assert_denied(BoardRole.CONTRIBUTOR, BoardAction.SUBMIT_POST)
         self.assert_denied(
             BoardRole.CONTRIBUTOR,
             BoardAction.EDIT_OWN_POST,

@@ -5,7 +5,7 @@
 > **职责**: 管理首页 Editorial 板块（Skateboard / Music / Coding 等）  
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-07-19 — 明确跨 App Scope 与 superuser 独占创建 Board
+> **最后更新**: 2026-07-19 — accounts_linear 阶段 3 ORM Policy
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-19 | v1.6 | 新增 `policies.py` 跨 App resolver/Policy；Board 新增删除已收紧为 superuser；运行时对象过滤待 Stage 4 |
 | 2026-07-19 | v1.5 | 冻结 Board 为 Blogs/comment 跨 App 授权边界；新增/删除 Board 仅限 superuser，当前 Admin 尚待 Stage 4 收紧 |
 | 2026-07-13 | v1.4 | 新增 `BoardMembership`、唯一约束、super_admin 只读观察入口及 5 个 ORM/Admin 测试 |
 | 2026-07-13 | v1.3 | 新增 `access_rules.py` 纯权限规则与 7 个角色矩阵/拒绝路径测试；尚未接入 ORM 和运行时入口 |
@@ -32,9 +33,11 @@ boards/
 ├── admin.py             # BoardAdmin + Membership 只读观察入口
 ├── views.py             # boards_context 上下文处理器
 ├── access_rules.py      # Board 角色动作矩阵与纯拒绝规则（无 ORM）
+├── policies.py          # Post/Comment → Board ORM 解析与统一授权入口
 ├── tests/
 │   ├── test_access_rules.py  # accounts_linear 阶段 1 契约测试
-│   └── test_membership.py    # 阶段 2 ORM 与 Admin 边界测试
+│   ├── test_membership.py    # 阶段 2 ORM 与 Admin 边界测试
+│   └── test_policies.py      # 阶段 3 跨 App Policy 契约测试
 ├── management/
 │   └── commands/
 │       └── seed_boards.py   # 种子数据命令
@@ -116,14 +119,15 @@ python manage.py seed_boards --dry-run
 ## 4. Dashboard 管理
 
 - URL: `/dashboard/boards/board/`
-- 权限：`is_dashboard_user`
+- 查看/修改权限：仍为全局 `is_dashboard_user`，Stage 4 收敛到 Policy
+- 新增/删除权限：仅激活的 superuser
 - 行内编辑：`sort_order`、`is_active`
 - 颜色预览：列表显示色块 + 颜色值
 - 搜索：name、slug、keywords
 
 > 当前权限仍为全局 `is_dashboard_user`，存在跨 Board 越权风险。授权模型、Django Group 协作方式与迁移建议见 [`accounts/PERMISSIONS_GUIDE.md`](../accounts/PERMISSIONS_GUIDE.md)。
 
-> 目标边界：新增或删除 Board 只允许 superuser，因为新 Board 会引入专属模板、SVG、CSS 或 JavaScript，等价于代码和部署变更。当前 `BoardAdmin` 仍允许任意 dashboard 用户新增，这是 Stage 4 必须修复的运行时差距，不应将文档中的目标误认为已经生效。
+> 新增或删除 Board 已只允许 superuser，因为新 Board 会引入专属模板、SVG、CSS 或 JavaScript，等价于代码和部署变更。普通 dashboard 用户仍能修改所有现有 Board，这是 Stage 4 必须修复的运行时差距。
 
 > `BoardMembership` 已建立，但 `access_rules.py` 和 Membership 尚未被 Board/Post/Comment 的运行时入口调用。下一阶段由 `boards/policies.py` 适配 ORM 对象。
 
@@ -150,6 +154,18 @@ flowchart LR
 ```
 
 Board 是授权边界，不是 Django Group：Group 只承载 `SiteOperators`、`UserManagers` 等全局职责；Contributor / Editor / Reviewer / Manager 的唯一事实来源是 `BoardMembership`。
+
+### Stage 3 Policy 状态
+
+`policies.py` 已实现但尚未被旧入口调用：
+
+- Post 通过 Category 唯一解析 Board，缺失或歧义映射默认拒绝。
+- Comment 通过 Post 继承 Board。
+- Policy 检查账号、Board、Membership、角色、作者和自审边界。
+- superuser 保留结构和对象应急权限。
+- `user_permissions` 和 Group 不会扩大 Board Scope。
+
+因此当前测试可以证明 Policy 自身正确，但 Dashboard 页面仍使用旧授权；Stage 4 才会接入 queryset、对象和字段权限。
 
 ---
 

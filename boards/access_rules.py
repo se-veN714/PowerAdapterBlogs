@@ -81,6 +81,7 @@ def allows_board_action(
     if normalized_action in {
         BoardAction.EDIT_OWN_DRAFT,
         BoardAction.EDIT_OWN_POST,
+        BoardAction.SUBMIT_POST,
     } and not owns_object:
         return False
     if normalized_action in {BoardAction.REVIEW_POST, BoardAction.PUBLISH_POST}:

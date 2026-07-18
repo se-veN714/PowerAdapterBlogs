@@ -4,6 +4,13 @@
 
 ## [2026-07-19]
 
+### accounts_linear Stage 3
+- 新增 `boards/policies.py`，统一解析 Post/Comment 的 Board 归属并适配 BoardMembership 角色规则
+- 未映射或重复 Category→Board 映射默认拒绝；停用用户、Board、Membership 和跨 Board 操作均拒绝
+- 固定 Contributor 仅提交本人文章、Reviewer/Manager 禁止自审、直接 Django Permission 不扩大 Board Scope
+- BoardAdmin 新增和删除收紧为仅激活 superuser；现有 Board 修改范围将在 Stage 4 接入
+- 新增 12 个 Admin/Policy 测试，完整测试集由 28 增至 40 并全部通过
+
 ### Board 权限边界澄清
 - Django Group 仅承载邮箱验证、账号管理和全站审计等全局职责；Board 角色只存入 `BoardMembership`
 - Board 作为跨 App 授权边界，通过 Category 控制 Blogs.Post，并通过 Post 延伸到 comment.Comment

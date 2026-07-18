@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}PowerAdapter{% endblock %}</title>
-    <link rel="icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
+    <link rel="icon" href="{% static 'img/PowerAdapter_icon.png' %}" type="image/png">
 
     {% block head_link %}
     <!-- Stylesheets -->
@@ -104,7 +104,13 @@
             color: var(--text); text-decoration: none;
             display: flex; align-items: center; gap: 0.5rem;
         }
-        .logo-dot { width: 8px; height: 8px; background: var(--accent); }
+        .logo-mark {
+            width: 32px; height: 32px; flex: 0 0 32px;
+            background: var(--bg-primary);
+        }
+        .logo-mark img {
+            width: 100%; height: 100%; display: block; object-fit: contain;
+        }
         .nav { display: flex; align-items: center; gap: 2rem; }
         .nav a {
             color: var(--text-muted); text-decoration: none;
@@ -274,7 +280,10 @@
 <header class="header">
     <div class="container">
         <a href="{% url 'index' %}" class="logo">
-            <span class="logo-dot"></span> PowerAdapter
+            <span class="logo-mark" aria-hidden="true">
+                <img src="{% static 'img/PowerAdapter_icon.webp' %}" alt="" width="32" height="32">
+            </span>
+            <span>PowerAdapter</span>
         </a>
         <nav class="nav">
             <a href="{% url 'Blogs:post_list' %}" class="{% if '/posts' in request.path %}active{% endif %}">Posts</a>
@@ -307,7 +316,10 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <a href="{% url 'index' %}" class="logo" style="font-size:1.1rem;">
-            <span class="logo-dot"></span> PowerAdapter
+            <span class="logo-mark" aria-hidden="true">
+                <img src="{% static 'img/PowerAdapter_icon.webp' %}" alt="" width="32" height="32">
+            </span>
+            <span>PowerAdapter</span>
         </a>
         <button class="sidebar-close" id="sidebarClose" aria-label="Close menu">&#10005;</button>
     </div>

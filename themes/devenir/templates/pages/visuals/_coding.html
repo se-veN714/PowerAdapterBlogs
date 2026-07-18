@@ -1,0 +1,29 @@
+<div class="code-terminal" role="img" aria-label="Continuously scrolling Python code">
+    <div class="code-terminal-bar">
+        <span class="terminal-light"></span>
+        <span>adapter.py</span>
+        <span class="terminal-status">RUNNING</span>
+    </div>
+    <div class="code-scroll-window">
+        <div class="code-scroll-track">
+            <div class="code-loop">
+                <div class="code-row"><span class="code-ln">01</span><code><span class="code-keyword">from</span> dataclasses <span class="code-keyword">import</span> dataclass</code></div>
+                <div class="code-row"><span class="code-ln">02</span><code>&nbsp;</code></div>
+                <div class="code-row"><span class="code-ln">03</span><code><span class="code-keyword">@dataclass</span></code></div>
+                <div class="code-row"><span class="code-ln">04</span><code><span class="code-keyword">class</span> <span class="code-func">Signal</span>:</code></div>
+                <div class="code-row"><span class="code-ln">05</span><code>&nbsp;&nbsp;&nbsp;&nbsp;source: <span class="code-func">str</span></code></div>
+                <div class="code-row"><span class="code-ln">06</span><code>&nbsp;&nbsp;&nbsp;&nbsp;gain: <span class="code-func">float</span> = <span class="code-string">0.84</span></code></div>
+                <div class="code-row"><span class="code-ln">07</span><code>&nbsp;</code></div>
+                <div class="code-row"><span class="code-ln">08</span><code>&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">def</span> <span class="code-func">adapt</span>(self, frame):</code></div>
+                <div class="code-row"><span class="code-ln">09</span><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;energy = frame * self.gain</code></div>
+                <div class="code-row"><span class="code-ln">10</span><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">return</span> <span class="code-func">normalize</span>(energy)</code></div>
+                <div class="code-row"><span class="code-ln">11</span><code>&nbsp;</code></div>
+                <div class="code-row"><span class="code-ln">12</span><code><span class="code-keyword">async def</span> <span class="code-func">stream</span>(signal):</code></div>
+                <div class="code-row"><span class="code-ln">13</span><code>&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">async for</span> frame <span class="code-keyword">in</span> signal:</code></div>
+                <div class="code-row"><span class="code-ln">14</span><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">yield</span> signal.<span class="code-func">adapt</span>(frame)</code></div>
+                <div class="code-row"><span class="code-ln">15</span><code>&nbsp;</code></div>
+                <div class="code-row"><span class="code-ln">16</span><code><span class="code-comment"># think · build · play · repeat</span></code></div>
+            </div>
+        </div>
+    </div>
+</div>

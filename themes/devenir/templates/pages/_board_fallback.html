@@ -1,55 +1,25 @@
-{# Board fallback — shown when boards table is empty (e.g. before seed_boards) #}
-{% comment %}
-This is a static fallback. Once seed_boards runs, boards context will populate
-and the dynamic loop in index.html will render instead.
-{% endcomment %}
+{# Static fallback shown before the boards table is seeded. #}
 
 <!-- ===== 01 Skateboard ===== -->
 <section class="editorial-section editorial-glitch" id="skateboard" data-scramble="title,body" data-scramble-set="skate">
     <div class="editorial-number">
         <span class="number-text">01</span>
         <div class="editorial-metadata">
-            <span class="meta-word">PUSH</span>
-            <span class="meta-word">FALL</span>
-            <span class="meta-word">ROLL</span>
+            <span class="meta-word">PUSH</span><span class="meta-word">FALL</span><span class="meta-word">ROLL</span>
         </div>
     </div>
     <div class="editorial-content">
         <h2 class="editorial-title" data-scramble-text>Skateboard</h2>
         <span class="editorial-title-slash" style="display:block;width:24px;height:2px;background:var(--accent);transform:rotate(-20deg);margin-bottom:1.5rem;"></span>
         <p class="editorial-body" data-scramble-text>
-            基础、保持与坚持。<br>
-            关于滑板的一切：关于平衡、起跳<br>
-            以及反复摔倒的瞬间。
+            基础、保持与坚持。<br>关于滑板的一切：关于平衡、起跳<br>以及反复摔倒的瞬间。
         </p>
         <a href="{% url 'blogs:category_list' category_id=1 %}" class="editorial-link">
             Enter Skateboard World <span class="link-arrow">&#8594;</span>
         </a>
     </div>
     <div class="editorial-visual editorial-visual--skate" data-glitch-color="#4ed7af">
-        <svg viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
-            <rect width="400" height="300" fill="url(#skyGrad01)"/>
-            <defs><linearGradient id="skyGrad01" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#0D1010"/><stop offset="100%" stop-color="#1C2323"/>
-            </linearGradient></defs>
-            <path d="M0 300 L50 120 L150 120 L200 300" fill="none" stroke="rgb(216,255,225)" stroke-width="3" opacity="0.4"/>
-            <path d="M250 300 Q300 150 400 180 L400 300" fill="none" stroke="rgb(143,163,148)" stroke-width="2" opacity="0.3"/>
-            <circle cx="50" cy="40" r="1.5" fill="rgb(216,255,225)" opacity="0.4"/>
-            <circle cx="120" cy="25" r="1" fill="rgb(216,255,225)" opacity="0.35"/>
-            <circle cx="200" cy="50" r="1.5" fill="rgb(216,255,225)" opacity="0.3"/>
-            <circle cx="300" cy="30" r="1" fill="rgb(216,255,225)" opacity="0.4"/>
-            <circle cx="350" cy="60" r="1.5" fill="rgb(216,255,225)" opacity="0.25"/>
-            <circle cx="80" cy="70" r="1" fill="rgb(216,255,225)" opacity="0.35"/>
-            <g transform="translate(130, 100) rotate(-15)">
-                <circle cx="0" cy="-20" r="10" fill="none" stroke="rgb(235,240,235)" stroke-width="2"/>
-                <line x1="0" y1="-10" x2="0" y2="20" stroke="rgb(235,240,235)" stroke-width="2"/>
-                <line x1="0" y1="0" x2="-15" y2="10" stroke="rgb(235,240,235)" stroke-width="1.5"/>
-                <line x1="0" y1="0" x2="15" y2="5" stroke="rgb(235,240,235)" stroke-width="1.5"/>
-                <line x1="-8" y1="20" x2="8" y2="30" stroke="rgb(235,240,235)" stroke-width="1.5"/>
-                <line x1="5" y1="20" x2="15" y2="25" stroke="rgb(235,240,235)" stroke-width="1.5"/>
-                <path d="M-20 35 Q0 38 20 35" stroke="rgb(216,255,225)" stroke-width="2"/>
-            </g>
-        </svg>
+        {% include 'pages/visuals/_skateboard.html' %}
     </div>
     <div class="editorial-keywords"><div class="artifact-keywords">Ollie-Grind-Flip</div></div>
 </section>
@@ -59,25 +29,21 @@ and the dynamic loop in index.html will render instead.
     <div class="editorial-number">
         <span class="number-text">02</span>
         <div class="editorial-metadata">
-            <span class="meta-word">RHYTHM</span>
-            <span class="meta-word">HARMONY</span>
-            <span class="meta-word">NOISE</span>
+            <span class="meta-word">RHYTHM</span><span class="meta-word">HARMONY</span><span class="meta-word">NOISE</span>
         </div>
     </div>
     <div class="editorial-content">
         <h2 class="editorial-title" data-scramble-text>Music</h2>
         <span class="editorial-title-slash" style="display:block;width:24px;height:2px;background:var(--accent);transform:rotate(-20deg);margin-bottom:1.5rem;"></span>
         <p class="editorial-body" data-scramble-text>
-            节律、节奏与共鸣。<br>
-            记录我听到的、创作的，<br>
-            以及那些打动我的声音。
+            节律、节奏与共鸣。<br>记录我听到的、创作的，<br>以及那些打动我的声音。
         </p>
         <a href="{% url 'blogs:category_list' category_id=2 %}" class="editorial-link">
             Enter Music World <span class="link-arrow">&#8594;</span>
         </a>
     </div>
     <div class="editorial-visual editorial-visual--music" data-glitch-color="#b794f4">
-        <div class="waveform-bars" id="waveform"></div>
+        {% include 'pages/visuals/_music.html' %}
     </div>
     <div class="editorial-keywords"><div class="artifact-keywords">Melody-Harmony-Noise</div></div>
 </section>
@@ -87,39 +53,21 @@ and the dynamic loop in index.html will render instead.
     <div class="editorial-number">
         <span class="number-text">03</span>
         <div class="editorial-metadata">
-            <span class="meta-word">LOGIC</span>
-            <span class="meta-word">STRUCT</span>
-            <span class="meta-word">CREATE</span>
+            <span class="meta-word">LOGIC</span><span class="meta-word">STRUCT</span><span class="meta-word">CREATE</span>
         </div>
     </div>
     <div class="editorial-content">
         <h2 class="editorial-title" data-scramble-text>Coding</h2>
         <span class="editorial-title-slash" style="display:block;width:24px;height:2px;background:var(--accent);transform:rotate(-20deg);margin-bottom:1.5rem;"></span>
         <p class="editorial-body" data-scramble-text>
-            代码、结构与可能性的<br>
-            在逻辑中构建想法，<br>
-            在系统中寻找自由。
+            代码、结构与可能性。<br>在逻辑中构建想法，<br>在系统中寻找自由。
         </p>
         <a href="{% url 'blogs:category_list' category_id=3 %}" class="editorial-link">
             Enter Coding World <span class="link-arrow">&#8594;</span>
         </a>
     </div>
     <div class="editorial-visual editorial-visual--code" data-glitch-color="#f6ad55">
-        <div class="code-visual-grid" style="display:grid;grid-template-columns:auto 1fr;align-items:start;width:100%;height:100%;">
-            <div class="code-line-numbers" style="padding:2rem 0.75rem 2rem 1rem;text-align:right;color:var(--text-tertiary);opacity:0.35;font-size:0.7rem;line-height:1.7;user-select:none;border-right:1px solid var(--fragment-border);">
-                01<br>02<br>03<br>04<br>05<br>06<br>07<br>08<br>09<br>10<br>11<br>12<br>13<br>14<br>15<br>
-            </div>
-            <div class="code-lines" style="padding:2rem 1.5rem 2rem 1rem;display:flex;flex-direction:column;gap:0.15rem;font-family:var(--font-mono);font-size:0.78rem;line-height:1.7;">
-                <div class="code-line"><span class="code-keyword">def</span> <span class="code-func">solve_problem</span>(<span class="code-var">problem</span>):</div>
-                <div class="code-line"><span class="code-var">observed</span> = <span class="code-func">analyze</span>(<span class="code-var">problem</span>)</div>
-                <div class="code-line"><span class="code-keyword">if</span> <span class="code-var">insight</span>:</div>
-                <div class="code-line"><span class="code-keyword">return</span> <span class="code-func">iterate</span>(<span class="code-var">problem</span>)</div>
-                <div class="code-line">&nbsp;</div>
-                <div class="code-line"><span class="code-comment">// Write less.</span></div>
-                <div class="code-line"><span class="code-comment">// Do more.</span></div>
-                <div class="code-line"><span class="code-comment">// Repeat.</span></div>
-            </div>
-        </div>
+        {% include 'pages/visuals/_coding.html' %}
     </div>
     <div class="editorial-keywords"><div class="artifact-keywords">Logic-Struct-Create</div></div>
 </section>

@@ -470,29 +470,108 @@
     }
 }
 
-/* ===== Waveform bars ===== */
-.editorial-visual .waveform-bars {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    height: 120px;
+/* ===== Board artwork layers ===== */
+.skateboard-visual-shell {
+    width: 100%; height: 100%; min-height: 320px;
+    display: flex; align-items: center; justify-content: center;
 }
 
-.editorial-visual .waveform-bars .bar {
-    width: 4px;
-    background: var(--accent);
-    border-radius: 2px;
-    animation: wave 0.8s ease-in-out infinite;
+.board-skateboarder-svg {
+    display: block; width: min(82%, 360px); height: min(92%, 420px);
 }
 
-@keyframes wave {
-    0%, 100% {
-        height: 4px;
-    }
-    50% {
-        height: var(--h, 100px);
-    }
+/* The panel is the glitch target; individual bars animate one layer deeper. */
+.spectrum-panel {
+    position: relative; width: min(88%, 480px); height: 230px;
+    overflow: hidden; border: 1px solid var(--fragment-border);
+    background: rgba(13, 16, 16, 0.68);
+}
+
+.spectrum-grid {
+    position: absolute; inset: 18px 20px 28px;
+    background:
+        repeating-linear-gradient(to top, transparent 0 35px, rgba(216, 255, 225, 0.06) 35px 36px),
+        repeating-linear-gradient(to right, transparent 0 56px, rgba(216, 255, 225, 0.04) 56px 57px);
+    border-bottom: 1px solid rgba(216, 255, 225, 0.18);
+}
+
+.spectrum-bars {
+    position: absolute; inset: 24px 20px 29px;
+    display: flex; align-items: stretch; gap: clamp(2px, 0.45vw, 5px);
+}
+
+.spectrum-bin {
+    flex: 1 1 0; min-width: 2px;
+    display: flex; align-items: flex-end;
+}
+
+.spectrum-bar {
+    width: 100%; height: 100%; transform: scaleY(0.12);
+    transform-origin: center bottom; will-change: transform;
+    background: var(--accent-primary);
+    box-shadow: 0 0 8px rgba(78, 215, 175, 0.13);
+}
+
+.spectrum-bin:nth-child(4n) .spectrum-bar { background: var(--accent-soft); }
+.spectrum-bin:nth-child(7n) .spectrum-bar { background: #4ed7af; }
+
+.spectrum-labels {
+    position: absolute; left: 20px; right: 20px; bottom: 7px;
+    display: flex; justify-content: space-between;
+    color: var(--text-tertiary); font-size: 0.56rem; letter-spacing: 0.04em;
+}
+
+/* ===== Continuously scrolling Python terminal ===== */
+.code-terminal {
+    width: min(100%, 520px); height: 320px;
+    overflow: hidden; border: 1px solid var(--fragment-border);
+    background: rgba(13, 16, 16, 0.82);
+    font-family: var(--font-mono);
+}
+
+.code-terminal-bar {
+    height: 34px; padding: 0 0.8rem;
+    display: flex; align-items: center; gap: 0.6rem;
+    border-bottom: 1px solid var(--fragment-border);
+    color: var(--text-tertiary); font-size: 0.66rem; letter-spacing: 0.08em;
+}
+
+.terminal-light {
+    width: 6px; height: 6px; background: #4ed7af;
+    box-shadow: 0 0 8px rgba(78, 215, 175, 0.45);
+}
+
+.terminal-status {
+    margin-left: auto; color: var(--accent-soft);
+    animation: terminal-pulse 1.8s steps(2, end) infinite;
+}
+
+.code-scroll-window { height: calc(100% - 34px); overflow: hidden; }
+.code-scroll-track { will-change: transform; }
+.code-scroll-track.is-ready { animation: code-scroll 22s linear infinite; }
+.code-loop { padding: 0.65rem 0 0.85rem; }
+
+.code-row {
+    min-height: 1.55rem; padding-right: 0.8rem;
+    display: grid; grid-template-columns: 2.65rem minmax(0, 1fr);
+    align-items: baseline; font-size: clamp(0.62rem, 1.05vw, 0.76rem);
+    line-height: 1.55rem; white-space: nowrap;
+}
+
+.code-row code { color: var(--text-primary); font-family: inherit; }
+.code-ln {
+    padding-right: 0.75rem; margin-right: 0.75rem;
+    color: var(--text-tertiary); opacity: 0.45; text-align: right;
+    border-right: 1px solid var(--fragment-border); user-select: none;
+}
+
+@keyframes code-scroll {
+    from { transform: translateY(0); }
+    to { transform: translateY(-50%); }
+}
+
+@keyframes terminal-pulse {
+    50% { opacity: 0.35; }
 }
 
 /* ===== Code syntax colors ===== */
@@ -523,6 +602,19 @@
 
 .code-prop {
     color: var(--accent-muted);
+}
+
+.generic-board-visual {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+}
+.generic-board-visual span {
+    font-family: var(--font-mono); font-size: 3rem; font-weight: 700;
+    opacity: 0.2; letter-spacing: 0.05em; text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .code-scroll-track.is-ready,
+    .terminal-status { animation: none; }
 }
 
 /* ============================================

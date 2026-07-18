@@ -35,38 +35,40 @@
             </div>
         </div>
         <div class="hero-visual reveal" style="position:relative;display:flex;align-items:center;justify-content:center;height:500px;">
-            <!-- Skateboarder SVG -->
-            <svg class="skateboarder-svg" viewBox="0 0 300 400" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:360px;">
-                <circle cx="150" cy="80" r="28" fill="none" stroke="rgb(235,240,235)" stroke-width="2.5"/>
-                <line x1="150" y1="108" x2="140" y2="220" stroke="rgb(235,240,235)" stroke-width="2.5" stroke-linecap="round"/>
-                <path d="M145 140 Q120 160 100 150" stroke="rgb(235,240,235)" stroke-width="2" stroke-linecap="round"/>
-                <path d="M148 145 Q170 170 190 185" stroke="rgb(235,240,235)" stroke-width="2" stroke-linecap="round"/>
-                <line x1="140" y1="220" x2="120" y2="290" stroke="rgb(235,240,235)" stroke-width="2.5" stroke-linecap="round"/>
-                <line x1="145" y1="220" x2="170" y2="280" stroke="rgb(235,240,235)" stroke-width="2.5" stroke-linecap="round"/>
-                <path d="M95 295 Q150 310 230 295" stroke="rgb(216,255,225)" stroke-width="3" stroke-linecap="round"/>
-                <line x1="110" y1="295" x2="110" y2="305" stroke="rgb(216,255,225)" stroke-width="3" stroke-linecap="round"/>
-                <line x1="200" y1="295" x2="200" y2="305" stroke="rgb(216,255,225)" stroke-width="3" stroke-linecap="round"/>
-                <line x1="70" y1="260" x2="85" y2="260" stroke="rgb(143,163,148)" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
-                <line x1="60" y1="280" x2="80" y2="280" stroke="rgb(143,163,148)" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
-                <line x1="75" y1="300" x2="95" y2="300" stroke="rgb(143,163,148)" stroke-width="1.5" stroke-linecap="round" opacity="0.2"/>
-            </svg>
-            <svg class="circular-text" viewBox="0 0 200 200" style="position:absolute;width:340px;height:340px;animation:spin 20s linear infinite;">
-                <defs><path id="circlePath" d="M100,20 a80,80 0 1,1 -0.1,0"/></defs>
-                <text><textPath href="#circlePath" startOffset="0%" style="fill:var(--accent-muted);font-size:13px;font-weight:600;letter-spacing:0.12em;">
-                    DESIRE · THINK · BUILD · PLAY · DESIRE · THINK · BUILD · PLAY ·
-                </textPath></text>
-            </svg>
+            <div class="hero-logo-frame">
+                <img class="hero-logo" src="{% static 'img/PowerAdapter_logo.webp' %}"
+                     alt="PowerAdapter — Programming, Music and Skateboarding"
+                     width="1024" height="1024" decoding="async" fetchpriority="high">
+            </div>
         </div>
     </div>
 </section>
 <style>
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .hero-logo-frame {
+        position: relative; width: min(100%, 500px); aspect-ratio: 1;
+        border: 1px solid var(--fragment-border); overflow: hidden;
+        background: var(--bg-primary);
+    }
+    .hero-logo-frame::before,
+    .hero-logo-frame::after {
+        content: ''; position: absolute; z-index: 1; pointer-events: none;
+        width: 56px; height: 56px;
+    }
+    .hero-logo-frame::before {
+        top: 14px; left: 14px;
+        border-top: 1px solid var(--accent-soft); border-left: 1px solid var(--accent-soft);
+    }
+    .hero-logo-frame::after {
+        right: 14px; bottom: 14px;
+        border-right: 1px solid var(--accent-soft); border-bottom: 1px solid var(--accent-soft);
+    }
+    .hero-logo { display: block; width: 100%; height: 100%; object-fit: cover; }
     .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--accent-glow); }
     .cta-btn:hover .arrow { transform: translateX(4px); }
     @media (max-width:768px) {
         .hero .container { grid-template-columns:1fr; gap:3rem; }
         .hero-visual { height:350px; order:-1; }
-        .circular-text { width:260px; height:260px; }
+        .hero-logo-frame { width: min(88vw, 350px); }
     }
 </style>
 {% endblock %}

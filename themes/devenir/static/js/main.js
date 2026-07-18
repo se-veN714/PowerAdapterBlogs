@@ -123,21 +123,70 @@ document.addEventListener('DOMContentLoaded', function () {
         visual.style.setProperty('--glitch-c', visual.dataset.glitchColor);
     });
 
-    // ===== Waveform Bars (for music section, if present) =====
-    const waveform = document.getElementById('waveform');
-    if (waveform) {
-        const barCount = 32;
+    // ===== Music spectrum =====
+    // Correlated frequency motion: bass carries the beat, mids stay active,
+    // and highs decay. Transforms run below the outer glitch layer.
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const spectrumStates = [];
+
+    document.querySelectorAll('[data-spectrum]').forEach(function (spectrum) {
+        const barCount = 44;
+        const bars = [];
+
         for (let i = 0; i < barCount; i++) {
-            const t = i / (barCount - 1);
-            const envelope = 1 - Math.pow(t, 1.6);
-            const baseH = 8 + envelope * (70 + Math.random() * 50);
-            const bar = document.createElement('div');
-            bar.className = 'bar';
-            bar.style.setProperty('--h', baseH + 'px');
-            bar.style.animationDelay = (i * 0.03) + 's';
-            bar.style.animationDuration = (0.5 + Math.random() * 0.6) + 's';
-            waveform.appendChild(bar);
+            const bin = document.createElement('span');
+            const bar = document.createElement('span');
+            bin.className = 'spectrum-bin';
+            bar.className = 'spectrum-bar';
+            bin.appendChild(bar);
+            spectrum.appendChild(bin);
+            bars.push(bar);
         }
+
+        spectrumStates.push({ element: spectrum, bars: bars, active: true });
+    });
+
+    if (spectrumStates.length) {
+        const spectrumObserver = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                const state = spectrumStates.find(function (item) { return item.element === entry.target; });
+                if (state) state.active = entry.isIntersecting;
+            });
+        }, { threshold: 0.05 });
+
+        spectrumStates.forEach(function (state) { spectrumObserver.observe(state.element); });
+
+        function renderSpectrum(time) {
+            spectrumStates.forEach(function (state) {
+                if (!state.active || document.hidden) return;
+
+                state.bars.forEach(function (bar, index) {
+                    const x = index / (state.bars.length - 1);
+                    const envelope = 0.18 + 0.82 * Math.pow(1 - x, 0.62);
+                    const beat = Math.pow((Math.sin(time * 0.0032) + 1) / 2, 7) * 0.28 * (1 - x);
+                    const bass = Math.sin(time * 0.0041 + index * 0.52) * 0.16;
+                    const mid = Math.sin(time * 0.0067 + index * 1.13) * 0.10;
+                    const detail = Math.sin(time * 0.0109 + index * 0.29) * 0.055;
+                    const level = Math.max(0.07, Math.min(1, envelope * (0.55 + bass + mid + detail) + beat));
+                    bar.style.transform = 'scaleY(' + level.toFixed(3) + ')';
+                });
+            });
+
+            if (!reduceMotion) window.requestAnimationFrame(renderSpectrum);
+        }
+
+        renderSpectrum(reduceMotion ? 900 : performance.now());
     }
+
+    // ===== Seamless Python code scroll =====
+    document.querySelectorAll('.code-scroll-track').forEach(function (track) {
+        const loop = track.querySelector('.code-loop');
+        if (!loop || reduceMotion) return;
+
+        const clone = loop.cloneNode(true);
+        clone.setAttribute('aria-hidden', 'true');
+        track.appendChild(clone);
+        window.requestAnimationFrame(function () { track.classList.add('is-ready'); });
+    });
 
 });

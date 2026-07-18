@@ -15,6 +15,15 @@
     padding: 2rem 1rem 1.5rem;
 }
 
+.links-brand-logo {
+    display: block;
+    width: clamp(112px, 18vw, 168px);
+    height: auto;
+    margin: 0 auto 1rem;
+    border: 1px solid var(--fragment-border);
+    background: var(--bg-primary);
+}
+
 .links-hero-title {
     display: block;
     font-family: var(--font-mono);
@@ -55,6 +64,10 @@
     height: auto;
     border-radius: 4px;
     border: 1px solid var(--border);
+}
+
+.links-hero-image--secondary {
+    opacity: 0.72;
 }
 
 /* ===== Progress Bar (Bulma progress is-small is-info) ===== */

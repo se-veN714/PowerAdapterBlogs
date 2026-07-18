@@ -195,7 +195,10 @@ python manage.py audit_log_integrity --mongo
 # HMAC 初始化
 python manage.py init_log_hmac
 
-# HMAC 重建（格式变更后）
+# 安全升级能被旧算法验证的历史 HMAC
+python manage.py init_log_hmac --repair-known
+
+# 强制重建会覆盖审计证据，仅限完成取证后的人工基线重置
 python manage.py init_log_hmac --force
 ```
 
@@ -210,4 +213,4 @@ python manage.py init_log_hmac --force
 | 登录后无法访问后台 | 确认 `is_staff`/`is_dashboard_user` 是否正确勾选 |
 | dashboard 用户看到 403 | 确认 `CustomSite.has_permission()` 逻辑（`cus_site.py`） |
 | 静态文件 404 | DEBUG=False 时需要 `python manage.py collectstatic` |
-| HMAC 验证失败 | 先 `init_log_hmac --force` 重建签名 |
+| HMAC 验证失败 | 先运行审计并保留证据；仅对已知历史格式使用 `init_log_hmac --repair-known`，不得直接 `--force` |

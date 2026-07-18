@@ -2,7 +2,7 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-07-13
+> **更新**: 2026-07-19
 > **状态**: 安全收口已完成；下一项为 Board Scope 权限，复杂认证与密钥生命周期默认进入 v2.5+
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
@@ -80,142 +80,14 @@ DRF 是给程序消费的 Data API，不作为 Devenir 的内部渲染依赖。�
 
 ---
 
-## 1. P0 Bugfix：MongoDB 日志完整性修复 ✅ 已完成
+## 1. P0 日志完整性修复 ✅ 已完成
 
-> **完成日期**: 2026-06-22 · 4 个问题全部修复
+MongoDB 日志验证、集合配置和密钥加载已于 2026-06-22 完成；PostgreSQL
+`SecureLogEntry` 的 JSON 类型漂移误报已于 2026-07-19 修复。日志完整性属于
+`security` App 的已落地实现，不再作为当前 V2 路线的设计约束。
 
-### 1.1 问题诊断
-
-审查 `security/` 模块后，发现以下 4 个问题：
-
-#### 问题 A：MongoDB 集合命名错误 🔴
-
-`security/mongo_client.py:55`
-```python
-self.collection = self.db[conf["DB_NAME"]]  # ❌ 集合名 = 数据库名
-```
-应该用：
-```python
-self.collection = self.db[conf.get("COLLECTION", "audit_logs")]  # ✅
-```
-
-**影响**：所有通过 `MongoLogger` 写入的日志进入名为 `poweradapter_mongo` 的集合，而不是预期的 `audit_logs` 集合。
-
-#### 问题 B：MongoDB 日志无验证能力 🔴
-
-`SecureLogEntry`（PostgreSQL 端）有完整的 `audit()` / `audit_all()` 验证流程，但 `MongoLogger` 只写入了 HMAC，没有任何 `verify_log()` / `audit_logs()` 方法。写了签名但从不校验，形同虚设。
-
-#### 问题 C：LOG_HMAC_KEY 硬编码 🟡
-
-`develop.py:37` 硬编码了 32 字节 key，但 `product.py` 中没有对应的环境变量注入。生产环境部署时这个 key 要么为空导致 crash，要么用开发 key（不安全）。
-
-#### 问题 D：SecureLogEntry compose_message 鲁棒性不足 🟢
-
-`security/models.py` 用 `|` 分隔字段拼接消息。`change_message` 是 Django Admin 的 JSON 字符串，理论上可以包含 `|`，导致 HMAC 校验时消息不一致。
-
-### 1.2 修复方案
-
-#### 修复 A & B：重写 MongoLogger
-
-```python
-class MongoLogger:
-    def __init__(self):
-        conf = settings.MONGO
-        # ... 连接代码不变 ...
-        self.collection = self.db[conf.get("COLLECTION", "audit_logs")]  # 修复A
-        self.hmac_key = settings.LOG_HMAC_KEY
-
-    def insert_log(self, action: str, data: dict):
-        now = datetime.utcnow()
-        data_bytes = dict_to_bytes(data)
-        hmac_val = sm3_hmac(self.hmac_key, data_bytes)
-        doc = {
-            "action": action,
-            "data": data,
-            "hmac": hmac_val,
-            "created_at": now,          # 新增时间戳
-            "verified": False,           # 新增验证标记
-        }
-        return self.collection.insert_one(doc)
-
-    def verify_log(self, doc_id) -> bool:
-        """验证单条日志 HMAC（修复B）"""
-        doc = self.collection.find_one({"_id": doc_id})
-        if not doc:
-            return False
-        expected = sm3_hmac(self.hmac_key, dict_to_bytes(doc["data"]))
-        is_valid = (doc["hmac"] == expected)
-        self.collection.update_one(
-            {"_id": doc_id},
-            {"$set": {"verified": is_valid, "verified_at": datetime.utcnow()}}
-        )
-        return is_valid
-
-    def audit_all(self) -> dict:
-        """全量审计，返回统计（修复B）"""
-        total = tampered = verified = 0
-        for doc in self.collection.find({"verified": False}):
-            total += 1
-            if self.verify_log(doc["_id"]):
-                verified += 1
-            else:
-                tampered += 1
-        return {"total": total, "verified": verified, "tampered": tampered}
-```
-
-#### 修复 C：KEY 环境变量化
-
-```python
-# base.py
-LOG_HMAC_KEY = os.getenv("LOG_HMAC_KEY", "").encode()
-if not LOG_HMAC_KEY:
-    import warnings
-    warnings.warn("LOG_HMAC_KEY not set! Log integrity is disabled.", RuntimeWarning)
-```
-
-生产 `.env` 中：
-```
-LOG_HMAC_KEY=<32字节 base64 或 hex>
-```
-
-#### 修复 D：消息组合改用 JSON
-
-```python
-# models.py SecureLogEntry
-@staticmethod
-def compose_message(entry: LogEntry) -> bytes:
-    """改用 JSON 序列化，避免分隔符冲突"""
-    return json.dumps({
-        "id": entry.id,
-        "action_time": entry.action_time.isoformat(),
-        "user_id": entry.user_id,
-        "content_type_id": entry.content_type_id,
-        "object_id": entry.object_id,
-        "object_repr": entry.object_repr,
-        "action_flag": entry.action_flag,
-        "change_message": entry.change_message,
-    }, sort_keys=True, ensure_ascii=False).encode("utf-8")
-```
-
-### 1.3 实施步骤
-
-1. 修复 `mongo_client.py` 集合命名（修复 A）
-2. 在 `MongoLogger` 中添加 `verify_log()` 和 `audit_all()`（修复 B）
-3. `base.py` 中 `LOG_HMAC_KEY` 改为 `os.getenv()`（修复 C）
-4. `SecureLogEntry.compose_message()` 改用 JSON 序列化（修复 D）
-5. 添加 Django Admin action：选中 LogEntry → "审计 HMAC 完整性"
-6. 添加管理命令：`python manage.py audit_mongo_logs`
-7. ⚠️ 修复 D **是一次性迁移**——旧 SecureLogEntry 的 HMAC 值在 `compose_message` 输出变化后会全部失效，需要在 migration 中重新计算所有已有记录
-
-### 1.4 MongoDB 旧数据迁移
-
-由于问题 A（集合命名错误），现有 MongoDB 日志在 `poweradapter_mongo` 集合中：
-
-```javascript
-// 在 mongosh 中执行
-use poweradapter_mongo
-db.poweradapter_mongo.renameCollection("audit_logs")
-```
+算法、历史签名升级、审计命令和剩余 `bulk_create()` 覆盖缺口统一维护在
+[`security/DEVELOPMENT.md`](security/DEVELOPMENT.md)，本指南只保留版本级完成状态。
 
 ---
 

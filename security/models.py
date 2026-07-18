@@ -1,11 +1,17 @@
-# Create your models here.
+import json
+from datetime import UTC
+from hmac import compare_digest
+
 from django.contrib.admin.models import LogEntry
 from django.db import models
 from django.utils import timezone
+
 from security.sec_utils.hmac_utils import sm3_hmac
 
 
 class SecureLogEntry(models.Model):
+    PAYLOAD_VERSION = 3
+
     log_entry = models.OneToOneField(LogEntry, on_delete=models.CASCADE)
     hmac = models.CharField(max_length=128)
     is_tampered = models.BooleanField(default=False)
@@ -24,25 +30,63 @@ class SecureLogEntry(models.Model):
         return f"Integrity for {self.log_entry}"
 
     @staticmethod
-    def compose_message(entry: LogEntry) -> str:
-        """
-        处理LogEntry模型的字段并整合为字符串。
-        v2: 改用 JSON 序列化，避免 | 分隔符与字段内容冲突（Issue D）。
-        :param entry: LogEntry 实例
-        :return: JSON 字符串
-        """
-        import json
+    def _canonical_datetime(value) -> str | None:
+        if value is None:
+            return None
+        if timezone.is_aware(value):
+            value = value.astimezone(UTC)
+        return value.isoformat(timespec="microseconds")
+
+    @classmethod
+    def compose_message(cls, entry: LogEntry) -> str:
+        """将 ``LogEntry`` 转换为类型稳定的 v3 JSON 签名载荷。"""
+        data = {
+            "version": cls.PAYLOAD_VERSION,
+            "id": int(entry.id) if entry.id is not None else None,
+            "action_time": cls._canonical_datetime(entry.action_time),
+            "user_id": int(entry.user_id) if entry.user_id is not None else None,
+            "content_type_id": (
+                int(entry.content_type_id)
+                if entry.content_type_id is not None
+                else None
+            ),
+            "object_id": (
+                str(entry.object_id) if entry.object_id is not None else None
+            ),
+            "object_repr": str(entry.object_repr),
+            "action_flag": int(entry.action_flag),
+            "change_message": str(entry.change_message),
+        }
+        return json.dumps(
+            data,
+            sort_keys=True,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+
+    @staticmethod
+    def compose_json_v2_message(entry: LogEntry, object_id=None) -> str:
+        """生成历史 JSON-v2 载荷，仅用于验证后安全升级旧签名。"""
         data = {
             "id": entry.id,
             "action_time": entry.action_time.isoformat() if entry.action_time else None,
             "user_id": entry.user_id,
             "content_type_id": entry.content_type_id,
-            "object_id": entry.object_id,
+            "object_id": entry.object_id if object_id is None else object_id,
             "object_repr": entry.object_repr,
             "action_flag": entry.action_flag,
             "change_message": entry.change_message,
         }
         return json.dumps(data, sort_keys=True, ensure_ascii=False)
+
+    @staticmethod
+    def compose_legacy_pipe_message(entry: LogEntry) -> str:
+        """生成 v1 管道分隔载荷，仅用于验证后安全升级旧签名。"""
+        return (
+            f"{entry.id}|{entry.action_time}|{entry.user_id}|"
+            f"{entry.content_type_id}|{entry.object_id}|{entry.object_repr}|"
+            f"{entry.action_flag}|{entry.change_message}"
+        )
 
     @classmethod
     def calculate_hmac(cls, entry: LogEntry, secret_key: bytes) -> str:
@@ -50,13 +94,20 @@ class SecureLogEntry(models.Model):
         return sm3_hmac(secret_key, message.encode())
 
     @classmethod
+    def has_valid_hmac(
+        cls,
+        instance: "SecureLogEntry",
+        secret_key: bytes,
+    ) -> bool:
+        expected = cls.calculate_hmac(instance.log_entry, secret_key)
+        return compare_digest(instance.hmac, expected)
+
+    @classmethod
     def compute_from_logentry(cls, entry: LogEntry, secret_key: bytes):
-        """
-        从 LogEntry 创建或更新对应的 SecureLogEntry。
-        """
+        """为 ``LogEntry`` 补建签名，不覆盖已经存在的审计证据。"""
         hmac_value = cls.calculate_hmac(entry, secret_key)
 
-        obj, created = cls.objects.update_or_create(
+        obj, created = cls.objects.get_or_create(
             log_entry=entry,
             defaults={
                 "hmac": hmac_value,
@@ -64,6 +115,39 @@ class SecureLogEntry(models.Model):
             }
         )
         return obj, created
+
+    @classmethod
+    def resign(cls, instance: "SecureLogEntry", secret_key: bytes) -> None:
+        """以当前规范载荷重签；调用方必须先完成取证或旧签名验证。"""
+        instance.hmac = cls.calculate_hmac(instance.log_entry, secret_key)
+        instance.is_tampered = False
+        instance.last_verified_at = timezone.now()
+        instance.save(update_fields=["hmac", "is_tampered", "last_verified_at"])
+
+    @classmethod
+    def identify_known_legacy_format(
+        cls,
+        instance: "SecureLogEntry",
+        secret_key: bytes,
+    ) -> str | None:
+        """识别能由当前数据库内容验证的历史签名格式。"""
+        entry = instance.log_entry
+        candidates = {
+            "legacy-pipe-v1": cls.compose_legacy_pipe_message(entry),
+            "json-v2": cls.compose_json_v2_message(entry),
+        }
+        object_id = entry.object_id
+        if isinstance(object_id, str) and object_id.isdecimal():
+            candidates["json-v2-int-object-id"] = cls.compose_json_v2_message(
+                entry,
+                object_id=int(object_id),
+            )
+
+        for format_name, message in candidates.items():
+            expected = sm3_hmac(secret_key, message.encode())
+            if compare_digest(instance.hmac, expected):
+                return format_name
+        return None
 
     @classmethod
     def audit_all(cls, secret_key: bytes) -> int:
@@ -82,8 +166,7 @@ class SecureLogEntry(models.Model):
             审计单条 SecureLogEntry 实例。
             返回是否被篡改。
         """
-        expected = cls.calculate_hmac(instance.log_entry, secret_key)
-        instance.is_tampered = (instance.hmac != expected)
+        instance.is_tampered = not cls.has_valid_hmac(instance, secret_key)
         instance.last_verified_at = timezone.now()
         instance.save(update_fields=["is_tampered", "last_verified_at"])
         return instance.is_tampered

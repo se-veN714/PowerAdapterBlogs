@@ -8,8 +8,14 @@
 <div class="links-hero">
     <div class="container">
         <div class="links-hero-body">
-            <img class="links-brand-logo" src="{% static 'img/PowerAdapter_logo.webp' %}"
-                 alt="PowerAdapter" width="1024" height="1024" decoding="async">
+            <video class="links-brand-logo" autoplay muted loop playsinline preload="metadata"
+                   poster="{% static 'img/PowerAdapter_logo.webp' %}"
+                   aria-label="PowerAdapter animated logo">
+                <source src="{% static 'vedio/logo.webm' %}" type="video/webm">
+                <source src="{% static 'vedio/logo.mp4' %}" type="video/mp4">
+                <img src="{% static 'img/PowerAdapter_logo.webp' %}"
+                     alt="PowerAdapter" width="1024" height="1024">
+            </video>
             <a class="links-hero-title" href="{% url 'index' %}">PowerAdapter Blogs</a>
             <p class="links-hero-subtitle">Love Programing, Music &amp; Skateboard!!!!</p>
         </div>
@@ -56,5 +62,5 @@
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/links.css' %}">
+<link rel="stylesheet" href="{% static 'css/links.css' %}?v=20260719.5">
 {% endblock %}

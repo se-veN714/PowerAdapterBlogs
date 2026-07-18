@@ -11,7 +11,7 @@
     <div class="hero-bg" style="position:absolute;inset:0;pointer-events:none;z-index:0;
         background:repeating-linear-gradient(0deg,transparent,transparent 2px,var(--scanline) 2px,var(--scanline) 4px),
                    radial-gradient(ellipse at 70% 30%,var(--noise) 0%,transparent 60%);"></div>
-    <div class="container" style="display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;position:relative;z-index:1;">
+    <div class="container hero-grid">
         <div class="hero-content reveal">
             <p class="hero-subtitle" style="font-size:0.75rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--accent-soft);margin-bottom:1.5rem;">
                 Love Programming, Music &amp; Skateboard
@@ -34,20 +34,36 @@
                 Scroll Down
             </div>
         </div>
-        <div class="hero-visual reveal" style="position:relative;display:flex;align-items:center;justify-content:center;height:500px;">
+        <div class="hero-visual reveal">
             <div class="hero-logo-frame">
-                <img class="hero-logo" src="{% static 'img/PowerAdapter_logo.webp' %}"
-                     alt="PowerAdapter — Programming, Music and Skateboarding"
-                     width="1024" height="1024" decoding="async" fetchpriority="high">
+                <video class="hero-logo" autoplay muted loop playsinline preload="auto"
+                       poster="{% static 'img/PowerAdapter_logo.webp' %}"
+                       aria-label="PowerAdapter — Programming, Music and Skateboarding">
+                    <source src="{% static 'vedio/logo.webm' %}" type="video/webm">
+                    <source src="{% static 'vedio/logo.mp4' %}" type="video/mp4">
+                    <img src="{% static 'img/PowerAdapter_logo.webp' %}"
+                         alt="PowerAdapter — Programming, Music and Skateboarding"
+                         width="1024" height="1024">
+                </video>
             </div>
         </div>
     </div>
 </section>
 <style>
+    .hero-grid {
+        display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 4rem; align-items: center; position: relative; z-index: 1;
+    }
+    .hero-content,
+    .hero-visual { min-width: 0; }
+    .hero-visual {
+        position: relative; display: flex; align-items: center; justify-content: center;
+        width: 100%; height: 500px;
+    }
     .hero-logo-frame {
         position: relative; width: min(100%, 500px); aspect-ratio: 1;
         border: 1px solid var(--fragment-border); overflow: hidden;
-        background: var(--bg-primary);
+        background: var(--bg-primary); isolation: isolate; contain: paint;
     }
     .hero-logo-frame::before,
     .hero-logo-frame::after {
@@ -62,13 +78,32 @@
         right: 14px; bottom: 14px;
         border-right: 1px solid var(--accent-soft); border-bottom: 1px solid var(--accent-soft);
     }
-    .hero-logo { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .hero-logo {
+        display: block; width: 100%; height: 100%; object-fit: cover;
+        mix-blend-mode: screen;
+    }
     .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--accent-glow); }
     .cta-btn:hover .arrow { transform: translateX(4px); }
     @media (max-width:768px) {
-        .hero .container { grid-template-columns:1fr; gap:3rem; }
-        .hero-visual { height:350px; order:-1; }
-        .hero-logo-frame { width: min(88vw, 350px); }
+        .hero {
+            min-height: auto !important;
+            padding: 5.25rem 0 3.5rem !important;
+        }
+        .hero-grid {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 2.25rem;
+        }
+        .hero-content { order: 2; width: 100%; }
+        .hero-visual { order: 1; height: auto; min-height: 0; }
+        .hero-logo-frame { width: min(86vw, 350px); max-width: 100%; }
+        .hero-content h1 { font-size: clamp(2.25rem, 10vw, 3.25rem); }
+        .hero-desc { max-width: none !important; }
+        .scroll-hint { margin-top: 2.5rem !important; }
+    }
+    @media (max-width:420px) {
+        .hero-logo-frame { width: min(84vw, 320px); }
+        .hero-content h1 { font-size: clamp(2rem, 9.5vw, 2.65rem); }
+        .cta-btn { width: 100%; justify-content: center; }
     }
 </style>
 {% endblock %}

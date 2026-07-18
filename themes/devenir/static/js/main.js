@@ -116,17 +116,42 @@ document.addEventListener('DOMContentLoaded', function () {
         editorialObserver.observe(section);
     });
 
-    // ===== Glitch Color Hover (boards) =====
+    // ===== Glitch Color (boards) =====
     // 将 data-glitch-color 注入 CSS 变量 --glitch-c，
     // 供 editorial-visual::after 的伪元素叠加使用。
     document.querySelectorAll('.editorial-visual[data-glitch-color]').forEach(function (visual) {
         visual.style.setProperty('--glitch-c', visual.dataset.glitchColor);
     });
 
+    // Touch screens have no reliable :hover state. Trigger the same glitch
+    // once when each board visual enters the viewport, then release the class.
+    const isTouchViewport = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+    if (isTouchViewport) {
+        const touchGlitchObserver = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (!entry.isIntersecting) return;
+
+                const visual = entry.target;
+                visual.classList.remove('is-glitching');
+                void visual.offsetWidth;
+                visual.classList.add('is-glitching');
+
+                window.setTimeout(function () {
+                    visual.classList.remove('is-glitching');
+                }, 650);
+
+                touchGlitchObserver.unobserve(visual);
+            });
+        }, { threshold: 0.3, rootMargin: '0px 0px -8% 0px' });
+
+        document.querySelectorAll('.editorial-visual').forEach(function (visual) {
+            touchGlitchObserver.observe(visual);
+        });
+    }
+
     // ===== Music spectrum =====
-    // Correlated frequency motion: bass carries the beat, mids stay active,
-    // and highs decay. Transforms run below the outer glitch layer.
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Each frequency region follows its own physical character: sub-bass swells,
+    // bass punches, mids breathe, presence bands flicker, and treble shimmers.
     const spectrumStates = [];
 
     document.querySelectorAll('[data-spectrum]').forEach(function (spectrum) {
@@ -143,7 +168,12 @@ document.addEventListener('DOMContentLoaded', function () {
             bars.push(bar);
         }
 
-        spectrumStates.push({ element: spectrum, bars: bars, active: true });
+        spectrumStates.push({
+            element: spectrum,
+            bars: bars,
+            levels: new Array(barCount).fill(0.08),
+            active: true
+        });
     });
 
     if (spectrumStates.length) {
@@ -162,31 +192,45 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 state.bars.forEach(function (bar, index) {
                     const x = index / (state.bars.length - 1);
-                    const envelope = 0.18 + 0.82 * Math.pow(1 - x, 0.62);
-                    const beat = Math.pow((Math.sin(time * 0.0032) + 1) / 2, 7) * 0.28 * (1 - x);
-                    const bass = Math.sin(time * 0.0041 + index * 0.52) * 0.16;
-                    const mid = Math.sin(time * 0.0067 + index * 1.13) * 0.10;
-                    const detail = Math.sin(time * 0.0109 + index * 0.29) * 0.055;
-                    const level = Math.max(0.07, Math.min(1, envelope * (0.55 + bass + mid + detail) + beat));
-                    bar.style.transform = 'scaleY(' + level.toFixed(3) + ')';
+                    const seconds = time / 1000;
+                    const kick = Math.pow((Math.sin(seconds * 3.35) + 1) / 2, 9);
+                    const pulse = Math.pow((Math.sin(seconds * 6.7 + 0.7) + 1) / 2, 12);
+                    let target;
+
+                    if (x < 0.12) {
+                        // Sub-bass: slow, heavy and coherent.
+                        target = 0.20 + kick * 0.62 + Math.sin(seconds * 1.8 + index * 0.18) * 0.08;
+                    } else if (x < 0.32) {
+                        // Bass: rhythmic punch with a short secondary pulse.
+                        target = 0.18 + kick * 0.48 + pulse * 0.20
+                            + Math.sin(seconds * 3.6 + index * 0.42) * 0.10;
+                    } else if (x < 0.58) {
+                        // Low mids: broader, vocal-like movement.
+                        target = 0.16 + (Math.sin(seconds * 2.4 + index * 0.47) + 1) * 0.16
+                            + kick * 0.12;
+                    } else if (x < 0.80) {
+                        // Presence: faster consonant and instrument transients.
+                        target = 0.10 + (Math.sin(seconds * 7.4 + index * 0.91) + 1) * 0.12
+                            + pulse * 0.18;
+                    } else {
+                        // Treble: fine-grained shimmer with lower total energy.
+                        target = 0.07 + (Math.sin(seconds * 12.8 + index * 1.63) + 1) * 0.065
+                            + pulse * 0.08;
+                    }
+
+                    const ripple = Math.sin(seconds * 1.35 - index * 0.23) * 0.035;
+                    target = Math.max(0.055, Math.min(1, target + ripple));
+
+                    const smoothing = target > state.levels[index] ? 0.34 : 0.12;
+                    state.levels[index] += (target - state.levels[index]) * smoothing;
+                    bar.style.transform = 'scaleY(' + state.levels[index].toFixed(3) + ')';
                 });
             });
 
-            if (!reduceMotion) window.requestAnimationFrame(renderSpectrum);
+            window.requestAnimationFrame(renderSpectrum);
         }
 
-        renderSpectrum(reduceMotion ? 900 : performance.now());
+        window.requestAnimationFrame(renderSpectrum);
     }
-
-    // ===== Seamless Python code scroll =====
-    document.querySelectorAll('.code-scroll-track').forEach(function (track) {
-        const loop = track.querySelector('.code-loop');
-        if (!loop || reduceMotion) return;
-
-        const clone = loop.cloneNode(true);
-        clone.setAttribute('aria-hidden', 'true');
-        track.appendChild(clone);
-        window.requestAnimationFrame(function () { track.classList.add('is-ready'); });
-    });
 
 });

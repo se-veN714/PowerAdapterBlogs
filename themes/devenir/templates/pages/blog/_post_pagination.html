@@ -1,0 +1,37 @@
+<div class="stream-footer">
+    <nav class="pagination" aria-label="文章分页">
+        {% if page_obj.has_previous %}
+            <a href="{{ stream_pagination.first }}"
+               hx-get="{{ stream_pagination.first }}"
+               hx-target="#post-browser" hx-swap="outerHTML show:top" hx-push-url="true" hx-indicator="#post-browser-sync" aria-label="第一页">&#171;</a>
+            <a href="{{ stream_pagination.previous }}"
+               hx-get="{{ stream_pagination.previous }}"
+               hx-target="#post-browser" hx-swap="outerHTML show:top" hx-push-url="true" hx-indicator="#post-browser-sync" aria-label="上一页">&#8249;</a>
+        {% else %}
+            <span class="disabled" aria-hidden="true">&#171;</span>
+            <span class="disabled" aria-hidden="true">&#8249;</span>
+        {% endif %}
+
+        {% for page_link in stream_pagination.pages %}
+            {% if page_link.number == page_obj.number %}
+                <span class="current" aria-current="page">{{ page_link.number }}</span>
+            {% else %}
+                <a href="{{ page_link.url }}"
+                   hx-get="{{ page_link.url }}"
+                   hx-target="#post-browser" hx-swap="outerHTML show:top" hx-push-url="true" hx-indicator="#post-browser-sync" aria-label="第 {{ page_link.number }} 页">{{ page_link.number }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+            <a href="{{ stream_pagination.next }}"
+               hx-get="{{ stream_pagination.next }}"
+               hx-target="#post-browser" hx-swap="outerHTML show:top" hx-push-url="true" hx-indicator="#post-browser-sync" aria-label="下一页">&#8250;</a>
+            <a href="{{ stream_pagination.last }}"
+               hx-get="{{ stream_pagination.last }}"
+               hx-target="#post-browser" hx-swap="outerHTML show:top" hx-push-url="true" hx-indicator="#post-browser-sync" aria-label="最后一页">&#187;</a>
+        {% else %}
+            <span class="disabled" aria-hidden="true">&#8250;</span>
+            <span class="disabled" aria-hidden="true">&#187;</span>
+        {% endif %}
+    </nav>
+</div>

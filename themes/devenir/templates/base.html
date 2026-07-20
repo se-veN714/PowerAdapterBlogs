@@ -66,7 +66,7 @@
             --fragment-highlight: rgba(216, 255, 225, 0.12);
             --error-accent: rgb(201, 120, 120);
             --warning-accent: rgb(207, 181, 126);
-            --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', 'SF Mono', monospace;
+            --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', 'SF Mono', monospace;
             --bg: var(--bg-primary);
             --bg-card: var(--bg-elevated);
             --border: var(--fragment-border);
@@ -118,26 +118,6 @@
         }
         .nav a:hover, .nav a.active { color: var(--text); }
         .nav a.active { color: var(--accent); }
-
-        /* Search form in nav */
-        .nav-search {
-            display: flex; align-items: center; gap: 0.5rem;
-        }
-        .nav-search input {
-            background: var(--bg-elevated); border: 1px solid var(--border);
-            color: var(--text); padding: 0.4rem 0.75rem; font-size: 0.85rem;
-            font-family: var(--font-mono); width: 160px;
-            transition: border-color 0.2s;
-        }
-        .nav-search input:focus { outline: none; border-color: var(--accent-soft); }
-        .nav-search input::placeholder { color: var(--text-tertiary); }
-        .nav-search button {
-            background: var(--accent-deep); color: var(--accent);
-            border: 1px solid var(--accent-deep); padding: 0.4rem 0.75rem;
-            font-size: 0.85rem; cursor: pointer; font-family: var(--font-mono);
-            transition: all 0.2s;
-        }
-        .nav-search button:hover { background: var(--accent-muted); border-color: var(--accent-soft); }
 
         /* Nav buttons */
         .nav-buttons { display: flex; align-items: center; gap: 0.75rem; }
@@ -288,13 +268,19 @@
         <nav class="nav">
             <a href="{% url 'Blogs:post_list' %}" class="{% if '/posts' in request.path %}active{% endif %}">Posts</a>
             <a href="{% url 'links' %}" class="{% if '/links' in request.path %}active{% endif %}">Links</a>
-            <form class="nav-search" action="{% url 'Blogs:search' %}" method="GET">
-                <input type="text" name="keyword" placeholder="搜索…" value="{{ keyword|default:'' }}">
-                <button type="submit">搜索</button>
-            </form>
             <div class="nav-buttons">
-                {% if user.is_authenticated %}
+                {% if user.is_active %}
+                    {% if user.is_dashboard_user or user.is_superuser %}
+                        <a href="{% url 'cus_admin:index' %}" class="btn-ghost">工作台</a>
+                    {% endif %}
+                {% endif %}
+                {% if user.is_superuser %}
+                    <a href="{% url 'admin:index' %}" class="btn-ghost">系统后台</a>
+                {% endif %}
+                {% if can_create_board_post %}
                     <a href="{% url 'Blogs:post_create' %}" class="btn-accent">新文章</a>
+                {% endif %}
+                {% if user.is_authenticated %}
                     <form id="logout-form" action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn-ghost">登出</button>
@@ -326,8 +312,18 @@
     <nav class="sidebar-nav">
         <a href="{% url 'Blogs:post_list' %}">Posts</a>
         <a href="{% url 'links' %}">Links</a>
-        {% if user.is_authenticated %}
+        {% if user.is_active %}
+            {% if user.is_dashboard_user or user.is_superuser %}
+                <a href="{% url 'cus_admin:index' %}">工作台</a>
+            {% endif %}
+        {% endif %}
+        {% if user.is_superuser %}
+            <a href="{% url 'admin:index' %}">系统后台</a>
+        {% endif %}
+        {% if can_create_board_post %}
             <a href="{% url 'Blogs:post_create' %}">新文章</a>
+        {% endif %}
+        {% if user.is_authenticated %}
             <a href="#" onclick="document.getElementById('logout-form-mobile').submit(); return false;">登出</a>
             <form id="logout-form-mobile" action="{% url 'accounts:logout' %}" method="post" style="display:none;">
                 {% csrf_token %}

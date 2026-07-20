@@ -1,23 +1,62 @@
+/* ============================================================
+   Devenir Theme — Typography
+   ------------------------------------------------------------
+   字体策略（2026-07-20 起）：CDN 全字重托管，视觉优先于效率。
+   决策记录：themes/devenir/DEVELOPMENT.md §10.A
+   CDN：jsDelivr（与 base.html MathJax 同源）
+   ============================================================ */
+
+/* ---------- Source Han Serif CN（正文 / Editorial） ---------- */
 @font-face {
-    font-family: 'SourceHanSerifCN';
-
-    src: url("../fonts/SourceHanSerifCN-Medium.otf") format("opentype");
-
+    font-family: 'Source Han Serif CN';
+    font-style: normal;
     font-weight: 400;
+    font-display: swap;
+    src: url("https://cdn.jsdelivr.net/npm/source-han-serif-cn@latest/SourceHanSerifCN-Regular.otf") format("opentype");
+}
+@font-face {
+    font-family: 'Source Han Serif CN';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("https://cdn.jsdelivr.net/npm/source-han-serif-cn@latest/SourceHanSerifCN-Bold.otf") format("opentype");
 }
 
+/* ---------- Source Han Sans CN（UI 辅助） ---------- */
+@font-face {
+    font-family: 'Source Han Sans CN';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("https://cdn.jsdelivr.net/npm/source-han-sans-cn@latest/SourceHanSansCN-Regular.otf") format("opentype");
+}
+@font-face {
+    font-family: 'Source Han Sans CN';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("https://cdn.jsdelivr.net/npm/source-han-sans-cn@latest/SourceHanSansCN-Bold.otf") format("opentype");
+}
+
+/* ---------- JetBrains Mono（代码 / Logo / 数字） ---------- */
 @font-face {
     font-family: 'JetBrains Mono';
-
-    src: url("../fonts/JetBrainsMono-Medium.ttf") format("opentype");
-
+    font-style: normal;
     font-weight: 400;
+    font-display: swap;
+    src: url("https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@latest/files/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@latest/files/jetbrains-mono-latin-700-normal.woff2") format("woff2");
 }
 
-@font-face {
-    font-family: 'SourceHanSansCN';
-
-    src: url("../fonts/SourceHanSansCN-Medium.otf") format("opentype");
-
-    font-weight: 400;
+/* ---------- 字体栈变量（供 base.html CSS 变量引用） ---------- */
+:root {
+    --font-serif: 'Source Han Serif CN', 'SourceHanSerifCN', 'Noto Serif CJK SC', 'Songti SC', serif;
+    --font-sans: 'Source Han Sans CN', 'SourceHanSansCN', 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', 'SF Mono', monospace;
 }

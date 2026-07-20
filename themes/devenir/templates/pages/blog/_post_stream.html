@@ -1,0 +1,55 @@
+{% load static %}
+
+<div class="post-stream">
+    {% for post in post_list %}
+        {% with counter=page_obj.start_index|add:forloop.counter0 is_even=forloop.counter|divisibleby:2 %}
+        <article class="stream-node {% if is_even %}stream-node--reverse{% endif %}"
+                 data-node-index="{{ counter|stringformat:'02d' }}"
+                 data-category="{{ post.category.name|slugify }}">
+            <div class="node-rail">
+                <span class="node-number">{{ counter|stringformat:"02d" }}</span>
+                <span class="node-category">{{ post.category.name|upper }}</span>
+                <div class="node-connector" aria-hidden="true"></div>
+            </div>
+
+            <a href="{{ post.get_absolute_url }}" class="node-artifact" aria-label="阅读《{{ post.title }}》">
+                {% if post.cover %}
+                    <img src="{{ post.cover.url }}" alt="{{ post.title }}" loading="lazy" decoding="async">
+                {% else %}
+                    <img src="{% static 'img/Cover.png' %}" alt="{{ post.title }}的默认封面" loading="lazy" decoding="async">
+                {% endif %}
+                <div class="artifact-scanline" aria-hidden="true"></div>
+            </a>
+
+            <div class="node-content">
+                <h2 class="node-title">
+                    <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                </h2>
+                <p class="node-excerpt">{{ post.desc|truncatewords:30 }}</p>
+                <div class="node-meta">
+                    <span class="meta-author">{{ post.owner.username }}</span>
+                    <span class="meta-sep">//</span>
+                    <span class="meta-date">{{ post.created_time|date:"Y-m-d" }}</span>
+                    <span class="meta-sep">//</span>
+                    <span class="meta-views">{{ post.pv }} views</span>
+                    {% if post.can_edit %}
+                        <span class="meta-sep">//</span>
+                        <a href="{% url 'Blogs:post_edit' slug=post.slug %}" class="meta-edit">EDIT</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="node-glitch-markers" aria-hidden="true">
+                <span class="glitch-marker">&lt;</span>
+                <span class="glitch-marker">···</span>
+                <span class="glitch-marker">&gt;</span>
+            </div>
+        </article>
+        {% endwith %}
+    {% empty %}
+        <div class="empty-state">
+            <div class="empty-icon">{% if is_search %}&#9744;{% else %}&#9881;{% endif %}</div>
+            <p class="empty-text">{% if is_search %}no results found{% else %}no transmission{% endif %}</p>
+        </div>
+    {% endfor %}
+</div>

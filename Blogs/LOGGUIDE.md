@@ -152,10 +152,18 @@ def save(self, *args, **kwargs):
 #### D1. generate_posts
 
 ```python
-logger.info(f"generate_posts 开始: count={count} category_id={cat_id}")
+logger.info(
+    "generate_posts 开始: count=%s clear=%s eligible_categories=%s",
+    count,
+    clear,
+    len(categories),
+)
 # ... 生成逻辑 ...
-logger.info(f"generate_posts 完成: created={success_count} failed={fail_count}")
+logger.info("generate_posts 完成: created=%s", count)
 ```
+
+该命令只允许在 `DEBUG=True` 的开发/测试环境执行。`--clear` 仅清理 slug 使用
+`generated-post-` 保留前缀的命令生成文章，不得删除普通业务文章；清理与生成必须保持在同一事务中。
 
 #### D2. init_slug
 

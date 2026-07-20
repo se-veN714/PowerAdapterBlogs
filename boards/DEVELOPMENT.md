@@ -5,7 +5,7 @@
 > **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及后续板块申请审批
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-07-19 — 冻结 boards 与 accounts 业务边界
+> **最后更新**: 2026-07-19 — 增加本地角色测试账号命令与后台入口契约
 
 ---
 
@@ -13,6 +13,9 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-19 | v2.0 | 增加仅限 DEBUG 的幂等测试账号命令，覆盖四种 Board 角色和无 Membership 拒绝样本 |
+| 2026-07-19 | v1.9 | Stage 5：状态 action、写作 View、上传、修订端点与只读 API 接入 Policy；完整测试 65 个 |
+| 2026-07-19 | v1.8 | Stage 4：Board/Post/PostRevision/Comment Admin 接入 Board Policy，新增 8 个运行时隔离测试 |
 | 2026-07-19 | v1.7 | 明确 boards 拥有 Membership、Policy 和未来 BoardAccessRequest；accounts 仅提供身份与全局职责 |
 | 2026-07-19 | v1.6 | 新增 `policies.py` 跨 App resolver/Policy；Board 新增删除已收紧为 superuser；运行时对象过滤待 Stage 4 |
 | 2026-07-19 | v1.5 | 冻结 Board 为 Blogs/comment 跨 App 授权边界；新增/删除 Board 仅限 superuser，当前 Admin 尚待 Stage 4 收紧 |
@@ -58,10 +61,13 @@ boards/
 ├── tests/
 │   ├── test_access_rules.py  # accounts_linear 阶段 1 契约测试
 │   ├── test_membership.py    # 阶段 2 ORM 与 Admin 边界测试
-│   └── test_policies.py      # 阶段 3 跨 App Policy 契约测试
+│   ├── test_policies.py      # 阶段 3 跨 App Policy 契约测试
+│   ├── test_admin_scope.py   # 阶段 4 Dashboard 隔离与阶段 5 action 测试
+│   └── test_stage5_runtime.py # 阶段 5 View/Upload/API/Service 测试
 ├── management/
 │   └── commands/
-│       └── seed_boards.py   # 种子数据命令
+│       ├── seed_boards.py   # 板块种子数据命令
+│       └── seed_permission_test_users.py # 本地角色测试账号
 └── DEVELOPMENT.md       # 本文档
 ```
 
@@ -135,22 +141,41 @@ python manage.py seed_boards --dry-run
 | music | Music | #b794f4 | Melody,Harmony,Noise |
 | coding | Coding | #f6ad55 | Logic,Struct,Create |
 
+### 本地权限手测账号
+
+目标 Board 已启用且绑定 Category 后，可运行：
+
+```bash
+python manage.py seed_permission_test_users --board coding
+```
+
+命令只允许在 `DEBUG=True` 下运行，并在输出末尾生成一组随机共用密码。也可在纯本地环境用
+`--password` 显式指定。命令幂等地创建或重置以下保留账号：
+
+| 账号 | BoardMembership | 用途 |
+|------|-----------------|------|
+| `perm_contributor` | Contributor | 本人草稿、编辑与提交边界 |
+| `perm_editor` | Editor | 板块文章编辑边界 |
+| `perm_reviewer` | Reviewer | 审核但不可自审边界 |
+| `perm_manager` | Manager | 板块运营管理边界 |
+| `perm_no_board` | 无有效 Membership | Dashboard 有入口但对象默认拒绝 |
+
+五个账号都启用 `is_dashboard_user`，但不授予 `is_staff`、`is_superuser`、Group 或直接
+`user_permissions`。重复对另一 Board 运行时，命令会停用这些保留账号在旧 Board 的 Membership，
+保证每个账号始终是单一角色样本。superuser 双入口测试使用现有管理员账号，不额外生成共享密码管理员。
+
 ---
 
 ## 4. Dashboard 管理
 
 - URL: `/dashboard/boards/board/`
-- 查看/修改权限：仍为全局 `is_dashboard_user`，Stage 4 收敛到 Policy
+- 查看/修改权限：仅有效 Manager Membership 可访问对应 Board
 - 新增/删除权限：仅激活的 superuser
-- 行内编辑：`sort_order`、`is_active`
+- Manager 可编辑运营字段与 `sort_order`；`slug`、`category`、`is_active` 只允许 superuser 修改
 - 颜色预览：列表显示色块 + 颜色值
 - 搜索：name、slug、keywords
 
-> 当前权限仍为全局 `is_dashboard_user`，存在跨 Board 越权风险。授权模型、Django Group 协作方式与迁移建议见 [`accounts/PERMISSIONS_GUIDE.md`](../accounts/PERMISSIONS_GUIDE.md)。
-
-> 新增或删除 Board 已只允许 superuser，因为新 Board 会引入专属模板、SVG、CSS 或 JavaScript，等价于代码和部署变更。普通 dashboard 用户仍能修改所有现有 Board，这是 Stage 4 必须修复的运行时差距。
-
-> `BoardMembership` 与 `policies.py` 已建立，但尚未被 Board/Post/Comment 的运行时入口调用。Stage 4 将接入 queryset、对象和字段权限。
+> 新增、删除或改变 Board 的 slug/Category/启用状态仍只允许 superuser，因为这些操作可能改变专属模板、SVG、CSS、JavaScript 或授权映射。授权模型与 Django Group 协作方式见 [`accounts/PERMISSIONS_GUIDE.md`](../accounts/PERMISSIONS_GUIDE.md)。
 
 ### BoardMembership 观察入口
 
@@ -176,17 +201,20 @@ flowchart LR
 
 Board 是授权边界，不是 Django Group：Group 只承载 `SiteOperators`、`UserManagers` 等全局职责；Contributor / Editor / Reviewer / Manager 的唯一事实来源是 `BoardMembership`。
 
-### Stage 3 Policy 状态
+### Stage 4–5 Policy 状态
 
-`policies.py` 已实现但尚未被旧入口调用：
+`policies.py` 已被 Dashboard Admin 的 queryset、对象和关键字段入口调用：
 
 - Post 通过 Category 唯一解析 Board，缺失或歧义映射默认拒绝。
 - Comment 通过 Post 继承 Board。
 - Policy 检查账号、Board、Membership、角色、作者和自审边界。
 - superuser 保留结构和对象应急权限。
 - `user_permissions` 和 Group 不会扩大 Board Scope。
+- Post Category 表单与 autocomplete 只返回具备创建能力且映射唯一的 Board Category。
+- PostRevision 跟随 Post 可见范围；Comment 审核队列仅向本 Board Reviewer/Manager 只读展示。
+- 直接输入跨 Board Admin URL 无法读取或修改对象；Manager 编辑他人文章不会改写原作者。
 
-因此当前测试可以证明 Policy 自身正确，但 Dashboard 页面仍使用旧授权；Stage 4 才会接入 queryset、对象和字段权限。
+Stage 5 已恢复审核/发布/驳回和评论 action，但每个对象都会在事务 Service 或审核 Service 中重新校验 Policy，不再批量直写状态。写作 View、上传、STAFF_ONLY/修订端点和只读 DRF API 也复用相同范围；完整测试集 65 个全部通过。下一步是 Stage 6 的 Group 初始化与 BoardAccessRequest 自动审批。
 
 未来的板块权限申请与审批也属于 boards：accounts 只确认用户已登录、激活和完成邮箱验证，boards 负责申请的目标 Board、目标角色、审批人边界、结果及 Membership 更新。
 

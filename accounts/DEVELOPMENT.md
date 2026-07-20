@@ -5,7 +5,7 @@
 > **职责**: 自定义用户模型、认证、账号状态、全局 Group 编排与用户安全；不拥有 Board Policy
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-19 — 冻结 accounts 与 boards 业务边界
+> **最后更新**: 2026-07-19 — accounts_linear Stage 5 跨入口授权完成
 
 ---
 
@@ -13,6 +13,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-19 | v3.9 | Stage 5 状态 Service、普通 View、上传、修订与只读 API 已停止使用全局审核/staff 旗标 |
+| 2026-07-19 | v3.8 | Stage 4 Dashboard Admin 已按 BoardMembership 接入 Policy；`is_reviewer` 不再决定 Post/Comment Admin 对象范围 |
 | 2026-07-19 | v3.7 | accounts 收敛为身份/认证/全局 Group 编排；Board 角色、申请审批与 Policy 明确归 boards |
 | 2026-07-19 | v3.6 | Stage 3 跨 App ORM Policy 完成，Board 新增/删除收紧为 superuser；运行时入口待 Stage 4 |
 | 2026-07-19 | v3.5 | Group 收敛为全站职责；BoardMembership 成为 Blogs/comment 板块角色唯一来源；取消 BoardCreators 设计 |
@@ -120,9 +122,9 @@ flowchart TD
 
 **核心设计原则**：
 - **App 边界**：accounts 回答全局身份与职责；boards 回答指定 Board 内可以执行的动作
-- **Board 权限迁移状态**：`BoardMembership` ORM 已落地，但现有五旗授权仍在运行；以 `PERMISSIONS_GUIDE.md` 的 `accounts_linear` 为迁移准绳
+- **Board 权限迁移状态**：Stage 0–5 已落地；下一步自动化全局 Group 与 BoardAccessRequest 审批
 - **单一事实来源**：Contributor / Editor / Reviewer / Manager 不写入 Group；BoardMembership + Policy 跨 App 控制 Post 与 Comment
-- **五旗权限模型**：`is_active` → `is_dashboard_user` → `is_reviewer` → `is_staff` → `is_superuser`（逐级递进）
+- **全局旗标边界**：`is_active` / `is_dashboard_user` / `is_staff` / `is_superuser` 只表达账号或入口状态；`is_reviewer` 为待删除遗留字段，不再代表 Board 角色
 - **纵深防御**：4 层防护，模型层是最后一道防线
 - **双 Admin 注册**：同一 `MyUserAdmin` 注册到 `admin.site` 和 `custom_site`，使用不同的 `has_permission()` 逻辑
 - **审核工作流**：编辑者写草稿 → 提交审核 → 审核者通过/驳回，所有变更自动产生 PostRevision 快照
@@ -174,13 +176,24 @@ flowchart TD
 
 ## 3. 五旗权限模型
 
+`is_dashboard_user` 只控制自定义 `/dashboard/` 工作台外壳入口，不等于账号管理、Board CRUD
+或跨 App 对象权限。Board 角色测试账号需要该入口旗标才能使用工作台，但具体模块和对象继续执行
+各自的 Policy。`accounts.MyUser` 属于全局身份域；Stage 6 `UserManagers` Group 落地前，工作台中的
+账号管理模块仅向激活的 superuser 开放。
+
+`/dashboard/login/` 使用 `DashboardAuthenticationForm`，登录条件为账号激活且具有
+`is_dashboard_user` 或 superuser 身份，不要求 `is_staff`。`/super_admin/login/` 继续使用 Django
+默认 Admin 登录表单并要求 staff；两套入口不得通过放宽 `is_staff` 相互打通。直接访问
+`/dashboard/login/` 未携带 `next` 时默认返回 `/dashboard/`，不使用 Django 的
+`/accounts/profile/` 默认回跳。
+
 ```
 ┌──────────────────────────────────────────────────────┐
 │                     MyUser                            │
 │                                                      │
 │  is_active         账号启用（可登录）                   │
 │  is_dashboard_user 可访问 /dashboard/ (CustomSite)     │
-│  is_reviewer       内容审核权限（通过/驳回/发布文章）     │  ← v3.0 新增
+│  is_reviewer       遗留审核旗标（业务入口已停止读取）      │  ← 待 Stage 7–8 删除
 │  is_staff          可访问 /super_admin/ (默认 Django)   │
 │  is_superuser      拥有所有模型层特权                    │
 │                                                      │
@@ -195,37 +208,33 @@ flowchart TD
 └──────────────────────────────────────────────────────┘
 ```
 
-### 3.1 角色矩阵（最小权限原则）
+### 3.1 当前角色来源（最小权限原则）
 
-| 角色 | is_active | is_dashboard | is_reviewer | is_staff | is_superuser | 入口 | 能力 |
-|------|:---:|:---:|:---:|:---:|:---:|------|------|
-| 普通用户 | ✅ | ❌ | ❌ | ❌ | ❌ | 前台 | 浏览已发布文章 |
-| **编辑者** | ✅ | ✅ | ❌ | ❌ | ❌ | `/dashboard/` | 创建/编辑草稿，提交审核 |
-| **审核者** | ✅ | ✅ | ✅ | ❌ | ❌ | `/dashboard/` | 审核通过/驳回，发布/下架，查看全部文章 |
-| 超级管理员 | ✅ | ✅ | ✅ | ✅ | ✅ | `/super_admin/` + `/dashboard/` | 全部权限，用户管理，日志审计 |
+| 身份/角色 | 来源 | 作用域 | Stage 5 运行时能力 |
+|---|---|---|---|
+| 普通用户 | `is_active` | 全站账号 | 前台浏览与评论 |
+| Contributor | `BoardMembership.role` | 单个 Board | 新建并编辑自己的草稿 |
+| Editor | `BoardMembership.role` | 单个 Board | Contributor 能力 + 编辑自己的已发布文章 |
+| Reviewer | `BoardMembership.role` | 单个 Board | 查看本 Board 全部文章/修订并审核评论；不能改正文或评论内容 |
+| Manager | `BoardMembership.role` | 单个 Board | 编辑本 Board 文章与运营字段；不能改 Board 结构字段 |
+| superuser | `is_superuser` | 全站应急 | 两个后台全部权限 |
 
-### 3.2 权限详细矩阵（dashboard 内）
+### 3.2 Stage 5 跨入口权限矩阵
 
-| 操作 | 编辑者 | 审核者 | superuser |
-|------|:---:|:---:|:---:|
-| 查看 dashboard | ✅ | ✅ | ✅ |
-| 创建文章（自动草稿） | ✅ | ✅ | ✅ |
-| 编辑自己的文章 | ✅ | ✅ | ✅ |
-| 编辑他人文章 | ❌ | ✅ | ✅ |
-| 提交审核（DRAFT→REVIEW） | ✅ | ✅ | ✅ |
-| 通过审核/发布（REVIEW→NORMAL） | ❌ | ✅ | ✅ |
-| 驳回（REVIEW→DRAFT） | ❌ | ✅ | ✅ |
-| 下架（NORMAL→DELETE） | ❌ | ✅ | ✅ |
-| 删除文章 | ❌ | ❌ | ✅ |
-| 编辑已发布文章 | ❌* | ✅ | ✅ |
-| 查看全部文章列表 | 仅自己的 | ✅ | ✅ |
-| 查看修订历史 | ✅ | ✅ | ✅ |
-| 管理分类/标签 | ❌† | ✅† | ✅† |
-| 管理用户（启停 is_active） | ❌ | ❌ | ✅ |
-| 查看操作日志 | ❌ | ❌ | ✅ |
+| 操作 | Contributor | Editor | Reviewer | Manager | superuser |
+|---|:---:|:---:|:---:|:---:|:---:|
+| 查看自己的 Board 文章 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 查看同 Board 他人文章 | ❌ | ❌ | ✅ | ✅ | ✅ |
+| 编辑自己的草稿 | ✅ | ✅ | ❌ | ✅ | ✅ |
+| 编辑自己的已发布文章 | ❌ | ✅ | ❌ | ✅ | ✅ |
+| 编辑同 Board 他人文章 | ❌ | ❌ | ❌ | ✅ | ✅ |
+| 查看所属 Board 评论队列 | ❌ | ❌ | ✅ | ✅ | ✅ |
+| 修改 Board 运营字段 | ❌ | ❌ | ❌ | ✅ | ✅ |
+| 修改 Board slug/category/is_active | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 提交审核 action | ✅ | ✅ | ❌ | ✅ | ✅ |
+| 审核/发布/驳回 action | ❌ | ❌ | ✅（禁止自审） | ✅（禁止自审） | ✅ |
 
-> \* 编辑者修改已发布文章时，状态自动回退到 DRAFT，需要重新审核  
-> † 审核者可通过 `has_perm('Blogs.manage_category')` / `has_perm('Blogs.manage_tag')` 细分权限
+状态 action 已通过 `Blogs.services` 逐对象加锁、校验角色/Board/作者/状态；评论 action 逐对象调用 Policy 并保留 MongoDB HMAC 审计。完整设计矩阵以权重更高的 [`PERMISSIONS_GUIDE.md`](PERMISSIONS_GUIDE.md) 为准。
 
 ### 3.3 文章状态流转（审核工作流）
 
@@ -558,10 +567,10 @@ erDiagram
 | staff 修改日志（模型层） | ✅ 已验证 | `security/signals.py` 在 pre_save/pre_delete 拦截非 superuser，已补修改和删除回归测试；无需重写 Django LogEntry |
 | 无用户注册功能 | 🟢 低 | 当前仅 superuser 可通过 Admin 创建用户。如需开放注册需补充视图 + 验证流程。 |
 | 登录反暴力破解 | ✅ 已修复 | 按用户名 + IP 的哈希 key 计数；默认失败 5 次锁定 15 分钟，成功登录清零 |
-| 自定义 Permission 已实现 | ✅ v3.0 | `Blogs.publish_post` / `Blogs.review_post` / `Blogs.manage_category` / `Blogs.manage_tag` 已添加，Admin 已集成 |
+| Board 跨入口对象隔离 | ✅ Stage 5 | Admin、状态 action、普通 View、上传、修订与只读 API 均调用 `boards.policies` |
 | thread-local 仅 HTTP 上下文 | 🟢 低 | `manage.py shell` 中 `get_current_user()` 返回 None，防御回退。属于设计决策，暂不修改。 |
 | 审核通知 | ⏸ 已评估 | 个人站当前 dashboard 状态与 Admin 即时反馈足够，暂不为此新增完整 messaging 模块；开放注册时采用邮件验证，评论通知按实际需要再做轻量站内实现 |
-| 编辑者无法选择分类/标签 | ⚠️ 注意 | 当前 `manage_category` / `manage_tag` perm 默认只有审核者/superuser 拥有；若允许编辑者管理分类，需在 admin 中手动授权 |
+| Category/Tag 管理边界 | 🟡 中 | Category dashboard 已收紧为 superuser-only；Tag 保留全局 Permission，Stage 6a 初始化 Group 时复核 |
 
 ---
 

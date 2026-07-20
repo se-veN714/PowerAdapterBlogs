@@ -142,10 +142,3 @@ def render_diff(old_text: str, new_text: str, from_ver: str, to_ver: str,
         context=True,
         numlines=1,  # 上下文 1 行即可，换行后颗粒度已经够细
     )
-
-
-def can_view_staff_only(user) -> bool:
-    """判断用户是否可以查看 VISIBILITY_STAFF_ONLY 的文章"""
-    if not user or not user.is_authenticated:
-        return False
-    return user.is_staff or user.is_dashboard_user

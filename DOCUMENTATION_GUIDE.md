@@ -1,7 +1,7 @@
 # PowerAdapterBlogs 文档权重与阅读顺序
 
 > **文档权重**：99（文档路由规则；仅次于 `V2GUIDE.md`）
-> **更新**：2026-07-13
+> **更新**：2026-07-21 — 增加 Django LTS 与异步演进专项 Guide
 > **用途**：帮助开发者与 Agent 判断阅读顺序、文档作用域和冲突处理方式。
 
 ## 1. 权重含义
@@ -30,15 +30,18 @@
 | 92 | `codex_context.md`（本地） | 当前 Agent 交接快照，不覆盖 V2 决策 |
 | 90 | `accounts/PERMISSIONS_GUIDE.md` | 当前 Board Scope 权限主设计与 `accounts_linear` |
 | 88 | `accounts/SECURITY_ROADMAP.md` | v2.5+ MFA 与密钥生命周期规划 |
+| 86 | `DJANGO_LTS_UPGRADE.md` | Django LTS 版本、兼容边界、新能力采用与升级验证 |
 | 85 | 各 App `DEVELOPMENT.md` | 对应模块当前实现与 TODO |
+| 84 | `DJANGO_ASYNC_GUIDE.md` | ASGI/异步岛试验路线、安全边界与后端交接 TODO；规划中 |
 | 82 | 根目录 `DEVELOPMENT.md` | 项目结构与通用开发入口 |
 | 80 | `GITGUIDE.md`（本地） | Git 操作范围内的提交规范 |
 | 78 | `themes/devenir/DEVELOPMENT.md` | 当前主题实现细节 |
 | 75 | 根目录 `LOGGUIDE.md` | 全项目日志规范 |
+| 74 | `themes/devenir/POSTLIST_HANDOFF.md` | PostList 前端重构的实施快照、模型边界与验收标准 |
 | 70 | 各 App `LOGGUIDE.md` | 模块日志细节 |
 | 60 | `CHANGELOG.md` | 历史变更记录，不代表当前设计 |
 | 50 | `README.md`、主题 README | 项目介绍与快速入口 |
-| 40 | `themes/devenir/Project_context.md` | 主题历史上下文，冲突时让位于主题 DEVELOPMENT |
+| 40 | `themes/devenir/Project_context.md`（本地） | 当前主题快速协作快照；冲突时让位于主题 DEVELOPMENT 与运行代码 |
 | 30 | `music/*` | 已停用空壳模块的历史参考 |
 
 ## 4. Agent 最小阅读集
@@ -51,4 +54,7 @@
 4. 与任务直接相关的专项 Guide
 5. 如涉及日志，再阅读根目录与目标 App 的 `LOGGUIDE.md`
 
-不得仅凭 `README.md`、`CHANGELOG.md` 或旧 `Project_context.md` 推断当前架构。
+执行 Devenir PostList 重构时，专项 Guide 为 `themes/devenir/POSTLIST_HANDOFF.md`；仍须先服从 `V2GUIDE.md` 与 `themes/devenir/DEVELOPMENT.md`。
+
+
+不得仅凭 `README.md`、`CHANGELOG.md` 或本地 `Project_context.md` 推断当前架构；后者只用于快速定位，实施前仍须核对高权重文档、代码和目标 diff。

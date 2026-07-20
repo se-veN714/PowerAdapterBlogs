@@ -4,6 +4,7 @@
 """
 
 from boards.models import Board
+from boards.policies import can_create_post_in_any_board
 
 
 def boards_context(request):
@@ -17,4 +18,7 @@ def boards_context(request):
         .select_related('category')
         .order_by('sort_order')
     )
-    return {'boards': boards}
+    return {
+        'boards': boards,
+        'can_create_board_post': can_create_post_in_any_board(request.user),
+    }

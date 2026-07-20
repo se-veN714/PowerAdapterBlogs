@@ -6,7 +6,7 @@
 > **设计风格**: 暗色 CRT 扫描线 + 绿色调 + 社刊 Editorial 排版
 > **前身**: `themes/bulma/`（Bulma CSS 框架，已弃用）
 > **创建**: 2026-06-22
-> **最后更新**: 2026-07-19 — v1.2 Jazzmin 后台视觉统一
+> **最后更新**: 2026-07-20 — v1.9 Post Stream 分类/搜索 htmx 渐进增强
 
 ---
 
@@ -14,6 +14,13 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-20 | v1.9 | PostList、Category、Search 统一 Post Stream fragment；分类、搜索和分页使用 htmx 动态刷新并保留完整 URL 回退；补三档视口与移动触控验收 |
+| 2026-07-20 | v1.8 | PostList 增强：System Status Rail、Command Filter Rail（搜索内嵌）、分类信号色、封面连接线差异；navbar 搜索取消 |
+| 2026-07-20 | v1.7 | PostList 思想流重构：编号节点 + 数据总线 + 非对称排列；glitch 入场动画 sessionStorage 去重；备份原文件为 *.bak.20260720 |
+| 2026-07-20 | v1.6 | 字体策略转向 CDN 全字重：取消"按需子集化"TODO，Source Han + JetBrains Mono 补齐 400/700 字重；修正 `--font-mono` 字体栈与文档不一致 |
+| 2026-07-19 | v1.5 | Jazzmin 侧栏、登录页与站点图标切换到最新 WebP Logo/Icon |
+| 2026-07-19 | v1.4 | 修复 Django FilteredSelectMultiple 的背景、文字、选中态与禁用态配色 |
+| 2026-07-19 | v1.3 | 全局 Header/移动 Sidebar 增加工作台入口；superuser 额外显示系统后台入口 |
 | 2026-07-19 | v1.2 | Jazzmin 后台接入 Devenir 配色、字体、导航层级与响应式视觉；不改变 Admin 行为 |
 | 2026-06-22 | v1.1 | Links 页重构（Bulma 结构复刻 + 3层进度条动画）+ links.css 独立文件 |
 | 2026-06-22 | v1.0 | 全站迁移：14 个页面模板 + 4 个 CSS + 1 个 JS + sidebar configs + sitemap |
@@ -116,10 +123,13 @@ flowchart TD
 |------|------|------|--------|
 | `base.html` | — | 全站基模板 | CSS变量、Header、Sidebar、Footer、Scanline |
 | `pages/index.html` | base.html | 主页 | Hero+3 Editorial Sections+Glitch |
-| `pages/blog/list.html` | base.html | 文章列表 | 卡片网格+分页 |
+| `pages/blog/list.html` | base.html | 文章浏览 shell | System Rail + 共享 Post Stream fragment |
 | `pages/blog/detail.html` | base.html | 文章详情 | Markdown+TOC+Timeline+htmx |
-| `pages/blog/cate_list.html` | base.html | 分类文章 | 同 list 结构 |
-| `pages/blog/search_result.html` | base.html | 搜索结果 | 搜索表单+结果列表 |
+| `pages/blog/cate_list.html` | list.html | 分类文章完整页面回退 | 复用 Post Stream，不再维护 legacy card |
+| `pages/blog/search_result.html` | list.html | 搜索结果完整页面回退 | 复用 Post Stream，不再维护 legacy card |
+| `pages/blog/_post_browser.html` | — | htmx 交换边界 | Filter/Search/Stream/Pagination + OOB 页面标题 |
+| `pages/blog/_post_stream.html` | — | 文章节点 fragment | 编号、封面、摘要、meta 与编辑入口 |
+| `pages/blog/_post_pagination.html` | — | 分页 fragment | 保留搜索 query string 与 `hx-push-url` |
 | `pages/blog/post_form.html` | base.html | 新建/编辑 | ToastUI Editor+表单 |
 | `pages/blog/_revision_body.html` | — | htmx 片段 | 版本内容渲染 |
 | `pages/blog/_revision_diff.html` | — | htmx 片段 | Diff 表格 |
@@ -207,6 +217,17 @@ Consolas 和系统等宽字体。
 
 `{% static %}` 会查找 `STATICFILES_DIRS` 中的所有目录，`themes/devenir/static/` 已加入。
 
+### 5.5 后台入口分层
+
+`base.html` 在桌面 Header 和移动 Sidebar 使用同一规则：
+
+- 已启用且 `is_dashboard_user=True`：显示“工作台”，进入 `/dashboard/`。
+- `is_superuser=True`：额外显示“系统后台”，进入 `/super_admin/`。
+- 普通 Board 角色不会看到系统后台入口；具体对象是否可读写仍由 Board Policy 判定，入口可见不代表授权。
+- 激活的 superuser 始终拥有工作台与系统后台两个入口，即使历史账号未设置 `is_dashboard_user`。
+
+入口放在全局基模板而非只放首页，避免用户进入文章页后失去返回后台的路径；移动端保持同等能力。
+
 ---
 
 ## 6. 页面布局规范
@@ -264,13 +285,17 @@ Consolas 和系统等宽字体。
 | Tablet | 769-1024px | 链接网格双列 |
 | Desktop | >1024px | 链接网格三列、完整排版 |
 
+Post Stream 已实测 `390×844`、`768×1024`、`1440×900`：三档均满足 `scrollWidth === clientWidth`；≤768px 强制单列，并将筛选、搜索、导航、标题和分页触控区提升到至少 44px。
+
 ---
 
 ## 9. 已知问题 / TODO
 
-- [ ] 字体文件过大（SourceHanSerifCN），需按需子集化
+- [ ] **黄色 / 中权重（需产品确认）**：是否在未来废弃 `/Blogs/category/<id>/` 与 `/Blogs/search/` 的独立完整页面。当前按 V2 HDA 约束保留 canonical URL、刷新/书签/无 JavaScript 回退，并在支持 htmx 时动态替换 Post Stream；若决定废弃，必须先确认 SEO、旧链接、重定向、浏览器历史和非 JavaScript 回退策略。当前建议继续保留
+- [ ] **黄色 / 中权重**：浏览器验收发现 `base.html` 同时加载 MathJax `tex-mml-chtml.js` 与 `startup.js`，产生重复启动异常；与 Post Stream 无关，需另开任务核对公式页面后移除重复入口
+- [x] ~~字体文件过大（SourceHanSerifCN），需按需子集化~~ → **已决策不做**（2026-07-20）。视觉完整性优先于加载效率，完整字重走 CDN 托管，本地不再维护字体二进制
 - [ ] `waveform` 动画在低性能设备上可能卡顿
-- [ ] `glitch` 入场动画每次页面加载触发，考虑 sessionStorage 去重
+- [x] `glitch` 入场动画已使用 sessionStorage 在同一会话去重
 - [ ] ToastUI Editor 暗色主题硬编码，未从 CSS 变量读取
 - [ ] 暗色主题无亮色切换（设计意图如此）
 
@@ -278,10 +303,26 @@ Consolas 和系统等宽字体。
 
 ## 10. 附录
 
-### A. 字体文件
-- `static/fonts/` 目录被 `.gitignore` 排除（过大）
-- 使用 `@font-face` 在 `typography.css` 中声明
-- 降级栈：SourceHanSerifCN → 系统 serif，Cascadia Code → 系统 mono
+### A. 字体策略（2026-07-20 起 CDN 化）
+
+**决策**：放弃"按需子集化"的优化路径。绿色视觉权重高于性能开销，完整字重交由 CDN 托管。
+
+**CDN 选型**：jsDelivr（与 `base.html` 现有 MathJax 同源，单一 CDN 信任域）
+
+| 字体 | 用途 | 字重 | npm 包 |
+|------|------|------|--------|
+| Source Han Serif CN | 正文 / Editorial | 400, 700 | `source-han-serif-cn` |
+| Source Han Sans CN | UI 辅助 | 400, 700 | `source-han-sans-cn` |
+| JetBrains Mono | 代码 / Logo / 数字 | 400, 700 | `@fontsource/jetbrains-mono` |
+
+**URL 模板**：
+```
+https://cdn.jsdelivr.net/npm/source-han-serif-cn@latest/SourceHanSerifCN-{Weight}.otf
+https://cdn.jsdelivr.net/npm/source-han-sans-cn@latest/SourceHanSansCN-{Weight}.otf
+https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@latest/files/jetbrains-mono-latin-{Weight}-normal.woff2
+```
+
+**本地回退**：`static/fonts/` 保留但不再被引用；降级栈 SourceHanSerifCN → 系统 serif，JetBrains Mono → 系统 mono。
 
 ### B. 快速命令
 ```bash

@@ -1,6 +1,14 @@
 import logging
 
-from django.contrib import admin
+from django.contrib import admin, messages
+
+from PowerAdapterBlogs.base_admin import DashboardAdminMixin
+from PowerAdapterBlogs.cus_site import custom_site
+from boards.policies import (
+    can_access_comment_admin,
+    can_moderate_comment,
+    comments_visible_to_moderator,
+)
 from .models import Comment
 from security.services import moderate_comment
 
@@ -64,3 +72,100 @@ class CommentAdmin(admin.ModelAdmin):
                         f"old_status={old_status} user={request.user.id}")
         self.message_user(request, f"已标记 {queryset.count()} 条评论为垃圾")
     mark_spam.short_description = "标记为垃圾"
+
+
+@admin.register(Comment, site=custom_site)
+class BoardScopedCommentAdmin(DashboardAdminMixin, admin.ModelAdmin):
+    """Board-scoped, read-only moderation queue for Stage 4."""
+
+    list_display = [
+        "content_short_description",
+        "post",
+        "nickname",
+        "status",
+        "created_time",
+    ]
+    list_display_links = ["content_short_description"]
+    list_filter = ["status", "created_time"]
+    search_fields = ["content", "nickname", "post__title"]
+    list_select_related = ["post", "post__category", "user"]
+    actions = ["approve_comments", "reject_comments", "mark_spam"]
+
+    @admin.display(description="评论内容")
+    def content_short_description(self, obj):
+        max_length = 50
+        if len(obj.content) <= max_length:
+            return obj.content
+        return f"{obj.content[:max_length]}..."
+
+    def has_module_permission(self, request):
+        return can_access_comment_admin(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        if obj is None:
+            return can_access_comment_admin(request.user)
+        return can_moderate_comment(request.user, obj)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return comments_visible_to_moderator(request.user, queryset)
+
+    def _moderate_queryset(self, request, queryset, *, new_status, reason):
+        succeeded = 0
+        rejected = 0
+        for comment in queryset.select_related("post", "post__category"):
+            if not can_moderate_comment(request.user, comment):
+                rejected += 1
+                continue
+            moderate_comment(
+                comment=comment,
+                new_status=new_status,
+                request=request,
+                reason=reason,
+            )
+            succeeded += 1
+
+        if succeeded:
+            self.message_user(request, f"已处理 {succeeded} 条评论", messages.SUCCESS)
+        if rejected:
+            self.message_user(
+                request,
+                f"跳过 {rejected} 条非所属板块评论",
+                messages.WARNING,
+            )
+
+    @admin.action(description="通过选中的评论", permissions=["view"])
+    def approve_comments(self, request, queryset):
+        self._moderate_queryset(
+            request,
+            queryset,
+            new_status=Comment.Status.PUBLISHED,
+            reason="Dashboard Board 审核通过",
+        )
+
+    @admin.action(description="拒绝选中的评论", permissions=["view"])
+    def reject_comments(self, request, queryset):
+        self._moderate_queryset(
+            request,
+            queryset,
+            new_status=Comment.Status.REJECTED,
+            reason="Dashboard Board 审核拒绝",
+        )
+
+    @admin.action(description="标记为垃圾", permissions=["view"])
+    def mark_spam(self, request, queryset):
+        self._moderate_queryset(
+            request,
+            queryset,
+            new_status=Comment.Status.DELETED,
+            reason="Dashboard Board 标记为垃圾",
+        )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

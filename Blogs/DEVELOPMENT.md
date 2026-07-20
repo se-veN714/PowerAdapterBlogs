@@ -5,7 +5,7 @@
 > **职责**: 博客文章 CRUD、分类/标签管理、PV/UV 统计、修订追踪 (v2.0)、可见性控制  
 > **依赖**: Django CBV (ListView/DetailView/CreateView/UpdateView), DRF ViewSet, Redis 缓存  
 > **创建**: 2025-08-04  
-> **最后更新**: 2026-07-12 — hot_posts visibility 缓存隔离
+> **最后更新**: 2026-07-20 — PostList/Category/Search 统一 HTML fragment 与 htmx 回退
 
 ---
 
@@ -13,6 +13,10 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-20 | v2.9 | **Django 5.2 LTS**：分页 URL 改用 `reverse(query=...)` 生成并统一注入模板；保留 5.1 过渡降级路径；5.2.16 与 5.1.5 各 87 项回归通过 |
+| 2026-07-20 | v2.8 | **Post Stream HDA**：Category/Search 复用 PostList QuerySet、context 与模板 fragment；HX 请求局部刷新并保留完整页面回退；匿名页面缓存按 `HX-Request` 隔离 |
+| 2026-07-19 | v2.7 | **Board Scope Stage 5**：新增事务状态 Service；写作 View、上传、STAFF_ONLY/修订端点与只读 DRF API 接入 Policy |
+| 2026-07-19 | v2.6 | **Board Scope Stage 4**：Post/PostRevision Admin queryset、对象权限、Category 表单与 autocomplete 接入 boards Policy；修复 Manager 编辑覆盖 owner |
 | 2026-07-12 | v2.5 | **上传与权限加固**: 图片恢复 CSRF、登录和角色检查，校验大小/MIME/真实格式/像素；修订端点补 visibility；前台写作入口对齐 dashboard 角色；修复 serializer tags source |
 | 2026-07-12 | v2.4 | **缓存安全**: 公开/内部 hot_posts 分离，公开榜单排除 STAFF_ONLY；补回归测试 |
 | 2026-06-22 | v2.3 | **Dashboard 分行 Action**: rewrap_content_action + rewrap_posts 管理命令 |
@@ -26,10 +30,10 @@
 | Feature | 文件 | 描述 |
 |---------|------|------|
 | PostRevision 模型 | `models.py` | 语义化版本号 (v{major}.{minor})，内容快照，change_type/edit_summary |
-| Visibility 权限 | `models.py` + `views.py` | Post 新增 PUBLIC/STAFF_ONLY 字段；全视图过滤 (非 staff → 404/排除) |
+| Visibility 权限 | `models.py` + `boards/policies.py` | PUBLIC 对所有人可见；STAFF_ONLY 仅所属 Board 的可见角色或 superuser 可见 |
 | 修订 API (×3) | `urls.py` + `views.py` | 版本列表 / 版本详情 / diff HTML 片段 |
 | 快照自动创建 | `views.py` | PostCreateView → v1.0；PostEditView → 自动递增 |
-| 版本计算工具 | `revisions.py` (新建) | `get_next_version()` / `create_revision()` / `render_diff()` / `can_view_staff_only()` |
+| 版本计算工具 | `revisions.py` (新建) | `get_next_version()` / `create_revision()` / `render_diff()`；可见性已迁至 boards Policy |
 | Admin 扩展 | `admin.py` | PostRevisionInline (只读) + PostAdmin 加 visibility 列/过滤 |
 | Data Migration | `migrations/0004` | 50 篇现有文章批量创建 v1.0 初始快照 |
 
@@ -105,16 +109,30 @@ flowchart TD
 | 文件 | 核心类/函数 | 职责 |
 |------|------------|------|
 | `models.py` | `Post`, `Category`, `Tag`, `PostVisit`, `PostRevision`, `PostImage` | 6 个数据模型 |
-| `views.py` | 6 个 CBV + `post_img_upload` + 3 个修订 API | 前台浏览 + 编辑器 + 图片上传 + API |
+| `services.py` | Post submit/approve/reject/unpublish | 事务、行锁、状态校验与 Policy 重检 |
+| `views.py` | 6 个 CBV + `post_img_upload` + 修订 fragment 端点 | 前台浏览 + 编辑器 + 图片上传 + HTML Application API |
 | `forms.py` | `PostForm` | 文章编辑表单 (+visibility/change_type/edit_summary) |
 | `admin.py` | `PostAdmin`, `CategoryAdmin`, `TagAdmin`, `LogEntryAdmin` | Dashboard Admin 注册 |
 | `adminforms.py` | `PostAdminForm` | Admin 专用表单 (覆盖 widgets) |
 | `apis.py` | `PostViewSet`, `CategoryViewSet` | DRF REST API |
 | `serializers.py` | `PostSerializer`, `CategorySerializer` | DRF 序列化器 |
 | `urls.py` | — | 前台路由 + DRF 路由 + 修订 API 路由 |
-| `revisions.py` | `get_next_version()`, `create_revision()`, `render_diff()`, `can_view_staff_only()` | 修订工具函数 |
+| `revisions.py` | `get_next_version()`, `create_revision()`, `render_diff()` | 修订工具函数；不再承载授权判断 |
 | `feed.py` | — | RSS Feed |
-| `tests.py` | — | 测试 (空) |
+| `tests.py` | `PostStreamHtmxTest` 等 | 权限、修订、上传、Post Stream fragment、缓存隔离与管理命令回归 |
+
+### 2.1 Post Stream HTML Application API
+
+`PostListView`、`CategoryView`、`TagView` 与 `SearchView` 共享 `post_list`、分页、`categories` 和 `post.can_edit` 契约。分类与搜索不再维护独立卡片数据形状：
+
+| 请求 | 模板响应 | URL 行为 |
+|---|---|---|
+| 普通 GET | `list.html` / 兼容 wrapper → 完整 `base.html` 页面 | URL 可刷新、收藏、SEO 与无 JavaScript 访问 |
+| `HX-Request: true` | `_post_browser.html` | htmx 替换 `#post-browser`，`hx-push-url` 更新历史 |
+
+`CategoryView` 继承 `PostListView` 的 `published_posts_visible_to()`、`select_related`、分页和编辑权限标注，只额外限定正常状态的 Category。`SearchView` 继续在同一可见 QuerySet 上过滤标题与正文。
+
+匿名页面缓存必须对 `HX-Request` 设置 `Vary`，否则相同 URL 的完整页面和 fragment 会污染彼此。登录用户仍绕过整页缓存。
 
 ---
 
@@ -374,7 +392,7 @@ admin.site.register(Tag)
 
 # 注册 2: custom_site → /dashboard/
 @admin.register(Post, site=custom_site)
-class PostAdmin(DashboardAdminMixin, BaseOwnerAdmin): ...
+class PostAdmin(DashboardAdminMixin, admin.ModelAdmin): ...
 
 @admin.register(Category, site=custom_site)
 class CategoryAdmin(DashboardAdminMixin, BaseOwnerAdmin): ...
@@ -388,10 +406,18 @@ class TagAdmin(DashboardAdminMixin, BaseOwnerAdmin): ...
 | 配置项 | 值 | 说明 |
 |--------|-----|------|
 | `list_display` | title, category, status, **visibility**, created_time, owner | v2.0 新增 visibility |
-| `list_filter` | category, **visibility** | 按可见性过滤 |
+| `list_filter` | status, `BoardScopedCategoryFilter`, **visibility** | 分类选项不泄露非所属 Board |
 | `inlines` | `[PostRevisionInline]` | 修订历史只读内联 |
 | `fieldsets` | 基础配置 / 内容 / 额外信息 (含 visibility) | 三栏布局 |
 | `search_fields` | title, category__name | |
+
+Stage 4 的对象范围由 `boards.policies` 统一裁决：
+
+- Contributor/Editor 只看到自己在有效 Membership Board 中的文章；Reviewer/Manager 可看到所属 Board 的全部文章。
+- Reviewer 只读；Manager 可编辑他人文章，但 `owner` 保持原作者，不再被 `BaseOwnerAdmin.save_model()` 改写。
+- 新建/编辑表单与 `CategoryAutocomplete` 只接受具有创建权限且 Category→Board 映射唯一的分类。
+- `PostRevisionAdmin` 跟随对应 Post 的可见范围。
+- 提交、审核、发布、驳回和下架 action 已在 Stage 5 恢复；每个对象通过 `Blogs.services` 加锁并重新校验 Policy。批量分行仍只对 superuser 开放。
 
 ### 6.3 PostRevisionInline
 
@@ -406,34 +432,29 @@ class TagAdmin(DashboardAdminMixin, BaseOwnerAdmin): ...
 
 | 用户类型 | 公开文章 | STAFF_ONLY 文章 | 实现 |
 |----------|:---:|:---:|------|
-| 匿名用户 | ✅ 可见 | ❌ 404 (列表中排除) | `can_view_staff_only()` → False |
-| 已登录普通用户 | ✅ 可见 | ❌ 404 (列表中排除) | `can_view_staff_only()` → False |
-| dashboard 用户 | ✅ 可见 | ✅ 可见 | `can_view_staff_only()` → True |
-| staff | ✅ 可见 | ✅ 可见 | `is_staff = True` |
-| superuser | ✅ 可见 | ✅ 可见 | `is_staff = True` |
-
-**权限判断函数** (`revisions.py`):
-```python
-def can_view_staff_only(user) -> bool:
-    if not user or not user.is_authenticated:
-        return False
-    return user.is_staff or user.is_dashboard_user
-```
+| 匿名用户 | ✅ 可见 | ❌ 404 | `published_posts_visible_to()` |
+| 已登录但无 Membership | ✅ 可见 | ❌ 404 | 全局旗标不扩大 Board Scope |
+| Contributor/Editor | ✅ 可见 | 仅自己的所属 Board 文章 | `posts_visible_to()` |
+| Reviewer/Manager | ✅ 可见 | 所属 Board 全部文章 | `posts_visible_to()` |
+| 仅 `is_staff` | ✅ 可见 | ❌ 404 | Stage 5 回归测试固定该边界 |
+| superuser | ✅ 可见 | ✅ 可见 | Policy 应急 bypass |
 
 **设计决策**：
 - 非授权用户访问 STAFF_ONLY 文章 → **404** 而非 403
 - 原因：不泄露"这篇文章存在但你无权查看"的信息
-- 列表视图用 `.exclude(visibility=STAFF_ONLY)` 排除，详情视图用 `get_object()` 中抛 `Http404`
+- 列表/API 使用 `published_posts_visible_to()`，详情与修订端点使用 `can_view_published_post()`；拒绝时继续返回 404
 
 ### 7.1 所有视图的 visibility 过滤
 
 | 视图 | 过滤位置 | 方式 |
 |------|---------|------|
-| `PostListView` | `get_queryset()` | `.exclude(visibility=STAFF_ONLY)` (非 staff) |
-| `CategoryView` | `get_queryset()` | 同上 |
+| `PostListView` | `get_queryset()` | `published_posts_visible_to()` |
+| `CategoryView` | 继承 PostListView 后按 Category 过滤 | 同一 `published_posts_visible_to()`；Category 自身必须为正常状态 |
 | `TagView` | 继承 PostListView | 自动继承 |
 | `SearchView` | 继承 PostListView | 自动继承 |
 | `PostDetailView` | `get_object()` | 判断后 `raise Http404` |
+| `revision_body` / `revision_diff` | 函数入口 | `can_view_published_post()` |
+| DRF Post/Category | `get_queryset()` | Policy-scoped 只读；写方法 405 |
 
 ---
 
@@ -443,7 +464,7 @@ def can_view_staff_only(user) -> bool:
 
 | 层级 | 缓存目标 | Key 模式 | TTL |
 |------|---------|---------|-----|
-| 页面缓存 | `PostListView` 匿名访问 | `views.decorators.cache.cache_page.*` | 15min |
+| 页面缓存 | `PostListView` 及其 Category/Tag/Search 子类的匿名访问 | `views.decorators.cache.cache_page.*`；按路径、query string 与 `Vary: HX-Request` 隔离 | 15min |
 | 片段缓存 | SideBar / 导航分类 | `template.cache.*` | 15min |
 | 查询缓存 | `hot_posts` | `hot_posts` | 10min |
 | PV 去重 | 用户+文章 PV | `pv:{uid}:{post_id}` | 1min |
@@ -528,7 +549,7 @@ flowchart TD
 
     subgraph blogs["Blogs/ 模块"]
         MODELS["models.py<br/>Post/Category/Tag/PostVisit/PostRevision"]
-        REV["revisions.py<br/>get_next_version/create_revision/render_diff/can_view_staff_only"]
+        REV["revisions.py<br/>get_next_version/create_revision/render_diff"]
         FORMS["forms.py<br/>PostForm"]
         ADMIN_F["adminforms.py<br/>PostAdminForm"]
         VIEWS["views.py<br/>6 CBV + upload + 3 API"]
@@ -585,6 +606,8 @@ flowchart TD
 | slug 唯一性由 DB 保证 | 🟢 低 | `save()` 中手动生成 slug，并发创建可能冲突。概率极低 |
 | 修订历史无分页 | 🟢 低 | `revision_list_api` 返回全量版本，文章版本数 < 100 时无问题 |
 | 核心测试覆盖仍有限 | 🟡 中 | 已补 hot_posts visibility 回归测试；修订、权限和访问统计仍需逐步覆盖 |
+| 普通 View/API 未使用 Board Policy | ✅ 已修复 | Stage 5 已覆盖写作 View、上传、修订端点、评论提交和只读 DRF ViewSet |
+| `/super_admin/` 的 Post 默认注册依赖 Django `is_staff` + Permission | 🟡 中 | 当前仅 superuser 创建流程授予 `is_staff`；未来引入非 superuser staff 前补 Policy 或显式 superuser 边界 |
 
 ---
 

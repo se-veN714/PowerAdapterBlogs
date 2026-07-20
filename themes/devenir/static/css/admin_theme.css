@@ -298,6 +298,53 @@ textarea.form-control { min-height: 8rem; }
     border-color: var(--pa-border-strong);
 }
 
+/* Django FilteredSelectMultiple (groups / user_permissions). */
+.selector .selector-available,
+.selector .selector-chosen {
+    border-color: var(--pa-border-strong);
+    background: var(--pa-elevated);
+}
+
+.selector .selector-available h2,
+.selector .selector-chosen h2 {
+    border-color: var(--pa-border-strong);
+    background: var(--pa-elevated);
+    color: var(--pa-text);
+}
+
+.selector .selector-filter {
+    border-color: var(--pa-border);
+    background: var(--pa-elevated);
+}
+
+.selector .selector-filter input {
+    background: #111616;
+    border: 1px solid var(--pa-border-strong);
+    color: var(--pa-text);
+}
+
+.selector select {
+    background: #111616 !important;
+    border-color: var(--pa-border-strong) !important;
+    color: var(--pa-text) !important;
+}
+
+.selector select option {
+    background: #111616;
+    color: var(--pa-text);
+}
+
+.selector select option:checked {
+    background: var(--pa-accent-deep)
+        linear-gradient(0deg, var(--pa-accent-deep), var(--pa-accent-deep));
+    color: var(--pa-accent);
+}
+
+.selector select:disabled,
+.selector select option:disabled {
+    color: var(--pa-faint) !important;
+}
+
 .custom-control-label::before {
     background: #111616;
     border-color: var(--pa-border-strong);

@@ -8,6 +8,11 @@ from django.contrib import admin
 from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 from PowerAdapterBlogs.cus_site import custom_site
 from boards.models import Board, BoardMembership
+from boards.policies import (
+    boards_manageable_by,
+    can_access_board_admin,
+    can_change_board_settings,
+)
 
 
 @admin.register(Board, site=custom_site)
@@ -22,8 +27,8 @@ class BoardAdmin(DashboardAdminMixin, admin.ModelAdmin):
         'category', 'is_active', 'updated_at',
     ]
     list_display_links = ['name']
-    list_editable = ['sort_order', 'is_active']
-    list_filter = ['is_active', 'category']
+    list_editable = ['sort_order']
+    list_filter = ['is_active']
     search_fields = ['name', 'slug', 'keywords']
     ordering = ['sort_order']
 
@@ -49,6 +54,28 @@ class BoardAdmin(DashboardAdminMixin, admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Deleting a Board changes the site structure and is superuser-only."""
         return request.user.is_active and request.user.is_superuser
+
+    def has_module_permission(self, request):
+        return can_access_board_admin(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        if obj is None:
+            return can_access_board_admin(request.user)
+        return can_change_board_settings(request.user, obj)
+
+    def has_change_permission(self, request, obj=None):
+        if obj is None:
+            return can_access_board_admin(request.user)
+        return can_change_board_settings(request.user, obj)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return boards_manageable_by(request.user, queryset)
+
+    def get_readonly_fields(self, request, obj=None):
+        if request.user.is_superuser:
+            return []
+        return ["slug", "category", "is_active"]
 
     def glitch_color_preview(self, obj):
         """在列表中展示颜色预览色块。"""

@@ -30,6 +30,46 @@
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
 
+            <!-- Selectable default covers -->
+            <fieldset class="cover-presets" aria-describedby="cover-preset-status">
+                <legend>预设封面</legend>
+                <div class="cover-preset-grid">
+                    <button type="button" class="cover-preset" aria-pressed="false"
+                            data-cover-url="{% static 'img/covers/default-code.webp' %}"
+                            data-cover-filename="default-code.webp">
+                        <img src="{% static 'img/covers/default-code.webp' %}" alt="代码矩阵预设封面" width="1024" height="1024">
+                        <span>Code</span>
+                    </button>
+                    <button type="button" class="cover-preset" aria-pressed="false"
+                            data-cover-url="{% static 'img/covers/default-music.webp' %}"
+                            data-cover-filename="default-music.webp">
+                        <img src="{% static 'img/covers/default-music.webp' %}" alt="音乐波形预设封面" width="1024" height="1024">
+                        <span>Music</span>
+                    </button>
+                    <button type="button" class="cover-preset" aria-pressed="false"
+                            data-cover-url="{% static 'img/covers/default-skate.webp' %}"
+                            data-cover-filename="default-skate.webp">
+                        <img src="{% static 'img/covers/default-skate.webp' %}" alt="滑板轨迹预设封面" width="1024" height="1024">
+                        <span>Skate</span>
+                    </button>
+                    <button type="button" class="cover-preset" aria-pressed="false"
+                            data-cover-url="{% static 'img/covers/default-rhizome.webp' %}"
+                            data-cover-filename="default-rhizome.webp">
+                        <img src="{% static 'img/covers/default-rhizome.webp' %}" alt="块茎网络预设封面" width="1024" height="1024">
+                        <span>Rhizome</span>
+                    </button>
+                    <button type="button" class="cover-preset" aria-pressed="false"
+                            data-cover-url="{% static 'img/covers/default-noise.webp' %}"
+                            data-cover-filename="default-noise.webp">
+                        <img src="{% static 'img/covers/default-noise.webp' %}" alt="噪声同心环预设封面" width="1024" height="1024">
+                        <span>Noise</span>
+                    </button>
+                </div>
+                <p class="cover-preset-status" id="cover-preset-status" aria-live="polite">
+                    选择预设，或在下方上传自己的封面。
+                </p>
+            </fieldset>
+
             <!-- Cover upload -->
             <div class="cover-upload" id="cover-upload-box" onclick="document.getElementById('id_cover').click();">
                 <input class="file-input" type="file" name="{{ form.cover.name }}" id="id_cover" style="display:none;"
@@ -98,10 +138,14 @@
 {% block extra_js %}
     {{ block.super }}
     <script>
-        // Cover preview
-        document.getElementById('id_cover').addEventListener('change', function(e) {
-            document.getElementById('cover-filename').textContent =
-                e.target.files.length > 0 ? e.target.files[0].name : '未选择文件';
+        // Cover preview and selectable defaults
+        var coverInput = document.getElementById('id_cover');
+        var coverFilename = document.getElementById('cover-filename');
+        var coverPresetStatus = document.getElementById('cover-preset-status');
+        var coverPresetButtons = document.querySelectorAll('.cover-preset');
+
+        coverInput.addEventListener('change', function(e) {
+            coverFilename.textContent = e.target.files.length > 0 ? e.target.files[0].name : '未选择文件';
             if (e.target.files.length > 0) {
                 var reader = new FileReader();
                 reader.onload = function(ev) {
@@ -118,6 +162,43 @@
                 };
                 reader.readAsDataURL(e.target.files[0]);
             }
+        });
+
+        coverPresetButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                button.disabled = true;
+                coverPresetStatus.textContent = '正在载入 ' + button.textContent.trim() + ' 预设封面…';
+
+                fetch(button.dataset.coverUrl)
+                    .then(function(response) {
+                        if (!response.ok) throw new Error('预设封面载入失败');
+                        return response.blob();
+                    })
+                    .then(function(blob) {
+                        var file = new File(
+                            [blob],
+                            button.dataset.coverFilename,
+                            {type: blob.type || 'image/webp'}
+                        );
+                        var transfer = new DataTransfer();
+                        transfer.items.add(file);
+                        coverInput.files = transfer.files;
+                        coverInput.dispatchEvent(new Event('change', {bubbles: true}));
+
+                        coverPresetButtons.forEach(function(item) {
+                            var selected = item === button;
+                            item.classList.toggle('is-selected', selected);
+                            item.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                        });
+                        coverPresetStatus.textContent = '已选择 ' + button.textContent.trim() + '；提交时将按普通封面上传。';
+                    })
+                    .catch(function(error) {
+                        coverPresetStatus.textContent = error.message + '，请改用本地上传。';
+                    })
+                    .finally(function() {
+                        button.disabled = false;
+                    });
+            });
         });
 
         // Toast UI Editor

@@ -90,20 +90,28 @@ admin.site.register(MyUser, MyUserAdmin)
 # === 注册到 custom_site（/dashboard/，dashboard 用户仅审核 is_active） ===
 @admin.register(MyUser, site=custom_site)
 class CusMyUserAdmin(DashboardAdminMixin, MyUserAdmin):
-    """custom_site 版本，最小权限：只能启停非超管账号"""
+    """custom_site account view, reserved for active superusers until Stage 6."""
+
+    @staticmethod
+    def _is_active_superuser(request):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_module_permission(self, request):
+        """Board dashboard access must not imply global account management."""
+        return self._is_active_superuser(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._is_active_superuser(request)
 
     def has_change_permission(self, request, obj=None):
-        """非 superuser 不能编辑 superuser 账号（避免 dashboard 用户禁用超管）"""
-        if obj is not None and obj.is_superuser and not request.user.is_superuser:
-            return False
-        return super().has_change_permission(request, obj)
+        return self._is_active_superuser(request)
+
+    def has_add_permission(self, request):
+        return self._is_active_superuser(request)
 
     def has_delete_permission(self, request, obj=None):
-        """dashboard 用户无删除权限"""
-        return False
+        return self._is_active_superuser(request)
 
     def get_readonly_fields(self, request, obj=None):
-        """双重保险：dashboard 用户面对 superuser 时全字段只读"""
-        if obj is not None and obj.is_superuser and not request.user.is_superuser:
-            return [f.name for f in self.model._meta.fields]
+        """The permission methods reject non-superusers before form rendering."""
         return super().get_readonly_fields(request, obj)

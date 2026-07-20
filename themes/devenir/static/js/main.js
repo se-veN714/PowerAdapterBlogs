@@ -5,6 +5,39 @@
 
 document.addEventListener('DOMContentLoaded', function () {
 
+    // ===== Post Stream htmx lifecycle =====
+    // Category/search/pagination keep their canonical URLs while htmx swaps the
+    // shared server-rendered stream fragment. The listeners only synchronize
+    // accessibility state and the browser title; they do not own post data.
+    document.body.addEventListener('htmx:beforeRequest', function (event) {
+        const browser = event.detail.elt.closest('#post-browser');
+        if (!browser) return;
+
+        browser.setAttribute('aria-busy', 'true');
+        const syncStatus = browser.querySelector('#post-browser-sync');
+        if (syncStatus) syncStatus.setAttribute('aria-hidden', 'false');
+    });
+
+    document.body.addEventListener('htmx:afterSwap', function () {
+        const browser = document.getElementById('post-browser');
+        if (!browser) return;
+
+        browser.setAttribute('aria-busy', 'false');
+        const syncStatus = browser.querySelector('#post-browser-sync');
+        if (syncStatus) syncStatus.setAttribute('aria-hidden', 'true');
+        const pageTitle = (browser.dataset.documentTitle || '').trim();
+        if (pageTitle) document.title = pageTitle;
+    });
+
+    document.body.addEventListener('htmx:responseError', function () {
+        const browser = document.getElementById('post-browser');
+        if (!browser) return;
+
+        browser.setAttribute('aria-busy', 'false');
+        const syncStatus = browser.querySelector('#post-browser-sync');
+        if (syncStatus) syncStatus.setAttribute('aria-hidden', 'true');
+    });
+
     // ===== Sidebar Toggle =====
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
@@ -91,21 +124,38 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ===== Editorial Section Glitch Observer =====
+    // sessionStorage 去重：同一会话内 glitch 入场动画只播放一次
+    const glitchStorageKey = 'devenir_glitch_played';
+    const glitchPlayed = sessionStorage.getItem(glitchStorageKey);
+
     const editorialObserver = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
             if (entry.isIntersecting) {
                 const section = entry.target;
-                section.classList.add('editorial-entering');
 
-                setTimeout(function () {
-                    section.classList.remove('editorial-entering');
+                if (glitchPlayed) {
+                    // 已播放过：直接标记为已完成，跳过动画
                     section.classList.add('editorial-entered');
-                }, 300);
+                    const scrambleTargets = section.querySelectorAll('[data-scramble-text]');
+                    scrambleTargets.forEach(function (el) {
+                        if (!el.dataset.original) {
+                            el.dataset.original = el.textContent;
+                        }
+                    });
+                } else {
+                    // 首次播放：完整 glitch 入场
+                    section.classList.add('editorial-entering');
 
-                const scrambleTargets = section.querySelectorAll('[data-scramble-text]');
-                scrambleTargets.forEach(function (el, idx) {
-                    setTimeout(function () { scrambleText(el); }, 400 + idx * 150);
-                });
+                    setTimeout(function () {
+                        section.classList.remove('editorial-entering');
+                        section.classList.add('editorial-entered');
+                    }, 300);
+
+                    const scrambleTargets = section.querySelectorAll('[data-scramble-text]');
+                    scrambleTargets.forEach(function (el, idx) {
+                        setTimeout(function () { scrambleText(el); }, 400 + idx * 150);
+                    });
+                }
 
                 editorialObserver.unobserve(section);
             }
@@ -115,6 +165,13 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.editorial-glitch').forEach(function (section) {
         editorialObserver.observe(section);
     });
+
+    // 标记 glitch 已播放（延迟到页面隐藏前，确保动画完整播放）
+    if (!glitchPlayed) {
+        window.addEventListener('beforeunload', function () {
+            sessionStorage.setItem(glitchStorageKey, '1');
+        });
+    }
 
     // ===== Glitch Color (boards) =====
     // 将 data-glitch-color 注入 CSS 变量 --glitch-c，

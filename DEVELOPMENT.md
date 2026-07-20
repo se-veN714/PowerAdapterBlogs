@@ -4,7 +4,7 @@
 > **项目**: 基于 Django 5.2 的个人博客系统  
 > **作者**: seveN1foR / PowerAdapter  
 > **许可证**: MIT  
-> **最后更新**: 2026-07-13 — 新增 Python 编码与 Mixin 约束
+> **最后更新**: 2026-07-21 — 增加 Django 5.2 LTS 与异步演进文档入口
 
 ---
 
@@ -166,9 +166,13 @@ DjangoProject/                 # 项目根目录
 | `DOCUMENTATION_GUIDE.md` | 文档权重、阅读顺序与冲突处理规则 |
 | `CHANGELOG.md` | 全项目变更日志 |
 | `CODING_GUIDE.md` | Python 之禅、Django 分层、Mixin/继承准入条件与 Code Review 清单 |
+| `DJANGO_LTS_UPGRADE.md` | Django 5.2 LTS 版本、兼容边界与升级验证 |
+| `DJANGO_ASYNC_GUIDE.md` | ASGI/异步岛渐进试验路线、风险边界与后端 TODO |
 | `requirements.txt` | 依赖清单 |
 | `accounts/DEVELOPMENT.md` | 用户模块详细架构 |
 | `security/DEVELOPMENT.md` | 日志完整性详细架构 |
+| `themes/devenir/DEVELOPMENT.md` | 当前 Devenir 主题架构、模板与静态资源说明 |
+| `themes/devenir/POSTLIST_HANDOFF.md` | PostList 前端重构规划、K3 修改边界与验收标准 |
 | `accounts/LOGGUIDE.md` | accounts 日志规范 |
 | `Blogs/LOGGUIDE.md` | Blogs 日志规范 |
 | `comment/LOGGUIDE.md` | comment 日志规范 |

@@ -7,6 +7,8 @@ accounts_linear stage 4 and 5 will connect those runtime entry points.
 
 from typing import TYPE_CHECKING
 
+from django.db.models import Count, Q
+
 from boards.access_rules import BoardAction, allows_board_action
 from boards.models import Board, BoardMembership
 
@@ -70,6 +72,37 @@ def get_active_membership(user, board: Board | None) -> BoardMembership | None:
     )
 
 
+def _unambiguous_category_ids():
+    """Category ids mapped to exactly one Board, matching ``board_for_post``."""
+    return (
+        Board.objects.exclude(category_id=None)
+        .values("category_id")
+        .annotate(board_count=Count("pk"))
+        .filter(board_count=1)
+        .values("category_id")
+    )
+
+
+def _membership_category_ids(user, roles):
+    if not _is_active_authenticated(user):
+        return BoardMembership.objects.none().values("board__category_id")
+
+    return BoardMembership.objects.filter(
+        user=user,
+        is_active=True,
+        role__in=roles,
+        board__is_active=True,
+        board__category_id__isnull=False,
+        board__category_id__in=_unambiguous_category_ids(),
+    ).values("board__category_id")
+
+
+def _has_scoped_role(user, roles) -> bool:
+    if _is_active_superuser(user):
+        return True
+    return _membership_category_ids(user, roles).exists()
+
+
 def _allows(
     user,
     board: Board | None,
@@ -119,8 +152,190 @@ def can_manage_board_members(user, board: Board) -> bool:
     return _allows(user, board, BoardAction.MANAGE_BOARD_MEMBERS)
 
 
+def can_access_board_admin(user) -> bool:
+    if _is_active_superuser(user):
+        return True
+    if not _is_active_authenticated(user):
+        return False
+    return BoardMembership.objects.filter(
+        user=user,
+        role=BoardMembership.Role.MANAGER,
+        is_active=True,
+        board__is_active=True,
+    ).exists()
+
+
+def boards_manageable_by(user, queryset):
+    if _is_active_superuser(user):
+        return queryset
+    if not _is_active_authenticated(user):
+        return queryset.none()
+    return queryset.filter(
+        is_active=True,
+        memberships__user=user,
+        memberships__role=BoardMembership.Role.MANAGER,
+        memberships__is_active=True,
+    ).distinct()
+
+
 def can_create_post(user, board: Board) -> bool:
     return _allows(user, board, BoardAction.CREATE_POST)
+
+
+def can_access_post_admin(user) -> bool:
+    return _has_scoped_role(
+        user,
+        (
+            BoardMembership.Role.CONTRIBUTOR,
+            BoardMembership.Role.EDITOR,
+            BoardMembership.Role.REVIEWER,
+            BoardMembership.Role.MANAGER,
+        ),
+    )
+
+
+def can_change_posts_in_admin(user) -> bool:
+    return _has_scoped_role(
+        user,
+        (
+            BoardMembership.Role.CONTRIBUTOR,
+            BoardMembership.Role.EDITOR,
+            BoardMembership.Role.MANAGER,
+        ),
+    )
+
+
+def can_create_post_in_any_board(user) -> bool:
+    return can_change_posts_in_admin(user)
+
+
+def can_review_posts_in_admin(user) -> bool:
+    return _has_scoped_role(
+        user,
+        (BoardMembership.Role.REVIEWER, BoardMembership.Role.MANAGER),
+    )
+
+
+def categories_available_to(user, queryset):
+    """Categories belonging to any unambiguous active Membership."""
+    if _is_active_superuser(user):
+        return queryset
+    category_ids = _membership_category_ids(
+        user,
+        (
+            BoardMembership.Role.CONTRIBUTOR,
+            BoardMembership.Role.EDITOR,
+            BoardMembership.Role.REVIEWER,
+            BoardMembership.Role.MANAGER,
+        ),
+    )
+    return queryset.filter(pk__in=category_ids).distinct()
+
+
+def categories_for_post_creation(user, queryset):
+    if _is_active_superuser(user):
+        return queryset
+    category_ids = _membership_category_ids(
+        user,
+        (
+            BoardMembership.Role.CONTRIBUTOR,
+            BoardMembership.Role.EDITOR,
+            BoardMembership.Role.MANAGER,
+        ),
+    )
+    return queryset.filter(pk__in=category_ids).distinct()
+
+
+def posts_visible_to(user, queryset):
+    if _is_active_superuser(user):
+        return queryset
+    if not _is_active_authenticated(user):
+        return queryset.none()
+
+    all_post_categories = _membership_category_ids(
+        user,
+        (BoardMembership.Role.REVIEWER, BoardMembership.Role.MANAGER),
+    )
+    own_post_categories = _membership_category_ids(
+        user,
+        (BoardMembership.Role.CONTRIBUTOR, BoardMembership.Role.EDITOR),
+    )
+    return queryset.filter(
+        Q(category_id__in=all_post_categories)
+        | Q(category_id__in=own_post_categories, owner=user)
+    ).distinct()
+
+
+def posts_editable_by(user, queryset):
+    if _is_active_superuser(user):
+        return queryset
+    if not _is_active_authenticated(user):
+        return queryset.none()
+
+    manager_categories = _membership_category_ids(
+        user,
+        (BoardMembership.Role.MANAGER,),
+    )
+    editor_categories = _membership_category_ids(
+        user,
+        (BoardMembership.Role.EDITOR,),
+    )
+    contributor_categories = _membership_category_ids(
+        user,
+        (BoardMembership.Role.CONTRIBUTOR,),
+    )
+    return queryset.filter(
+        Q(category_id__in=manager_categories)
+        | Q(category_id__in=editor_categories, owner=user)
+        | Q(
+            category_id__in=contributor_categories,
+            owner=user,
+            status=queryset.model.STATUS_DRAFT,
+        )
+    ).distinct()
+
+
+def published_posts_visible_to(user, queryset):
+    """Return published public posts plus permitted Board-scoped internal posts."""
+    published = queryset.filter(status=queryset.model.STATUS_NORMAL)
+    if _is_active_superuser(user):
+        return published
+
+    public_posts = Q(visibility=queryset.model.VISIBILITY_PUBLIC)
+    if not _is_active_authenticated(user):
+        return published.filter(public_posts)
+
+    scoped_internal_ids = posts_visible_to(
+        user,
+        published.filter(visibility=queryset.model.VISIBILITY_STAFF_ONLY),
+    ).values("pk")
+    return published.filter(public_posts | Q(pk__in=scoped_internal_ids)).distinct()
+
+
+def can_view_post(user, post: "Post") -> bool:
+    if _is_active_superuser(user):
+        return True
+    membership = get_active_membership(user, board_for_post(post))
+    if membership is None:
+        return False
+    if membership.role in {
+        BoardMembership.Role.REVIEWER,
+        BoardMembership.Role.MANAGER,
+    }:
+        return True
+    return (
+        membership.role
+        in {BoardMembership.Role.CONTRIBUTOR, BoardMembership.Role.EDITOR}
+        and getattr(post, "owner_id", None) == getattr(user, "pk", None)
+    )
+
+
+def can_view_published_post(user, post: "Post") -> bool:
+    if post.status != post.STATUS_NORMAL:
+        return False
+    if post.visibility == post.VISIBILITY_PUBLIC:
+        return True
+    return can_view_post(user, post)
 
 
 def can_edit_post(user, post: "Post") -> bool:
@@ -177,3 +392,46 @@ def can_moderate_comment(user, comment: "Comment") -> bool:
         board_for_comment(comment),
         BoardAction.MODERATE_COMMENT,
     )
+
+
+def can_access_comment_admin(user) -> bool:
+    return _has_scoped_role(
+        user,
+        (BoardMembership.Role.REVIEWER, BoardMembership.Role.MANAGER),
+    )
+
+
+def comments_visible_to_moderator(user, queryset):
+    if _is_active_superuser(user):
+        return queryset
+    if not _is_active_authenticated(user):
+        return queryset.none()
+    category_ids = _membership_category_ids(
+        user,
+        (BoardMembership.Role.REVIEWER, BoardMembership.Role.MANAGER),
+    )
+    return queryset.filter(post__category_id__in=category_ids).distinct()
+
+
+def can_view_post_revision(user, revision) -> bool:
+    return can_view_post(user, revision.post)
+
+
+def post_revisions_visible_to(user, queryset):
+    if _is_active_superuser(user):
+        return queryset
+    if not _is_active_authenticated(user):
+        return queryset.none()
+
+    all_post_categories = _membership_category_ids(
+        user,
+        (BoardMembership.Role.REVIEWER, BoardMembership.Role.MANAGER),
+    )
+    own_post_categories = _membership_category_ids(
+        user,
+        (BoardMembership.Role.CONTRIBUTOR, BoardMembership.Role.EDITOR),
+    )
+    return queryset.filter(
+        Q(post__category_id__in=all_post_categories)
+        | Q(post__category_id__in=own_post_categories, post__owner=user)
+    ).distinct()

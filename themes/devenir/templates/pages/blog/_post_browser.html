@@ -1,0 +1,106 @@
+{% load static %}
+
+{% if is_htmx %}
+<h1 id="post-page-title" hx-swap-oob="innerHTML">
+    {% include 'pages/blog/_post_page_heading.html' %}
+</h1>
+{% endif %}
+
+<section id="post-browser"
+         class="post-browser"
+         aria-live="polite"
+         aria-busy="false"
+         data-document-title="{% if tag %}标签：{{ tag.name }}{% elif category %}分类：{{ category.name }}{% elif is_search %}{% if keyword %}搜索：{{ keyword }}{% else %}搜索文章{% endif %}{% else %}全部文章{% endif %}">
+    <div id="post-browser-sync" class="post-browser-sync htmx-indicator" role="status" aria-hidden="true">
+        SYNCING STREAM...
+    </div>
+
+    <div class="command-rail">
+        <div class="command-prompt">
+            <span class="prompt-user">pa@blog</span><span class="prompt-symbol">:~$</span>
+        </div>
+        <nav class="command-filters" aria-label="文章分类筛选">
+            <a href="{% url 'Blogs:post_list' %}"
+               class="filter-link {% if not category and not tag %}active{% endif %}"
+               hx-get="{% url 'Blogs:post_list' %}"
+               hx-target="#post-browser"
+               hx-swap="outerHTML show:top"
+               hx-push-url="true"
+               hx-indicator="#post-browser-sync">[ ALL ]</a>
+            {% if categories %}<span class="filter-sep">/</span>{% endif %}
+            {% for cate in categories %}
+                <a href="{% url 'Blogs:category_list' cate.id %}"
+                   class="filter-link {% if category.id == cate.id %}active{% endif %}"
+                   hx-get="{% url 'Blogs:category_list' cate.id %}"
+                   hx-target="#post-browser"
+                   hx-swap="outerHTML show:top"
+                   hx-push-url="true"
+                   hx-indicator="#post-browser-sync">{{ cate.name|upper }}</a>
+                {% if not forloop.last %}<span class="filter-sep">/</span>{% endif %}
+            {% endfor %}
+        </nav>
+        <form class="command-search"
+              action="{% url 'Blogs:search' %}"
+              method="get"
+              hx-get="{% url 'Blogs:search' %}"
+              hx-target="#post-browser"
+              hx-swap="outerHTML show:top"
+              hx-push-url="true"
+              hx-indicator="#post-browser-sync">
+            <span class="search-prefix" aria-hidden="true">Q</span>
+            <input type="search"
+                   name="keyword"
+                   placeholder="SEARCH..."
+                   value="{{ keyword|default:'' }}"
+                   class="search-input"
+                   aria-label="搜索文章">
+            <button type="submit" class="search-btn" aria-label="提交搜索">&#9166;</button>
+        </form>
+    </div>
+
+    {% if is_search %}
+    <div class="stream-query" role="status">
+        <span class="stream-query-label">QUERY:</span>
+        <span class="stream-query-value">{% if keyword %}{{ keyword }}{% else %}ALL TRANSMISSIONS{% endif %}</span>
+    </div>
+    {% endif %}
+
+    <div class="stream-header">
+        <div class="stream-meta">
+            <span class="stream-label">
+                STREAM:
+                {% if category %}CATEGORY/{{ category.name|upper }}{% elif tag %}TAG/{{ tag.name|upper }}{% elif is_search %}SEARCH{% else %}POSTS{% endif %}
+            </span>
+            <span class="stream-cursor">CURSOR: {{ page_obj.start_index|default:"0000" }}/{{ paginator.count|default:"0000" }}</span>
+        </div>
+        <div class="stream-nav-hint">
+            {% if is_paginated %}
+                {% if page_obj.has_previous %}
+                    <a href="{{ stream_pagination.previous }}"
+                       class="stream-nav-link"
+                       hx-get="{{ stream_pagination.previous }}"
+                       hx-target="#post-browser" hx-swap="outerHTML show:top" hx-push-url="true" hx-indicator="#post-browser-sync">&lt;&lt; PREV</a>
+                {% else %}
+                    <span class="stream-nav-link disabled">&lt;&lt; PREV</span>
+                {% endif %}
+                <span class="stream-nav-sep">//</span>
+                {% if page_obj.has_next %}
+                    <a href="{{ stream_pagination.next }}"
+                       class="stream-nav-link"
+                       hx-get="{{ stream_pagination.next }}"
+                       hx-target="#post-browser" hx-swap="outerHTML show:top" hx-push-url="true" hx-indicator="#post-browser-sync">NEXT &gt;&gt;</a>
+                {% else %}
+                    <span class="stream-nav-link disabled">NEXT &gt;&gt;</span>
+                {% endif %}
+            {% else %}
+                <span class="stream-nav-link disabled">END OF STREAM</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% include 'pages/blog/_post_stream.html' %}
+
+    {% if is_paginated %}
+        {% include 'pages/blog/_post_pagination.html' %}
+    {% endif %}
+</section>

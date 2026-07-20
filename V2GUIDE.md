@@ -2,8 +2,8 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-07-19
-> **状态**: 安全收口已完成；下一项为 Board Scope 权限，复杂认证与密钥生命周期默认进入 v2.5+
+> **更新**: 2026-07-21
+> **状态**: Board Scope Stage 0–5 已完成；下一项为 Stage 6 全局 Group 初始化与 BoardAccessRequest 自动审批，复杂认证与密钥生命周期默认进入 v2.5+
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -27,9 +27,12 @@
 | v2.4 | accounts 管身份/全局 Group，boards 管 Membership/申请审批/跨 App Policy；Board 创建仅限 superuser | `accounts/PERMISSIONS_GUIDE.md` |
 | v2.5 | superuser / Board Manager 强制 TOTP MFA，兼容 Android Microsoft Authenticator | `accounts/SECURITY_ROADMAP.md` |
 | v2.5+ | 密钥产生、分发、存储、使用、更新、归档、撤销、备份、恢复和销毁 | `accounts/SECURITY_ROADMAP.md` |
+| v2.6+ 候选 | ASGI 基线、异步 Middleware 审计与友情链接异步岛 | `DJANGO_ASYNC_GUIDE.md` |
 | v2.6+ 候选 | Passkey、外部 IdP/Entra 或合规密码设备 | 需求成熟后再立项 |
 
 复杂功能可以后移；只有在前置测试、恢复方案和回滚路径提前成熟时才允许前移。v2.1 内容模型对接仍由另一项目完成后再推进，不与本路线强绑定。
+
+截至 2026-07-19，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的 Admin、状态 action、写作 View、上传、修订端点和只读 DRF API 接入 `boards.policies`。下一步进入 Stage 6a/6b，自动化全局 Group 与 Board 权限申请/审批；当前仍未实现动态申请页面和 Membership 自动写入。
 
 ### 0.2 前端架构决策：Devenir HDA，不做全面分离
 
@@ -63,8 +66,8 @@ DRF 是给程序消费的 Data API，不作为 Devenir 的内部渲染依赖。�
 
 | 严重度 | 现状 | 后续要求 |
 |---|---|---|
-| 🔴 高 | `CategoryViewSet` 使用 `ModelViewSet` 且没有显式权限类；全局 DRF 也没有默认权限 | 扩展 API 前改为只读或显式接入 Policy |
-| 🔴 高 | `PostViewSet` 使用 `IsAdminUser`，只理解 `is_staff`，不理解 BoardMembership | accounts_linear 阶段 5 接入相同 Board Policy |
+| ✅ | `CategoryViewSet` 原使用无显式权限的 `ModelViewSet` | Stage 5 已改为 `ReadOnlyModelViewSet`，只返回当前用户可见文章关联的分类 |
+| ✅ | `PostViewSet` 原使用不理解 BoardMembership 的 `IsAdminUser` | Stage 5 已改为 Policy-scoped 只读 API；写方法明确返回 405，等待真实客户端需求后单独设计写入 Serializer/Service |
 | 🟡 中 | API 仅覆盖 Post / Category，未覆盖评论、修订、Board 和权限申请 | 没有真实第二客户端前不补“为完整而完整”的通用 API |
 
 #### 重新评估全面分离的触发条件
@@ -733,7 +736,7 @@ PowerGlitch.glitch('.article-cover', {
 **关键修复**：
 - `CustomSite.has_permission()` 重写为 `is_dashboard_user` 检查（原继承 `is_staff`）
 - 登录 `NoReverseMatch` 修复：AdminSite URL 必须用 `namespace:name` 反解（`cus_admin:index`），不能用外层 `path()` 的 `name=`
-- `DashboardAdminMixin`（`base_admin.py`）：7 个方法统一基于 `is_dashboard_user` 授权，覆盖权限检查 + queryset（dashboard 用户看全量数据，不受 owner 过滤）
+- `DashboardAdminMixin`（`base_admin.py`）仍只负责 dashboard 入口兼容；截至 Stage 4，Board/Post/PostRevision/Comment 的具体 ModelAdmin 已覆盖其全量 queryset 行为，改由 `boards.policies` 按 Membership 与对象归属收敛。
 
 ### 7.2 纵深防御（4 层）
 

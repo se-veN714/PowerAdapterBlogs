@@ -14,6 +14,11 @@
 from django.contrib import admin
 
 
+def has_dashboard_access(user):
+    """Return whether a user may enter the custom dashboard shell."""
+    return user.is_active and (user.is_dashboard_user or user.is_superuser)
+
+
 class BaseOwnerAdmin(admin.ModelAdmin):
     """
     1. 用于补充文章、分类、标签、侧边栏、友链这些 Model 的 owner 字段
@@ -45,16 +50,16 @@ class DashboardAdminMixin:
     """
 
     def has_module_permission(self, request):
-        return request.user.is_active and request.user.is_dashboard_user
+        return has_dashboard_access(request.user)
 
     def has_view_permission(self, request, obj=None):
-        return request.user.is_active and request.user.is_dashboard_user
+        return has_dashboard_access(request.user)
 
     def has_change_permission(self, request, obj=None):
-        return request.user.is_active and request.user.is_dashboard_user
+        return has_dashboard_access(request.user)
 
     def has_add_permission(self, request):
-        return request.user.is_active and request.user.is_dashboard_user
+        return has_dashboard_access(request.user)
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser

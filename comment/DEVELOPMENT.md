@@ -5,7 +5,7 @@
 > **职责**: 博客评论的提交、审核、展示，以及客户端元数据中间件  
 > **依赖**: `Blogs.models.Post`, `gmssl.sm3`, `accounts.MyUser`  
 > **创建**: 2026-06-22  
-> **更新**: 2026-07-19 — 修复非空评论用户归属的数据迁移
+> **更新**: 2026-07-19 — Stage 5 Dashboard 评论 action 接入 Board Policy 与 HMAC 审计
 
 ---
 
@@ -13,6 +13,8 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v2.5 | 2026-07-19 | Stage 5：Reviewer/Manager 恢复所属 Board 评论 action，逐对象 Policy 校验并保留 MongoDB HMAC 审计 |
+| v2.4 | 2026-07-19 | Stage 4：新增 `/dashboard/` Board-scoped 只读评论队列，Reviewer/Manager 仅见所属 Board 评论 |
 | v2.3 | 2026-07-19 | 修正 `0003_comment_user` 数据迁移：删除无归属旧评论后增加非空 `user_id`，修复开发库前端查询 500 |
 | v1.1 | 2026-07-12 | Comment 强制关联用户；每用户+IP 限流；作者软删除；Admin 审核统一调用 MongoDB HMAC 审计服务；补回归测试 |
 | v1.0 | 2026-06-22 | 新建文档，覆盖评论提交、审核、中间件架构 |
@@ -187,9 +189,15 @@ sequenceDiagram
 ## 6. Admin 配置
 
 ```python
+# /super_admin/：既有批量审核入口
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
     list_display = ['content_short_description', 'post', 'nickname', 'created_time']
+    actions = ['approve_comments', 'reject_comments', 'mark_spam']
+
+# /dashboard/：Stage 5 Board-scoped 审核队列
+@admin.register(Comment, site=custom_site)
+class BoardScopedCommentAdmin(DashboardAdminMixin, admin.ModelAdmin):
     actions = ['approve_comments', 'reject_comments', 'mark_spam']
 ```
 
@@ -199,6 +207,8 @@ class CommentAdmin(admin.ModelAdmin):
 | `reject_comments` | REJECTED | 批量拒绝 |
 | `mark_spam` | DELETED | 批量标记垃圾 |
 
+Dashboard 队列通过 `boards.policies.comments_visible_to_moderator()` 限定 Reviewer/Manager 的有效 Membership Board。每条 action 在写入前再次调用 `can_moderate_comment()`，然后复用 `security.services.moderate_comment()` 写状态和 MongoDB HMAC 审计；即使构造跨 Board queryset 也会跳过非所属评论。
+
 ---
 
 ## 7. 权限矩阵
@@ -207,7 +217,7 @@ class CommentAdmin(admin.ModelAdmin):
 flowchart LR
     ANON["匿名用户"] -->|"不可评论<br/>（需登录）"| FORBID["无权限"]
     USER["登录用户"] -->|"提交评论<br/>（status=PENDING）"| CREATE["创建"]
-    STAFF["管理员"] -->|"审核/删除"| MODERATE["审核"]
+    REVIEWER["Board Reviewer / Manager"] -->|"仅审核所属 Board<br/>逐对象 Policy"| MODERATE["审核 + HMAC 审计"]
     SUPER["超级用户"] -->|"全部权限"| ALL["完全控制"]
 ```
 
@@ -215,7 +225,7 @@ flowchart LR
 |------|---------|---------|---------|
 | 匿名 | ✖ | ✖ | ✖ |
 | 登录用户 | ✅ (PENDING) | ✖ | ✅ (仅自己的) |
-| 管理员 | ✅ | ✅ | ✅ |
+| Board Reviewer / Manager | ✅ | ✅（所属 Board） | ✖ |
 | 超级用户 | ✅ | ✅ | ✅ |
 
 ---
@@ -275,6 +285,7 @@ flowchart TD
 | ✅ 已修复 | 评论删除 | Comment 强制关联用户；作者和 superuser 可通过 CSRF 保护的接口软删除 |
 | ✅ 已修复 | 开发库缺少 `comment_comment.user_id` | `0003_comment_user` 先清理无法归属的旧评论，再建立非空用户外键；旧数据需重新导入 |
 | ✅ 已修复 | 无频率限制 | 按用户 + IP 使用 cache 限制提交频率，默认每分钟 5 条，超限返回 429 |
+| ✅ 已修复 | Dashboard 审核 action 缺对象级 Policy | Stage 5 已逐对象调用 Policy，并有跨 Board action + MongoDB 审计回归测试 |
 | 🟢 低 | `email` 字段未使用 | Comment 模型有 email 字段但 CommentForm 未包含 |
 
 ---

@@ -14,6 +14,7 @@
 from rest_framework import serializers, pagination
 
 from Blogs.models import Post, Category
+from boards.policies import published_posts_visible_to
 
 
 class PostSerializer(serializers.ModelSerializer):
@@ -35,10 +36,15 @@ class PostSerializer(serializers.ModelSerializer):
         read_only=True,
         format='%Y-%m-%d %H:%M:%S',
     )
-    url = serializers.HyperlinkedIdentityField(view_name='api-post-detail')
+    url = serializers.HyperlinkedIdentityField(
+        view_name='blogs:Blogs:api_post-detail',
+    )
     class Meta:
         model = Post
-        fields = ['url','title', 'category', 'desc', 'created_time', 'owner', 'tags']
+        fields = [
+            'id', 'url', 'title', 'category', 'desc',
+            'created_time', 'owner', 'tags',
+        ]
 
 
 class PostDetailSerializer(PostSerializer):
@@ -61,7 +67,10 @@ class CategoryDetailSerializer(CategorySerializer):
     posts = serializers.SerializerMethodField('paginated_posts')
 
     def paginated_posts(self, obj):
-        posts = obj.post_set.filter(status=Post.STATUS_NORMAL)
+        posts = published_posts_visible_to(
+            self.context['request'].user,
+            obj.post_set.all(),
+        )
         paginator = pagination.PageNumberPagination()
         page = paginator.paginate_queryset(posts, self.context['request'])
         serializer = PostSerializer(page, many=True, context={'request': self.context['request']})

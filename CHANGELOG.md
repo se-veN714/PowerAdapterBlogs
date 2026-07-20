@@ -4,6 +4,16 @@
 
 ## [2026-07-19]
 
+### 本地权限手测账号与后台入口
+- 新增仅限 `DEBUG=True` 的幂等命令，为指定 Board 创建 Contributor、Editor、Reviewer、Manager 及无 Membership 拒绝样本账号
+- 角色样本只持有 Dashboard 入口和单一有效 BoardMembership，不授予 staff、superuser、Group 或直接用户权限
+- Devenir 全局 Header 与移动 Sidebar 增加“工作台”；superuser 同时显示独立的“系统后台”入口
+- 增加命令安全护栏、幂等角色矩阵和双入口渲染契约测试
+- 工作台中的账号管理模块在 Stage 6 `UserManagers` 落地前收紧为仅 superuser，避免 Board 角色凭入口旗标启停全站用户
+- 修复暗色 Admin 的 Group/Permission 双选框白底白字，并统一历史 superuser 的工作台显示与后端入口判定
+- `/dashboard/` 使用独立登录表单，不再错误要求 Board 工作台用户具有 `is_staff`；`/super_admin/` 仍保持 Django staff 校验
+- Jazzmin 侧栏、登录页和站点图标切换到最新 `PowerAdapter_icon.webp` / `PowerAdapter_logo.webp`
+
 ### PostgreSQL 日志完整性热修
 - `SecureLogEntry` 使用带版本号的规范 JSON 载荷，消除 Admin 创建前后 `object_id` 整数/字符串漂移导致的误报
 - 默认 HMAC 初始化改为只补缺，不再覆盖已有审计证据；新增 `--repair-known` 安全升级已验证旧签名
@@ -15,6 +25,20 @@
 - boards 负责 Board、BoardMembership、角色规则、跨 App Policy，以及后续 BoardAccessRequest 和审批服务
 - Blogs、comment、security 各自拥有模型和 Permission 定义；Board 范围操作统一调用 boards Policy
 - `accounts_linear` 名称为交接兼容继续保留，阶段 6 拆分为 accounts 全局身份迁移与 boards 申请审批两部分
+
+### accounts_linear Stage 4
+- BoardAdmin 仅向本 Board Manager 开放运营字段，slug/category/is_active 与结构操作继续由 superuser 独占
+- Post/PostRevision Admin 按 BoardMembership、作者和角色过滤；Category 表单及 autocomplete 同步收敛，Manager 编辑不再覆盖文章作者
+- Dashboard Comment 队列仅向所属 Board Reviewer/Manager 只读展示；批量审核与其他状态 action 留到 Stage 5 接入逐对象 Policy
+- 新增 8 个 Admin 隔离测试，覆盖跨 Board 直接 URL 拒绝；完整测试集从 48 增至 56 并全部通过，system check 为 0
+
+### accounts_linear Stage 5
+- 新增事务化 Post 工作流 Service，提交/通过/驳回/下架逐对象加锁并重检 Board Policy；Admin 不再批量直写状态
+- Dashboard 评论 action 按 Reviewer/Manager Board Scope 恢复，继续写入 MongoDB HMAC 审计；跨 Board queryset 中的评论会被跳过
+- 前台写作、Category 表单、图片上传、STAFF_ONLY、修订端点和评论提交统一调用 Board Policy；新建强制草稿，编辑已提交/发布内容退回草稿
+- Devenir 新建/编辑按钮按 Policy 渲染；移除 Category 页面跨用户片段缓存，避免内部文章 HTML 缓存泄露
+- Post/Category DRF API 改为 Policy-scoped 只读 ViewSet，修复重复 namespace；所有写方法返回 405
+- 新增 9 个 Stage 5/action 测试；完整测试集由 56 增至 65 并全部通过，Ruff 与 system check 为 0
 
 ### accounts_linear Stage 3
 - 新增 `boards/policies.py`，统一解析 Post/Comment 的 Board 归属并适配 BoardMembership 角色规则

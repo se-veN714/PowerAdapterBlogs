@@ -9,6 +9,7 @@ from django.template.loader import render_to_string
 from django.views.generic import TemplateView
 
 from Blogs.models import Post
+from boards.policies import can_view_published_post
 from comment.form import CommentForm
 from comment.models import Comment
 
@@ -60,7 +61,12 @@ class CommentView(LoginRequiredMixin, TemplateView):
 
     def post(self, request, *args, **kwargs):
         post_slug = kwargs.get('slug')
-        post = get_object_or_404(Post, slug=post_slug)
+        post = get_object_or_404(Post, slug=post_slug, status=Post.STATUS_NORMAL)
+        if not can_view_published_post(request.user, post):
+            return JsonResponse(
+                {'success': False, 'message': '文章不存在。'},
+                status=404,
+            )
 
         allowed, retry_after = _consume_comment_quota(request)
         if not allowed:

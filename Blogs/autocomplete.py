@@ -14,14 +14,15 @@
 from dal import autocomplete
 
 from Blogs.models import Category, Tag
+from boards.policies import categories_for_post_creation
 
 
 class CategoryAutocomplete(autocomplete.Select2QuerySetView):
     def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            return Category.objects.none()
-
-        qs = Category.objects.filter(owner=self.request.user)
+        qs = categories_for_post_creation(
+            self.request.user,
+            Category.objects.all(),
+        )
 
         if self.q:
             qs = qs.filter(name__istartswith=self.q)

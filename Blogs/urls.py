@@ -33,7 +33,7 @@ router.register('categories', CategoryViewSet, basename='api_category')
 
 api_urlpatterns = [
     # RESTful API
-    path("", include((router.urls, "Blogs"))),
+    path("", include(router.urls)),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="blogs:Blogs:schema"), name="swagger-ui"),
 ]

@@ -4,20 +4,20 @@
 > **归档模块**：`accounts/`
 > **主要作用域**：`boards.Board`
 > **文档职责**：治理整个授权架构；BoardMembership、申请审批与 Policy 的实现归 `boards` App
-> **状态**：`accounts_linear` 阶段 0–3 已完成；Policy 已实现但运行时入口尚未接入
-> **日期**：2026-07-19（完成跨 App ORM Policy 与 Board 创建边界热修）
+> **状态**：`accounts_linear` 阶段 0–5 已完成；下一步为全局 Group 初始化与 BoardAccessRequest 自动审批
+> **日期**：2026-07-19（完成 Admin、状态 Service、普通 View、上传、修订端点与只读 API 的统一 Policy）
 > **目标**：以后续功能围绕 Board 展开，在不引入第三方对象权限库的前提下实现最小权限、职责分离和可测试的板块级授权。
 
 ## 1. 当前问题
 
-当前 `BoardAdmin` 继承 `DashboardAdminMixin`，实际权限只有一个全局开关：
+Stage 4 前，`BoardAdmin` 继承 `DashboardAdminMixin`，实际权限只有一个全局开关：
 
 ```text
 is_dashboard_user=True → 仍可查看、修改所有现有 Board
 is_superuser=True      → 可以新增、删除 Board
 ```
 
-这无法表达“只能管理某个板块”“能投稿但不能改视觉配置”“能审核他人文章但不能审核自己”等对象级规则。Board 与 Post 目前通过 `Board.category → Post.category` 间接关联，Comment 再通过 Post 继承板块归属，也需要在权限策略中明确跨 App 归属。
+Stage 4 已在 Dashboard Admin 修复这条全量访问路径；当前缺口转移到审核 action、上传、普通 View 和 DRF API。Board 与 Post 仍通过 `Board.category → Post.category` 间接关联，Comment 再通过 Post 继承板块归属，因此所有剩余入口仍必须复用同一跨 App Policy，不能回退到全局旗标。
 
 本项目的 Board 不是可由业务用户动态扩张的论坛分区。每个新 Board 都伴随独立的模板、SVG、CSS 或 JavaScript，因此新增和删除 Board 属于代码结构变更，只允许 superuser；`BoardCreators` 全局 Group 不再进入设计。
 
@@ -373,11 +373,13 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 
 | 严重度 | 问题 | 建议 |
 |---|---|---|
-| 🔴 高 | 当前所有 dashboard 用户仍可修改全部现有 Board | Stage 4 接入 BoardMembership 与 BoardAdmin Policy；新增/删除已先收紧为 superuser |
-| 🔴 高 | 审核权限目前是全局 `is_reviewer` | 迁为板块级 Reviewer，并禁止自审 |
+| ✅ | dashboard 用户可修改全部现有 Board | Stage 4 已按 Manager Membership 限定 queryset；slug/category/is_active 只允许 superuser 修改 |
+| ✅ | 普通 View/API 与遗留状态动作读取全局旗标 | Stage 5 已改调 Board Policy/Service，并固定跨 Board、staff 旁路与禁止自审测试 |
 | 🟡 中 | Board 与 Post 仅通过 Category 间接关联 | 第一阶段封装 `board_for_post()`；未来按产品关系显式建模 |
-| 🟡 中 | View/API/Admin 权限判断分散 | 收敛到 `boards/policies.py` |
-| ✅ | 纯角色矩阵与核心拒绝路径已有测试 | ORM、Admin、View、API 一致性测试在阶段 2–5 继续补齐 |
+| 🟡 中 | `/super_admin/` 仍采用 Django 默认 `is_staff` 入口语义 | 当前仅 superuser 创建流程授予 `is_staff`；引入非 superuser staff 前，需确保 Board 模型入口仍调用 Policy 或显式限制为 superuser |
+| ✅ | View/API 权限判断分散 | Admin、普通 View、上传、修订端点和只读 API 均已收敛到 `boards.policies` |
+| 🟡 中 | BoardMembership 与全局 Group 仍需手工配置 | Stage 6a 初始化全局 Group；Stage 6b 用 BoardAccessRequest/审批 Service 自动写入 Membership |
+| ✅ | 角色矩阵、ORM Policy 与跨入口拒绝路径已有测试 | Stage 4–5 新增 17 个测试；加入手测账号/导航契约后完整测试集 70 个通过 |
 
 ## 12. accounts_linear
 
@@ -391,8 +393,8 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 | 1 ✅ | 先写 Policy 拒绝路径与角色矩阵测试 | `boards/tests/test_access_rules.py` 已覆盖跨 Board、禁止自审、停用成员与角色矩阵 |
 | 2 ✅ | 新建 `BoardMembership` 模型、约束和 Admin 只读观察入口 | 2026-07-13 已完成；同一用户在同一 Board 只有一条记录，观察入口仅限 superuser |
 | 3 ✅ | 实现 `boards/policies.py` 与跨 App Board resolver | 2026-07-19 已完成；12 个新增 Admin/Policy 测试通过，尚不替换旧入口 |
-| 4 | 接入 Board/Post/Comment 的 queryset 与对象操作 | dashboard 不再能看到或操作非所属 Board 对象 |
-| 5 | 接入审核 action、上传接口、普通 View/API | 同一动作在 Admin、View、API 的结果一致 |
+| 4 ✅ | 接入 Board/Post/PostRevision/Comment 的 queryset、对象与关键字段权限 | 2026-07-19 已完成；跨 Board URL、表单 Category、作者保持与只读审核队列均有测试 |
+| 5 ✅ | 接入审核 action、上传接口、普通 View/API | 2026-07-19 已完成；状态 Service 逐对象校验，API 暂定只读并明确拒绝写方法 |
 | 6a | accounts 创建全局 Group 并迁移全局身份 | Group 只承载 VerifiedUsers、UserManagers、SiteOperators 等全站职责 |
 | 6b | boards 实现 BoardAccessRequest、审批与 Membership 迁移 | Manager/superuser 审批边界生效，用户无需手工勾选权限 |
 | 7 | 停止读取 `is_reviewer`，观察一个发布周期 | 日志中无旧字段授权路径，回归测试全部通过 |
@@ -456,7 +458,28 @@ Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。�
 - `BoardAdmin` 已先行禁止普通 dashboard 用户新增和删除 Board；修改现有 Board 的字段级 Policy 留给阶段 4。
 - 完整测试集共 40 个测试通过；本阶段仍未替换任何 Post/Comment View、Admin action 或 API 授权入口。
 
-当前下一步为 **阶段 4：将 Policy 接入 Board/Post/Comment 的 queryset、对象权限和字段权限，使 dashboard 不再看到或修改非所属 Board 对象**。
+### 12.4 阶段 4 实现结果
+
+- `BoardAdmin` 只向 Manager 展示其有效 Membership 所属 Board；Manager 可维护运营文案、颜色、关键词和排序，但 `slug`、`category`、`is_active` 以及新增/删除仍为 superuser 边界。
+- `PostAdmin` 不再读取全局 `is_reviewer` 决定对象范围：Contributor/Editor 只见自己的所属板块文章，Reviewer/Manager 可见所属板块全部文章；Reviewer 只读，Manager 可编辑。
+- Post 新建表单与 Category autocomplete 仅返回用户具有创建能力且 Category→Board 映射唯一的分类；缺失或重复映射继续默认拒绝。
+- `PostAdmin` 已移除会在 Manager 编辑他人文章时覆盖 `owner` 的 `BaseOwnerAdmin` 行为，并由测试保证作者保持不变。
+- `PostRevisionAdmin` 继承其 Post 的可见范围；dashboard Comment 队列仅对所属 Board 的 Reviewer/Manager 可见，阶段 4 保持只读。
+- 非 superuser 的提交、审核、发布、驳回和评论批量审核 action 暂不开放，避免在阶段 5 对状态流转逐项接入 Policy 前形成批量越权入口。
+- `boards/tests/test_admin_scope.py` 新增 8 个运行时隔离测试，包括直接访问跨 Board change URL 无法读取或修改对象；完整测试集 56 个全部通过，Django system check 为 0。
+
+### 12.5 阶段 5 实现结果
+
+- 新增 `Blogs/services.py`，提交、通过、驳回、下架均在事务中锁定 Post，并在状态变更前重新调用 Board Policy；Admin action 不再使用批量 `queryset.update()`。
+- Dashboard 文章 action 按用户在不同 Board 的 Membership 动态组合；Reviewer/Manager 的评论 action 逐对象调用 `can_moderate_comment()`，继续复用 MongoDB HMAC 审计服务。
+- 删除 `DashboardAuthorMixin` 与 `LoggingMixin`，PostCreateView/PostEditView 显式调用 Policy；新建文章强制 DRAFT，编辑已提交或已发布文章自动退回 DRAFT，且保持原作者。
+- PostForm、图片上传、STAFF_ONLY 文章、修订正文/diff 与评论提交入口均使用 Board 能力；单独拥有 `is_staff` 不再绕过内部文章范围。
+- Devenir 的“新文章/编辑”按钮按 Policy 结果渲染；Category 页面移除未区分用户的片段缓存，避免内部文章 HTML 被共享给匿名用户。
+- Post/Category DRF ViewSet 收敛为 Policy-scoped `ReadOnlyModelViewSet`；匿名用户只见公开已发布文章，Board Reviewer/Manager 可见所属 Board 内部文章，所有写方法返回 405。
+- Category dashboard 结构管理收紧为 superuser-only；Tag 继续作为全局词汇管理，后续随 Group 初始化复核。
+- Stage 5 新增 7 个跨入口测试，Stage 4 增补 2 个 action 测试；完整测试集 65 个全部通过，Ruff 与 Django system check 均通过。
+
+当前下一步为 **阶段 6a：初始化并迁移 VerifiedUsers/UserManagers/SiteOperators 全局 Group；随后阶段 6b 实现 BoardAccessRequest、审批 Service 与 Membership 自动写入**。
 
 ## 13. 参考依据
 

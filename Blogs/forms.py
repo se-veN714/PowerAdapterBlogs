@@ -14,8 +14,9 @@
 # forms.py
 from django import forms
 
-from Blogs.models import Post
+from Blogs.models import Category, Post, Tag
 from Blogs.image_validation import validate_uploaded_image
+from boards.policies import categories_for_post_creation
 
 
 class PostForm(forms.ModelForm):
@@ -90,11 +91,13 @@ class PostForm(forms.ModelForm):
         model = Post
         fields = ['title', 'cover', 'desc', 'content', 'category', 'tag', 'visibility']
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        from .models import Tag, Category  # 防止循环导入
         self.fields['tag'].queryset = Tag.objects.all()
-        self.fields['category'].queryset = Category.objects.all()
+        self.fields['category'].queryset = categories_for_post_creation(
+            user,
+            Category.objects.all(),
+        )
 
     def clean_cover(self):
         cover = self.cleaned_data.get('cover')

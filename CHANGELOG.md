@@ -4,6 +4,13 @@
 
 ## [2026-07-27]
 
+### 后台加固 H1 / Stage 6b
+- 新增 `BoardAccessRequest`、`/boards/access/` 申请入口与只读审核记录，VerifiedUsers 可申请但不会在提交时直接获得 Board CRUD
+- Board Manager 只可审核自己板块的 Contributor、Editor、Reviewer；禁止跨板块、自审、授予 Manager、恢复停用权限和变更已有 Manager
+- 审批 Service 使用事务与行锁创建或更新唯一 `BoardMembership`，拒绝重复处理，并在提交后写 MongoDB HMAC 审计记录
+- Manager Membership 可进入工作台并只见本板块申请，不获得账号管理、安全审计或全局 Group 权限
+- 新增 16 项申请、审批、越权、回滚与入口测试；全量 179 项测试、迁移漂移检查、Django system check 与 Ruff 通过
+
 ### 后台加固 H0
 - 使用项目自定义 `SuperuserAdminSite` 作为默认 Django AdminSite，`/super_admin/` 从 active staff 收紧为 active superuser
 - 系统后台登录表单在认证阶段拒绝 staff-only 与 dashboard-only 账号，不为其建立后台 Session

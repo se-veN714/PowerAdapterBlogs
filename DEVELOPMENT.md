@@ -4,7 +4,7 @@
 > **项目**: 基于 Django 5.2 的个人博客系统  
 > **作者**: seveN1foR / PowerAdapter  
 > **许可证**: MIT  
-> **最后更新**: 2026-07-27 — 完成 blog_foundation_linear F5 security.txt 与上线检查清单
+> **最后更新**: 2026-07-27 — 完成 Board Scope Stage 6b 权限申请与自动审批
 
 ---
 
@@ -35,6 +35,7 @@ DjangoProject/                 # 项目根目录
 | App | 职责 | 开发文档 |
 |-----|------|---------|
 | `accounts` | 用户模型、登录/登出、权限体系、纵深防御 | `accounts/DEVELOPMENT.md` |
+| `boards` | Board、Membership、权限申请审批与跨 App Policy | `boards/DEVELOPMENT.md` |
 | `Blogs` | 文章 CRUD、分类/标签、全文搜索、REST API | `Blogs/LOGGUIDE.md` |
 | `comment` | 评论提交/审核、IP 提取 | `comment/LOGGUIDE.md` |
 | `config` | 友链管理、侧边栏配置 | `config/LOGGUIDE.md` |
@@ -63,6 +64,7 @@ DjangoProject/                 # 项目根目录
 | `/links/` | `LinkListView` | 友链页 |
 | `/about/` | `AboutView` | 站点定位、内容、Board 与技术说明 |
 | `/privacy/` | `PrivacyView` | 数据用途和保留方式说明 |
+| `/boards/access/` | `BoardAccessRequestView` | 已验证用户提交并查看自己的板块权限申请 |
 | `/sitemap.xml/` | sitemaps | 站点地图 (缓存1h) |
 
 ### 2.2 后台路由（权限分离）

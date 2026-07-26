@@ -292,7 +292,7 @@
             <a href="{% url 'links' %}" class="{% if '/links' in request.path %}active{% endif %}">Links</a>
             <div class="nav-buttons">
                 {% if user.is_active %}
-                    {% if user.is_dashboard_user or user.is_superuser %}
+                    {% if can_access_dashboard %}
                         <a href="{% url 'cus_admin:index' %}" class="btn-ghost">工作台</a>
                     {% endif %}
                 {% endif %}
@@ -303,6 +303,9 @@
                     <a href="{% url 'Blogs:post_create' %}" class="btn-accent">新文章</a>
                 {% endif %}
                 {% if user.is_authenticated %}
+                    {% if perms.boards.apply_board_access %}
+                        <a href="{% url 'boards:access-requests' %}" class="btn-ghost">板块权限</a>
+                    {% endif %}
                     <form id="logout-form" action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn-ghost">登出</button>
@@ -337,7 +340,7 @@
         <a href="{% url 'about' %}">About</a>
         <a href="{% url 'links' %}">Links</a>
         {% if user.is_active %}
-            {% if user.is_dashboard_user or user.is_superuser %}
+            {% if can_access_dashboard %}
                 <a href="{% url 'cus_admin:index' %}">工作台</a>
             {% endif %}
         {% endif %}
@@ -348,6 +351,9 @@
             <a href="{% url 'Blogs:post_create' %}">新文章</a>
         {% endif %}
         {% if user.is_authenticated %}
+            {% if perms.boards.apply_board_access %}
+                <a href="{% url 'boards:access-requests' %}">板块权限</a>
+            {% endif %}
             <a href="{% url 'accounts:my-profile' %}">个人主页</a>
             <a href="#" onclick="document.getElementById('logout-form-mobile').submit(); return false;">登出</a>
             <form id="logout-form-mobile" action="{% url 'accounts:logout' %}" method="post" style="display:none;">

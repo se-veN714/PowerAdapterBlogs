@@ -14,6 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -33,8 +34,12 @@ urlpatterns = [
     # dashboard
     path("dashboard/", custom_site.urls, name="dashboard"),
     # dal
-    path("category-autocomplete/",CategoryAutocomplete.as_view(),name="category-autocomplete"),
-    path("tag-autocomplete/",TagAutocomplete.as_view(),name="tag-autocomplete"),
+    path(
+        "category-autocomplete/",
+        CategoryAutocomplete.as_view(),
+        name="category-autocomplete",
+    ),
+    path("tag-autocomplete/", TagAutocomplete.as_view(), name="tag-autocomplete"),
     # Homepage
     path("", IndexView.as_view(), name="index"),
     path("Blogs/", include(("Blogs.urls", "Blogs"), namespace="blogs")),
@@ -48,15 +53,19 @@ urlpatterns = [
     path(".well-known/security.txt", security_txt, name="security-txt"),
     # sitemap
     path(
-        "sitemap.xml/", cache_page(60 * 60)(sitemaps_views.sitemap),
-        {'sitemaps': {'posts': PostSitemap}}, name="sitemap")
-    ,
+        "sitemap.xml/",
+        cache_page(60 * 60)(sitemaps_views.sitemap),
+        {"sitemaps": {"posts": PostSitemap}},
+        name="sitemap",
+    ),
     # accounts
-    path('accounts/', include(('accounts.urls', 'accounts'), namespace='accounts')),
+    path("accounts/", include(("accounts.urls", "accounts"), namespace="accounts")),
+    path("boards/", include(("boards.urls", "boards"), namespace="boards")),
 ]
 
 if settings.DEBUG:
     import debug_toolbar
+
     urlpatterns += [
         path("__debug__/", include(debug_toolbar.urls)),
     ]

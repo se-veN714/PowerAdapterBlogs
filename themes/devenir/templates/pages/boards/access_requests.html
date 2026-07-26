@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}板块权限申请 | PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+
+{% block extra_css %}
+<style>
+    .access-shell { max-width: 980px; margin: 0 auto; padding: 5rem 2rem 2rem; }
+    .access-kicker { color: var(--accent-soft); letter-spacing: .18em; font-size: .74rem; }
+    .access-title { color: var(--accent); font-size: clamp(2rem, 5vw, 3.5rem); margin: .45rem 0; }
+    .access-lead { color: var(--text-secondary); max-width: 720px; }
+    .access-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); gap: 1.25rem; margin-top: 2rem; }
+    .access-panel { border: 1px solid var(--fragment-border); background: var(--bg-elevated); padding: 1.4rem; }
+    .access-panel h2 { color: var(--accent-soft); font-size: .85rem; letter-spacing: .12em; margin-bottom: 1.25rem; }
+    .access-field { margin-bottom: 1rem; }
+    .access-field label { display: block; color: var(--text-secondary); font-size: .8rem; margin-bottom: .4rem; }
+    .access-field select, .access-field textarea { width: 100%; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--fragment-border); padding: .75rem; font: inherit; }
+    .access-field select:focus, .access-field textarea:focus { outline: 1px solid var(--accent-soft); border-color: var(--accent-soft); }
+    .access-help { color: var(--text-tertiary); font-size: .72rem; margin-top: .4rem; }
+    .access-errors { color: var(--error-accent); font-size: .78rem; margin-bottom: 1rem; }
+    .request-list { display: grid; gap: .8rem; }
+    .request-item { border-left: 2px solid var(--accent-deep); background: var(--bg-primary); padding: .85rem 1rem; }
+    .request-head { display: flex; justify-content: space-between; gap: 1rem; }
+    .request-board { color: var(--text-primary); }
+    .request-role, .request-meta { color: var(--text-tertiary); font-size: .75rem; }
+    .request-status { color: var(--warning-accent); font-size: .74rem; }
+    .request-item[data-status="approved"] .request-status { color: var(--accent); }
+    .request-item[data-status="rejected"] .request-status { color: var(--error-accent); }
+    .access-empty { color: var(--text-tertiary); font-size: .82rem; padding: 1rem 0; }
+    @media (max-width: 768px) { .access-shell { padding: 4rem 1.25rem 1rem; } .access-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="access-shell" aria-labelledby="access-title">
+    <p class="access-kicker">BOARD / ACCESS REQUEST</p>
+    <h1 class="access-title" id="access-title">申请板块权限</h1>
+    <p class="access-lead">提交申请不会立即获得权限。板块 Manager 可审核常规角色，Manager 角色仅由 superuser 批准。</p>
+
+    <div class="access-grid">
+        <section class="access-panel" aria-labelledby="new-request-title">
+            <h2 id="new-request-title">NEW REQUEST</h2>
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="access-errors">{{ form.non_field_errors }}</div>{% endif %}
+                {% for field in form %}
+                    <div class="access-field">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<p class="access-help">{{ field.help_text }}</p>{% endif %}
+                        {% if field.errors %}<div class="access-errors">{{ field.errors }}</div>{% endif %}
+                    </div>
+                {% endfor %}
+                <button class="btn-accent" type="submit">提交审核</button>
+            </form>
+        </section>
+
+        <section class="access-panel" aria-labelledby="history-title">
+            <h2 id="history-title">REQUEST HISTORY</h2>
+            <div class="request-list">
+                {% for item in access_requests %}
+                    <article class="request-item" data-status="{{ item.status }}">
+                        <div class="request-head">
+                            <div>
+                                <p class="request-board">{{ item.board.name }}</p>
+                                <p class="request-role">{{ item.get_requested_role_display }}</p>
+                            </div>
+                            <span class="request-status">{{ item.get_status_display }}</span>
+                        </div>
+                        <p class="request-meta">{{ item.created_at|date:"Y-m-d H:i" }}{% if item.reviewed_by %} · {{ item.reviewed_by.username }} 审核{% endif %}</p>
+                    </article>
+                {% empty %}
+                    <p class="access-empty">暂无申请记录。</p>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</section>
+{% endblock %}

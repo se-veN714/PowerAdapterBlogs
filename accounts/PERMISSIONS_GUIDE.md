@@ -4,7 +4,7 @@
 > **归档模块**：`accounts/`
 > **主要作用域**：`boards.Board`
 > **文档职责**：治理整个授权架构；BoardMembership、申请审批与 Policy 的实现归 `boards` App
-> **状态**：`accounts_linear` 阶段 0–6a 已完成；下一步为 Stage 6b BoardAccessRequest 自动审批
+> **状态**：`accounts_linear` 阶段 0–6b 已完成；下一步为 Stage 7 停止读取 `is_reviewer` 并观察一个发布周期
 > **日期**：2026-07-27（固定全局 Group/Permission 已初始化并接入运行时）
 > **目标**：以后续功能围绕 Board 展开，在不引入第三方对象权限库的前提下实现最小权限、职责分离和可测试的板块级授权。
 
@@ -62,7 +62,7 @@ flowchart LR
 | App | 拥有的业务事实 | 不应承担 |
 |---|---|---|
 | `accounts` | MyUser、登录/登出、账号启停、邮箱/证书验证、MFA、全局 Group 的编排与用户归组 | Board 角色、板块申请审批、Post/Comment 对象授权 |
-| `boards` | Board、BoardMembership、角色矩阵、Policy、未来的 BoardAccessRequest 与审批服务 | 密码、登录、MFA、全局 Group 管理 |
+| `boards` | Board、BoardMembership、角色矩阵、Policy、BoardAccessRequest 与审批服务 | 密码、登录、MFA、全局 Group 管理 |
 | `Blogs` | Post、Category、文章状态机、修订及 Blogs Permission 定义 | 判断用户属于哪个 Board 或复制 Membership 规则 |
 | `comment` | Comment、评论状态、提交与审核执行及 comment Permission 定义 | 自行判断 Reviewer 的 Board 范围 |
 | `security` | 审计日志、完整性能力及 security Permission 定义 | 分配 Board 角色或维护用户 Group 关系 |
@@ -378,7 +378,7 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 | 🟡 中 | Board 与 Post 仅通过 Category 间接关联 | 第一阶段封装 `board_for_post()`；未来按产品关系显式建模 |
 | 🟡 中 | `/super_admin/` 仍采用 Django 默认 `is_staff` 入口语义 | 当前仅 superuser 创建流程授予 `is_staff`；引入非 superuser staff 前，需确保 Board 模型入口仍调用 Policy 或显式限制为 superuser |
 | ✅ | View/API 权限判断分散 | Admin、普通 View、上传、修订端点和只读 API 均已收敛到 `boards.policies` |
-| 🟡 中 | BoardMembership 仍需手工配置 | 全局 Group 已由 Stage 6a 初始化；Stage 6b 用 BoardAccessRequest/审批 Service 自动写入 Membership |
+| ✅ | BoardMembership 自动审批 | Stage 6b 已用 BoardAccessRequest/审批 Service 自动创建、变更或恢复 Membership |
 | ✅ | 角色矩阵、ORM Policy 与跨入口拒绝路径已有测试 | Stage 4–5 新增 17 个测试；加入手测账号/导航契约后完整测试集 70 个通过 |
 
 ## 12. accounts_linear
@@ -396,7 +396,7 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 | 4 ✅ | 接入 Board/Post/PostRevision/Comment 的 queryset、对象与关键字段权限 | 2026-07-19 已完成；跨 Board URL、表单 Category、作者保持与只读审核队列均有测试 |
 | 5 ✅ | 接入审核 action、上传接口、普通 View/API | 2026-07-19 已完成；状态 Service 逐对象校验，API 暂定只读并明确拒绝写方法 |
 | 6a ✅ | accounts 创建全局 Group 并迁移全局身份 | VerifiedUsers、UserManagers、SiteOperators 已绑定精确 Permission 并接入工作台边界 |
-| 6b | boards 实现 BoardAccessRequest、审批与 Membership 迁移 | Manager/superuser 审批边界生效，用户无需手工勾选权限 |
+| 6b ✅ | boards 实现 BoardAccessRequest、审批与 Membership 迁移 | Manager/superuser 审批边界生效，用户无需手工勾选权限 |
 | 7 | 停止读取 `is_reviewer`，观察一个发布周期 | 日志中无旧字段授权路径，回归测试全部通过 |
 | 8 | 删除 `is_reviewer`；单独评估 `is_dashboard_user` | 迁移可回滚，文档与权限矩阵同步更新 |
 
@@ -425,7 +425,7 @@ Board 内动作的 codename 继续采用第 5 节定义，但不放入全局 Gro
 
 Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。原因不是 Django 无法表达 `add_board`，而是本项目新增 Board 等价于引入一组新的前端代码和部署变更，不属于可委派的日常业务操作。
 
-`VerifiedUsers` 由邀请接受服务 `accounts.services.accept_account_invitation()` 自动归组，并已绑定 `boards.apply_board_access`。这只表示用户具备发起申请的资格；Board 权限仍要等 Stage 6b 通过 `BoardAccessRequest` 写入 Membership 后才产生。
+`VerifiedUsers` 由邀请接受服务 `accounts.services.accept_account_invitation()` 自动归组，并已绑定 `boards.apply_board_access`。这只表示用户具备发起申请的资格；Board 权限仍要等 `BoardAccessRequest` 审批通过并写入 Membership 后才产生。
 
 #### 审批边界
 
@@ -490,7 +490,40 @@ Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。�
 - `SiteOperators` 可进入工作台查看和运行 HMAC 完整性审计，但不能获得账号、Board 或文章权限。
 - Group Permission 可授予工作台外壳入口；`VerifiedUsers` 不获得工作台入口，任何 Group 都不能替代 BoardMembership。
 
-当前下一步为 **阶段 6b：在 boards 实现 BoardAccessRequest、审批 Service 与 Membership 自动写入**。
+### 12.7 阶段 6b 实现结果
+
+- `boards.models.BoardAccessRequest` 保存申请人、Board、目标角色、状态、审核人、审核时原角色、审核说明与时间；数据库条件唯一约束保证同一用户对同一 Board 同时只有一条待审核申请。
+- `/boards/access/` 是 `VerifiedUsers` 的服务端表单入口，只展示当前用户自己的申请历史；提交申请本身不会获得任何 Board CRUD。
+- `boards.services` 在数据库事务与行锁内处理审批。通过后创建或更新唯一的 `BoardMembership`，驳回不修改 Membership，重复审批被拒绝；事务提交后以 MongoDB HMAC 日志记录操作者、申请人、Board、原角色、目标角色与结果。
+- 本 Board Manager 只能审批 Contributor、Editor、Reviewer，不能自审、跨 Board 审批、授予 Manager、恢复停用 Membership 或变更已有 Manager；后两类操作与 Manager 申请只允许 superuser。
+- Manager Membership 可获得 `/dashboard/` 外壳入口并只看到自己 Board 的申请；不会因此获得 `accounts.manage_user_accounts`、安全审计或全局 Group 管理权限。
+- `/super_admin/` 与 `/dashboard/` 的申请记录均为只读详情，只能通过调用同一审批 Service 的批量 action 改变状态，避免 Admin 表单直接写 Membership。
+- Stage 6b 新增 16 个申请、越权、幂等、回滚和 queryset 隔离测试；完整测试集 179 项通过，Django system check 为 0。
+
+```mermaid
+sequenceDiagram
+    actor User as VerifiedUser
+    participant View as /boards/access/
+    participant Request as BoardAccessRequest
+    participant Review as Manager / superuser
+    participant Service as boards.services
+    participant Member as BoardMembership
+    participant Audit as MongoDB HMAC Audit
+
+    User->>View: 选择 Board、角色并提交
+    View->>Request: 创建唯一 pending 申请
+    Review->>Service: 批准或驳回
+    Service->>Service: 校验同板块、禁止自审与角色边界
+    alt 批准且校验通过
+        Service->>Member: 原子创建或更新唯一 Membership
+        Service->>Request: 标记 approved 并记录审核快照
+    else 驳回
+        Service->>Request: 标记 rejected，不改 Membership
+    end
+    Service-->>Audit: 事务提交后记录审核结果
+```
+
+当前下一步为 **阶段 7：停止读取 `is_reviewer`，观察一个发布周期并确认无旧字段授权路径**。
 
 ## 13. 参考依据
 

@@ -2,10 +2,10 @@
 
 > **文档权重**：85（boards 当前实现与模块 TODO）
 > **模块**: `boards/`  
-> **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及后续板块申请审批
+> **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及板块申请审批
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-07-19 — 增加本地角色测试账号命令与后台入口契约
+> **最后更新**: 2026-07-27 — 完成 Stage 6b 权限申请、分级审批与 Membership 自动写入
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-27 | v2.1 | Stage 6b：BoardAccessRequest、用户入口、分级审批、事务写入与审计完成；完整测试 179 个 |
 | 2026-07-19 | v2.0 | 增加仅限 DEBUG 的幂等测试账号命令，覆盖四种 Board 角色和无 Membership 拒绝样本 |
 | 2026-07-19 | v1.9 | Stage 5：状态 action、写作 View、上传、修订端点与只读 API 接入 Policy；完整测试 65 个 |
 | 2026-07-19 | v1.8 | Stage 4：Board/Post/PostRevision/Comment Admin 接入 Board Policy，新增 8 个运行时隔离测试 |
@@ -33,9 +34,9 @@
 
 boards 是 Board Scope 授权领域的所有者：
 
-- 当前拥有 `Board`、`BoardMembership`、`access_rules.py` 和 `policies.py`。
+- 当前拥有 `Board`、`BoardMembership`、`BoardAccessRequest`、`access_rules.py`、`policies.py` 和审批 `services.py`。
 - Stage 4–5 由 boards Policy 被 Blogs/comment 的 Admin、View、API 调用，但 Post 和 Comment 模型仍归各自 App。
-- Stage 6b 的 `BoardAccessRequest`、审批服务和 Membership 变更放在 boards；它们只通过 `settings.AUTH_USER_MODEL` 引用申请人和审批人。
+- Stage 6b 的 `BoardAccessRequest`、审批服务和 Membership 变更已落在 boards；它们只通过 `settings.AUTH_USER_MODEL` 引用申请人和审批人。
 - boards 不处理密码、登录、邮箱验证、MFA 或全局 Group；这些属于 accounts。
 
 ```mermaid
@@ -201,7 +202,7 @@ flowchart LR
 
 Board 是授权边界，不是 Django Group：Group 只承载 `SiteOperators`、`UserManagers` 等全局职责；Contributor / Editor / Reviewer / Manager 的唯一事实来源是 `BoardMembership`。
 
-Stage 6a 已创建 `boards.apply_board_access` 并只授予 `VerifiedUsers`。该 Permission 仅作为 Stage 6b 申请入口资格，不授予 Board、Post 或 Comment 的任何 CRUD；最终对象授权仍由 Membership + Policy 裁决。
+Stage 6a 已创建 `boards.apply_board_access` 并只授予 `VerifiedUsers`。该 Permission 仅作为申请入口资格，不授予 Board、Post 或 Comment 的任何 CRUD；最终对象授权仍由 Membership + Policy 裁决。
 
 ### Stage 4–5 Policy 状态
 
@@ -216,11 +217,11 @@ Stage 6a 已创建 `boards.apply_board_access` 并只授予 `VerifiedUsers`。�
 - PostRevision 跟随 Post 可见范围；Comment 审核队列仅向本 Board Reviewer/Manager 只读展示。
 - 直接输入跨 Board Admin URL 无法读取或修改对象；Manager 编辑他人文章不会改写原作者。
 
-Stage 5 已恢复审核/发布/驳回和评论 action，但每个对象都会在事务 Service 或审核 Service 中重新校验 Policy，不再批量直写状态。写作 View、上传、STAFF_ONLY/修订端点和只读 DRF API 也复用相同范围；完整测试集 65 个全部通过。下一步是 Stage 6 的 Group 初始化与 BoardAccessRequest 自动审批。
+Stage 5 已恢复审核/发布/驳回和评论 action，但每个对象都会在事务 Service 或审核 Service 中重新校验 Policy，不再批量直写状态。Stage 6a 已初始化固定全局 Group；Stage 6b 已通过 `/boards/access/`、`BoardAccessRequest` 和审批 Service 自动写入 Membership。当前完整测试集 179 个全部通过，下一步为 Stage 7 旧字段观察。
 
 Board 独立 Index 视觉在 `codex/board-index-k3` 并行推进，K3 仅修改 Devenir 专用模板/CSS/展示脚本；路由、QuerySet、Policy 与上下文组装仍由 boards 后端所有。本地 HANDOFF 仅用于临时交接，不进入 Git；长期边界以本节和 V2 指南为准。
 
-未来的板块权限申请与审批也属于 boards：accounts 只确认用户已登录、激活和完成邮箱验证，boards 负责申请的目标 Board、目标角色、审批人边界、结果及 Membership 更新。
+板块权限申请与审批属于 boards：accounts 只确认用户已登录、激活和完成邮箱验证，boards 负责申请的目标 Board、目标角色、审批人边界、结果及 Membership 更新。
 
 ---
 

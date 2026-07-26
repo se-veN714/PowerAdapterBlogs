@@ -16,11 +16,23 @@ from django.contrib import admin
 
 def has_dashboard_access(user):
     """Return whether a user may enter the custom dashboard shell."""
-    return user.is_active and (
+    if not getattr(user, "is_authenticated", False) or not user.is_active:
+        return False
+    memberships = getattr(user, "board_memberships", None)
+    manages_board = bool(
+        memberships
+        and memberships.filter(
+            role="manager",
+            is_active=True,
+            board__is_active=True,
+        ).exists()
+    )
+    return (
         user.is_dashboard_user
         or user.is_superuser
         or user.has_perm("accounts.manage_user_accounts")
         or user.has_perm("security.view_audit_log")
+        or manages_board
     )
 
 
@@ -72,4 +84,3 @@ class DashboardAdminMixin:
     def get_queryset(self, request):
         """dashboard 用户应看到所有数据，不受 BaseOwnerAdmin 的 owner 过滤限制"""
         return admin.ModelAdmin.get_queryset(self, request)
-

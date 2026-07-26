@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error — PowerAdapter</title>
+    <title>{{ error_code }} — PowerAdapter</title>
+    <meta name="robots" content="noindex, nofollow">
     <link rel="stylesheet" href="/static/css/errors/page-error.css">
 </head>
 <body class="error-page">
@@ -20,13 +21,19 @@
         </div>
 
         <div class="error-message">
-            The render process interrupted.<br>
-            Something unexpected happened.<br>
-            The system temporarily lost its balance.
+            {% if error_code == 404 %}
+                The requested transmission was not found.<br>
+                It may have moved, expired, or never existed.<br>
+                No private system detail has been exposed.
+            {% else %}
+                The render process was interrupted.<br>
+                The system temporarily lost its balance.<br>
+                Please retry after a short interval.
+            {% endif %}
         </div>
 
         <div class="system-status">
-            system unstable
+            {% if error_code == 404 %}signal absent{% else %}system unstable{% endif %}
         </div>
 
         <div class="process-log">

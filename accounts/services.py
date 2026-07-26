@@ -2,14 +2,17 @@
 
 import hashlib
 import logging
+import math
 import secrets
 from datetime import timedelta
 from urllib.parse import urljoin
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.core.cache import cache
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
+from django.utils.crypto import constant_time_compare, salted_hmac
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
@@ -17,6 +20,16 @@ from django.utils import timezone
 from .models import AccountInvitation
 
 logger = logging.getLogger(__name__)
+
+PASSWORD_CODE_SENT = "sent"
+PASSWORD_CODE_COOLDOWN = "cooldown"
+PASSWORD_CODE_SEND_LIMIT = "send_limit"
+PASSWORD_CODE_SEND_FAILED = "send_failed"
+PASSWORD_CODE_INVALID = "invalid"
+PASSWORD_CODE_EXPIRED = "expired"
+PASSWORD_CODE_LOCKED = "locked"
+PASSWORD_CODE_VERIFIED = "verified"
+PASSWORD_EMAIL_VERIFIED_SESSION_KEY = "password_email_verified"
 
 
 def invitation_token_digest(token):
@@ -108,3 +121,175 @@ def accept_account_invitation(token, password, *, expected_invitation_id):
         invitation.save(update_fields=("accepted_at",))
         logger.info("账号邀请已接受: user_id=%s", user.pk)
         return user
+
+
+def _password_code_identity(user_id, session_key):
+    raw = f"{user_id}:{session_key}".encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _password_code_key(user_id, session_key, suffix):
+    return f"password-email:{suffix}:{_password_code_identity(user_id, session_key)}"
+
+
+def _password_user_key(user_id, suffix):
+    digest = hashlib.sha256(str(user_id).encode("ascii")).hexdigest()
+    return f"password-email:{suffix}:{digest}"
+
+
+def _increment_cache_counter(key, timeout):
+    if cache.add(key, 1, timeout=timeout):
+        return 1
+    try:
+        return cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=timeout)
+        return 1
+
+
+def password_change_code_pending(user_id, session_key):
+    if not session_key:
+        return False
+    return cache.get(_password_code_key(user_id, session_key, "code")) is not None
+
+
+def _deadline_remaining_seconds(deadline):
+    try:
+        remaining = float(deadline) - timezone.now().timestamp()
+    except (TypeError, ValueError):
+        return 0
+    return max(0, math.ceil(remaining))
+
+
+def password_change_resend_remaining_seconds(user_id):
+    deadline = cache.get(_password_user_key(user_id, "cooldown"))
+    return _deadline_remaining_seconds(deadline)
+
+
+def password_change_code_remaining_seconds(user_id, session_key):
+    if not session_key:
+        return 0
+    deadline = cache.get(_password_code_key(user_id, session_key, "expires"))
+    return _deadline_remaining_seconds(deadline)
+
+
+def issue_password_change_email_code(user, session_key):
+    """向当前账号邮箱发送短时验证码，并限制冷却与发送次数。"""
+    cooldown = settings.PASSWORD_EMAIL_SEND_COOLDOWN_SECONDS
+    cooldown_key = _password_user_key(user.pk, "cooldown")
+    cooldown_deadline = timezone.now().timestamp() + cooldown
+    if not cache.add(cooldown_key, cooldown_deadline, timeout=cooldown):
+        return PASSWORD_CODE_COOLDOWN
+
+    send_window = settings.PASSWORD_EMAIL_SEND_WINDOW_SECONDS
+    send_count = _increment_cache_counter(
+        _password_user_key(user.pk, "send-count"),
+        send_window,
+    )
+    if send_count > settings.PASSWORD_EMAIL_MAX_SENDS:
+        return PASSWORD_CODE_SEND_LIMIT
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    digest = salted_hmac(
+        "accounts.password-change-email",
+        f"{user.pk}:{session_key}:{code}",
+    ).hexdigest()
+    ttl = settings.PASSWORD_EMAIL_CODE_TTL_SECONDS
+    cache.set(_password_code_key(user.pk, session_key, "code"), digest, timeout=ttl)
+    cache.set(
+        _password_code_key(user.pk, session_key, "expires"),
+        timezone.now().timestamp() + ttl,
+        timeout=ttl,
+    )
+    cache.delete(_password_code_key(user.pk, session_key, "attempts"))
+
+    context = {"user": user, "code": code, "ttl_minutes": max(1, ttl // 60)}
+    message = EmailMultiAlternatives(
+        subject="PowerAdapter 修改密码验证码",
+        body=render_to_string("emails/accounts/password_change_code.txt", context),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+    )
+    message.attach_alternative(
+        render_to_string("emails/accounts/password_change_code.html", context),
+        "text/html",
+    )
+    try:
+        message.send(fail_silently=False)
+    except Exception:
+        cache.delete_many(
+            (
+                _password_code_key(user.pk, session_key, "code"),
+                _password_code_key(user.pk, session_key, "expires"),
+            )
+        )
+        logger.exception("修改密码验证码发送失败: user_id=%s", user.pk)
+        return PASSWORD_CODE_SEND_FAILED
+    logger.info("修改密码验证码已发送: user_id=%s", user.pk)
+    return PASSWORD_CODE_SENT
+
+
+def verify_password_change_email_code(user, session_key, code):
+    """校验当前 Session 的验证码；永不记录或返回验证码明文。"""
+    code_key = _password_code_key(user.pk, session_key, "code")
+    expected_digest = cache.get(code_key)
+    if expected_digest is None:
+        return PASSWORD_CODE_EXPIRED
+
+    attempts_key = _password_code_key(user.pk, session_key, "attempts")
+    attempts = _increment_cache_counter(
+        attempts_key,
+        settings.PASSWORD_EMAIL_CODE_TTL_SECONDS,
+    )
+    submitted_digest = salted_hmac(
+        "accounts.password-change-email",
+        f"{user.pk}:{session_key}:{code}",
+    ).hexdigest()
+    if constant_time_compare(expected_digest, submitted_digest):
+        cache.delete_many(
+            (
+                code_key,
+                attempts_key,
+                _password_code_key(user.pk, session_key, "expires"),
+            )
+        )
+        return PASSWORD_CODE_VERIFIED
+    if attempts >= settings.PASSWORD_EMAIL_MAX_ATTEMPTS:
+        cache.delete_many(
+            (
+                code_key,
+                _password_code_key(user.pk, session_key, "expires"),
+            )
+        )
+        logger.warning("修改密码验证码尝试次数耗尽: user_id=%s", user.pk)
+        return PASSWORD_CODE_LOCKED
+    return PASSWORD_CODE_INVALID
+
+
+def mark_password_email_verified(request):
+    request.session[PASSWORD_EMAIL_VERIFIED_SESSION_KEY] = {
+        "user_id": request.user.pk,
+        "verified_at": timezone.now().timestamp(),
+    }
+
+
+def password_email_is_verified(request):
+    return password_email_verification_remaining_seconds(request) > 0
+
+
+def password_email_verification_remaining_seconds(request):
+    verification = request.session.get(PASSWORD_EMAIL_VERIFIED_SESSION_KEY)
+    if not isinstance(verification, dict) or verification.get("user_id") != request.user.pk:
+        return 0
+    try:
+        age = timezone.now().timestamp() - float(verification["verified_at"])
+    except (KeyError, TypeError, ValueError):
+        return 0
+    if age < 0 or age > settings.PASSWORD_EMAIL_VERIFIED_TTL_SECONDS:
+        request.session.pop(PASSWORD_EMAIL_VERIFIED_SESSION_KEY, None)
+        return 0
+    return max(0, math.ceil(settings.PASSWORD_EMAIL_VERIFIED_TTL_SECONDS - age))
+
+
+def clear_password_email_verification(request):
+    request.session.pop(PASSWORD_EMAIL_VERIFIED_SESSION_KEY, None)

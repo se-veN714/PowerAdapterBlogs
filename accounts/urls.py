@@ -18,6 +18,7 @@ from accounts.views import (
     AccountPasswordChangeView,
     LoginView,
     MyProfileRedirectView,
+    PasswordEmailVerificationView,
     ProfileDetailView,
     ProfileUpdateView,
 )
@@ -27,6 +28,11 @@ urlpatterns = [
     path('profile/', MyProfileRedirectView.as_view(), name='my-profile'),
     path('u/<str:username>/', ProfileDetailView.as_view(), name='profile-detail'),
     path('settings/profile/', ProfileUpdateView.as_view(), name='profile-update'),
+    path(
+        'password/change/verify/',
+        PasswordEmailVerificationView.as_view(),
+        name='password-email-verify',
+    ),
     path(
         'password/change/',
         AccountPasswordChangeView.as_view(),

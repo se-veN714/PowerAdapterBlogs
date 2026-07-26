@@ -22,9 +22,10 @@ from django.urls import path, include
 from django.views.decorators.cache import cache_page
 
 from Blogs.autocomplete import CategoryAutocomplete, TagAutocomplete
+from Blogs.feed import PublicPostAtomFeed, PublicPostFeed
 from Blogs.sitemap import PostSitemap
 from Blogs.views import IndexView
-from config.views import LinkListView
+from config.views import AboutView, LinkListView, PrivacyView, robots_txt, security_txt
 from .cus_site import custom_site
 
 urlpatterns = [
@@ -37,8 +38,14 @@ urlpatterns = [
     # Homepage
     path("", IndexView.as_view(), name="index"),
     path("Blogs/", include(("Blogs.urls", "Blogs"), namespace="blogs")),
+    path("feed/", PublicPostFeed(), name="feed"),
+    path("feed/atom/", PublicPostAtomFeed(), name="atom-feed"),
     # LinksPage
     path("links/", LinkListView.as_view(), name="links"),
+    path("about/", AboutView.as_view(), name="about"),
+    path("privacy/", PrivacyView.as_view(), name="privacy"),
+    path("robots.txt", robots_txt, name="robots"),
+    path(".well-known/security.txt", security_txt, name="security-txt"),
     # sitemap
     path(
         "sitemap.xml/", cache_page(60 * 60)(sitemaps_views.sitemap),
@@ -54,3 +61,7 @@ if settings.DEBUG:
         path("__debug__/", include(debug_toolbar.urls)),
     ]
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
+handler404 = "config.views.page_not_found"
+handler500 = "config.views.server_error"

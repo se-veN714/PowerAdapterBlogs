@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}隐私说明 · PowerAdapter{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/site_info.css' %}?v=20260726.1">{% endblock %}
+
+{% block hero %}
+<section class="site-info-hero privacy-hero">
+    <div class="container">
+        <p class="site-info-kicker">NODE / PRIVACY</p>
+        <h1>最少收集，明确用途</h1>
+        <p>本说明描述个人站当前实际处理的数据，不以模糊措辞扩大授权。</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<article class="container site-info-layout">
+    <aside class="site-info-index" aria-label="页面目录">
+        <span>PRIVACY.LOG</span>
+        <a href="#account">01 / 账号</a>
+        <a href="#comments">02 / 评论</a>
+        <a href="#security">03 / 安全</a>
+        <a href="#retention">04 / 保留</a>
+        <a href="#rights">05 / 联系</a>
+    </aside>
+    <div class="site-info-body">
+        <p class="privacy-version">版本：2026-07-26 · 适用于当前 PowerAdapter 个人博客</p>
+        <section id="account">
+            <p class="section-code">01 / ACCOUNT DATA</p>
+            <h2>账号与邮箱</h2>
+            <p>站点采用管理员邀请制。用户名和邮箱用于登录、账号激活、修改密码验证及必要的账号安全通知。邮箱不会出现在公开 Profile；公开展示名、简介、头像、网站、GitHub 和所在地仅在用户主动开启公开主页后展示。</p>
+        </section>
+        <section id="comments">
+            <p class="section-code">02 / COMMENTS</p>
+            <h2>文章与评论</h2>
+            <p>投稿会保存作者、正文、修订和审核事件。评论会保存登录用户归属、内容、昵称、可选邮箱、状态及时间；公开页面只展示通过审核且未删除的内容，不公开评论邮箱。</p>
+        </section>
+        <section id="security">
+            <p class="section-code">03 / SECURITY SIGNALS</p>
+            <h2>Session、IP 与审计日志</h2>
+            <p>Django Session 用于维持登录状态。登录失败、评论频率及邮件验证码发送会使用短时缓存计数；客户端 IP 参与防暴力破解和评论限流。高价值管理与审核事件会写入带 HMAC 完整性校验的审计记录，部分审计数据存放于 MongoDB。</p>
+        </section>
+        <section id="retention">
+            <p class="section-code">04 / RETENTION</p>
+            <h2>保留周期</h2>
+            <ul>
+                <li>修改密码验证码和验证授权默认 10 分钟失效；发送次数窗口为 1 小时。</li>
+                <li>登录失败锁定默认 15 分钟，评论频率窗口默认 60 秒。</li>
+                <li>账号资料在账号存续期间保留；文章、修订、评论和审核记录保留到删除或站点维护处理。</li>
+                <li>应用文本日志按 5MB、5 个备份文件滚动；MongoDB 审计记录当前按安全追溯需要保留，尚未配置自动到期。</li>
+            </ul>
+        </section>
+        <section id="rights">
+            <p class="section-code">05 / CONTACT</p>
+            <h2>查询、更正与删除</h2>
+            <p>登录用户可以自行修改公开 Profile 和密码。若需查询、更正或删除账号及相关内容，请通过页脚邮箱联系站点所有者。本站不设置联系表单，也不出售个人信息。</p>
+        </section>
+    </div>
+</article>
+{% endblock %}

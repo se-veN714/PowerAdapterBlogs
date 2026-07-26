@@ -1,14 +1,22 @@
+import re
+from datetime import timedelta
+
+from django.conf import settings
 from django.contrib.admin.sites import AdminSite
 from django.core import mail
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.admin import CusMyUserAdmin
 from accounts.forms import AccountInvitationCreationForm
 from accounts.models import AccountInvitation, MyUser, UserProfile
-from accounts.services import issue_account_invitation
+from accounts.services import (
+    PASSWORD_EMAIL_VERIFIED_SESSION_KEY,
+    issue_account_invitation,
+)
 from Blogs.models import Category, Post
 from PowerAdapterBlogs.cus_site import custom_site
 
@@ -264,6 +272,7 @@ class UserProfileTest(TestCase):
     new_password = "new-profile-password-2026"
 
     def setUp(self):
+        cache.clear()
         self.owner = MyUser.objects.create_user(
             email="profile-owner@example.test",
             username="profile-owner",
@@ -314,6 +323,25 @@ class UserProfileTest(TestCase):
             "accounts:profile-detail",
             kwargs={"username": self.owner.username},
         )
+
+    def _send_password_change_code(self):
+        response = self.client.post(
+            reverse("accounts:password-email-verify"),
+            {"action": "send"},
+        )
+        self.assertRedirects(response, reverse("accounts:password-email-verify"))
+        self.assertTrue(mail.outbox)
+        match = re.search(r"(?<!\d)(\d{6})(?!\d)", mail.outbox[-1].body)
+        self.assertIsNotNone(match)
+        return match.group(1)
+
+    def _verify_password_change_email(self):
+        code = self._send_password_change_code()
+        response = self.client.post(
+            reverse("accounts:password-email-verify"),
+            {"code": code},
+        )
+        self.assertRedirects(response, reverse("accounts:password-change"))
 
     def test_private_profile_is_404_to_others_but_visible_to_owner(self):
         self.assertEqual(self.client.get(self.detail_url).status_code, 404)
@@ -420,6 +448,7 @@ class UserProfileTest(TestCase):
 
     def test_password_change_keeps_session_and_invalidates_old_password(self):
         self.client.force_login(self.owner)
+        self._verify_password_change_email()
 
         response = self.client.post(
             reverse("accounts:password-change"),
@@ -435,6 +464,133 @@ class UserProfileTest(TestCase):
         self.assertFalse(self.owner.check_password(self.old_password))
         self.assertTrue(self.owner.check_password(self.new_password))
         self.assertEqual(int(self.client.session["_auth_user_id"]), self.owner.pk)
+        self.assertNotIn(PASSWORD_EMAIL_VERIFIED_SESSION_KEY, self.client.session)
+
+    def test_password_change_requires_email_verification(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.get(reverse("accounts:password-change"))
+
+        self.assertRedirects(response, reverse("accounts:password-email-verify"))
+
+    def test_profile_password_link_starts_fresh_email_verification(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.get(self.detail_url)
+
+        expected = f'{reverse("accounts:password-email-verify")}?restart=1'
+        self.assertContains(response, f'href="{expected}"')
+
+    def test_restart_email_verification_clears_previous_grant(self):
+        self.client.force_login(self.owner)
+        self._verify_password_change_email()
+
+        response = self.client.get(
+            reverse("accounts:password-email-verify"),
+            {"restart": "1"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        response = self.client.get(reverse("accounts:password-change"))
+        self.assertRedirects(response, reverse("accounts:password-email-verify"))
+
+    def test_password_change_renders_rotation_console_after_verification(self):
+        self.client.force_login(self.owner)
+        self._verify_password_change_email()
+
+        response = self.client.get(reverse("accounts:password-change"))
+
+        self.assertContains(response, "CREDENTIAL ROTATION PROTOCOL")
+        self.assertContains(response, "data-credential-console")
+        self.assertContains(response, "password_rotation.js")
+
+    def test_password_email_code_has_resend_cooldown(self):
+        self.client.force_login(self.owner)
+        self._send_password_change_code()
+
+        response = self.client.post(
+            reverse("accounts:password-email-verify"),
+            {"action": "send"},
+            follow=True,
+        )
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertContains(response, "发送过于频繁")
+
+    def test_password_email_page_exposes_resend_and_expiry_countdowns(self):
+        self.client.force_login(self.owner)
+        self._send_password_change_code()
+
+        response = self.client.get(reverse("accounts:password-email-verify"))
+
+        self.assertGreater(response.context["resend_remaining"], 0)
+        self.assertLessEqual(
+            response.context["resend_remaining"],
+            settings.PASSWORD_EMAIL_SEND_COOLDOWN_SECONDS,
+        )
+        self.assertGreater(response.context["code_remaining"], 0)
+        self.assertLessEqual(
+            response.context["code_remaining"],
+            settings.PASSWORD_EMAIL_CODE_TTL_SECONDS,
+        )
+        self.assertContains(response, "data-resend-countdown")
+        self.assertContains(response, "data-code-countdown")
+        self.assertContains(response, "password_email_verification.js")
+
+    @override_settings(PASSWORD_EMAIL_SEND_COOLDOWN_SECONDS=0)
+    def test_password_email_code_limits_hourly_sends(self):
+        self.client.force_login(self.owner)
+        url = reverse("accounts:password-email-verify")
+
+        for _ in range(4):
+            response = self.client.post(url, {"action": "send"}, follow=True)
+
+        self.assertEqual(len(mail.outbox), 3)
+        self.assertContains(response, "本小时发送次数已用完")
+
+    def test_password_email_code_locks_after_wrong_attempts(self):
+        self.client.force_login(self.owner)
+        code = self._send_password_change_code()
+        wrong_code = "111111" if code == "000000" else "000000"
+        url = reverse("accounts:password-email-verify")
+
+        for _ in range(5):
+            response = self.client.post(url, {"code": wrong_code})
+
+        self.assertContains(response, "错误次数已用完")
+        response = self.client.post(url, {"code": code})
+        self.assertContains(response, "不存在或已过期")
+
+    def test_password_email_code_is_bound_to_requesting_session(self):
+        self.client.force_login(self.owner)
+        code = self._send_password_change_code()
+        another_session = Client()
+        another_session.force_login(self.owner)
+
+        response = another_session.post(
+            reverse("accounts:password-email-verify"),
+            {"code": code},
+        )
+
+        self.assertContains(response, "不存在或已过期")
+        response = self.client.post(
+            reverse("accounts:password-email-verify"),
+            {"code": code},
+        )
+        self.assertRedirects(response, reverse("accounts:password-change"))
+
+    def test_password_email_verification_grant_expires(self):
+        self.client.force_login(self.owner)
+        session = self.client.session
+        session[PASSWORD_EMAIL_VERIFIED_SESSION_KEY] = {
+            "user_id": self.owner.pk,
+            "verified_at": (timezone.now() - timedelta(minutes=11)).timestamp(),
+        }
+        session.save()
+
+        response = self.client.get(reverse("accounts:password-change"))
+
+        self.assertRedirects(response, reverse("accounts:password-email-verify"))
 
     def test_post_author_links_only_to_public_profile(self):
         detail_url = self.public_post.get_absolute_url()

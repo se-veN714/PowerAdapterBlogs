@@ -6,7 +6,7 @@
 > **设计风格**: 暗色 CRT 扫描线 + 绿色调 + 社刊 Editorial 排版
 > **前身**: `themes/bulma/`（Bulma CSS 框架，已弃用）
 > **创建**: 2026-06-22
-> **最后更新**: 2026-07-26 — v1.10 Profile 前端优化（账号三页）
+> **最后更新**: 2026-07-27 — v1.14 公开元数据与生产错误页
 
 ---
 
@@ -14,6 +14,10 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-27 | v1.14 | base 增加 canonical、description、Open Graph 与 Feed 自动发现 block；文章详情输出 Article 元数据；Devenir 错误页接入生产 404/500 |
+| 2026-07-27 | v1.13 | 新增年月索引式公开归档页，复用 Post Stream 卡片；Header、移动导航与 Footer 接入 Archive/RSS/Atom |
+| 2026-07-26 | v1.12 | 修改密码页升级为 Credential Rotation Console：四阶段状态轨、邮箱授权倒计时、密码熵信号柱、规则/匹配反馈和提交扫描动画；支持 reduced-motion |
+| 2026-07-26 | v1.11 | 新增邮箱验证码改密页面、About 与隐私说明；全局导航/Footer 接入；桌面与 390px 检查通过 |
 | 2026-07-26 | v1.10 | Profile 前端优化：ID rail 元数据行、头像 CRT 扫描线 + hover glitch、LOC/WEB/GIT 身份坐标轨、signal bars、表单 term-bar、头像预览、is_public 终端开关；390px 零横向溢出实测通过 |
 | 2026-07-20 | v1.9 | PostList、Category、Search 统一 Post Stream fragment；分类、搜索和分页使用 htmx 动态刷新并保留完整 URL 回退；补三档视口与移动触控验收 |
 | 2026-07-20 | v1.8 | PostList 增强：System Status Rail、Command Filter Rail（搜索内嵌）、分类信号色、封面连接线差异；navbar 搜索取消 |
@@ -136,9 +140,12 @@ flowchart TD
 | `pages/blog/_revision_diff.html` | — | htmx 片段 | Diff 表格 |
 | `pages/accounts/login.html` | base.html | 登录 | 暗色卡片表单 |
 | `pages/accounts/accept_invitation.html` | base.html | 邀请激活 | 一次性链接设置密码（F1 邀请制） |
-| `pages/accounts/profile_detail.html` | base.html | 作者公开 Profile | ID rail + 头像 glitch + 终端徽章 + signal bars + Post Stream |
+| `pages/accounts/profile_detail.html` | base.html | 作者公开 Profile | ID rail + 头像 glitch + 身份坐标轨 + signal bars + Post Stream |
 | `pages/accounts/profile_form.html` | base.html | 本人编辑资料 | term-bar + 头像预览 + is_public 终端开关 |
-| `pages/accounts/password_change.html` | base.html | 修改密码 | term-bar + 中文密码校验提示 |
+| `pages/accounts/password_change.html` | base.html | 修改密码 | 四阶段 Credential Console + 服务端错误渲染 |
+| `pages/accounts/password_email_verification.html` | base.html | 改密邮箱验证 | 掩码邮箱 + TTL/RETRY/RESEND 数据轨 + 6 位验证码 |
+| `pages/site/about.html` | base.html | About | 站点定位、内容、Board、技术与许可说明 |
+| `pages/site/privacy.html` | base.html | 隐私说明 | 数据用途、保留方式与联系渠道 |
 | `pages/links.html` | base.html | 友链 | Hero+图片+进度条+卡片网格 |
 | `pages/comment/form.html` | — | 评论表单 | inclusion_tag 片段 |
 | `pages/comment/item.html` | — | 评论条目 | render_to_string 片段 |
@@ -158,7 +165,9 @@ flowchart TD
 | `css/typography.css` | ~63 | @font-face：CDN 全字重（Source Han Serif/Sans CN、JetBrains Mono 400/700）+ 字体栈变量 |
 | `css/editorial.css` | ~450 | 首页 Editorial Section + Glitch 文字效果 + Cate Cards |
 | `css/blog.css` | ~1050 | 文章列表/详情/Markdown/TOC/Timeline/Diff/评论/表单/搜索 |
-| `css/accounts.css` | ~473 | 登录 + Profile（ID rail/头像 glitch/徽章/signal bars）+ 表单（term-bar/头像预览/终端开关） |
+| `css/accounts.css` | ~739 | 登录 + Profile（ID rail/头像 glitch/徽章/signal bars）+ 表单 + Credential Rotation Console |
+| `css/site_info.css` | ~120 | About / 隐私说明的 Editorial Hero、粘性目录与移动布局 |
+| `js/password_rotation.js` | ~75 | 客户端强度信号、匹配提示、授权倒计时和提交动效；不参与服务端有效性判定 |
 | `css/admin_theme.css` | ~440 | Jazzmin 后台 Devenir 视觉覆盖；表格、表单、导航、登录页与移动端适配 |
 | `css/links.css` | ~230 | Links Hero/图片/3层进度条动画/卡片网格 |
 | `css/errors/page-error.css` | ~230 | 500 错误页视觉区域 |

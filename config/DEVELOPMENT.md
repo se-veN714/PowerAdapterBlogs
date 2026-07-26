@@ -2,10 +2,10 @@
 
 > **文档权重**：85（config 当前实现与模块 TODO）
 > **模块**: `config/`  
-> **职责**: 管理博客站点全局配置项（友链、侧边栏）  
+> **职责**: 管理博客站点全局配置项、静态说明页、公开元数据上下文、robots 与错误响应
 > **依赖**: `Blogs.models.Post`, `comment.models.Comment`, `base_admin.BaseOwnerAdmin`  
 > **创建**: 2026-06-22  
-> **更新**: 2026-06-22 — 新建文档
+> **更新**: 2026-07-27 — blog_foundation_linear F5 security.txt
 
 ---
 
@@ -13,6 +13,9 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.3 | 2026-07-27 | 新增 RFC 9116 `/.well-known/security.txt`，包含 Contact、Expires、Preferred-Languages 与 Canonical |
+| v1.2 | 2026-07-27 | 新增固定公网 canonical 上下文、`robots.txt`、生产 404/500 handler 与 4 项契约测试 |
+| v1.1 | 2026-07-26 | 新增 `/about/`、`/privacy/` 与公开页面测试 |
 | v1.0 | 2026-06-22 | 新建文档，覆盖 Link、SideBar 模型及管理后台 |
 
 ---
@@ -33,6 +36,8 @@ flowchart TD
 
     subgraph views["视图层"]
         LLV["LinkListView<br/>友链展示页<br/>/links/"]
+        ABOUT["AboutView<br/>站点说明<br/>/about/"]
+        PRIVACY["PrivacyView<br/>隐私说明<br/>/privacy/"]
     end
 
     subgraph render["动态渲染"]
@@ -281,7 +286,8 @@ flowchart TD
 |--------|------|------|
 | 🟢 低 | 无缓存导致重复渲染 | SideBar.content_html 每次请求都调用 `render_to_string`，可考虑模板缓存 |
 | 🟢 低 | 侧边栏无排序字段 | 目前按 `created_time` 排序，无法自定义顺序 |
-| 🟢 低 | `tests.py` 为空 | 无测试用例 |
+| ✅ | 静态说明页测试 | About、隐私内容与全局入口已有 3 项契约测试；模型/Admin 仍需后续补齐 |
+| ✅ | 公开元数据与错误响应 | canonical 不信任请求 Host；robots 使用绝对 Sitemap；404/500 不暴露异常详情 |
 
 ---
 
@@ -290,8 +296,15 @@ flowchart TD
 ### 路由
 
 ```
-# 在项目根 urls.py 中配置
-path('links/', include('config.urls')),  # 或直接在根路由中注册
+# 在项目根 urls.py 中直接注册
+path('links/', LinkListView.as_view(), name='links')
+path('about/', AboutView.as_view(), name='about')
+path('privacy/', PrivacyView.as_view(), name='privacy')
+path('robots.txt', robots_txt, name='robots')
+path('.well-known/security.txt', security_txt, name='security-txt')
+
+handler404 = 'config.views.page_not_found'
+handler500 = 'config.views.server_error'
 ```
 
 ### 管理命令

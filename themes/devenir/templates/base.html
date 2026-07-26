@@ -5,7 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}PowerAdapter{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}{{ site_default_description }}{% endblock %}">
+    <meta name="robots" content="{% block meta_robots %}index, follow{% endblock %}">
+    <link rel="canonical" href="{% block canonical_url %}{{ site_canonical_url }}{% endblock %}">
+    <meta property="og:site_name" content="PowerAdapter">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}PowerAdapter{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ site_default_description }}{% endblock %}">
+    <meta property="og:url" content="{% block og_url %}{{ site_canonical_url }}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ site_default_og_image }}{% endblock %}">
     <link rel="icon" href="{% static 'img/PowerAdapter_icon.png' %}" type="image/png">
+    <link rel="alternate" type="application/rss+xml" title="PowerAdapter Blogs RSS" href="{% url 'feed' %}">
+    <link rel="alternate" type="application/atom+xml" title="PowerAdapter Blogs Atom" href="{% url 'atom-feed' %}">
 
     {% block head_link %}
     <!-- Stylesheets -->
@@ -276,6 +287,8 @@
         </a>
         <nav class="nav">
             <a href="{% url 'Blogs:post_list' %}" class="{% if '/posts' in request.path %}active{% endif %}">Posts</a>
+            <a href="{% url 'Blogs:post_archive' %}" class="{% if '/archive/' in request.path %}active{% endif %}">Archive</a>
+            <a href="{% url 'about' %}" class="{% if request.path == '/about/' %}active{% endif %}">About</a>
             <a href="{% url 'links' %}" class="{% if '/links' in request.path %}active{% endif %}">Links</a>
             <div class="nav-buttons">
                 {% if user.is_active %}
@@ -320,6 +333,8 @@
     </div>
     <nav class="sidebar-nav">
         <a href="{% url 'Blogs:post_list' %}">Posts</a>
+        <a href="{% url 'Blogs:post_archive' %}">Archive</a>
+        <a href="{% url 'about' %}">About</a>
         <a href="{% url 'links' %}">Links</a>
         {% if user.is_active %}
             {% if user.is_dashboard_user or user.is_superuser %}
@@ -385,6 +400,14 @@
         <p class="footer-copy" style="opacity:0.4;">&copy; PowerAdapter &middot; 愿代码之美，与精神秩序并行。</p>
     </div>
     <div class="footer-legal">
+        <a href="{% url 'about' %}">About</a>
+        <span>|</span>
+        <a href="{% url 'Blogs:post_archive' %}">文章归档</a>
+        <span>|</span>
+        <a href="{% url 'feed' %}">Feed</a>
+        <span>|</span>
+        <a href="{% url 'privacy' %}">隐私说明</a>
+        <span>|</span>
         <span>内容遵循 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></span>
         <span>|</span>
         <a href="https://beian.miit.gov.cn" target="_blank" rel="noopener">ICP-num-placeholder</a>

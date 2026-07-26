@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}About · PowerAdapter{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/site_info.css' %}?v=20260726.1">{% endblock %}
+
+{% block hero %}
+<section class="site-info-hero">
+    <div class="container">
+        <p class="site-info-kicker">NODE / ABOUT</p>
+        <h1>在代码与精神秩序之间</h1>
+        <p>PowerAdapter 是一个个人博客，也是一块持续迭代的技术实验场。</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<article class="container site-info-layout">
+    <aside class="site-info-index" aria-label="页面目录">
+        <span>ABOUT.LOG</span>
+        <a href="#purpose">01 / 定位</a>
+        <a href="#topics">02 / 内容</a>
+        <a href="#boards">03 / 板块</a>
+        <a href="#stack">04 / 技术</a>
+        <a href="#license">05 / 许可</a>
+    </aside>
+    <div class="site-info-body">
+        <section id="purpose">
+            <p class="section-code">01 / PURPOSE</p>
+            <h2>为什么存在</h2>
+            <p>这里用于记录自动化、密码与安全实践、算法、个人工具，以及精神节律相关的长期探索。它首先服务于作者自己的表达和知识整理，而不是面向流量的内容社区。</p>
+        </section>
+        <section id="topics">
+            <p class="section-code">02 / TRANSMISSIONS</p>
+            <h2>内容方向</h2>
+            <p>文章会围绕编码、音乐、滑板及其他阶段性主题展开。投稿功能只服务于受邀请的小规模协作，不开放公共注册、关注、点赞、私信或积分体系。</p>
+        </section>
+        <section id="boards">
+            <p class="section-code">03 / BOARD SYSTEM</p>
+            <h2>每个板块都是独立表达</h2>
+            <p>Board 不只是数据库分类。新增板块意味着新的内容边界、权限范围与前端表达，因此仅由站点所有者随代码发布。协作者通过 BoardMembership 获得特定板块中的投稿、编辑或审核能力。</p>
+        </section>
+        <section id="stack">
+            <p class="section-code">04 / IMPLEMENTATION</p>
+            <h2>技术方式</h2>
+            <p>站点基于 Django Template 与 htmx，采用服务端渲染的 HDA 架构。Devenir 主题使用暗色 CRT 扫描线、绿色信号与 Editorial 排版；后台权限由 Django Group、Permission 和 Board Policy 分层协作。</p>
+        </section>
+        <section id="license">
+            <p class="section-code">05 / LICENSE</p>
+            <h2>内容与代码</h2>
+            <p>站点内容默认遵循 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>；项目代码以仓库中声明的 MIT License 为准。引用时请保留作者与来源。</p>
+        </section>
+    </div>
+</article>
+{% endblock %}

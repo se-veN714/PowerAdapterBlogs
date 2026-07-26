@@ -47,7 +47,7 @@
                 {% if is_profile_owner %}
                     <div class="profile-actions">
                         <a class="btn-accent" href="{% url 'accounts:profile-update' %}">编辑资料</a>
-                        <a class="btn-ghost" href="{% url 'accounts:password-change' %}">修改密码</a>
+                        <a class="btn-ghost" href="{% url 'accounts:password-email-verify' %}?restart=1">修改密码</a>
                     </div>
                     {% if not profile.is_public %}
                         <p class="profile-private-note">// 当前为私人预览，其他访问者会看到 404</p>

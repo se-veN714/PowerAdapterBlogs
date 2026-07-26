@@ -478,6 +478,259 @@ a.profile-coordinate:focus-visible {
 .profile-form-actions { display: flex; align-items: center; gap: 0.75rem; }
 .profile-form-actions .btn-login { flex: 1; }
 
+.password-verify-intro {
+    margin-bottom: 1.25rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+.password-verify-intro strong {
+    color: var(--accent-primary);
+    font-family: var(--font-mono);
+    font-weight: 400;
+}
+
+.password-verify-policy {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0 0 1.5rem;
+    border-top: 1px solid var(--fragment-border);
+    border-bottom: 1px solid var(--fragment-border);
+}
+
+.password-verify-policy div { padding: 0.7rem 0; }
+.password-verify-policy dt {
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+}
+.password-verify-policy dd {
+    margin: 0.2rem 0 0;
+    color: var(--accent-soft);
+    font-size: 0.72rem;
+}
+
+.password-send-form { margin-bottom: 1.5rem; }
+.password-send-form .btn-ghost { width: 100%; min-height: 44px; }
+.password-send-form .btn-ghost:disabled {
+    cursor: not-allowed;
+    color: var(--text-tertiary);
+    border-color: var(--fragment-border);
+    background: rgba(13, 20, 18, 0.45);
+}
+
+.resend-countdown {
+    margin-left: 0.45rem;
+    color: var(--warning-accent);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+}
+
+.code-validity {
+    display: flex;
+    justify-content: center;
+    gap: 0.45rem;
+    margin: 0.75rem 0 0;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+}
+
+.code-validity strong { color: var(--accent-soft); font-weight: 400; }
+.code-validity.is-expiring strong { color: var(--warning-accent); }
+.code-validity.is-expired,
+.code-validity.is-expired strong { color: var(--error-color, #c77); }
+.password-code-input {
+    font-size: 1.3rem !important;
+    letter-spacing: 0.35em;
+    text-align: center;
+}
+
+/* ===== Credential Rotation Console ===== */
+.rotation-page { width: 100%; }
+.rotation-card {
+    position: relative;
+    width: min(100%, 980px);
+    max-width: 980px;
+    overflow: hidden;
+    background:
+        linear-gradient(90deg, rgba(216, 255, 225, 0.025) 1px, transparent 1px) 0 0 / 32px 100%,
+        var(--bg-elevated);
+}
+
+.rotation-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(180deg, transparent, rgba(216, 255, 225, 0.12), transparent);
+    transform: translateY(-100%);
+}
+
+.rotation-card.rotation-committing::after {
+    animation: rotation-scan 0.8s ease-out 1;
+}
+
+.rotation-console-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--fragment-border);
+    color: var(--accent-muted);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+}
+
+.rotation-console-header > div { display: flex; align-items: center; gap: 0.6rem; }
+.rotation-live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    box-shadow: 0 0 8px var(--accent-soft);
+    animation: status-pulse 2s ease-in-out infinite;
+}
+.rotation-session { margin: 0; color: var(--accent-soft); }
+.verification-expiring .rotation-session { color: var(--warning-accent); }
+
+.rotation-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    margin: 1.5rem 0 2.5rem;
+    padding: 0;
+    list-style: none;
+}
+
+.rotation-steps li {
+    position: relative;
+    display: grid;
+    gap: 0.2rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--fragment-border);
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+}
+.rotation-steps li::before {
+    content: "";
+    position: absolute;
+    top: -3px;
+    left: 0;
+    width: 5px;
+    height: 5px;
+    background: var(--text-tertiary);
+}
+.rotation-steps li span { font-size: 0.6rem; }
+.rotation-steps li b { font-size: 0.72rem; font-weight: 400; letter-spacing: 0.08em; }
+.rotation-steps li small { font-size: 0.55rem; letter-spacing: 0.08em; }
+.rotation-steps li.is-complete,
+.rotation-steps li.is-active { border-color: var(--accent-deep); color: var(--accent-soft); }
+.rotation-steps li.is-complete::before { background: var(--accent-primary); box-shadow: 0 0 7px var(--accent-soft); }
+.rotation-steps li.is-active::before { background: var(--warning-accent); animation: rotation-node 1.4s steps(2, end) infinite; }
+
+.credential-stage {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    gap: 1.5rem;
+    padding: 1.5rem 0;
+    border-top: 1px dashed var(--fragment-border);
+}
+.credential-stage-new { grid-template-columns: 90px minmax(0, 1fr) 260px; }
+.credential-stage-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+}
+.credential-stage-label span { color: var(--accent-soft); font-size: 1.4rem; line-height: 1; }
+.credential-stage-label small { font-size: 0.58rem; letter-spacing: 0.1em; }
+.credential-stage .field { position: relative; margin: 0; }
+.credential-stage .field + .field { margin-top: 1.25rem; }
+.credential-stage .field::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
+    opacity: 0;
+    transform: scaleX(0.2);
+    transition: opacity 0.2s, transform 0.35s;
+}
+.credential-stage .field:focus-within::after { opacity: 0.75; transform: scaleX(1); }
+
+.credential-signal {
+    align-self: stretch;
+    padding: 1rem;
+    border-left: 1px solid var(--fragment-border);
+    background: rgba(13, 16, 16, 0.45);
+}
+.signal-readout { display: flex; justify-content: space-between; gap: 1rem; font-family: var(--font-mono); }
+.signal-readout span { color: var(--text-tertiary); font-size: 0.58rem; letter-spacing: 0.1em; }
+.signal-readout strong { color: var(--accent-soft); font-size: 0.68rem; font-weight: 400; }
+.signal-readout strong[data-level="1"] { color: var(--error-accent); }
+.signal-readout strong[data-level="2"] { color: var(--warning-accent); }
+.signal-readout strong[data-level="3"],
+.signal-readout strong[data-level="4"] { color: var(--accent-primary); }
+
+.entropy-bars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; height: 42px; margin: 0.9rem 0 1.1rem; align-items: end; }
+.entropy-bars i { display: block; height: 18%; background: var(--fragment-border); transform-origin: bottom; transition: height 0.25s, background 0.25s, box-shadow 0.25s; }
+.entropy-bars i:nth-child(2) { height: 35%; }
+.entropy-bars i:nth-child(3) { height: 58%; }
+.entropy-bars i:nth-child(4) { height: 82%; }
+.entropy-bars i.is-active { background: var(--accent-primary); box-shadow: 0 0 8px rgba(216, 255, 225, 0.2); animation: entropy-flicker 1.4s steps(3, end) infinite; }
+
+.credential-rules { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.credential-rules span {
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.06em;
+}
+.credential-rules span::before { content: "○ "; }
+.credential-rules span.is-passed { color: var(--accent-soft); }
+.credential-rules span.is-passed::before { content: "● "; color: var(--accent-primary); }
+.credential-match {
+    margin: 1rem 0 0;
+    padding-top: 0.75rem;
+    border-top: 1px dashed var(--fragment-border);
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+}
+.credential-match.is-match { color: var(--accent-primary); }
+.credential-match.is-mismatch { color: var(--error-accent); }
+.credential-server-note { margin: 0.7rem 0 0; color: var(--text-tertiary); font-size: 0.65rem; line-height: 1.55; }
+
+.rotation-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; margin-top: 1.5rem; }
+.rotation-submit { position: relative; overflow: hidden; }
+.rotation-submit i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -35%;
+    width: 25%;
+    background: linear-gradient(90deg, transparent, rgba(216, 255, 225, 0.35), transparent);
+    transform: skewX(-18deg);
+}
+.rotation-submit:hover i { animation: credential-button-scan 0.8s ease-out 1; }
+.rotation-submit.is-rotating i { animation: credential-button-scan 0.55s linear infinite; }
+
+@keyframes rotation-scan { to { opacity: 0.7; transform: translateY(100%); } }
+@keyframes rotation-node { 50% { opacity: 0.35; } }
+@keyframes entropy-flicker { 50% { filter: brightness(1.35); transform: scaleY(0.9); } }
+@keyframes credential-button-scan { to { left: 120%; } }
+
 @media (max-width: 760px) {
     .profile-hero { padding-top: 6rem; }
     .profile-id-rail { gap: 0.4rem 1rem; font-size: 0.62rem; }
@@ -494,4 +747,23 @@ a.profile-coordinate:focus-visible {
     .profile-coordinate { margin-right: 0; padding-right: 0; }
     .term-title { font-size: 0.66rem; }
     .profile-form-card { padding: 1.5rem 1.1rem; }
+    .password-verify-policy { grid-template-columns: 1fr; }
+    .password-verify-policy div + div { border-top: 1px dashed var(--fragment-border); }
+    .rotation-card { padding: 1.25rem 1rem; }
+    .rotation-console-header { align-items: flex-start; flex-direction: column; }
+    .rotation-steps li small { display: none; }
+    .credential-stage,
+    .credential-stage-new { grid-template-columns: 1fr; gap: 1rem; }
+    .credential-stage-label { flex-direction: row; align-items: baseline; }
+    .credential-signal { border-top: 1px solid var(--fragment-border); border-left: 0; }
+    .rotation-actions { grid-template-columns: 1fr; }
+    .rotation-actions .btn-ghost { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rotation-live-dot,
+    .rotation-steps li.is-active::before,
+    .entropy-bars i.is-active,
+    .rotation-submit i,
+    .rotation-card::after { animation: none !important; }
 }

@@ -12,7 +12,6 @@
 
 # here put the import lib
 from django.contrib.sitemaps import Sitemap
-from django.urls import reverse
 
 from .models import Post
 
@@ -22,10 +21,10 @@ class PostSitemap(Sitemap):
     protocol = "https"
 
     def items(self):
-        return Post.objects.filter(status=Post.STATUS_NORMAL)
+        return Post.publicly_visible_posts()
 
     def lastmod(self, item):
-        return item.created_time
+        return item.update_time
 
     def location(self, item):
-        return reverse('post_detail', args=[item.pk])
+        return item.get_absolute_url()

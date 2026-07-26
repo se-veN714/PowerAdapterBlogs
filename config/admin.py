@@ -16,7 +16,6 @@ class LinkAdmin(BaseOwnerAdmin):
 
     def save_model(self, request, obj, form, change):
         if change:
-            old = Link.objects.get(pk=obj.pk)
             logger.info(f"Link 修改: link_id={obj.id} title={obj.title} "
                         f"operator={request.user.id}")
         else:
@@ -37,7 +36,6 @@ class SideBarAdmin(BaseOwnerAdmin):
 
     def save_model(self, request, obj, form, change):
         if change:
-            old = SideBar.objects.get(pk=obj.pk)
             logger.info(f"SideBar 修改: sidebar_id={obj.id} title={obj.title} "
                         f"operator={request.user.id}")
         else:

@@ -2,6 +2,7 @@ import logging
 import os
 import uuid
 from datetime import date
+from itertools import groupby
 from urllib.parse import urlencode
 
 from django import VERSION as DJANGO_VERSION
@@ -16,7 +17,9 @@ from django.db import transaction, IntegrityError
 from django.db.models import Q, F
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.templatetags.static import static
 from django.urls.base import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
@@ -39,6 +42,7 @@ from boards.policies import (
     published_posts_visible_to,
 )
 from config.models import SideBar
+from PowerAdapterBlogs.public_urls import public_absolute_url
 
 
 # Create your views here.
@@ -108,6 +112,11 @@ class PostDetailView(CommonViewMixin, DetailView):
         context['can_edit_current_post'] = can_edit_post(
             self.request.user,
             post,
+        )
+        context["seo_description"] = post.desc or post.title
+        context["seo_canonical_url"] = public_absolute_url(post.get_absolute_url())
+        context["seo_image_url"] = public_absolute_url(
+            post.cover.url if post.cover else static(post.default_cover_static_path)
         )
         if post.status == Post.STATUS_NORMAL:
             visible_posts = published_posts_visible_to(
@@ -291,10 +300,54 @@ class PostListView(AnonymousPageCacheMixin, ListView):
         )
         for post in page_posts:
             post.can_edit = post.pk in editable_ids
+        context["stream_start_index"] = context["page_obj"].start_index()
         if context["is_paginated"]:
             context["stream_pagination"] = self.get_stream_pagination(
                 context["page_obj"]
             )
+        return context
+
+
+class PostArchiveView(CommonViewMixin, ListView):
+    """按年月展示公开且已发布的文章，不暴露 Board 内部内容。"""
+
+    template_name = "pages/blog/archive.html"
+    context_object_name = "post_list"
+    queryset = Post.publicly_visible_posts().select_related(
+        "owner",
+        "owner__profile",
+        "category",
+    )
+
+    def get_queryset(self):
+        return super().get_queryset().order_by("-created_time", "-pk")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        posts = list(context["post_list"])
+        groups = []
+        start_index = 1
+
+        def month_key(post):
+            published_at = timezone.localtime(post.created_time)
+            return published_at.year, published_at.month
+
+        for (year, month), month_posts in groupby(posts, key=month_key):
+            grouped_posts = list(month_posts)
+            groups.append(
+                {
+                    "year": year,
+                    "month": month,
+                    "anchor": f"archive-{year}-{month:02d}",
+                    "posts": grouped_posts,
+                    "count": len(grouped_posts),
+                    "start_index": start_index,
+                }
+            )
+            start_index += len(grouped_posts)
+
+        context["archive_groups"] = groups
+        context["archive_count"] = len(posts)
         return context
 
 

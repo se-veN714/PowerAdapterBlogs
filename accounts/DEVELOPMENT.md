@@ -5,7 +5,7 @@
 > **职责**: 自定义用户模型、认证、账号状态、全局 Group 编排与用户安全；不拥有 Board Policy
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-26 — 实现管理员邀请制账号、一次性邮件激活与 VerifiedUsers 自动归组
+> **最后更新**: 2026-07-26 — 修改密码增加短时邮箱验证、冷却与次数限制
 
 ---
 
@@ -142,11 +142,11 @@ flowchart TD
 | 文件 | 核心类/函数 | 职责 |
 |------|------------|------|
 | `models.py` | `MyUser`, `AccountInvitation`, `UserManager`, `SENSITIVE_FIELDS` | 自定义用户、邀请状态、创建工厂与模型层防御 |
-| `services.py` | `issue_account_invitation()`, `accept_account_invitation()` | 事务提交后发信、Token 摘要、单次激活与 VerifiedUsers 归组 |
+| `services.py` | invitation 与 password email helpers | 邀请激活；改密验证码摘要、发送/错误限流及 Session 验证授权 |
 | `admin.py` | `MyUserAdmin`, `CusMyUserAdmin`, `AccountInvitationAdmin` | 双 Admin 注册、邀请发放/重发、字段权限与 M2M 拦截 |
-| `views.py` | `LoginView`, `AcceptAccountInvitationView` | 登录、邀请密码设置与原子激活入口 |
-| `forms.py` | `LoginForm`, invitation forms | 登录、Admin 无密码建号与邀请密码设置表单 |
-| `urls.py` | — | `login/`、`logout/`、`invitation/<token>/` 路由 |
+| `views.py` | 登录、邀请、Profile、邮箱验证与密码修改 Views | 账号前台流程与所有者边界 |
+| `forms.py` | 登录、邀请、Profile、密码及邮箱验证码 Forms | 输入校验与可编辑字段白名单 |
+| `urls.py` | — | 登录/邀请/Profile/邮箱验证/密码修改路由 |
 | `thread_local.py` | `get_current_user()`, `set_current_user()`, `clear_current_user()` | thread-local 用户存储 |
 | `middleware.py` | `RequestUserMiddleware` | 请求生命周期捕获 `request.user` |
 | `apps.py` | `AccountsConfig` | AppConfig |
@@ -603,7 +603,7 @@ erDiagram
 | thread-local 仅 HTTP 上下文 | 🟢 低 | `manage.py shell` 中 `get_current_user()` 返回 None，防御回退。属于设计决策，暂不修改。 |
 | 审核通知 | ⏸ 已评估 | 个人站当前 dashboard 状态与 Admin 即时反馈足够，暂不为此新增完整 messaging 模块；开放注册时采用邮件验证，评论通知按实际需要再做轻量站内实现 |
 | Category/Tag 管理边界 | 🟡 中 | Category dashboard 已收紧为 superuser-only；Tag 保留全局 Permission，Stage 6a 初始化 Group 时复核 |
-| Profile 与密码修改 | ✅ F1 | `UserProfile` 默认私密；本人可编辑/预览，公开页仅列公开已发布文章；密码修改复用 Django 校验并保留当前 Session。 |
+| Profile 与密码修改 | ✅ F1 | `UserProfile` 默认私密；公开页仅列公开已发布文章；Profile 改密入口以 `restart=1` 强制开启新邮箱验证（10 分钟、60 秒冷却、每小时 3 封、最多错 5 次），随后仍校验旧密码并保留当前 Session。 |
 
 ---
 
@@ -611,7 +611,7 @@ erDiagram
 
 ### A. 测试现状
 
-- `tests.py` — 已覆盖邀请、登录锁定、双后台边界，以及 Profile 隐私/文章隔离/越权编辑/已有头像保留/头像校验/密码修改；accounts 测试 20 项、全项目 127 项通过（2026-07-26）
+- `tests.py` — 已覆盖邀请、登录锁定、双后台边界、Profile 隔离，以及改密邮箱验证的 TTL、Session 绑定、强制重开、倒计时数据、冷却、发送和错误上限；accounts 测试 30 项、全项目 150 项通过（2026-07-27）
 - 建议优先覆盖：
   1. `MyUser.save()` SENSITIVE_FIELDS 回滚逻辑
   2. `LoginView` 登录成功/失败/不活跃三种路径

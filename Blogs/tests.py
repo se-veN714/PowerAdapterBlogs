@@ -6,9 +6,11 @@ from django.db import IntegrityError, transaction
 from django.test import Client, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from django.utils import timezone
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from datetime import timedelta
 import base64
 
 from accounts.models import MyUser
@@ -22,6 +24,115 @@ from Blogs.revisions import (
 )
 from Blogs.management.commands.generate_posts import GENERATED_SLUG_PREFIX
 from boards.models import Board, BoardMembership
+
+
+@override_settings(PUBLIC_SITE_URL="https://blog.example.test")
+class PublicArchiveFeedTest(TestCase):
+    def setUp(self):
+        self.author = MyUser.objects.create_user(
+            email="archive@example.test",
+            username="archive-author",
+            password="pass",
+            is_active=True,
+        )
+        self.category = Category.objects.create(name="Archive", owner=self.author)
+        self.public_post = Post.objects.create(
+            title="Public archive entry",
+            slug="public-archive-entry",
+            desc="A public transmission.",
+            content="body",
+            category=self.category,
+            owner=self.author,
+            status=Post.STATUS_NORMAL,
+            visibility=Post.VISIBILITY_PUBLIC,
+        )
+        self.older_public_post = Post.objects.create(
+            title="Older public entry",
+            slug="older-public-entry",
+            desc="An older public transmission.",
+            content="body",
+            category=self.category,
+            owner=self.author,
+            status=Post.STATUS_NORMAL,
+            visibility=Post.VISIBILITY_PUBLIC,
+        )
+        older_time = timezone.now() - timedelta(days=40)
+        Post.objects.filter(pk=self.older_public_post.pk).update(created_time=older_time)
+        self.older_public_post.refresh_from_db()
+        Post.objects.create(
+            title="Internal entry",
+            slug="internal-entry",
+            content="body",
+            category=self.category,
+            owner=self.author,
+            status=Post.STATUS_NORMAL,
+            visibility=Post.VISIBILITY_STAFF_ONLY,
+        )
+        Post.objects.create(
+            title="Draft entry",
+            slug="draft-entry",
+            content="body",
+            category=self.category,
+            owner=self.author,
+            status=Post.STATUS_DRAFT,
+            visibility=Post.VISIBILITY_PUBLIC,
+        )
+
+    def test_public_queryset_is_the_shared_visibility_boundary(self):
+        self.assertQuerySetEqual(
+            Post.publicly_visible_posts().order_by("pk"),
+            [self.public_post, self.older_public_post],
+        )
+
+    def test_archive_groups_public_posts_by_month_and_reuses_stream(self):
+        response = self.client.get(reverse("Blogs:post_archive"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["archive_count"], 2)
+        self.assertEqual(len(response.context["archive_groups"]), 2)
+        self.assertContains(response, self.public_post.title)
+        self.assertContains(response, self.older_public_post.title)
+        self.assertNotContains(response, "Internal entry")
+        self.assertNotContains(response, "Draft entry")
+        self.assertTemplateUsed(response, "pages/blog/_post_stream.html")
+
+    def test_rss_and_atom_publish_only_public_posts_with_absolute_links(self):
+        for route_name in ("feed", "atom-feed"):
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+                content = response.content.decode("utf-8")
+
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(self.public_post.title, content)
+                self.assertIn(self.older_public_post.title, content)
+                self.assertNotIn("Internal entry", content)
+                self.assertNotIn("Draft entry", content)
+                self.assertIn(
+                    "https://blog.example.test/Blogs/post/public-archive-entry",
+                    content,
+                )
+
+    def test_public_detail_exposes_article_metadata_from_fixed_site_url(self):
+        response = self.client.get(self.public_post.get_absolute_url())
+
+        self.assertContains(
+            response,
+            'rel="canonical" href="https://blog.example.test/Blogs/post/public-archive-entry"',
+        )
+        self.assertContains(response, 'property="og:type" content="article"')
+        self.assertContains(response, 'property="og:title" content="Public archive entry"')
+        self.assertContains(response, 'content="A public transmission."')
+        self.assertContains(response, 'name="robots" content="index, follow"')
+
+    def test_sitemap_uses_shared_public_queryset(self):
+        response = self.client.get(reverse("sitemap"))
+        content = response.content.decode("utf-8")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("public-archive-entry", content)
+        self.assertIn("older-public-entry", content)
+        self.assertNotIn("internal-entry", content)
+        self.assertNotIn("draft-entry", content)
 
 
 @override_settings(CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}})

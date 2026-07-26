@@ -100,6 +100,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.static",
                 "boards.views.boards_context",
+                "config.context_processors.public_site_metadata",
             ],
         },
     },
@@ -338,12 +339,19 @@ COMMENT_RATE_WINDOW = 60
 # 邮件与邀请制账号。生产环境在 product.py 中强制从环境变量提供实际值。
 PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "http://127.0.0.1:8000")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "PowerAdapter <webmaster@localhost>")
+SECURITY_CONTACT_EMAIL = os.getenv("SECURITY_CONTACT_EMAIL", "sevencdxxiv@qq.com")
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
     "django.core.mail.backends.console.EmailBackend",
 )
 ACCOUNT_INVITATION_TTL_SECONDS = 24 * 60 * 60
 ACCOUNT_VERIFIED_GROUP_NAME = "VerifiedUsers"
+PASSWORD_EMAIL_CODE_TTL_SECONDS = 10 * 60
+PASSWORD_EMAIL_SEND_COOLDOWN_SECONDS = 60
+PASSWORD_EMAIL_SEND_WINDOW_SECONDS = 60 * 60
+PASSWORD_EMAIL_MAX_SENDS = 3
+PASSWORD_EMAIL_MAX_ATTEMPTS = 5
+PASSWORD_EMAIL_VERIFIED_TTL_SECONDS = 10 * 60
 
 MONGO = {
     "HOST": os.getenv("MONGO_HOST", "localhost"),

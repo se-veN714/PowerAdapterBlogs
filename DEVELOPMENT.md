@@ -4,7 +4,7 @@
 > **项目**: 基于 Django 5.2 的个人博客系统  
 > **作者**: seveN1foR / PowerAdapter  
 > **许可证**: MIT  
-> **最后更新**: 2026-07-26 — 增加 blog_foundation_linear 专项路线入口
+> **最后更新**: 2026-07-27 — 完成 blog_foundation_linear F5 security.txt 与上线检查清单
 
 ---
 
@@ -61,6 +61,8 @@ DjangoProject/                 # 项目根目录
 | `/Blogs/search/` | `SearchView` | 搜索 |
 | `/Blogs/img_upload/` | `post_img_upload` | 图片上传 |
 | `/links/` | `LinkListView` | 友链页 |
+| `/about/` | `AboutView` | 站点定位、内容、Board 与技术说明 |
+| `/privacy/` | `PrivacyView` | 数据用途和保留方式说明 |
 | `/sitemap.xml/` | sitemaps | 站点地图 (缓存1h) |
 
 ### 2.2 后台路由（权限分离）
@@ -81,6 +83,7 @@ DjangoProject/                 # 项目根目录
 | `/accounts/u/<username>/` | `ProfileDetailView` | 公开作者页；私密页仅本人预览 |
 | `/accounts/settings/profile/` | `ProfileUpdateView` | 编辑本人公开资料 |
 | `/accounts/password/change/` | `AccountPasswordChangeView` | 校验旧密码并保留当前会话 |
+| `/accounts/password/change/verify/` | `PasswordEmailVerificationView` | 短时邮箱验证码与发送/错误次数限制 |
 
 ### 2.4 API 路由
 
@@ -173,6 +176,9 @@ DjangoProject/                 # 项目根目录
 | `docs/guides/CODING_GUIDE.md` | Python 之禅、Django 分层、Mixin/继承准入条件与 Code Review 清单 |
 | `docs/guides/DJANGO_LTS_UPGRADE.md` | Django 5.2 LTS 版本、兼容边界与升级验证 |
 | `docs/guides/BLOG_FOUNDATION_GUIDE.md` | Profile、账号设置、About、隐私、归档、Feed 与公开站点元数据路线 |
+| `docs/guides/DEPLOYMENT_CHECKLIST.md` | 生产环境变量、部署、冒烟、安全、审计与回滚执行清单 |
+| `DOCUMENTATION_GUIDE.md` | 文档权重、Agent 阅读顺序与冲突处理总则 |
+| `themes/devenir/BOARD_INDEX_HANDOFF.md` | K3 Board 独立 Index 前端分支边界与后端上下文契约 |
 | `docs/guides/LOGGUIDE.md` | 全项目日志主规范 |
 | `requirements.txt` | 依赖清单 |
 | `accounts/DEVELOPMENT.md` | 用户模块详细架构 |
@@ -227,6 +233,6 @@ python manage.py init_log_hmac --force
 
 ### 8.1 生产邮件与邀请账号
 
-生产环境需要配置 `PUBLIC_SITE_URL`、`DEFAULT_FROM_EMAIL`、`EMAIL_HOST`、`EMAIL_PORT`、`EMAIL_HOST_USER`、`EMAIL_HOST_PASSWORD`，并按服务商选择 `EMAIL_USE_SSL` 或 `EMAIL_USE_TLS`（不可同时开启）。开发环境默认使用 Console Email Backend，邀请链接会输出到运行终端。
+生产环境需要配置 `PUBLIC_SITE_URL`、`SECURITY_CONTACT_EMAIL`、`DEFAULT_FROM_EMAIL`、`EMAIL_HOST`、`EMAIL_PORT`、`EMAIL_HOST_USER`、`EMAIL_HOST_PASSWORD`，并按服务商选择 `EMAIL_USE_SSL` 或 `EMAIL_USE_TLS`（不可同时开启）。开发环境默认使用 Console Email Backend，邀请链接会输出到运行终端。
 
 账号发放入口为 `/super_admin/accounts/myuser/add/`：只填写用户名和邮箱。新账号保持未激活且没有可用密码；邮件激活成功后才加入 `VerifiedUsers`。可在用户列表执行“重新发送账号邀请”，重发后旧链接立即失效。

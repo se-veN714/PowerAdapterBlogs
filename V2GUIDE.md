@@ -2,8 +2,8 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-07-26
-> **状态**: Board Scope Stage 0–5、邀请制账号激活及 `blog_foundation_linear` F1 已完成；下一步 F2 About / 隐私说明；完成基础博客体验后恢复 Stage 6a/6b
+> **更新**: 2026-07-27
+> **状态**: Board Scope Stage 0–5、邀请制账号激活及 `blog_foundation_linear` F1–F5 已完成；下一步恢复 accounts Stage 6a/6b
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -78,7 +78,18 @@ sequenceDiagram
 
 #### blog_foundation_linear（2026-07-26，推进中）
 
-按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界，F1 已实现公开作者 Profile、本人资料编辑和安全的密码修改入口；下一步依次处理 About/隐私、归档/Feed、SEO/robots 与生产错误页。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 [`BLOG_FOUNDATION_GUIDE.md`](docs/guides/BLOG_FOUNDATION_GUIDE.md) 为准。
+按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界；F1 已实现公开作者 Profile、本人资料编辑及带邮箱短时验证的密码修改；F2 已补齐 About、隐私说明和全局入口；F3 已实现公开年月归档、RSS/Atom 与统一公开文章 QuerySet helper；F4 已接入 canonical/Open Graph、Feed 自动发现、robots、公开 Sitemap 与生产错误页；F5 已按 RFC 9116 发布 `security.txt` 并补齐上线检查清单。该路线 F0–F5 已完成，下一步恢复 accounts Stage 6a/6b。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 [`BLOG_FOUNDATION_GUIDE.md`](docs/guides/BLOG_FOUNDATION_GUIDE.md) 为准。
+
+#### 2026-07-27 双分支并行决策
+
+当前稳定基线完成后从同一提交派生两个分支：
+
+| 分支 | 所有者 | 范围 | 禁止交叉修改 |
+|---|---|---|---|
+| `codex/admin-hardening` | Codex | Stage 6a/6b 前置权限身份、特权认证、Session、审计与 mTLS 应用侧契约 | 不实现 Board Index 视觉，不修改其专用模板/CSS |
+| `codex/board-index-k3` | Kimi K3 | 各 Board 独立 Index 的 Devenir 模板、CSS、展示脚本与空态 | 不修改 Python、Migration、Policy、URLConf、Admin、API 或权限测试 |
+
+两个分支必须使用独立 worktree。后台先冻结只读上下文契约，K3 只消费契约；最终先合并后台数据/权限边界，再合并前端模板，导航与路由由集成方最后接线。Board Index 交接以 [`themes/devenir/BOARD_INDEX_HANDOFF.md`](themes/devenir/BOARD_INDEX_HANDOFF.md) 为准。
 
 ### 0.2 前端架构决策：Devenir HDA，不做全面分离
 

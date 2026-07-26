@@ -2,8 +2,8 @@
 
 > **文档权重**：87（跨 accounts、Blogs、config 与 Devenir 的当前专项实施规划）
 > **路线标识**：`blog_foundation_linear`
-> **状态**：F0–F1 已完成；下一步 F2 About / 隐私说明
-> **更新**：2026-07-26
+> **状态**：F0–F5 已完成；下一步恢复 accounts Stage 6a/6b
+> **更新**：2026-07-27
 > **上位依据**：`V2GUIDE.md`、`docs/guides/CODING_GUIDE.md`
 
 ## 1. 目标与边界
@@ -36,7 +36,7 @@
 | 🟢 低 | RSS/Atom 缺失 | `Blogs/DEVELOPMENT.md` 曾列出 `feed.py`，实际文件和路由不存在 | F3 使用 Django Syndication Feed，只输出公开已发布文章 |
 | 🟢 低 | `robots.txt` 缺失 | 已有 `/sitemap.xml/` | F4 增加文本响应并声明 sitemap |
 | 🟢 低 | SEO/分享元数据不足 | 基础模板未定义 canonical、description、Open Graph | F4 建立模板 block，详情页使用文章元数据 |
-| 🟢 低 | `security.txt` 缺失 | 站点已有安全实践但无公开报告入口 | F5 评估 `/.well-known/security.txt` |
+| ✅ 已完成 | `security.txt` | RFC 9116 Contact/Expires/Canonical 与上线检查清单已落地 | F5 |
 
 严重度表示问题影响，不是本文档权重。Profile 的视觉效果优先于微小性能优化，但公开 QuerySet、图片校验和权限边界不得因此放宽。
 
@@ -79,9 +79,12 @@
 | `/accounts/profile/` | 登录用户 | 跳转到自己的 Profile；未公开时本人仍可预览 |
 | `/accounts/u/<username>/` | 公开 | 仅展示 active 且 `is_public=True` 的资料与公开文章；其他情况 404 |
 | `/accounts/settings/profile/` | 登录用户 | 只能编辑自己的公开资料 |
-| `/accounts/password/change/` | 登录用户 | 校验旧密码、新密码策略；成功后保留当前 Session |
+| `/accounts/password/change/verify/` | 登录用户 | 邮件验证码 10 分钟有效；60 秒冷却、每小时 3 封、每枚最多错 5 次 |
+| `/accounts/password/change/` | 已完成短时邮箱验证 | 继续校验旧密码、新密码策略；成功后消费验证授权并保留当前 Session |
 
 文章详情中的作者名只有在 Profile 可公开时才链接作者页。空 Profile 不显示虚构资料；展示名为空时回退 username，头像为空时使用 Devenir 默认图形。
+
+Profile 的“修改密码”入口使用 `/accounts/password/change/verify/?restart=1`：每次从 Profile 主动发起都先清除旧授权并展示邮箱验证页。验证成功进入密码表单后，刷新页面可以在剩余授权时间内继续填写；重启 Django 进程不会清理 Redis Session，因此不能把“重启服务”视为撤销验证授权的手段。
 
 ### 4.3 请求与权限流程
 
@@ -99,7 +102,9 @@ flowchart TD
     OWNER --> VALIDATE["表单与头像安全校验"]
     VALIDATE --> SAVE["保存本人资料"]
 
-    SELF --> PASSWORD["Django PasswordChangeForm"]
+    SELF --> EMAIL["短时邮箱验证码"]
+    EMAIL --> LIMIT["TTL + 冷却 + 发送/错误次数限制"]
+    LIMIT --> PASSWORD["Django PasswordChangeForm"]
     PASSWORD --> POLICY["AUTH_PASSWORD_VALIDATORS"]
     POLICY --> SESSION["update_session_auth_hash"]
 ```
@@ -112,6 +117,8 @@ flowchart TD
 - Profile 页面不出现邮箱、权限、Membership、草稿或内部文章。
 - 头像拒绝伪造格式、超限体积和像素炸弹；文件名由服务端生成。
 - 修改密码后当前会话继续有效，旧密码立即失效，并保留 Django 密码强度验证。
+- 修改密码必须先通过绑定当前 Session 的邮箱验证码；验证码、发送和错误尝试均受短时限制，成功改密后授权立即消费。
+- Credential Rotation Console 的强度信号只提供即时提示，服务端 Django 密码校验器始终是最终判定来源；禁用 JavaScript 不得绕过或阻断改密。
 - 桌面和移动 Header 中登录用户名可进入 `/accounts/profile/`。
 
 ## 5. F2：站点说明与隐私
@@ -121,6 +128,8 @@ About 与隐私说明采用 Django Template 页面，继续继承 Devenir `base.
 - About：站点定位、作者、内容主题、Board 视觉概念、技术栈和许可证。
 - Privacy：说明账号邮箱、评论、限流 IP、Session、服务日志和 MongoDB HMAC 审计用途；说明保留期限与联系渠道。
 - Contact：首期继续使用页脚邮件链接，不保存新的联系表单数据。
+
+当前实现为 `/about/` 与 `/privacy/` 两个公开静态路由。桌面/移动导航提供 About，Footer 同时提供 About 与隐私入口。隐私页明确说明邀请制账号邮箱、公开 Profile、投稿与评论、Session、限流 IP、应用日志和 MongoDB HMAC 审计的用途与当前保留方式；未配置自动到期的数据不得写成已自动删除。
 
 ## 6. F3：归档与 Feed
 
@@ -142,11 +151,11 @@ About 与隐私说明采用 Django Template 页面，继续继承 Devenir `base.
 | 阶段 | 状态 | 输出 | 前置关系 |
 |---|---|---|---|
 | F0 | ✅ 文档完成 | 范围、职责、严重度、路由与验收冻结 | — |
-| F1 | ✅ 已完成 | `UserProfile`、公开/本人页面、资料编辑、密码修改、作者链接 | 19 项 accounts 测试与桌面/390px 视觉检查通过 |
-| F2 | ⏳ 下一步 | About、隐私说明、导航与页脚入口 | F1 已完成 |
-| F3 | ⬜ | 公开归档、RSS/Atom、统一公开文章 helper | F1 作者页查询经验 |
-| F4 | ⬜ | SEO block、robots、错误 handler | F2/F3 页面 URL 稳定 |
-| F5 | ⬜ 可选 | `security.txt` 与上线检查清单 | 联系地址与生产域名确定 |
+| F1 | ✅ 已完成 | `UserProfile`、公开/本人页面、资料编辑、邮箱验证改密、作者链接 | 30 项 accounts 测试与桌面/390px 视觉检查通过 |
+| F2 | ✅ 已完成 | About、隐私说明、导航与页脚入口 | 3 项页面契约测试及桌面/390px 视觉检查通过 |
+| F3 | ✅ 已完成 | 公开年月归档、RSS/Atom、统一公开文章 helper | 3 项 F3 契约测试、1280px 视觉检查及 143 项全量回归通过 |
+| F4 | ✅ 已完成 | SEO block、robots、公开 Sitemap、错误 handler | 6 项 F4 契约测试及 149 项全量回归通过 |
+| F5 | ✅ 已完成 | RFC 9116 `security.txt` 与上线检查清单 | 1 项契约测试及 150 项全量回归通过 |
 
 完成 F1–F4 后再评估是否继续该路线；它不取消 `accounts_linear` Stage 6a/6b、投稿审核邮件或 v2.5 安全路线，只是按用户当前优先级插入其前。
 
@@ -155,7 +164,7 @@ About 与隐私说明采用 Django Template 页面，继续继承 Devenir `base.
 - 使用匿名、Profile 所有人、另一普通用户和 superuser 四种身份测试 Profile。
 - 为作者准备公开文章、草稿、审核中和内部文章，确认公开页面只出现第一类。
 - 上传正常头像与伪造/超大图片，确认拒绝路径和错误中文可理解。
-- 修改密码后刷新当前页面仍为登录状态，再用旧密码登录应失败。
+- 检查验证码 10 分钟有效期、60 秒冷却、每小时 3 封和 5 次错误上限；改密后当前页面仍为登录状态，旧密码登录失败。
 - 在手机宽度检查 Profile、归档、About 与隐私页面，视觉优先但不得出现横向溢出。
 - 以 `DEBUG=False` 检查 RSS XML、robots、canonical、404 和 500 响应。
 
@@ -163,9 +172,9 @@ About 与隐私说明采用 Django Template 页面，继续继承 Devenir `base.
 
 - [x] **红色 / 高权重**：F1 提供安全的密码修改入口。
 - [x] **黄色 / 中权重**：F1 实现公开 Profile、本人资料编辑和作者文章隔离测试。
-- [ ] **黄色 / 中权重**：F2 补齐 About 与隐私说明。
-- [ ] **黄色 / 中权重**：F3 实现公开文章归档。
-- [ ] **黄色 / 中权重**：F4 将 Devenir 错误模板接入生产 handler。
-- [ ] **绿色 / 低权重**：F3 实现 RSS/Atom。
-- [ ] **绿色 / 低权重**：F4 增加 robots、canonical 与 Open Graph。
-- [ ] **绿色 / 低权重**：F5 评估 `security.txt`。
+- [x] **黄色 / 中权重**：F2 补齐 About 与隐私说明。
+- [x] **黄色 / 中权重**：F3 实现公开文章归档。
+- [x] **黄色 / 中权重**：F4 将 Devenir 错误模板接入生产 handler。
+- [x] **绿色 / 低权重**：F3 实现 RSS/Atom。
+- [x] **绿色 / 低权重**：F4 增加 robots、canonical 与 Open Graph。
+- [x] **绿色 / 低权重**：F5 实现 `security.txt` 与上线检查清单。

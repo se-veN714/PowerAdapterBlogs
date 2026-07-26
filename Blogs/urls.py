@@ -21,7 +21,7 @@ from rest_framework.routers import DefaultRouter
 from Blogs.apis import PostViewSet, CategoryViewSet
 from Blogs.views import (
     CategoryView, TagView, PostDetailView,
-    PostListView, SearchView, PostCreateView, PostEditView,
+    PostArchiveView, PostListView, SearchView, PostCreateView, PostEditView,
     revision_body, revision_diff,
 )
 from Blogs.views import post_img_upload
@@ -45,6 +45,7 @@ urlpatterns = [
     path("tag/<int:tag_id>/", TagView.as_view(), name="tag_list"),
     # PostList
     path("post/", PostListView.as_view(), name="post_list"),
+    path("archive/", PostArchiveView.as_view(), name="post_archive"),
     # Post Detail
     path("post/<slug:slug>", PostDetailView.as_view(), name="post_detail"),
     # Search

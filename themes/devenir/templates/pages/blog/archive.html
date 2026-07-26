@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}文章归档{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/blog.css' %}?v=20260727.1">
+{% endblock %}
+
+{% block hero %}
+<div class="page-header archive-page-header">
+    <p class="page-subtitle">PUBLIC TRANSMISSION INDEX</p>
+    <h1 class="page-title">文章归档</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container archive-page">
+    <header class="archive-console">
+        <div>
+            <span class="archive-console-label">INDEX STATUS</span>
+            <strong>{{ archive_count|stringformat:"04d" }}</strong>
+            <span>PUBLIC RECORDS</span>
+        </div>
+        <nav class="archive-jump" aria-label="按月份跳转">
+            {% for group in archive_groups %}
+                <a href="#{{ group.anchor }}">{{ group.year }}.{{ group.month|stringformat:"02d" }}</a>
+            {% empty %}
+                <span>NO SIGNAL</span>
+            {% endfor %}
+        </nav>
+    </header>
+
+    {% for group in archive_groups %}
+        <section class="archive-group" id="{{ group.anchor }}">
+            <header class="archive-group-header">
+                <div class="archive-date">
+                    <span>{{ group.year }}</span>
+                    <strong>{{ group.month|stringformat:"02d" }}</strong>
+                </div>
+                <div class="archive-group-meta">
+                    <span>MONTHLY PACKET</span>
+                    <span>{{ group.count|stringformat:"02d" }} RECORDS</span>
+                </div>
+            </header>
+            {% include 'pages/blog/_post_stream.html' with post_list=group.posts stream_start_index=group.start_index %}
+        </section>
+    {% empty %}
+        <div class="empty-state archive-empty">
+            <div class="empty-icon">&#9711;</div>
+            <p class="empty-text">NO PUBLIC TRANSMISSIONS</p>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

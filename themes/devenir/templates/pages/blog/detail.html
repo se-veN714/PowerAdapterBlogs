@@ -4,6 +4,14 @@
 {% load md_extras %}
 
 {% block title %}Blog-{{ post.id }}-{{ post.title }}{% endblock %}
+{% block meta_description %}{{ seo_description }}{% endblock %}
+{% block meta_robots %}{% if post.status == 1 and post.visibility == 0 %}index, follow{% else %}noindex, nofollow{% endif %}{% endblock %}
+{% block canonical_url %}{{ seo_canonical_url }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ post.title }}{% endblock %}
+{% block og_description %}{{ seo_description }}{% endblock %}
+{% block og_url %}{{ seo_canonical_url }}{% endblock %}
+{% block og_image %}{{ seo_image_url }}{% endblock %}
 
 {% block head_script %}
     {{ block.super }}

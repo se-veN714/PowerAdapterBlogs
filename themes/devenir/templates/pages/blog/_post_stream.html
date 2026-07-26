@@ -2,7 +2,7 @@
 
 <div class="post-stream">
     {% for post in post_list %}
-        {% with counter=page_obj.start_index|add:forloop.counter0 is_even=forloop.counter|divisibleby:2 %}
+        {% with counter=stream_start_index|default:1|add:forloop.counter0 is_even=forloop.counter|divisibleby:2 %}
         <article class="stream-node {% if is_even %}stream-node--reverse{% endif %}"
                  data-node-index="{{ counter|stringformat:'02d' }}"
                  data-category="{{ post.category.name|slugify }}">

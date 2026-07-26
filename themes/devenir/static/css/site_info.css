@@ -1,0 +1,92 @@
+.site-info-hero {
+    padding: 8rem 0 4rem;
+    border-bottom: 1px solid var(--fragment-border);
+}
+
+.site-info-kicker,
+.section-code,
+.privacy-version {
+    color: var(--accent-muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+}
+
+.site-info-hero h1 {
+    max-width: 900px;
+    margin: 0.65rem 0 1rem;
+    color: var(--accent-primary);
+    font-size: clamp(2.4rem, 7vw, 6.5rem);
+    line-height: 0.98;
+}
+
+.site-info-hero > .container > p:last-child {
+    max-width: 720px;
+    color: var(--text-secondary);
+}
+
+.site-info-layout {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 760px);
+    justify-content: space-between;
+    gap: 5rem;
+    padding-top: 4rem;
+}
+
+.site-info-index {
+    position: sticky;
+    top: 6rem;
+    align-self: start;
+    display: grid;
+    border-top: 1px solid var(--accent-deep);
+}
+
+.site-info-index span,
+.site-info-index a {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--fragment-border);
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 0.67rem;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+}
+
+.site-info-index span { color: var(--accent-soft); }
+.site-info-index a:hover { color: var(--accent-primary); }
+
+.site-info-body section {
+    padding: 0 0 3.5rem;
+    scroll-margin-top: 6rem;
+}
+
+.site-info-body section + section {
+    padding-top: 3.5rem;
+    border-top: 1px dashed var(--fragment-border);
+}
+
+.site-info-body h2 {
+    margin: 0.65rem 0 1.25rem;
+    color: var(--text-primary);
+    font-size: clamp(1.5rem, 3vw, 2.4rem);
+}
+
+.site-info-body p,
+.site-info-body li {
+    color: var(--text-secondary);
+    line-height: 1.95;
+}
+
+.site-info-body a { color: var(--accent-soft); }
+.site-info-body a:hover { color: var(--accent-primary); }
+.site-info-body ul { padding-left: 1.2rem; }
+.site-info-body li + li { margin-top: 0.7rem; }
+.privacy-version { margin-bottom: 3rem; }
+
+@media (max-width: 760px) {
+    .site-info-hero { padding: 6.5rem 0 3rem; }
+    .site-info-layout { grid-template-columns: 1fr; gap: 3rem; padding-top: 3rem; }
+    .site-info-index { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .site-info-index span { grid-column: 1 / -1; }
+    .site-info-index a { min-height: 44px; }
+}

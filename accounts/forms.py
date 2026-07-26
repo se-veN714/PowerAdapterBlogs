@@ -77,3 +77,23 @@ class UserProfileForm(forms.ModelForm):
 
 class AccountPasswordChangeForm(PasswordChangeForm):
     """前台账号密码修改表单。"""
+
+
+class PasswordEmailVerificationForm(forms.Form):
+    """修改密码前的邮箱一次性验证码。"""
+
+    code = forms.RegexField(
+        regex=r"^\d{6}$",
+        label="邮箱验证码",
+        max_length=6,
+        min_length=6,
+        error_messages={"invalid": "请输入邮件中的 6 位数字验证码。"},
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "one-time-code",
+                "inputmode": "numeric",
+                "pattern": "[0-9]{6}",
+                "placeholder": "000000",
+            }
+        ),
+    )

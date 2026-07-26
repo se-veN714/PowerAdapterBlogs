@@ -23,10 +23,31 @@ from .forms import (
     AcceptAccountInvitationForm,
     AccountPasswordChangeForm,
     LoginForm,
+    PasswordEmailVerificationForm,
     UserProfileForm,
 )
 from .models import AccountInvitation, MyUser, UserProfile
-from .services import accept_account_invitation, invitation_token_digest
+from .services import (
+    PASSWORD_CODE_COOLDOWN,
+    PASSWORD_CODE_EXPIRED,
+    PASSWORD_CODE_INVALID,
+    PASSWORD_CODE_LOCKED,
+    PASSWORD_CODE_SEND_FAILED,
+    PASSWORD_CODE_SEND_LIMIT,
+    PASSWORD_CODE_SENT,
+    PASSWORD_CODE_VERIFIED,
+    accept_account_invitation,
+    clear_password_email_verification,
+    invitation_token_digest,
+    issue_password_change_email_code,
+    mark_password_email_verified,
+    password_change_code_pending,
+    password_change_code_remaining_seconds,
+    password_change_resend_remaining_seconds,
+    password_email_is_verified,
+    password_email_verification_remaining_seconds,
+    verify_password_change_email_code,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -233,18 +254,108 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
         return response
 
 
+class PasswordEmailVerificationView(LoginRequiredMixin, FormView):
+    """修改密码前，以短时邮件验证码确认当前账号控制权。"""
+
+    form_class = PasswordEmailVerificationForm
+    template_name = "pages/accounts/password_email_verification.html"
+
+    def _session_key(self):
+        if not self.request.session.session_key:
+            self.request.session.create()
+        return self.request.session.session_key
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            if request.GET.get("restart") == "1":
+                clear_password_email_verification(request)
+            elif password_email_is_verified(request):
+                return redirect("accounts:password-change")
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        if request.POST.get("action") == "send":
+            result = issue_password_change_email_code(
+                request.user,
+                self._session_key(),
+            )
+            message_map = {
+                PASSWORD_CODE_SENT: (messages.success, "验证码已发送，请检查账号邮箱。"),
+                PASSWORD_CODE_COOLDOWN: (messages.warning, "发送过于频繁，请一分钟后再试。"),
+                PASSWORD_CODE_SEND_LIMIT: (messages.error, "本小时发送次数已用完，请稍后再试。"),
+                PASSWORD_CODE_SEND_FAILED: (messages.error, "邮件暂时发送失败，请稍后再试。"),
+            }
+            handler, text = message_map[result]
+            handler(request, text)
+            return redirect("accounts:password-email-verify")
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        result = verify_password_change_email_code(
+            self.request.user,
+            self._session_key(),
+            form.cleaned_data["code"],
+        )
+        if result == PASSWORD_CODE_VERIFIED:
+            mark_password_email_verified(self.request)
+            logger.info("修改密码邮箱验证通过: user_id=%s", self.request.user.pk)
+            return redirect("accounts:password-change")
+        error_map = {
+            PASSWORD_CODE_INVALID: "验证码不正确，请重新输入。",
+            PASSWORD_CODE_EXPIRED: "验证码不存在或已过期，请重新发送。",
+            PASSWORD_CODE_LOCKED: "错误次数已用完，请重新发送验证码。",
+        }
+        form.add_error("code", error_map[result])
+        return self.form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        email = self.request.user.email
+        local, _, domain = email.partition("@")
+        visible = local[:2]
+        context["masked_email"] = f"{visible}{'*' * max(2, len(local) - 2)}@{domain}"
+        context["code_sent"] = password_change_code_pending(
+            self.request.user.pk,
+            self._session_key(),
+        )
+        context["code_remaining"] = password_change_code_remaining_seconds(
+            self.request.user.pk,
+            self._session_key(),
+        )
+        context["resend_remaining"] = password_change_resend_remaining_seconds(
+            self.request.user.pk,
+        )
+        context["code_ttl_minutes"] = settings.PASSWORD_EMAIL_CODE_TTL_SECONDS // 60
+        context["max_attempts"] = settings.PASSWORD_EMAIL_MAX_ATTEMPTS
+        return context
+
+
 class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
-    """使用 Django 密码策略修改密码，并保持当前登录会话。"""
+    """邮箱验证后使用 Django 密码策略改密，并保持当前登录会话。"""
 
     form_class = AccountPasswordChangeForm
     template_name = "pages/accounts/password_change.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and not password_email_is_verified(request):
+            messages.info(request, "修改密码前，请先完成账号邮箱验证。")
+            return redirect("accounts:password-email-verify")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
         profile, _ = UserProfile.objects.get_or_create(user=self.request.user)
         return profile.get_absolute_url()
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["email_verification_remaining"] = (
+            password_email_verification_remaining_seconds(self.request)
+        )
+        return context
+
     def form_valid(self, form):
         response = super().form_valid(form)
+        clear_password_email_verification(self.request)
         logger.info("用户密码已修改: user_id=%s", self.request.user.pk)
         messages.success(self.request, "密码已修改，当前设备保持登录。")
         return response

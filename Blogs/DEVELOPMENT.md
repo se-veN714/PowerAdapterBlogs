@@ -5,7 +5,7 @@
 > **职责**: 博客文章 CRUD、分类/标签管理、PV/UV 统计、修订追踪 (v2.0)、可见性控制  
 > **依赖**: Django CBV (ListView/DetailView/CreateView/UpdateView), DRF ViewSet, Redis 缓存  
 > **创建**: 2025-08-04  
-> **最后更新**: 2026-07-25 — PostRevision R0–R4：任意版本比较与展示模式
+> **最后更新**: 2026-07-27 — blog_foundation_linear F4：公开元数据与 Sitemap
 
 ---
 
@@ -13,6 +13,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-27 | v2.17 | **博客基础 F4**：文章 canonical/Open Graph、Feed 自动发现；Sitemap 切换统一公开 QuerySet 并修复旧 location；149 项全量回归通过 |
+| 2026-07-27 | v2.16 | **博客基础 F3**：统一公开文章 QuerySet；新增年月归档、RSS/Atom、全局入口与隔离测试；143 项全量回归通过 |
 | 2026-07-25 | v2.15 | **作者预览闭环**：投稿/保存成功后显示 messages 并跳转详情；草稿/审核中仅作者可查看详情和修订；详情页按 Policy 显示 Edit；安全过滤上一篇/下一篇；114 项回归通过 |
 | 2026-07-25 | v2.14 | **投稿表单修复**：Devenir 显式渲染中文可见性及本地化错误；移除五张预设封面和伪上传逻辑；空封面按分类使用静态默认图；111 项回归通过 |
 | 2026-07-25 | v2.13 | **PostRevision R4**：允许任意正向版本比较；Devenir 增加服务端版本选择器和双栏/行内/统计模式；补齐回滚与人工验收说明；108 项回归通过 |
@@ -136,7 +138,7 @@ flowchart TD
 | `serializers.py` | `PostSerializer`, `CategorySerializer` | DRF 序列化器 |
 | `urls.py` | — | 前台路由 + DRF 路由 + 修订 HTML 端点路由 |
 | `revisions.py` | `get_next_version()`, `create_revision()`, `render_diff()` | 修订工具；创建时锁定 Post 并校验 change_type，不承载授权判断 |
-| `feed.py` | — | **规划、当前不存在**；F3 实现仅公开已发布文章的 RSS/Atom Feed |
+| `feed.py` | `PublicPostFeed` / `PublicPostAtomFeed` | F3 RSS/Atom；复用公开文章 QuerySet，只生成固定公网基址的绝对链接 |
 | `tests.py` | `PostStreamHtmxTest` 等 | 权限、修订、上传、Post Stream fragment、缓存隔离与管理命令回归 |
 
 ### 2.1 Post Stream HTML Application API
@@ -727,7 +729,7 @@ flowchart TD
     style VIEWS fill:#fff3e0,stroke:#f57c00
 ```
 
-`feed.py` 不属于当前依赖图；它是 `blog_foundation_linear` F3 的规划组件，落地后再接入 `Post` 的统一公开 QuerySet。
+`feed.py` 已在 `blog_foundation_linear` F3 落地，通过 `Post.publicly_visible_posts()` 与 Profile、归档共享公开边界；Feed 不读取评论、修订 Diff 或内部 Board 内容。
 
 ---
 
@@ -745,7 +747,7 @@ flowchart TD
 | 修订 Diff 尚不支持块移动检测 | 🟢 低 | R4 已支持任意正向版本比较与三种展示模式；独立的块移动识别收益有限，留作 v2.5+ 候选 |
 | 普通 View/API 未使用 Board Policy | ✅ 已修复 | Stage 5 已覆盖写作 View、上传、修订端点、评论提交和只读 DRF ViewSet |
 | `/super_admin/` 的 Post 默认注册依赖 Django `is_staff` + Permission | 🟡 中 | 当前仅 superuser 创建流程授予 `is_staff`；未来引入非 superuser staff 前补 Policy 或显式 superuser 边界 |
-| 公开归档与 RSS/Atom | 🟡/🟢 规划 | 当前均未实现；按 `docs/guides/BLOG_FOUNDATION_GUIDE.md` F3 复用公开文章 QuerySet，禁止输出草稿和内部文章 |
+| 公开归档与 RSS/Atom | ✅ 已完成 | `/Blogs/archive/`、`/feed/` 与 `/feed/atom/` 共用公开文章 QuerySet；草稿、审核中和内部文章均有隔离测试 |
 
 ---
 

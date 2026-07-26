@@ -2,7 +2,43 @@
 
 > **文档权重**：60（历史变更记录；不覆盖当前架构文档）
 
+## [2026-07-27]
+
+### 博客基础 F3
+- 新增 `/Blogs/archive/` 公开年月归档，复用 Devenir Post Stream 卡片并提供月份快速索引
+- 新增 `/feed/` RSS 与 `/feed/atom/` Atom，只输出公开已发布文章和固定公网基址的绝对链接
+- Profile、归档和 Feed 共用 `Post.publicly_visible_posts()`，防止草稿、审核中及内部文章泄漏
+- 邮箱验证码发送页增加服务端截止时间驱动的重发冷却与验证码有效期倒计时
+- `run.py` 增加单实例锁、旧进程自动替换与退出清理，适配 PyCharm 重新运行
+- Ruff 与 143 项全量测试通过
+
+### 博客基础 F4
+- 全局模板增加 description、canonical、Open Graph 与 RSS/Atom 自动发现；Footer 收敛为单个 Feed 入口
+- 文章详情输出固定公网基址的 Article 元数据，非公开状态使用 `noindex, nofollow`
+- 新增 `/robots.txt`，屏蔽后台、邀请、账号设置、上传和 API，并指向绝对 Sitemap URL
+- Sitemap 切换统一公开文章 QuerySet，修复内部文章泄漏风险和旧版 location 路由
+- 接入 Devenir 生产 404/500 handler，错误响应不包含异常或 Traceback
+- 清理 7 个既有未使用导入/变量；全仓 Ruff 与 149 项全量测试通过
+
+### 博客基础 F5
+- 按 RFC 9116 新增 `/.well-known/security.txt`，发布安全联系邮箱、180 天有效期、中/英/日语言偏好与固定 Canonical
+- 新增权重 84 的生产上线检查清单，覆盖环境、迁移、静态文件、冒烟、权限、审计和回滚
+- `SECURITY_CONTACT_EMAIL` 支持环境变量覆盖；全仓 Ruff 与 150 项全量测试通过
+
+### 并行开发与文档治理
+- 新增权重 95 的 `DOCUMENTATION_GUIDE.md`，保持 `V2GUIDE.md` 为唯一最高权重并固定 Agent 阅读顺序
+- 冻结 `codex/admin-hardening` 与 `codex/board-index-k3` 的分支、worktree、所有权和合并边界
+- 新增 K3 Board Index 前端交接文档；明确不得修改 Python、Migration、Policy、URLConf、Admin 或 API
+
 ## [2026-07-26]
+
+### 邮箱验证改密与博客基础 F2
+- 修改密码前增加当前 Session 绑定的 6 位邮箱验证码，仍保留旧密码与 Django 新密码策略校验
+- 验证码默认 10 分钟有效、60 秒重发冷却、每小时最多 3 封、每枚最多错误 5 次；改密授权 10 分钟后失效并在成功后消费
+- 新增公开 About 与隐私说明页面，记录账号、评论、Session、IP 限流、应用日志和 MongoDB HMAC 审计的用途与保留方式
+- 桌面/移动导航增加 About，Footer 增加 About 与隐私入口；完成 390px 响应式检查
+- Profile 的“修改密码”固定开启新邮箱验证，不复用此前的短时授权；已验证表单刷新仍可继续填写
+- 修改密码页升级为 Credential Rotation Console：步骤轨、授权倒计时、密码熵信号、规则节点、匹配状态及提交扫描动画
 
 ### 作者 Profile 与账号设置
 - 新增默认私密的 `UserProfile`，支持展示名、简介、头像、个人网站、GitHub 与所在地

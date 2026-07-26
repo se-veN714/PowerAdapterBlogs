@@ -20,7 +20,7 @@
 ## 暂未采用
 
 - `CompositePrimaryKey`：现有模型和外键已经稳定，迁移收益不足，贸然使用会扩大 Admin、DRF、权限和历史数据风险。
-- 异步认证接口：当前应用仍是同步 CBV/WSGI 风格；渐进试验路线与安全边界见 [`DJANGO_ASYNC_GUIDE.md`](DJANGO_ASYNC_GUIDE.md)。
+- 异步认证接口：当前应用仍是同步 CBV/WSGI 风格；异步演进作为本地试验计划维护，不属于本次 LTS 升级交付。
 - 自定义 `BoundField`：现有 Devenir 表单主要由 widget 和 CSS 控制，暂时没有重复逻辑需要抽象。
 
 ## 兼容与部署边界

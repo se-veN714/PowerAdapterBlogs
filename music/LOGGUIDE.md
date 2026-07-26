@@ -1,7 +1,7 @@
 # Music App — 日志指南
 
 > **文档权重**：30（已停用空壳模块，仅作历史参考）
-> 配套：[根目录 LOGGUIDE.md](../LOGGUIDE.md)
+> 配套：[全项目 LOGGUIDE.md](../docs/guides/LOGGUIDE.md)
 
 ---
 

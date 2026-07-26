@@ -1,7 +1,7 @@
 # PowerAdapterBlogs 文档权重与阅读顺序
 
 > **文档权重**：99（文档路由规则；仅次于 `V2GUIDE.md`）
-> **更新**：2026-07-21 — 增加 Django LTS 与异步演进专项 Guide
+> **更新**：2026-07-26 — 新增博客基础体验跨模块专项路线
 > **用途**：帮助开发者与 Agent 判断阅读顺序、文档作用域和冲突处理方式。
 
 ## 1. 权重含义
@@ -24,19 +24,19 @@
 
 | 权重 | 文档 | 作用 |
 |---:|---|---|
-| 100 | `V2GUIDE.md` | 当前版本、全局架构和路线决策 |
-| 99 | `DOCUMENTATION_GUIDE.md` | 文档路由和冲突规则 |
-| 95 | `CODING_GUIDE.md` | Python/Django 编码硬约束 |
-| 92 | `codex_context.md`（本地） | 当前 Agent 交接快照，不覆盖 V2 决策 |
+| 100 | `V2GUIDE.md`（根目录） | 当前版本、全局架构和路线决策 |
+| 99 | `docs/guides/DOCUMENTATION_GUIDE.md` | 文档路由和冲突规则 |
+| 95 | `docs/guides/CODING_GUIDE.md` | Python/Django 编码硬约束 |
+| 92 | `codex_context.md`（根目录、本地） | 当前 Agent 交接快照，不覆盖 V2 决策 |
 | 90 | `accounts/PERMISSIONS_GUIDE.md` | 当前 Board Scope 权限主设计与 `accounts_linear` |
-| 88 | `accounts/SECURITY_ROADMAP.md` | v2.5+ MFA 与密钥生命周期规划 |
-| 86 | `DJANGO_LTS_UPGRADE.md` | Django LTS 版本、兼容边界、新能力采用与升级验证 |
+| 88 | `accounts/SECURITY_ROADMAP.md` | v2.5+ 特权证书、TOTP、mTLS 与密钥生命周期规划 |
+| 87 | `docs/guides/BLOG_FOUNDATION_GUIDE.md` | Profile、账号设置、About、隐私、归档、Feed 与公开站点元数据专项路线 |
+| 86 | `docs/guides/DJANGO_LTS_UPGRADE.md` | Django LTS 版本、兼容边界、新能力采用与升级验证 |
 | 85 | 各 App `DEVELOPMENT.md` | 对应模块当前实现与 TODO |
-| 84 | `DJANGO_ASYNC_GUIDE.md` | ASGI/异步岛试验路线、安全边界与后端交接 TODO；规划中 |
 | 82 | 根目录 `DEVELOPMENT.md` | 项目结构与通用开发入口 |
-| 80 | `GITGUIDE.md`（本地） | Git 操作范围内的提交规范 |
+| 81 | `docs/README.md` | 项目文档导航，不承载高于目标文档的设计结论 |
 | 78 | `themes/devenir/DEVELOPMENT.md` | 当前主题实现细节 |
-| 75 | 根目录 `LOGGUIDE.md` | 全项目日志规范 |
+| 75 | `docs/guides/LOGGUIDE.md` | 全项目日志规范 |
 | 74 | `themes/devenir/POSTLIST_HANDOFF.md` | PostList 前端重构的实施快照、模型边界与验收标准 |
 | 70 | 各 App `LOGGUIDE.md` | 模块日志细节 |
 | 60 | `CHANGELOG.md` | 历史变更记录，不代表当前设计 |
@@ -49,12 +49,16 @@
 开始全局任务时至少阅读：
 
 1. `V2GUIDE.md`
-2. `CODING_GUIDE.md`
+2. `docs/guides/CODING_GUIDE.md`
 3. 目标 App 的 `DEVELOPMENT.md`
-4. 与任务直接相关的专项 Guide
-5. 如涉及日志，再阅读根目录与目标 App 的 `LOGGUIDE.md`
+4. 与任务直接相关且纳入仓库的专项 Guide
+5. 如涉及日志，再阅读 `docs/guides/LOGGUIDE.md` 与目标 App 的 `LOGGUIDE.md`
 
 执行 Devenir PostList 重构时，专项 Guide 为 `themes/devenir/POSTLIST_HANDOFF.md`；仍须先服从 `V2GUIDE.md` 与 `themes/devenir/DEVELOPMENT.md`。
 
+执行 `blog_foundation_linear` 时，专项 Guide 为 `docs/guides/BLOG_FOUNDATION_GUIDE.md`；Profile 身份字段继续服从 `accounts/DEVELOPMENT.md`，文章可见性继续服从 `accounts/PERMISSIONS_GUIDE.md` 与 `boards.policies`。
+
 
 不得仅凭 `README.md`、`CHANGELOG.md` 或本地 `Project_context.md` 推断当前架构；后者只用于快速定位，实施前仍须核对高权重文档、代码和目标 diff。
+
+个人学习路线、临时试验计划、Agent 交接快照和本地 Git 规范由开发者自行保存，可辅助思考，但不参与仓库文档权重与架构裁决。

@@ -1,7 +1,7 @@
 # Comment App — 日志指南
 
 > **文档权重**：70（comment 日志细节；服从根目录 LOGGUIDE）
-> 配套：[根目录 LOGGUIDE.md](../LOGGUIDE.md)
+> 配套：[全项目 LOGGUIDE.md](../docs/guides/LOGGUIDE.md)
 
 ---
 

@@ -2,8 +2,8 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-07-21
-> **状态**: Board Scope Stage 0–5 已完成；下一项为 Stage 6 全局 Group 初始化与 BoardAccessRequest 自动审批，复杂认证与密钥生命周期默认进入 v2.5+
+> **更新**: 2026-07-26
+> **状态**: Board Scope Stage 0–5、邀请制账号激活及 `blog_foundation_linear` F1 已完成；下一步 F2 About / 隐私说明；完成基础博客体验后恢复 Stage 6a/6b
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -25,14 +25,60 @@
 | 版本 | 目标 | 主文档 |
 |---|---|---|
 | v2.4 | accounts 管身份/全局 Group，boards 管 Membership/申请审批/跨 App Policy；Board 创建仅限 superuser | `accounts/PERMISSIONS_GUIDE.md` |
-| v2.5 | superuser / Board Manager 强制 TOTP MFA，兼容 Android Microsoft Authenticator | `accounts/SECURITY_ROADMAP.md` |
+| v2.4 | 个人博客基础体验：Profile、密码修改、About/隐私、归档、Feed、SEO 与错误页 | `docs/guides/BLOG_FOUNDATION_GUIDE.md` |
+| v2.5 | superuser 证书绑定 + TOTP、Board Manager 强制 TOTP；`/super_admin/` 增加 Nginx mTLS 边界验证 | `accounts/SECURITY_ROADMAP.md` |
 | v2.5+ | 密钥产生、分发、存储、使用、更新、归档、撤销、备份、恢复和销毁 | `accounts/SECURITY_ROADMAP.md` |
-| v2.6+ 候选 | ASGI 基线、异步 Middleware 审计与友情链接异步岛 | `DJANGO_ASYNC_GUIDE.md` |
+| v2.6+ 候选 | ASGI 基线、异步 Middleware 审计与友情链接异步岛 | 本地试验规划（不入库） |
 | v2.6+ 候选 | Passkey、外部 IdP/Entra 或合规密码设备 | 需求成熟后再立项 |
 
 复杂功能可以后移；只有在前置测试、恢复方案和回滚路径提前成熟时才允许前移。v2.1 内容模型对接仍由另一项目完成后再推进，不与本路线强绑定。
 
+#### v2.5 特权账户强认证边界（规划，未实现）
+
+superuser 的目标链路为“受信客户端证书 + TOTP 动态验证码”；首轮实现默认仍保留密码校验，形成 mTLS、应用身份和 TOTP 三道独立闸门。只有完成威胁模型、恢复流程和兼容性测试后，才单独评估是否允许证书 + TOTP 的无密码登录。Board Manager 首期只强制 TOTP，不强制客户端证书，避免把板块协作入口和站点最高权限入口混成同一门槛。
+
+`/super_admin/` 的 mTLS 推荐使用独立管理域名 / Nginx `server`，例如 `admin.poweradapter.xyz`；公网站点不再直接暴露该路径。原因是 Nginx 的 `ssl_verify_client` 作用域为 `http` / `server`，直接在现有站点打开会影响整站 TLS 握手。若暂时只能复用同一域名，必须采用 `ssl_verify_client optional` + location 强制校验，并先验证普通博客访问不会持续弹出客户端证书选择框。
+
+```mermaid
+sequenceDiagram
+    actor Admin as Superuser
+    participant Nginx as Admin Nginx vhost
+    participant CA as Client CA / Revocation
+    participant Django as Django privileged login
+    participant Cert as Certificate binding
+    participant TOTP as TOTP service
+    participant Session as Privileged session
+    participant Audit as HMAC audit
+
+    Admin->>Nginx: TLS handshake + client certificate
+    Nginx->>CA: 验证证书链、有效期与撤销状态
+    alt mTLS 不通过
+        Nginx-->>Admin: TLS/HTTP 拒绝，不到达 Django
+    else mTLS 通过
+        Nginx->>Django: 转发已清洗的验证结果、序列号与 Subject DN
+        Django->>Cert: 匹配 active superuser 的已验证证书
+        Cert-->>Django: 身份绑定通过
+        Django->>TOTP: 校验动态验证码、时间窗、重放与限流
+        TOTP-->>Django: 通过
+        Django->>Session: 签发短时 privileged session
+        Django->>Audit: 记录证书标识、认证结果与会话升级事件
+        Django-->>Admin: 进入 /super_admin/
+    end
+```
+
+这里的证书绑定与 mTLS 是两层：Nginx 判断“证书是否由受信 CA 签发且当前有效”，Django 再判断“该证书是否绑定到当前 active superuser”。禁止仅凭可伪造的普通请求头授予权限；Nginx 必须覆盖/清除外部同名头，Gunicorn 仍只通过本机 Unix socket 接收请求。客户端证书的签发、分发、续期、吊销、丢失恢复和销毁纳入 v2.5+ 密钥生命周期，不允许成为无人能恢复的单点锁。
+
 截至 2026-07-19，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的 Admin、状态 action、写作 View、上传、修订端点和只读 DRF API 接入 `boards.policies`。下一步进入 Stage 6a/6b，自动化全局 Group 与 Board 权限申请/审批；当前仍未实现动态申请页面和 Membership 自动写入。
+
+#### 邀请制账号决策（2026-07-26）
+
+本站是小规模个人站，不开放匿名公共注册。superuser 在 `/super_admin/` 中只填写用户名和邮箱，系统创建未激活且没有可用密码的账号，并在数据库提交成功后发送一次性邀请。受邀者通过邮件自行设置密码；激活事务同时加入 `VerifiedUsers`，但该 Group 的 `boards.apply_board_access` Permission 仍由 Stage 6a 初始化。重新发送邀请会使旧链接失效，邀请默认 24 小时过期。
+
+邮件传输、模板和公网基址可以继续供投稿审核提醒复用；邀请 Token、账号状态转换和 Board 审核通知不得共用业务逻辑。投稿提醒仍是后续邮件阶段任务。
+
+#### blog_foundation_linear（2026-07-26，推进中）
+
+按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界，F1 已实现公开作者 Profile、本人资料编辑和安全的密码修改入口；下一步依次处理 About/隐私、归档/Feed、SEO/robots 与生产错误页。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 [`BLOG_FOUNDATION_GUIDE.md`](docs/guides/BLOG_FOUNDATION_GUIDE.md) 为准。
 
 ### 0.2 前端架构决策：Devenir HDA，不做全面分离
 
@@ -213,15 +259,15 @@ def get_next_version(post, change_type: str) -> tuple:
 
 ```mermaid
 flowchart TD
-    EDIT["PostEditView.form_valid()"]
-    SAVE["Post.save()"]
-    SNAP["PostRevision.objects.create()"]
-
-    EDIT --> SAVE
-    SAVE --> SNAP
-    
-    SNAP --> CALC["计算版本号<br/>根据 change_type 递增"]
+    EDIT["PostEditView.form_valid()"] --> SERVICE["commit_post_form() atomic"]
+    SERVICE --> LOCK["select_for_update() 锁定 Post"]
+    LOCK --> HEAD{"base_revision_id<br/>等于当前版本头?"}
+    HEAD -->|是| SAVE["保存 Post"]
+    SAVE --> SNAP["create_revision()"]
+    SNAP --> CALC["在 Post 行锁内计算版本号"]
     CALC --> CREATE["创建快照<br/>title, desc, content, slug,<br/>editor, change_type, edit_summary"]
+
+    HEAD -->|否| CONFLICT["RevisionConflict<br/>拒绝静默覆盖"]
     
     PAGE["PostDetailView<br/>完整页面含版本时间线"]
     BODY["HTML fragment<br/>GET /post/{slug}/revision/vX.Y/"]
@@ -268,13 +314,13 @@ def render_diff(old_text: str, new_text: str, from_ver: str, to_ver: str) -> str
 
 服务端完成版本解析、可见性校验、相邻版本校验、diff 生成和 HTML 渲染；htmx 只把响应片段交换到 `#revision-viewer`。前端不保存独立的版本数据模型，也不使用 fetch 重建模板。
 
-### 2.11 实施步骤（Phase 1 · 后端）
+### 2.11 实施步骤（Phase 1 · 后端，✅ 已完成并经 R1 加固）
 
 1. 创建 `PostRevision` 模型 → `python manage.py makemigrations`
 2. 在 `PostForm` 中新增 `change_type` 和 `edit_summary` 字段
-3. 在 `PostCreateView.form_valid()` 中自动生成 v1.0 初始快照
-4. 在 `PostEditView.form_valid()` 中插入快照逻辑（`save()` 之后）
-5. 实现 `get_next_version()` 版本号计算
+3. 在 `PostCreateView.form_valid()` 中通过 `commit_post_form()` 原子保存文章与 v1.0 初始快照
+4. 在 `PostEditView.form_valid()` 中提交 `base_revision_id`，拒绝陈旧页面静默覆盖较新版本
+5. 实现 `get_next_version()` 版本号计算，并在 `create_revision()` 中用 Post 行锁保护分配过程
 6. 编写修订正文与 Diff HTML fragment 端点
 7. `PostAdmin` 中注册 `PostRevision` 只读 inline
 8. `clear_page_caches()` 中无需额外处理（快照不缓存）
@@ -286,12 +332,38 @@ def render_diff(old_text: str, new_text: str, from_ver: str, to_ver: str) -> str
 - 普通请求可渲染完整历史版本页面
 - Devenir 响应式布局与全宽 diff
 - 少量 vanilla JS 只负责折叠、scramble 和视觉增强
+- 投稿表单显式渲染中文“可见性”；缺失值使用中文字段错误，不暴露 `visibility` 内部名
+- 自定义封面保持可选；字段为空时按分类使用静态默认图，默认图不伪装成上传文件、不写入媒体目录
+- 投稿或保存成功后使用 messages 提示并跳转文章详情；草稿/审核中详情与修订端点仅作者本人可见，且不计 PV
+- 详情页 Edit 入口严格复用 `can_edit_post()`；上一篇/下一篇仅从当前用户可见的已发布文章生成，不泄露草稿标题
+
+### 2.13 PostRevision 优化路线（R0–R4）
+
+> **路线状态**：R0–R4 已完成并收束。该路线只加固 v2.0，没有提前启动由另一项目对接的 v2.1 内容唯一来源迁移。实现细节与验收入口见 [`Blogs/DEVELOPMENT.md`](Blogs/DEVELOPMENT.md#91-postrevision-r0r4-linear)。
+
+| 阶段 | 状态 | 严重度 | 目标 |
+|---|---|---|---|
+| R0 | ✅ 已完成 | 🔴 高 | 增加版本分配、快照、Diff 转义、相邻比较、格式校验和唯一约束的特征测试 |
+| R1 | ✅ 已完成 | 🔴 高 | `Post` 行锁保护版本分配；前台保存与快照同事务；用 `base_revision_id` 检测陈旧编辑 |
+| R2 | ✅ 已完成 | 🟡 中 | `PostWorkflowEvent` 独立记录状态迁移并关联当时 revision；工作流失败同事务回滚；纯状态变化不再制造内容版本 |
+| R3 | ✅ 已完成 | 🟡 中 | 新 revision 双写 Markdown 块/中英文句子/字符级结构化 Diff 与旧 HTML；展示优先结构化数据，未知 schema 或旧数据安全回退；105 项回归通过 |
+| R4 | ✅ 已完成 | 🟢 低 | 任意正向版本比较、htmx 双栏/行内/统计模式、Devenir 服务端选择器与回滚/人工验收说明；108 项回归通过 |
+
+R1 的并发保证分为两层：悲观行锁只覆盖短数据库提交，乐观版本头负责发现用户长时间打开编辑页后的陈旧提交。二者不能互相替代。
+
+R2 的 `PostWorkflowEvent` 是供业务查询和 Dashboard 展示的状态历史；MongoDB HMAC 日志仍是独立的防篡改安全审计层。业务事件表不宣称具备密码学完整性。
+
+R2 验收覆盖：状态迁移与事件同事务提交、事件写入失败时回滚状态、纯状态变化不创建内容 revision，以及 Dashboard 中工作流事件的 Board Scope 与只读限制。
+
+R3 使用 `markdown-block-sentence-char-v1` 契约：数据库保存 JSON-safe 原始片段、统计与算法版本，渲染时统一 HTML 转义。`diff_from_previous` 在兼容期继续双写，既有数据无需立即回填；`backfill_diffs` 可按需补齐结构化数据且默认不覆盖已有旧 HTML。
+
+R4 允许比较同一文章中任意两个不同版本，但参数必须保持“旧版本 → 新版本”。相邻版本复用 R3 预计算结果，跨版本在请求时构建结构化 Diff。三种展示模式均由 Django 渲染，htmx 只负责替换 fragment；文章可见性仍沿用 `can_view_published_post()`，STAFF_ONLY 不会因历史比较而绕过 Board Policy。
 
 ---
 
 ## 2A. v2.1 演进：PostRevision 成为内容唯一来源
 
-> **状态**: 规划中 · 预计 2026-06 下旬  
+> **状态**: 规划中；等待另一项目完成内容模型对接后再启动
 > **目标**: Post 退化为纯元数据容器，PostRevision 成为内容唯一数据源  
 > **影响**: 模型 + 视图 + 模板 + Admin + DRF serializer · 预计 4-6h
 
@@ -406,8 +478,10 @@ PowerAdapterBlogs/settings/
 - [x] P0: `audit_all()` 返回正确的统计计数
 - [x] P0: `LOG_HMAC_KEY` 开发环境有硬编码兜底，生产环境必须环境变量
 - [x] P1: 创建文章 → 自动生成 v1.0 快照
-- [ ] P1: 编辑文章（小修订）→ 自动生成 v1.1 快照
-- [ ] P1: 编辑文章（大版本）→ 自动生成 v2.0 快照
+- [x] P1: 编辑文章（小修订）→ 自动生成 v1.1 快照
+- [x] P1: 编辑文章（大版本）→ 自动生成 v2.0 快照
+- [x] P1: Post 保存与 revision 创建同事务回滚
+- [x] P1: 陈旧编辑通过 `base_revision_id` 拒绝且不覆盖新内容
 - [x] P2: 版本时间线按版本号降序随详情页返回
 - [x] P2: htmx 正文与 diff 端点执行 STAFF_ONLY 可见性检查
 - [ ] P2: Diff HTML 对中文/代码块/Markdown 的完整回归测试

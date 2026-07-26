@@ -2,6 +2,36 @@
 
 > **文档权重**：60（历史变更记录；不覆盖当前架构文档）
 
+## [2026-07-26]
+
+### 作者 Profile 与账号设置
+- 新增默认私密的 `UserProfile`，支持展示名、简介、头像、个人网站、GitHub 与所在地
+- 新增本人 Profile 跳转、公开作者页、资料编辑和安全密码修改；修改密码后保留当前会话
+- 公开作者页与文章作者链接仅暴露 active 且主动公开的资料，并统一过滤公开已发布文章
+- 头像复用安全图片校验与随机文件名；Devenir 页面完成桌面及 390px 响应式检查
+- 修复保留已有头像时 `ImageFieldFile` 缺少 `content_type` 导致资料提交 500；新上传图片仍执行完整内容校验
+- Profile 的 LOC/WEB/GIT 从按钮式徽章调整为 Devenir 身份坐标轨
+
+### 博客基础体验规划
+- 新增权重 87 的 `BLOG_FOUNDATION_GUIDE.md`，建立 `blog_foundation_linear` F0–F5
+- 冻结 Profile、密码修改、About/隐私、归档/Feed、SEO/robots 与错误页的 App 边界和验收标准
+- 明确不开放公共注册，不引入关注、点赞、私信、排行榜或通用联系表单
+- 纠正 Blogs 文档将尚不存在的 `feed.py` 误写为当前组件的问题
+
+### 邀请制账号激活
+- 个人站保持关闭公共注册，由 superuser 通过 Admin 发放用户名和邮箱
+- 新账号没有可用密码且默认未激活；受邀者通过限时、单次邮件链接自行设置密码
+- 邀请只保存 Token 哈希，重发即撤销旧链接；邮件在数据库提交成功后发送
+- 激活时原子启用账号并加入 `VerifiedUsers`，Stage 6a 后续再为该组绑定固定全局 Permission
+- 生产设置增加固定公网基址与 SMTP 环境变量，开发环境保留 Console Email Backend
+
+## [2026-07-21]
+
+### 文档目录整理
+- 根目录保留项目入口、全局开发说明与最高权重 V2 路线，专项指南归档到 `docs/guides/`
+- 新增 `docs/README.md` 文档索引，并同步更新全局与各 App 的指南引用
+- `GITGUIDE.md` 继续作为不进入版本控制的本地规范保存
+
 ## [2026-07-19]
 
 ### 本地权限手测账号与后台入口
@@ -66,7 +96,7 @@
 
 ### 文档权重体系
 - 为 28 份项目自有 Markdown 增加 `0–100` 文档权重，`V2GUIDE.md` 设为最高权重 `100`
-- 新增 `DOCUMENTATION_GUIDE.md`，定义 Agent 阅读顺序、作用域补充和冲突裁决规则
+- 新增 `docs/guides/DOCUMENTATION_GUIDE.md`，定义 Agent 阅读顺序、作用域补充和冲突裁决规则
 - 旧文档保留为历史基线，但不得覆盖更高权重的新架构、安全和版本决策
 
 ## [2026-07-12]
@@ -103,7 +133,7 @@
 ### Kaomoji 日志格式文档化
 - 日志格式定义于 `PowerAdapterBlogs/settings/base.py:185-187`：
   - INFO `(✿◕‿◕)` / WARN `(ಠ_ಠ)` / ERROR `(╯°□°）╯︵ ┻━┻`
-- `LOGGUIDE.md` v1.0 → v1.1，在多个章节加入 kaomoji 格式说明
+- `docs/guides/LOGGUIDE.md` v1.0 → v1.1，在多个章节加入 kaomoji 格式说明
 
 ### music App 卸载
 - 从 `INSTALLED_APPS` 移除 `"music"`（空壳待开发）
@@ -166,7 +196,7 @@
 - 创建 `security/DEVELOPMENT.md`，包含架构总览、4 个序列图、4 个已知问题诊断、配置参考、ER 图
 
 ### 日志规范文档体系
-- 创建 7 个 `LOGGUIDE.md`（根目录 + 5 个 App + music）
+- 创建 7 个 `LOGGUIDE.md`（全局指南现位于 `docs/guides/`，其余位于各 App）
 - 核心设计：应用日志（logger）与审计日志（SecureLogEntry/MongoDB-HMAC）双轨分明
 
 ### V2 需求分析

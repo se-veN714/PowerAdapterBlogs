@@ -4,8 +4,8 @@
 > **归档模块**：`accounts/`
 > **主要作用域**：`boards.Board`
 > **文档职责**：治理整个授权架构；BoardMembership、申请审批与 Policy 的实现归 `boards` App
-> **状态**：`accounts_linear` 阶段 0–5 已完成；下一步为全局 Group 初始化与 BoardAccessRequest 自动审批
-> **日期**：2026-07-19（完成 Admin、状态 Service、普通 View、上传、修订端点与只读 API 的统一 Policy）
+> **状态**：`accounts_linear` 阶段 0–5 已完成；邀请激活已自动归入 `VerifiedUsers`，下一步为 Group Permission 初始化与 BoardAccessRequest 自动审批
+> **日期**：2026-07-26（完成管理员邀请制账号激活；不开放公共注册）
 > **目标**：以后续功能围绕 Board 展开，在不引入第三方对象权限库的前提下实现最小权限、职责分离和可测试的板块级授权。
 
 ## 1. 当前问题
@@ -425,6 +425,8 @@ Board 内动作的 codename 继续采用第 5 节定义，但不放入全局 Gro
 
 Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。原因不是 Django 无法表达 `add_board`，而是本项目新增 Board 等价于引入一组新的前端代码和部署变更，不属于可委派的日常业务操作。
 
+`VerifiedUsers` 当前由邀请接受服务 `accounts.services.accept_account_invitation()` 自动创建并归组。Stage 6a 仍需定义并绑定 `boards.apply_board_access`，因此“已经在基础组中”不等于当前已经能提交板块申请；Board 权限始终要等 Stage 6b 通过 `BoardAccessRequest` 写入 Membership 后才产生。
+
 #### 审批边界
 
 - Manager 可审批自己 Board 的 Contributor、Editor、Reviewer 申请及三者之间的角色变更。
@@ -479,7 +481,7 @@ Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。�
 - Category dashboard 结构管理收紧为 superuser-only；Tag 继续作为全局词汇管理，后续随 Group 初始化复核。
 - Stage 5 新增 7 个跨入口测试，Stage 4 增补 2 个 action 测试；完整测试集 65 个全部通过，Ruff 与 Django system check 均通过。
 
-当前下一步为 **阶段 6a：初始化并迁移 VerifiedUsers/UserManagers/SiteOperators 全局 Group；随后阶段 6b 实现 BoardAccessRequest、审批 Service 与 Membership 自动写入**。
+当前下一步为 **阶段 6a：为 VerifiedUsers/UserManagers/SiteOperators 初始化固定 Permission 并迁移既有身份（VerifiedUsers 的建组与新邀请归组已先行完成）；随后阶段 6b 实现 BoardAccessRequest、审批 Service 与 Membership 自动写入**。
 
 ## 13. 参考依据
 

@@ -4,7 +4,7 @@
 > **项目**: 基于 Django 5.2 的个人博客系统  
 > **作者**: seveN1foR / PowerAdapter  
 > **许可证**: MIT  
-> **最后更新**: 2026-07-21 — 增加 Django 5.2 LTS 与异步演进文档入口
+> **最后更新**: 2026-07-26 — 增加 blog_foundation_linear 专项路线入口
 
 ---
 
@@ -77,6 +77,10 @@ DjangoProject/                 # 项目根目录
 |-----|------|------|
 | `/accounts/login/` | `LoginView` | 登录（dashboard 用户自动跳转 /dashboard/） |
 | `/accounts/logout/` | `LogoutView` | 登出（跳转首页） |
+| `/accounts/profile/` | `MyProfileRedirectView` | 登录用户进入自己的 Profile |
+| `/accounts/u/<username>/` | `ProfileDetailView` | 公开作者页；私密页仅本人预览 |
+| `/accounts/settings/profile/` | `ProfileUpdateView` | 编辑本人公开资料 |
+| `/accounts/password/change/` | `AccountPasswordChangeView` | 校验旧密码并保留当前会话 |
 
 ### 2.4 API 路由
 
@@ -163,11 +167,13 @@ DjangoProject/                 # 项目根目录
 | 文档 | 内容 |
 |------|------|
 | `V2GUIDE.md` | 最高权重：当前版本、架构与路线决策 |
-| `DOCUMENTATION_GUIDE.md` | 文档权重、阅读顺序与冲突处理规则 |
+| `docs/README.md` | 全项目文档索引 |
+| `docs/guides/DOCUMENTATION_GUIDE.md` | 文档权重、阅读顺序与冲突处理规则 |
 | `CHANGELOG.md` | 全项目变更日志 |
-| `CODING_GUIDE.md` | Python 之禅、Django 分层、Mixin/继承准入条件与 Code Review 清单 |
-| `DJANGO_LTS_UPGRADE.md` | Django 5.2 LTS 版本、兼容边界与升级验证 |
-| `DJANGO_ASYNC_GUIDE.md` | ASGI/异步岛渐进试验路线、风险边界与后端 TODO |
+| `docs/guides/CODING_GUIDE.md` | Python 之禅、Django 分层、Mixin/继承准入条件与 Code Review 清单 |
+| `docs/guides/DJANGO_LTS_UPGRADE.md` | Django 5.2 LTS 版本、兼容边界与升级验证 |
+| `docs/guides/BLOG_FOUNDATION_GUIDE.md` | Profile、账号设置、About、隐私、归档、Feed 与公开站点元数据路线 |
+| `docs/guides/LOGGUIDE.md` | 全项目日志主规范 |
 | `requirements.txt` | 依赖清单 |
 | `accounts/DEVELOPMENT.md` | 用户模块详细架构 |
 | `security/DEVELOPMENT.md` | 日志完整性详细架构 |
@@ -218,3 +224,9 @@ python manage.py init_log_hmac --force
 | dashboard 用户看到 403 | 确认 `CustomSite.has_permission()` 逻辑（`cus_site.py`） |
 | 静态文件 404 | DEBUG=False 时需要 `python manage.py collectstatic` |
 | HMAC 验证失败 | 先运行审计并保留证据；仅对已知历史格式使用 `init_log_hmac --repair-known`，不得直接 `--force` |
+
+### 8.1 生产邮件与邀请账号
+
+生产环境需要配置 `PUBLIC_SITE_URL`、`DEFAULT_FROM_EMAIL`、`EMAIL_HOST`、`EMAIL_PORT`、`EMAIL_HOST_USER`、`EMAIL_HOST_PASSWORD`，并按服务商选择 `EMAIL_USE_SSL` 或 `EMAIL_USE_TLS`（不可同时开启）。开发环境默认使用 Console Email Backend，邀请链接会输出到运行终端。
+
+账号发放入口为 `/super_admin/accounts/myuser/add/`：只填写用户名和邮箱。新账号保持未激活且没有可用密码；邮件激活成功后才加入 `VerifiedUsers`。可在用户列表执行“重新发送账号邀请”，重发后旧链接立即失效。

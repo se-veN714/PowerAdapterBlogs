@@ -314,13 +314,13 @@ class Command(BaseCommand):
 
 | App | 指南 | 复杂度 |
 |-----|------|--------|
-| Blogs | [Blogs/LOGGUIDE.md](Blogs/LOGGUIDE.md) | 高（核心业务） |
-| comment | [comment/LOGGUIDE.md](comment/LOGGUIDE.md) | 中 |
-| security | [security/LOGGUIDE.md](security/LOGGUIDE.md) | 中（审计链路） |
-| accounts | [accounts/LOGGUIDE.md](accounts/LOGGUIDE.md) | 低 |
-| boards | [boards/LOGGUIDE.md](boards/LOGGUIDE.md) | 极低（展示型配置） |
-| config | [config/LOGGUIDE.md](config/LOGGUIDE.md) | 低 |
-| music | [music/LOGGUIDE.md](music/LOGGUIDE.md) | 空壳 |
+| Blogs | [Blogs/LOGGUIDE.md](../../Blogs/LOGGUIDE.md) | 高（核心业务） |
+| comment | [comment/LOGGUIDE.md](../../comment/LOGGUIDE.md) | 中 |
+| security | [security/LOGGUIDE.md](../../security/LOGGUIDE.md) | 中（审计链路） |
+| accounts | [accounts/LOGGUIDE.md](../../accounts/LOGGUIDE.md) | 低 |
+| boards | [boards/LOGGUIDE.md](../../boards/LOGGUIDE.md) | 极低（展示型配置） |
+| config | [config/LOGGUIDE.md](../../config/LOGGUIDE.md) | 低 |
+| music | [music/LOGGUIDE.md](../../music/LOGGUIDE.md) | 空壳 |
 
 ---
 

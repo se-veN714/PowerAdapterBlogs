@@ -1,7 +1,7 @@
 # Accounts App — 日志指南
 
 > **文档权重**：70（accounts 日志细节；服从根目录 LOGGUIDE）
-> 配套：[根目录 LOGGUIDE.md](../LOGGUIDE.md)
+> 配套：[全项目 LOGGUIDE.md](../docs/guides/LOGGUIDE.md)
 
 ---
 
@@ -9,8 +9,8 @@
 
 | Python Logger | Kaomoji | 含义 | 使用场景 |
 |---------------|---------|------|---------|
-| `logger.info()` | `(✿◕‿◕)` | 一切安好 | 注册成功、登录成功、密码修改成功 |
-| `logger.warning()` | `(ಠ_ಠ)` | 不对劲了 | 登录失败、连续失败、注册失败 |
+| `logger.info()` | `(✿◕‿◕)` | 一切安好 | 邀请发送/接受、登录成功、密码修改成功 |
+| `logger.warning()` | `(ಠ_ಠ)` | 不对劲了 | 登录失败、连续失败、邀请发送失败 |
 | `logger.error()` | `(╯°□°）╯︵ ┻━┻` | 出大问题了 | 账户操作异常（极少使用） |
 
 ### 日志级别决策树
@@ -33,28 +33,26 @@ flowchart TD
 
 ## 职责边界
 
-Accounts app 管理自定义用户模型 (`MyUser`)、注册、登录、密码修改。**用户认证操作具有安全敏感性，必须打日志但不得记录密码等敏感信息。**
+Accounts app 管理自定义用户模型 (`MyUser`)、邀请制激活、登录、密码修改。本站不开放公共注册。**用户认证操作具有安全敏感性，必须打日志但不得记录密码等敏感信息。**
 
 ---
 
 ## 日志点清单
 
-### A. 注册
+### A. 邀请制激活
 
 | 时机 | 级别 | 内容 |
 |------|------|------|
-| 注册成功 | INFO | user_id（不记邮箱！不记用户名！） |
-| 注册失败 | WARNING | 失败原因（如"邮箱已存在"），不记具体邮箱 |
+| 邀请邮件发送成功 | INFO | user_id（不记邮箱、Token 或 URL） |
+| 邀请邮件发送失败 | ERROR | user_id + 异常堆栈，不记邮箱或 Token |
+| 邀请接受成功 | INFO | user_id |
 
 ```python
-# 注册成功
-logger.info(f"User 注册: user_id={user.id}")
-
-# 注册失败
-logger.warning(f"User 注册失败: reason={reason}")
+logger.info("账号邀请邮件已发送: user_id=%s", user.id)
+logger.info("账号邀请已接受: user_id=%s", user.id)
 ```
 
-> **绝不记录**：明文密码、密码 hash、邮箱地址、手机号、真实姓名。
+> **绝不记录**：邀请 Token、完整邀请 URL、明文密码、密码 hash、邮箱地址、手机号、真实姓名。
 
 ### B. 登录
 

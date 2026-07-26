@@ -5,7 +5,7 @@
 > **职责**: 自定义用户模型、认证、账号状态、全局 Group 编排与用户安全；不拥有 Board Policy
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-19 — accounts_linear Stage 5 跨入口授权完成
+> **最后更新**: 2026-07-26 — 实现管理员邀请制账号、一次性邮件激活与 VerifiedUsers 自动归组
 
 ---
 
@@ -13,6 +13,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-26 | v3.11 | 不开放公共注册；superuser 发放未激活账号，受邀者通过一次性邮件链接自行设置密码，成功后原子激活并加入 VerifiedUsers |
+| 2026-07-22 | v3.10 | 文档同步：`SECURITY_ROADMAP.md` 新增 superuser 客户端证书绑定、TOTP、独立 admin vhost mTLS、证书生命周期和 break-glass 规划；运行时代码未变 |
 | 2026-07-19 | v3.9 | Stage 5 状态 Service、普通 View、上传、修订与只读 API 已停止使用全局审核/staff 旗标 |
 | 2026-07-19 | v3.8 | Stage 4 Dashboard Admin 已按 BoardMembership 接入 Policy；`is_reviewer` 不再决定 Post/Comment Admin 对象范围 |
 | 2026-07-19 | v3.7 | accounts 收敛为身份/认证/全局 Group 编排；Board 角色、申请审批与 Policy 明确归 boards |
@@ -139,17 +141,18 @@ flowchart TD
 
 | 文件 | 核心类/函数 | 职责 |
 |------|------------|------|
-| `models.py` | `MyUser`, `UserManager`, `SENSITIVE_FIELDS` | 自定义用户模型（五旗）+ 创建工厂 + 模型层防御 |
-| `admin.py` | `MyUserAdmin`, `CusMyUserAdmin` | 双 Admin 注册 + 字段权限 + M2M 拦截 |
-| `views.py` | `LoginView` | 登录视图 + 跳转逻辑 + 日志 |
-| `forms.py` | `LoginForm` | 登录表单 |
-| `urls.py` | — | `login/` + `logout/` 路由 |
+| `models.py` | `MyUser`, `AccountInvitation`, `UserManager`, `SENSITIVE_FIELDS` | 自定义用户、邀请状态、创建工厂与模型层防御 |
+| `services.py` | `issue_account_invitation()`, `accept_account_invitation()` | 事务提交后发信、Token 摘要、单次激活与 VerifiedUsers 归组 |
+| `admin.py` | `MyUserAdmin`, `CusMyUserAdmin`, `AccountInvitationAdmin` | 双 Admin 注册、邀请发放/重发、字段权限与 M2M 拦截 |
+| `views.py` | `LoginView`, `AcceptAccountInvitationView` | 登录、邀请密码设置与原子激活入口 |
+| `forms.py` | `LoginForm`, invitation forms | 登录、Admin 无密码建号与邀请密码设置表单 |
+| `urls.py` | — | `login/`、`logout/`、`invitation/<token>/` 路由 |
 | `thread_local.py` | `get_current_user()`, `set_current_user()`, `clear_current_user()` | thread-local 用户存储 |
 | `middleware.py` | `RequestUserMiddleware` | 请求生命周期捕获 `request.user` |
 | `apps.py` | `AccountsConfig` | AppConfig |
 | `LOGGUIDE.md` | — | 日志规范（含安全红线） |
 | `PERMISSIONS_GUIDE.md` | — | Group + Permission + BoardMembership + Policy 授权设计与线性实施路线 |
-| `SECURITY_ROADMAP.md` | — | v2.5+ TOTP MFA 与密钥全生命周期的规划、风险和验收边界 |
+| `SECURITY_ROADMAP.md` | — | v2.5+ superuser 证书 + TOTP、`/super_admin/` mTLS 与密钥全生命周期规划；均未实现 |
 
 ### 2.1 协同模块（审核工作流）
 
@@ -502,12 +505,13 @@ flowchart TD
     end
 
     subgraph accounts["accounts/ 模块"]
-        MODELS["models.py<br/>MyUser / UserManager"]
+        MODELS["models.py<br/>MyUser / AccountInvitation"]
+        SERVICES["services.py<br/>邀请签发 / 邮件 / 原子激活"]
         THREAD["thread_local.py<br/>get/set/clear_current_user"]
         MIDDLEWARE["middleware.py<br/>RequestUserMiddleware"]
         ADMIN["admin.py<br/>MyUserAdmin / CusMyUserAdmin"]
-        VIEWS["views.py<br/>LoginView"]
-        FORMS["forms.py<br/>LoginForm"]
+        VIEWS["views.py<br/>Login / AcceptInvitation"]
+        FORMS["forms.py<br/>登录 / Admin 建号 / 密码设置"]
         URLS["urls.py"]
     end
 
@@ -516,11 +520,14 @@ flowchart TD
     SET --> MIDDLEWARE
 
     ADMIN --> MODELS
+    ADMIN --> SERVICES
     ADMIN --> CUS
     ADMIN --> SET
 
     VIEWS --> FORMS
     VIEWS --> MODELS
+    VIEWS --> SERVICES
+    SERVICES --> MODELS
 
     URLS --> VIEWS
 
@@ -541,6 +548,8 @@ flowchart TD
 erDiagram
     MyUser ||--o{ LogEntry : "所有 Admin 操作"
     MyUser ||--o{ "custom Admin 操作" : "audit action 等"
+    MyUser ||--o| AccountInvitation : "接受账号邀请"
+    MyUser ||--o{ AccountInvitation : "created_by"
 
     MyUser {
         int id PK
@@ -556,6 +565,29 @@ erDiagram
         bool is_staff "super_admin 入口"
         bool is_superuser "模型层特权"
     }
+
+    AccountInvitation {
+        int id PK
+        int user_id UK "受邀账号"
+        int created_by_id FK "邀请人，可空"
+        string token_digest UK "仅保存 Token 摘要"
+        datetime expires_at "过期时间"
+        datetime sent_at "发送时间，可空"
+        datetime accepted_at "接受时间，可空"
+    }
+
+    UserProfile {
+        int id PK
+        int user_id UK "认证用户"
+        string display_name "公开展示名"
+        text bio "公开简介"
+        image avatar "可空头像"
+        string website "个人网站"
+        string github_url "GitHub"
+        string location "所在地"
+        bool is_public "默认关闭"
+        datetime updated_at "更新时间"
+    }
 ```
 
 ---
@@ -565,12 +597,13 @@ erDiagram
 | Issue | 严重 | 描述 |
 |-------|------|------|
 | staff 修改日志（模型层） | ✅ 已验证 | `security/signals.py` 在 pre_save/pre_delete 拦截非 superuser，已补修改和删除回归测试；无需重写 Django LogEntry |
-| 无用户注册功能 | 🟢 低 | 当前仅 superuser 可通过 Admin 创建用户。如需开放注册需补充视图 + 验证流程。 |
+| 公共注册 | ✅ 决策关闭 | 个人站采用管理员邀请制；Admin 不接触用户密码，受邀者通过 24 小时一次性链接激活。 |
 | 登录反暴力破解 | ✅ 已修复 | 按用户名 + IP 的哈希 key 计数；默认失败 5 次锁定 15 分钟，成功登录清零 |
 | Board 跨入口对象隔离 | ✅ Stage 5 | Admin、状态 action、普通 View、上传、修订与只读 API 均调用 `boards.policies` |
 | thread-local 仅 HTTP 上下文 | 🟢 低 | `manage.py shell` 中 `get_current_user()` 返回 None，防御回退。属于设计决策，暂不修改。 |
 | 审核通知 | ⏸ 已评估 | 个人站当前 dashboard 状态与 Admin 即时反馈足够，暂不为此新增完整 messaging 模块；开放注册时采用邮件验证，评论通知按实际需要再做轻量站内实现 |
 | Category/Tag 管理边界 | 🟡 中 | Category dashboard 已收紧为 superuser-only；Tag 保留全局 Permission，Stage 6a 初始化 Group 时复核 |
+| Profile 与密码修改 | ✅ F1 | `UserProfile` 默认私密；本人可编辑/预览，公开页仅列公开已发布文章；密码修改复用 Django 校验并保留当前 Session。 |
 
 ---
 
@@ -578,7 +611,7 @@ erDiagram
 
 ### A. 测试现状
 
-- `tests.py` — 已覆盖登录失败锁定与成功后计数清理；其余权限路径继续逐步补齐
+- `tests.py` — 已覆盖邀请、登录锁定、双后台边界，以及 Profile 隐私/文章隔离/越权编辑/已有头像保留/头像校验/密码修改；accounts 测试 20 项、全项目 127 项通过（2026-07-26）
 - 建议优先覆盖：
   1. `MyUser.save()` SENSITIVE_FIELDS 回滚逻辑
   2. `LoginView` 登录成功/失败/不活跃三种路径

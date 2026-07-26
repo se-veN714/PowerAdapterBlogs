@@ -23,6 +23,7 @@ package-lock.json
 /themes/devenir/.idea/
 *.swp
 *.swo
+*.bak.*
 
 # ====== Project-specific ======
 /.local/
@@ -33,4 +34,7 @@ package-lock.json
 /V2GUIDE.md
 /codex_context.md
 /GITGUIDE.md
+/docs/guides/GITGUIDE.md
+/docs/guides/DJANGO_ASYNC_GUIDE.md
+/docs/guides/*_LEARNING_GUIDE.md
 /.codebuddy/

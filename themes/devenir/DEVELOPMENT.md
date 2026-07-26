@@ -6,7 +6,7 @@
 > **设计风格**: 暗色 CRT 扫描线 + 绿色调 + 社刊 Editorial 排版
 > **前身**: `themes/bulma/`（Bulma CSS 框架，已弃用）
 > **创建**: 2026-06-22
-> **最后更新**: 2026-07-20 — v1.9 Post Stream 分类/搜索 htmx 渐进增强
+> **最后更新**: 2026-07-26 — v1.10 Profile 前端优化（账号三页）
 
 ---
 
@@ -14,6 +14,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-26 | v1.10 | Profile 前端优化：ID rail 元数据行、头像 CRT 扫描线 + hover glitch、LOC/WEB/GIT 身份坐标轨、signal bars、表单 term-bar、头像预览、is_public 终端开关；390px 零横向溢出实测通过 |
 | 2026-07-20 | v1.9 | PostList、Category、Search 统一 Post Stream fragment；分类、搜索和分页使用 htmx 动态刷新并保留完整 URL 回退；补三档视口与移动触控验收 |
 | 2026-07-20 | v1.8 | PostList 增强：System Status Rail、Command Filter Rail（搜索内嵌）、分类信号色、封面连接线差异；navbar 搜索取消 |
 | 2026-07-20 | v1.7 | PostList 思想流重构：编号节点 + 数据总线 + 非对称排列；glitch 入场动画 sessionStorage 去重；备份原文件为 *.bak.20260720 |
@@ -134,6 +135,10 @@ flowchart TD
 | `pages/blog/_revision_body.html` | — | htmx 片段 | 版本内容渲染 |
 | `pages/blog/_revision_diff.html` | — | htmx 片段 | Diff 表格 |
 | `pages/accounts/login.html` | base.html | 登录 | 暗色卡片表单 |
+| `pages/accounts/accept_invitation.html` | base.html | 邀请激活 | 一次性链接设置密码（F1 邀请制） |
+| `pages/accounts/profile_detail.html` | base.html | 作者公开 Profile | ID rail + 头像 glitch + 终端徽章 + signal bars + Post Stream |
+| `pages/accounts/profile_form.html` | base.html | 本人编辑资料 | term-bar + 头像预览 + is_public 终端开关 |
+| `pages/accounts/password_change.html` | base.html | 修改密码 | term-bar + 中文密码校验提示 |
 | `pages/links.html` | base.html | 友链 | Hero+图片+进度条+卡片网格 |
 | `pages/comment/form.html` | — | 评论表单 | inclusion_tag 片段 |
 | `pages/comment/item.html` | — | 评论条目 | render_to_string 片段 |
@@ -150,10 +155,10 @@ flowchart TD
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| `css/typography.css` | ~40 | @font-face：SourceHanSerifCN + Cascadia Code |
+| `css/typography.css` | ~63 | @font-face：CDN 全字重（Source Han Serif/Sans CN、JetBrains Mono 400/700）+ 字体栈变量 |
 | `css/editorial.css` | ~450 | 首页 Editorial Section + Glitch 文字效果 + Cate Cards |
 | `css/blog.css` | ~1050 | 文章列表/详情/Markdown/TOC/Timeline/Diff/评论/表单/搜索 |
-| `css/accounts.css` | ~60 | 登录页卡片/输入框/按钮/错误提示 |
+| `css/accounts.css` | ~473 | 登录 + Profile（ID rail/头像 glitch/徽章/signal bars）+ 表单（term-bar/头像预览/终端开关） |
 | `css/admin_theme.css` | ~440 | Jazzmin 后台 Devenir 视觉覆盖；表格、表单、导航、登录页与移动端适配 |
 | `css/links.css` | ~230 | Links Hero/图片/3层进度条动画/卡片网格 |
 | `css/errors/page-error.css` | ~230 | 500 错误页视觉区域 |
@@ -228,6 +233,28 @@ Consolas 和系统等宽字体。
 
 入口放在全局基模板而非只放首页，避免用户进入文章页后失去返回后台的路径；移动端保持同等能力。
 
+### 5.6 Profile 视觉组件（v1.10）
+
+`pages/accounts/profile_detail.html` 的 Hero 由四个组件构成，全部纯 CSS 实现、无 JS 依赖：
+
+| 组件 | 选择器 | 说明 |
+|------|--------|------|
+| ID rail | `.profile-id-rail` | `NODE / STATUS / VISIBILITY / LINK OK` 元数据行，数据来自模板现有变量（`profile_user.is_active`、`profile.is_public`），无后端新增 context |
+| 头像框 | `.profile-avatar-frame` + `.avatar-scanline` | CRT 扫描线叠层（`inset: 8px` 对齐 frame padding）；hover 触发 `avatar-glitch` 0.32s steps 动画（仅 `transform`/`filter` 合成属性） |
+| 身份坐标轨 | `.profile-coordinates` / `.profile-coordinate` | 以低对比细线和字段标签呈现 LOC/WEB/GIT，避免按钮式方框堆叠；链接保留 `rel="me noopener"` |
+| 信号区 | `.profile-signal` + `.signal-bars` | 公开文章数大数字 + 5 格递增信号条 |
+
+表单页（`profile_form.html` / `password_change.html`）共用两个组件：
+
+- `.term-bar`：终端标题栏（三点 + `pa@blog:~/... $` 命令行），纯装饰 `aria-hidden`。
+- `.field-checkbox input[type="checkbox"]`：`appearance: none` 终端滑块开关，用于 `is_public`；`:checked` 态亮绿滑块 + 发光，`:focus-visible` 有焦点框。
+
+**契约边界**：
+
+- `is_profile_owner` 控制的编辑入口、`not profile.is_public` 的私人预览提示、头像默认图回退均为模板层已有判断，v1.10 未改动。
+- 表单字段 `name`、提交方式、CSRF、错误渲染与 URL 未改动；头像预览读 `form.instance.avatar`，无 instance 时不渲染。
+- Django `ClearableFileInput` 的"清除"checkbox 由 widget 内部渲染，模板循环无法定制，仅以 `accent-color` 暗色适配；完全终端化需后端自定义 widget（见 §9 TODO）。
+
 ---
 
 ## 6. 页面布局规范
@@ -297,6 +324,7 @@ Post Stream 已实测 `390×844`、`768×1024`、`1440×900`：三档均满足 `
 - [ ] `waveform` 动画在低性能设备上可能卡顿
 - [x] `glitch` 入场动画已使用 sessionStorage 在同一会话去重
 - [ ] ToastUI Editor 暗色主题硬编码，未从 CSS 变量读取
+- [ ] **绿色 / 低权重**：`ClearableFileInput` 的"清除"checkbox 为 widget 级渲染，模板无法终端化；完全定制需后端自定义 widget（当前仅 `accent-color` 暗色适配）
 - [ ] 暗色主题无亮色切换（设计意图如此）
 
 ---

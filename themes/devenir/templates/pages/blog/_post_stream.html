@@ -16,7 +16,7 @@
                 {% if post.cover %}
                     <img src="{{ post.cover.url }}" alt="{{ post.title }}" loading="lazy" decoding="async">
                 {% else %}
-                    <img src="{% static 'img/Cover.png' %}" alt="{{ post.title }}的默认封面" loading="lazy" decoding="async">
+                    <img src="{% static post.default_cover_static_path %}" alt="{{ post.title }}的分类默认封面" loading="lazy" decoding="async">
                 {% endif %}
                 <div class="artifact-scanline" aria-hidden="true"></div>
             </a>
@@ -27,7 +27,11 @@
                 </h2>
                 <p class="node-excerpt">{{ post.desc|truncatewords:30 }}</p>
                 <div class="node-meta">
-                    <span class="meta-author">{{ post.owner.username }}</span>
+                    {% if post.owner.is_active and post.owner.profile.is_public %}
+                        <a class="meta-author meta-author-link" href="{{ post.owner.profile.get_absolute_url }}">{{ post.owner.profile.public_name }}</a>
+                    {% else %}
+                        <span class="meta-author">{{ post.owner.username }}</span>
+                    {% endif %}
                     <span class="meta-sep">//</span>
                     <span class="meta-date">{{ post.created_time|date:"Y-m-d" }}</span>
                     <span class="meta-sep">//</span>

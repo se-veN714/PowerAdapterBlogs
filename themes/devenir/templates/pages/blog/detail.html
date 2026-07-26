@@ -33,12 +33,26 @@
         <div class="post-detail-header">
             <h1 class="post-detail-title">{{ post.title }}</h1>
             <div class="post-detail-meta">
-                <img class="post-card-avatar" src="{% static 'img/avatar.jpg' %}" alt="作者头像" style="width:24px;height:24px;border-radius:50%;">
-                <span>{{ post.owner.username }}</span>
+                    {% if post.owner.is_active and post.owner.profile.is_public and post.owner.profile.avatar %}
+                    <img class="post-card-avatar" src="{{ post.owner.profile.avatar.url }}" alt="{{ post.owner.profile.public_name }} 的头像" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">
+                {% else %}
+                    <img class="post-card-avatar" src="{% static 'img/avatar.jpg' %}" alt="作者头像" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">
+                {% endif %}
+                {% if post.owner.is_active and post.owner.profile.is_public %}
+                    <a href="{{ post.owner.profile.get_absolute_url }}" class="post-author-link">{{ post.owner.profile.public_name }}</a>
+                {% else %}
+                    <span>{{ post.owner.username }}</span>
+                {% endif %}
                 <span class="meta-sep" style="color:var(--text-tertiary);opacity:0.5;">|</span>
                 <span class="meta-tag">{{ post.category.name }}</span>
                 <span class="meta-sep" style="color:var(--text-tertiary);opacity:0.5;">|</span>
                 <span style="color:var(--text-tertiary);">浏览 {{ post.pv }}</span>
+                {% if post.status != 1 %}
+                    <span class="meta-tag">{{ post.get_status_display }} · 作者预览</span>
+                {% endif %}
+                {% if can_edit_current_post %}
+                    <a href="{% url 'Blogs:post_edit' slug=post.slug %}" class="meta-edit">EDIT</a>
+                {% endif %}
             </div>
         </div>
 
@@ -48,22 +62,18 @@
         </article>
 
         <!-- Post Nav (prev / next) -->
-        {% if post.get_previous_by_created_time or post.get_next_by_created_time %}
+        {% if previous_post or next_post %}
         <div class="post-nav">
-            {% with prev=post.get_previous_by_created_time %}
-            {% if prev %}
-                <a href="{{ prev.get_absolute_url }}" class="prev">&#8592; {{ prev.title }}</a>
+            {% if previous_post %}
+                <a href="{{ previous_post.get_absolute_url }}" class="prev">&#8592; {{ previous_post.title }}</a>
             {% else %}
                 <span></span>
             {% endif %}
-            {% endwith %}
-            {% with next=post.get_next_by_created_time %}
-            {% if next %}
-                <a href="{{ next.get_absolute_url }}" class="next">{{ next.title }} &#8594;</a>
+            {% if next_post %}
+                <a href="{{ next_post.get_absolute_url }}" class="next">{{ next_post.title }} &#8594;</a>
             {% else %}
                 <span></span>
             {% endif %}
-            {% endwith %}
         </div>
         {% endif %}
     </div>
@@ -77,6 +87,41 @@
             <span>&#9998; 当前 v{{ revisions.0.version }} · {{ revision_count }} 个版本</span>
             <span class="toggle-icon">&#9660;</span>
         </p>
+
+        <form class="revision-compare-form"
+              method="get"
+              action="{% url 'Blogs:revision_diff' slug=post.slug %}"
+              hx-get="{% url 'Blogs:revision_diff' slug=post.slug %}"
+              hx-target="#revision-viewer"
+              hx-swap="innerHTML"
+              hx-indicator="#revision-spinner">
+            <label>
+                <span>起始版本</span>
+                <select name="from" required>
+                    {% for rev in revisions reversed %}
+                    <option value="{{ rev.version }}" {% if rev.version == comparison_from_version %}selected{% endif %}>v{{ rev.version }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <span class="diff-arrow" aria-hidden="true">&#8594;</span>
+            <label>
+                <span>结束版本</span>
+                <select name="to" required>
+                    {% for rev in revisions reversed %}
+                    <option value="{{ rev.version }}" {% if rev.version == comparison_to_version %}selected{% endif %}>v{{ rev.version }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>展示</span>
+                <select name="mode">
+                    <option value="split">双栏</option>
+                    <option value="inline">行内</option>
+                    <option value="stats">统计</option>
+                </select>
+            </label>
+            <button class="btn-tiny" type="submit">比较版本</button>
+        </form>
 
         <div class="timeline-body">
             {% for rev in revisions %}
@@ -106,7 +151,7 @@
                         </button>
                         {% if rev.prev_version %}
                         <button class="btn-tiny btn-diff-prev"
-                                hx-get="{% url 'Blogs:revision_diff' slug=post.slug %}?from={{ rev.prev_version }}&to={{ rev.version }}"
+                                hx-get="{% url 'Blogs:revision_diff' slug=post.slug %}?from={{ rev.prev_version }}&amp;to={{ rev.version }}&amp;mode=split"
                                 hx-target="#revision-viewer"
                                 hx-swap="innerHTML"
                                 hx-indicator="#revision-spinner">
@@ -139,26 +184,24 @@
 </div>
 
 {# Floating Prev/Next Nav — 桌面端左右悬浮 #}
-{% with prev=post.get_previous_by_created_time next=post.get_next_by_created_time %}
-{% if prev %}
+{% if previous_post %}
 <div class="post-floating-nav prev">
-    <a href="{{ prev.get_absolute_url }}">
+    <a href="{{ previous_post.get_absolute_url }}">
         <span class="nav-arrow">&#8592;</span>
         <span class="nav-label">Prev</span>
-        <span class="nav-title">{{ prev.title }}</span>
+        <span class="nav-title">{{ previous_post.title }}</span>
     </a>
 </div>
 {% endif %}
-{% if next %}
+{% if next_post %}
 <div class="post-floating-nav next">
-    <a href="{{ next.get_absolute_url }}">
-        <span class="nav-title">{{ next.title }}</span>
+    <a href="{{ next_post.get_absolute_url }}">
+        <span class="nav-title">{{ next_post.title }}</span>
         <span class="nav-label">Next</span>
         <span class="nav-arrow">&#8594;</span>
     </a>
 </div>
 {% endif %}
-{% endwith %}
 {% endblock %}
 
 {% block extra_js %}

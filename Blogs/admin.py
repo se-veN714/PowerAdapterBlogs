@@ -9,9 +9,10 @@ from PowerAdapterBlogs.cus_site import custom_site
 from Blogs.adminforms import PostAdminForm
 from Blogs.management.commands.rewrap_posts import apply_word_wrap_to_queryset
 from Blogs.revisions import create_revision
-from Blogs.models import Post, Category, Tag, PostRevision
+from Blogs.models import Post, Category, Tag, PostRevision, PostWorkflowEvent
 from Blogs.services import (
     approve_post,
+    record_post_workflow_event,
     reject_post,
     submit_post_for_review,
     unpublish_post,
@@ -57,6 +58,27 @@ class PostRevisionInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         return False  # 快照由系统自动创建，禁止手动添加
+
+
+class PostWorkflowEventInline(admin.TabularInline):
+    model = PostWorkflowEvent
+    fields = (
+        "event_type",
+        "from_status",
+        "to_status",
+        "revision",
+        "actor",
+        "note",
+        "created_at",
+    )
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+    verbose_name = "工作流事件"
+    verbose_name_plural = "工作流事件"
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Category, site=custom_site)
@@ -233,7 +255,7 @@ unpublish_action.short_description = "📥 下架"
 @admin.register(Post, site=custom_site)
 class PostAdmin(DashboardAdminMixin, admin.ModelAdmin):
     form = PostAdminForm
-    inlines = [PostRevisionInline]
+    inlines = [PostRevisionInline, PostWorkflowEventInline]
     list_display = [
         'title', 'category', 'status_display', 'visibility',
         'created_time', 'owner'
@@ -404,12 +426,26 @@ class PostAdmin(DashboardAdminMixin, admin.ModelAdmin):
         is_new = not change
         old_status = None
         old_owner_id = None
+        old_snapshot = None
 
         if not is_new:
             try:
-                previous = Post.objects.only('status', 'owner_id').get(pk=obj.pk)
+                previous = Post.objects.only(
+                    'status',
+                    'owner_id',
+                    'title',
+                    'desc',
+                    'content',
+                    'slug',
+                ).get(pk=obj.pk)
                 old_status = previous.status
                 old_owner_id = previous.owner_id
+                old_snapshot = (
+                    previous.title,
+                    previous.desc,
+                    previous.content,
+                    previous.slug,
+                )
             except Post.DoesNotExist:
                 pass
 
@@ -428,16 +464,39 @@ class PostAdmin(DashboardAdminMixin, admin.ModelAdmin):
 
         super().save_model(request, obj, form, change)  # 先保存 Post
 
+        revision = None
+        new_snapshot = (obj.title, obj.desc, obj.content, obj.slug)
+        snapshot_changed = is_new or old_snapshot != new_snapshot
         # 创建修订快照
         if is_new:
-            create_revision(obj, request.user, change_type='major',
-                           edit_summary='通过管理后台创建')
-        else:
+            revision = create_revision(
+                obj,
+                request.user,
+                change_type='major',
+                edit_summary='通过管理后台创建',
+            )
+        elif snapshot_changed:
             summary = '通过管理后台编辑'
             if old_status != Post.STATUS_DRAFT and not request.user.is_superuser:
                 summary = '编辑已提交或发布文章 → 退回草稿（需重新审核）'
-            create_revision(obj, request.user, change_type='minor',
-                           edit_summary=summary)
+            revision = create_revision(
+                obj,
+                request.user,
+                change_type='minor',
+                edit_summary=summary,
+            )
+        else:
+            revision = obj.revisions.order_by('-major', '-minor').first()
+
+        if not is_new and old_status != obj.status:
+            record_post_workflow_event(
+                post=obj,
+                actor=request.user,
+                from_status=old_status,
+                to_status=obj.status,
+                revision=revision,
+                note="通过管理后台编辑状态",
+            )
 
     class Meta:
         css = {
@@ -464,10 +523,12 @@ class PostRevisionAdmin(DashboardAdminMixin, admin.ModelAdmin):
         'post', 'major', 'minor', 'version',
         'title', 'desc', 'content', 'slug',
         'editor', 'change_type', 'edit_summary',
-        'diff_from_previous', 'created_at',
+        'diff_from_previous', 'diff_structured', 'diff_algorithm',
+        'diff_stats', 'created_at',
     ]
     date_hierarchy = 'created_at'
     ordering = ['-created_at']
+
 
     fieldsets = (
         ('文章信息', {'fields': (('post', 'version'), ('major', 'minor'))}),
@@ -476,7 +537,10 @@ class PostRevisionAdmin(DashboardAdminMixin, admin.ModelAdmin):
             'fields': (('editor', 'change_type'), 'edit_summary', 'created_at'),
         }),
         ('预计算 Diff', {
-            'fields': ('diff_from_previous',),
+            'fields': (
+                'diff_algorithm', 'diff_stats', 'diff_structured',
+                'diff_from_previous',
+            ),
             'classes': ('collapse',),
         }),
     )
@@ -505,6 +569,64 @@ class PostRevisionAdmin(DashboardAdminMixin, admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_active and request.user.is_superuser
+
+
+@admin.register(PostWorkflowEvent, site=custom_site)
+class PostWorkflowEventAdmin(DashboardAdminMixin, admin.ModelAdmin):
+    """Board-scoped, read-only Post workflow history."""
+
+    list_display = (
+        "post",
+        "event_type",
+        "from_status",
+        "to_status",
+        "revision",
+        "actor",
+        "created_at",
+    )
+    list_filter = ("event_type", "from_status", "to_status", "created_at")
+    search_fields = ("post__title", "actor__username", "note")
+    readonly_fields = (
+        "post",
+        "event_type",
+        "from_status",
+        "to_status",
+        "revision",
+        "actor",
+        "note",
+        "created_at",
+    )
+    date_hierarchy = "created_at"
+    ordering = ("-created_at", "-pk")
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request).select_related(
+            "post",
+            "revision",
+            "actor",
+        )
+        visible_post_ids = posts_visible_to(
+            request.user,
+            Post.objects.all(),
+        ).values("pk")
+        return queryset.filter(post_id__in=visible_post_ids)
+
+    def has_module_permission(self, request):
+        return can_access_post_admin(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        if obj is None:
+            return can_access_post_admin(request.user)
+        return can_view_post(request.user, obj.post)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(LogEntry,site=custom_site)

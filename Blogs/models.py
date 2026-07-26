@@ -15,6 +15,8 @@ from django.urls.base import reverse
 from django.utils.functional import cached_property
 from django.utils.text import slugify
 
+from Blogs.covers import default_cover_static_path
+
 # Create your models here.
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,10 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def default_cover_static_path(self):
+        return default_cover_static_path(self.name)
 
     class Meta:
         verbose_name = verbose_name_plural = "分类"
@@ -185,6 +191,10 @@ class Post(models.Model):
     def get_absolute_url(self):
         return reverse("Blogs:post_detail", kwargs={"slug": self.slug})
 
+    @property
+    def default_cover_static_path(self):
+        return self.category.default_cover_static_path
+
     @staticmethod
     def get_by_tag(tag_id):
         """
@@ -239,6 +249,14 @@ class Post(models.Model):
     @classmethod
     def get_normal_posts(cls):
         return cls.objects.filter(status=Post.STATUS_NORMAL)
+
+    @classmethod
+    def publicly_visible_posts(cls):
+        """返回可安全用于 Profile、归档和 Feed 的公开已发布文章。"""
+        return cls.objects.filter(
+            status=cls.STATUS_NORMAL,
+            visibility=cls.VISIBILITY_PUBLIC,
+        )
 
     @classmethod
     def get_by_id(cls, post_id):
@@ -330,6 +348,22 @@ class PostRevision(models.Model):
     diff_from_previous = models.TextField(
         blank=True, null=True, verbose_name="与上一版本差异"
     )
+    diff_structured = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name="结构化差异",
+    )
+    diff_algorithm = models.CharField(
+        max_length=48,
+        blank=True,
+        default="",
+        verbose_name="差异算法版本",
+    )
+    diff_stats = models.JSONField(
+        blank=True,
+        default=dict,
+        verbose_name="差异统计",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="快照时间")
 
@@ -344,6 +378,68 @@ class PostRevision(models.Model):
     def save(self, *args, **kwargs):
         self.version = f"{self.major}.{self.minor}"
         super().save(*args, **kwargs)
+
+
+class PostWorkflowEvent(models.Model):
+    """Queryable domain history for Post status transitions."""
+
+    class EventType(models.TextChoices):
+        SUBMITTED = "submitted", "提交审核"
+        APPROVED = "approved", "审核通过并发布"
+        REJECTED = "rejected", "审核驳回"
+        UNPUBLISHED = "unpublished", "文章下架"
+        RETURNED_TO_DRAFT = "returned_to_draft", "编辑后退回草稿"
+        STATUS_CHANGED = "status_changed", "状态变更"
+
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="workflow_events",
+        verbose_name="文章",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="post_workflow_events",
+        verbose_name="操作人",
+    )
+    event_type = models.CharField(
+        max_length=32,
+        choices=EventType.choices,
+        verbose_name="事件类型",
+    )
+    from_status = models.PositiveSmallIntegerField(
+        choices=Post.STATUS_ITEMS,
+        verbose_name="原状态",
+    )
+    to_status = models.PositiveSmallIntegerField(
+        choices=Post.STATUS_ITEMS,
+        verbose_name="新状态",
+    )
+    revision = models.ForeignKey(
+        PostRevision,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workflow_events",
+        verbose_name="关联修订",
+    )
+    note = models.CharField(max_length=200, blank=True, verbose_name="说明")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="发生时间")
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        indexes = [
+            models.Index(
+                fields=["post", "-created_at"],
+                name="blog_workflow_post_time",
+            ),
+        ]
+        verbose_name = verbose_name_plural = "文章工作流事件"
+
+    def __str__(self):
+        return f"{self.post.title}: {self.get_event_type_display()}"
 
 
 class PostImage(models.Model):

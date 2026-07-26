@@ -7,6 +7,24 @@
     <span class="diff-meta">{{ from_title }} &#8594; {{ to_title }}</span>
 </div>
 
+<nav class="diff-mode-switcher" aria-label="差异展示模式">
+    <button class="btn-tiny {% if diff_mode == 'split' %}is-active{% endif %}"
+            hx-get="{% url 'Blogs:revision_diff' slug=post.slug %}?from={{ from_version }}&amp;to={{ to_version }}&amp;mode=split"
+            hx-target="#revision-viewer" hx-swap="innerHTML" hx-indicator="#revision-spinner">
+        双栏
+    </button>
+    <button class="btn-tiny {% if diff_mode == 'inline' %}is-active{% endif %}"
+            hx-get="{% url 'Blogs:revision_diff' slug=post.slug %}?from={{ from_version }}&amp;to={{ to_version }}&amp;mode=inline"
+            hx-target="#revision-viewer" hx-swap="innerHTML" hx-indicator="#revision-spinner">
+        行内
+    </button>
+    <button class="btn-tiny {% if diff_mode == 'stats' %}is-active{% endif %}"
+            hx-get="{% url 'Blogs:revision_diff' slug=post.slug %}?from={{ from_version }}&amp;to={{ to_version }}&amp;mode=stats"
+            hx-target="#revision-viewer" hx-swap="innerHTML" hx-indicator="#revision-spinner">
+        统计
+    </button>
+</nav>
+
 <div class="diff-table-wrapper">
     {{ diff_html|safe }}
 </div>

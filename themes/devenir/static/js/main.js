@@ -38,6 +38,20 @@ document.addEventListener('DOMContentLoaded', function () {
         if (syncStatus) syncStatus.setAttribute('aria-hidden', 'true');
     });
 
+    // Revision comparison keeps validation on the server. htmx does not swap
+    // 4xx responses by default, so surface the escaped plain-text message.
+    document.body.addEventListener('htmx:responseError', function (event) {
+        const trigger = event.detail.elt;
+        if (!trigger.closest('.revision-compare-form, .diff-mode-switcher')) return;
+
+        const viewer = document.getElementById('revision-viewer');
+        if (!viewer) return;
+        const message = document.createElement('p');
+        message.className = 'revision-diff-error';
+        message.textContent = event.detail.xhr.responseText || '版本比较失败，请检查选择。';
+        viewer.replaceChildren(message);
+    });
+
     // ===== Sidebar Toggle =====
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');

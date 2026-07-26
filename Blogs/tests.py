@@ -1,6 +1,8 @@
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import IntegrityError, transaction
 from django.test import Client, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -10,9 +12,14 @@ from tempfile import TemporaryDirectory
 import base64
 
 from accounts.models import MyUser
-from Blogs.models import Category, Post, Tag
+from Blogs.models import Category, Post, PostRevision, Tag
 from Blogs.serializers import PostDetailSerializer
-from Blogs.revisions import create_revision
+from Blogs.revisions import (
+    DIFF_ALGORITHM,
+    build_structured_diff,
+    create_revision,
+    render_structured_diff,
+)
 from Blogs.management.commands.generate_posts import GENERATED_SLUG_PREFIX
 from boards.models import Board, BoardMembership
 
@@ -134,6 +141,289 @@ class BlogSecurityTest(TestCase):
         tag = Tag.objects.create(name='Django', owner=self.owner)
         self.post.tag.add(tag)
         self.assertEqual(PostDetailSerializer(self.post).data['tags'], ['Django'])
+
+
+class PostRevisionCharacterizationTest(TestCase):
+    """Lock down the v2.0 revision contract before the service is refactored."""
+
+    def setUp(self):
+        self.editor = MyUser.objects.create_user(
+            email='revision-editor@example.com',
+            username='revision-editor',
+            password='pass',
+            is_active=True,
+        )
+        self.category = Category.objects.create(name='Revision', owner=self.editor)
+        self.post = Post.objects.create(
+            title='Revision title',
+            desc='Revision description',
+            slug='revision-contract',
+            content='First sentence.\n\nSecond paragraph.',
+            category=self.category,
+            owner=self.editor,
+        )
+
+    def test_version_allocation_and_major_reset(self):
+        first = create_revision(
+            self.post,
+            self.editor,
+            change_type='major',
+            edit_summary='Initial version',
+        )
+        second = create_revision(self.post, self.editor, change_type='minor')
+        third = create_revision(self.post, self.editor, change_type='major')
+
+        self.assertEqual(
+            [(first.major, first.minor), (second.major, second.minor),
+             (third.major, third.minor)],
+            [(1, 0), (1, 1), (2, 0)],
+        )
+        self.assertEqual([first.version, second.version, third.version],
+                         ['1.0', '1.1', '2.0'])
+
+    def test_revision_copies_editorial_snapshot_and_metadata(self):
+        revision = create_revision(
+            self.post,
+            self.editor,
+            change_type='major',
+            edit_summary='Initial version',
+        )
+
+        self.assertEqual(revision.post, self.post)
+        self.assertEqual(revision.title, self.post.title)
+        self.assertEqual(revision.desc, self.post.desc)
+        self.assertEqual(revision.content, self.post.content)
+        self.assertEqual(revision.slug, self.post.slug)
+        self.assertEqual(revision.editor, self.editor)
+        self.assertEqual(revision.change_type, 'major')
+        self.assertEqual(revision.edit_summary, 'Initial version')
+        self.assertIsNone(revision.diff_from_previous)
+        self.assertIsNone(revision.diff_structured)
+        self.assertEqual(revision.diff_algorithm, '')
+        self.assertEqual(revision.diff_stats, {})
+
+    def test_later_revision_stores_escaped_diff_from_previous(self):
+        create_revision(self.post, self.editor, change_type='major')
+        self.post.content = 'First sentence changed.\n\n<script>alert(1)</script>'
+        self.post.save(update_fields=['content'])
+
+        revision = create_revision(self.post, self.editor, change_type='minor')
+
+        self.assertIn('<table class="diff"', revision.diff_from_previous)
+        self.assertIn('&lt;script&gt;', revision.diff_from_previous)
+        self.assertNotIn('<script>', revision.diff_from_previous)
+
+    def test_later_revision_stores_markdown_aware_structured_diff(self):
+        create_revision(self.post, self.editor, change_type='major')
+        self.post.content = (
+            '# 标题\n\n第一句话已修改。Second sentence changed!\n\n'
+            '```python\nprint("safe")\n```'
+        )
+        self.post.save(update_fields=['content'])
+
+        revision = create_revision(self.post, self.editor, change_type='minor')
+
+        self.assertEqual(revision.diff_algorithm, DIFF_ALGORITHM)
+        self.assertEqual(revision.diff_structured['schema_version'], 1)
+        self.assertEqual(revision.diff_structured['algorithm'], DIFF_ALGORITHM)
+        self.assertEqual(revision.diff_structured['stats'], revision.diff_stats)
+        self.assertGreater(len(revision.diff_structured['blocks']), 0)
+        self.assertGreater(revision.diff_stats['inserted_chars'], 0)
+        self.assertGreater(revision.diff_stats['deleted_chars'], 0)
+
+    def test_structured_diff_renderer_escapes_snapshot_content(self):
+        diff_data = build_structured_diff(
+            'Safe sentence.',
+            '<script>alert(1)</script>。',
+            '1.0',
+            '1.1',
+        )
+
+        rendered = str(render_structured_diff(diff_data))
+
+        self.assertIn('&lt;script&gt;', rendered)
+        self.assertNotIn('<script>', rendered)
+        self.assertIn('structured-diff', rendered)
+
+    def test_structured_diff_renderer_supports_r4_modes(self):
+        diff_data = build_structured_diff(
+            'Old sentence.', 'New sentence!', '1.0', '2.0',
+        )
+
+        split = str(render_structured_diff(diff_data, mode='split'))
+        inline = str(render_structured_diff(diff_data, mode='inline'))
+        stats = str(render_structured_diff(diff_data, mode='stats'))
+
+        self.assertIn('structured-diff-split', split)
+        self.assertIn('structured-diff-old', split)
+        self.assertIn('structured-diff-inline', inline)
+        self.assertIn('<del', inline)
+        self.assertIn('<ins', inline)
+        self.assertIn('structured-diff-stats', stats)
+        self.assertNotIn('Old sentence', stats)
+
+    def test_diff_endpoint_prefers_structured_data_over_legacy_html(self):
+        first = create_revision(self.post, self.editor, change_type='major')
+        self.post.content = 'Second structured version.'
+        self.post.save(update_fields=['content'])
+        second = create_revision(self.post, self.editor, change_type='minor')
+        second.diff_from_previous = '<p>LEGACY_ONLY_SENTINEL</p>'
+        second.save(update_fields=['diff_from_previous'])
+
+        response = self.client.get(
+            reverse('blogs:revision_diff', kwargs={'slug': self.post.slug}),
+            {'from': first.version, 'to': second.version},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'structured-diff')
+        self.assertNotContains(response, 'LEGACY_ONLY_SENTINEL')
+
+    def test_diff_endpoint_falls_back_to_legacy_html_for_old_revision(self):
+        first = create_revision(self.post, self.editor, change_type='major')
+        self.post.content = 'Second legacy version.'
+        self.post.save(update_fields=['content'])
+        second = create_revision(self.post, self.editor, change_type='minor')
+        second.diff_structured = None
+        second.diff_algorithm = ''
+        second.diff_stats = {}
+        second.diff_from_previous = '<p>LEGACY_FALLBACK_SENTINEL</p>'
+        second.save(update_fields=[
+            'diff_structured', 'diff_algorithm', 'diff_stats',
+            'diff_from_previous',
+        ])
+
+        response = self.client.get(
+            reverse('blogs:revision_diff', kwargs={'slug': self.post.slug}),
+            {'from': first.version, 'to': second.version},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'LEGACY_FALLBACK_SENTINEL')
+
+    def test_backfill_diffs_adds_structured_data_without_replacing_legacy_html(self):
+        create_revision(self.post, self.editor, change_type='major')
+        self.post.content = 'A legacy revision waiting for structured data.'
+        self.post.save(update_fields=['content'])
+        revision = create_revision(self.post, self.editor, change_type='minor')
+        legacy_html = revision.diff_from_previous
+        revision.diff_structured = None
+        revision.diff_algorithm = ''
+        revision.diff_stats = {}
+        revision.save(update_fields=[
+            'diff_structured', 'diff_algorithm', 'diff_stats',
+        ])
+
+        call_command('backfill_diffs', stdout=StringIO())
+        revision.refresh_from_db()
+
+        self.assertEqual(revision.diff_from_previous, legacy_html)
+        self.assertEqual(revision.diff_algorithm, DIFF_ALGORITHM)
+        self.assertEqual(revision.diff_structured['schema_version'], 1)
+        self.assertEqual(revision.diff_stats, revision.diff_structured['stats'])
+
+    def test_diff_endpoint_accepts_any_forward_revision_pair(self):
+        first = create_revision(self.post, self.editor, change_type='major')
+        self.post.content = 'Second version.'
+        self.post.save(update_fields=['content'])
+        second = create_revision(self.post, self.editor, change_type='minor')
+        self.post.content = 'Third version.'
+        self.post.save(update_fields=['content'])
+        third = create_revision(self.post, self.editor, change_type='minor')
+        url = reverse('blogs:revision_diff', kwargs={'slug': self.post.slug})
+
+        adjacent = self.client.get(
+            url, {'from': second.version, 'to': third.version}
+        )
+        non_adjacent = self.client.get(
+            url, {'from': first.version, 'to': third.version}
+        )
+
+        self.assertEqual(adjacent.status_code, 200)
+        self.assertContains(adjacent, f'v{second.version}')
+        self.assertContains(adjacent, f'v{third.version}')
+        self.assertEqual(non_adjacent.status_code, 200)
+        self.assertContains(non_adjacent, 'structured-diff-split')
+
+    def test_diff_endpoint_supports_modes_and_rejects_invalid_direction(self):
+        first = create_revision(self.post, self.editor, change_type='major')
+        self.post.content = 'Second version for display modes.'
+        self.post.save(update_fields=['content'])
+        second = create_revision(self.post, self.editor, change_type='minor')
+        url = reverse('blogs:revision_diff', kwargs={'slug': self.post.slug})
+
+        inline = self.client.get(
+            url,
+            {'from': first.version, 'to': second.version, 'mode': 'inline'},
+        )
+        stats = self.client.get(
+            url,
+            {'from': first.version, 'to': second.version, 'mode': 'stats'},
+        )
+        reverse_order = self.client.get(
+            url,
+            {'from': second.version, 'to': first.version},
+        )
+        invalid_mode = self.client.get(
+            url,
+            {'from': first.version, 'to': second.version, 'mode': 'raw'},
+        )
+
+        self.assertEqual(inline.status_code, 200)
+        self.assertContains(inline, 'structured-diff-inline')
+        self.assertEqual(stats.status_code, 200)
+        self.assertContains(stats, 'structured-diff-stats')
+        self.assertEqual(reverse_order.status_code, 400)
+        self.assertEqual(invalid_mode.status_code, 400)
+
+    def test_post_detail_exposes_server_rendered_version_compare_form(self):
+        first = create_revision(self.post, self.editor, change_type='major')
+        self.post.content = 'Second version for the selector.'
+        self.post.save(update_fields=['content'])
+        second = create_revision(self.post, self.editor, change_type='minor')
+
+        response = self.client.get(
+            reverse('blogs:post_detail', kwargs={'slug': self.post.slug})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'revision-compare-form')
+        self.assertContains(response, f'value="{first.version}"')
+        self.assertContains(response, f'value="{second.version}"')
+        self.assertContains(response, 'name="mode"')
+
+    def test_revision_body_rejects_malformed_version(self):
+        response = self.client.get(
+            reverse(
+                'blogs:revision_body',
+                kwargs={'slug': self.post.slug, 'version': 'not-a-version'},
+            )
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_database_rejects_duplicate_version_for_same_post(self):
+        create_revision(self.post, self.editor, change_type='major')
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PostRevision.objects.create(
+                    post=self.post,
+                    major=1,
+                    minor=0,
+                    title=self.post.title,
+                    desc=self.post.desc,
+                    content=self.post.content,
+                    slug=self.post.slug,
+                    editor=self.editor,
+                    change_type='major',
+                )
+
+    def test_revision_type_must_be_supported(self):
+        with self.assertRaises(ValidationError):
+            create_revision(self.post, self.editor, change_type='typo')
+
+        self.assertFalse(self.post.revisions.exists())
 
 
 @override_settings(CACHES={

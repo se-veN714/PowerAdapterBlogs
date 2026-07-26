@@ -338,6 +338,18 @@ def can_view_published_post(user, post: "Post") -> bool:
     return can_view_post(user, post)
 
 
+def can_view_post_detail(user, post: "Post") -> bool:
+    """Published visibility plus an author-only preview for pre-publication."""
+    if post.status == post.STATUS_NORMAL:
+        return can_view_published_post(user, post)
+    if post.status not in {post.STATUS_DRAFT, post.STATUS_REVIEW}:
+        return False
+    return (
+        _is_active_authenticated(user)
+        and getattr(post, "owner_id", None) == getattr(user, "pk", None)
+    )
+
+
 def can_edit_post(user, post: "Post") -> bool:
     board = board_for_post(post)
     owns_post = getattr(post, "owner_id", None) == getattr(user, "pk", None)

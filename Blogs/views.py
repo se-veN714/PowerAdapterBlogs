@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 
 from django import VERSION as DJANGO_VERSION
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -13,7 +14,7 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.db import transaction, IntegrityError
 from django.db.models import Q, F
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls.base import reverse
 from django.views.decorators.http import require_POST
@@ -26,13 +27,13 @@ from django.views.generic.edit import CreateView, UpdateView
 from Blogs.forms import PostForm
 from Blogs.image_validation import validate_uploaded_image
 from Blogs.models import Post, PostVisit, Tag, Category
-from Blogs.revisions import create_revision
+from Blogs.services import RevisionConflict, commit_post_form
 from boards.policies import (
     board_for_post,
     can_create_post,
     can_create_post_in_any_board,
     can_edit_post,
-    can_view_published_post,
+    can_view_post_detail,
     posts_editable_by,
     posts_visible_to,
     published_posts_visible_to,
@@ -68,7 +69,7 @@ class IndexView(CommonViewMixin, TemplateView):
 
 
 class PostDetailView(CommonViewMixin, DetailView):
-    queryset = Post.get_normal_posts()
+    model = Post
     template_name = 'pages/blog/detail.html'
     context_object_name = 'post'
 
@@ -78,9 +79,12 @@ class PostDetailView(CommonViewMixin, DetailView):
         return response
 
     def get_object(self, queryset=None):
-        post = get_object_or_404(Post, slug=self.kwargs['slug'], status=Post.STATUS_NORMAL)
-        if not can_view_published_post(self.request.user, post):
-            logger.warning(f"非授权访问 staff-only 文章: slug={post.slug} "
+        post = get_object_or_404(
+            Post.objects.select_related("category", "owner", "owner__profile"),
+            slug=self.kwargs['slug'],
+        )
+        if not can_view_post_detail(self.request.user, post):
+            logger.warning(f"非授权访问文章详情: slug={post.slug} "
                            f"user={getattr(self.request.user, 'id', 'anon')}")
             raise Http404("文章不存在")
         return post
@@ -101,9 +105,34 @@ class PostDetailView(CommonViewMixin, DetailView):
         context['revisions'] = revisions
         context['revision_count'] = len(revisions)
         context['show_timeline'] = len(revisions) > 1
+        context['can_edit_current_post'] = can_edit_post(
+            self.request.user,
+            post,
+        )
+        if post.status == Post.STATUS_NORMAL:
+            visible_posts = published_posts_visible_to(
+                self.request.user,
+                Post.objects.select_related("category", "owner"),
+            ).exclude(pk=post.pk)
+            context['previous_post'] = (
+                visible_posts.filter(created_time__lt=post.created_time)
+                .order_by('-created_time')
+                .first()
+            )
+            context['next_post'] = (
+                visible_posts.filter(created_time__gt=post.created_time)
+                .order_by('created_time')
+                .first()
+            )
+        if len(revisions) > 1:
+            context['comparison_from_version'] = revisions[-1].version
+            context['comparison_to_version'] = revisions[0].version
         return context
 
     def handle_visit(self):
+
+        if self.object.status != Post.STATUS_NORMAL:
+            return
 
         uid = self.request.uid
         post = self.object
@@ -181,7 +210,7 @@ class AnonymousPageCacheMixin:
 
 
 class PostListView(AnonymousPageCacheMixin, ListView):
-    queryset = Post.get_normal_posts().select_related("owner", "category")
+    queryset = Post.get_normal_posts().select_related("owner", "owner__profile", "category")
     paginate_by = 10
     context_object_name = 'post_list'
     template_name = 'pages/blog/list.html'
@@ -361,14 +390,21 @@ class PostCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         form.instance.status = Post.STATUS_DRAFT
         if not can_create_post(self.request.user, board_for_post(form.instance)):
             raise PermissionDenied
-        response = super().form_valid(form)
-        # 创建 v1.0 初始快照
-        create_revision(self.object, self.request.user,
-                        change_type='major', edit_summary='初始发布')
+        self.object = commit_post_form(
+            form=form,
+            editor=self.request.user,
+            change_type='major',
+            edit_summary=form.cleaned_data.get('edit_summary', '') or '初始发布',
+            expected_revision_id=None,
+        )
         logger.info(f"Post 创建: post_id={self.object.id} slug={self.object.slug} "
                     f"user={self.request.user.id} category_id={self.object.category_id}")
+        messages.success(
+            self.request,
+            "提交成功。文章已保存为草稿，审核前仅你本人可见。",
+        )
         clear_page_caches()
-        return response
+        return HttpResponseRedirect(self.get_success_url())
 
     def form_invalid(self, form):
         logger.warning(f"Post 创建表单失败: user={self.request.user.id} "
@@ -376,7 +412,7 @@ class PostCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return super().form_invalid(form)
 
     def get_success_url(self):
-        return reverse('Blogs:post_edit', kwargs={'slug': self.object.slug})
+        return reverse('Blogs:post_detail', kwargs={'slug': self.object.slug})
 
 
 class PostEditView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
@@ -403,12 +439,19 @@ class PostEditView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             raise PermissionDenied
         if not self.request.user.is_superuser and previous.status != Post.STATUS_DRAFT:
             form.instance.status = Post.STATUS_DRAFT
-        response = super().form_valid(form)
-        # 创建修订快照
-        change_type = form.cleaned_data.get('change_type', 'minor')
+        change_type = form.cleaned_data.get('change_type') or 'minor'
         edit_summary = form.cleaned_data.get('edit_summary', '')
-        create_revision(self.object, self.request.user,
-                        change_type=change_type, edit_summary=edit_summary)
+        try:
+            self.object = commit_post_form(
+                form=form,
+                editor=self.request.user,
+                change_type=change_type,
+                edit_summary=edit_summary,
+                expected_revision_id=form.cleaned_data.get('base_revision_id'),
+            )
+        except RevisionConflict as exc:
+            form.add_error(None, exc)
+            return self.form_invalid(form)
         changed = []
         if previous.title != self.object.title:
             changed.append("title")
@@ -416,8 +459,9 @@ class PostEditView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             changed.append("content")
         logger.info(f"Post 编辑: post_id={self.object.id} slug={self.object.slug} "
                     f"user={self.request.user.id} changed={changed}")
+        messages.success(self.request, "保存成功。")
         clear_page_caches()
-        return response
+        return HttpResponseRedirect(self.get_success_url())
 
     def form_invalid(self, form):
         logger.warning(f"Post 编辑表单失败: post_id={self.object.id} "
@@ -425,7 +469,7 @@ class PostEditView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return super().form_invalid(form)
 
     def get_success_url(self):
-        if self.object.status == Post.STATUS_NORMAL:
+        if self.object.owner_id == self.request.user.pk:
             return reverse('Blogs:post_detail', kwargs={'slug': self.object.slug})
         return reverse('Blogs:post_edit', kwargs={'slug': self.object.slug})
 
@@ -477,8 +521,8 @@ def revision_body(request, slug, version):
     htmx 请求 → 返回 HTML 片段（内联查看）
     普通请求 → 返回完整页面（独立页面）
     """
-    post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
-    if not can_view_published_post(request.user, post):
+    post = get_object_or_404(Post, slug=slug)
+    if not can_view_post_detail(request.user, post):
         raise Http404("文章不存在")
     parts = version.lstrip('v').split('.')
     if len(parts) != 2 or not all(p.isdigit() for p in parts):
@@ -511,18 +555,22 @@ def revision_body(request, slug, version):
 
 
 def revision_diff(request, slug):
-    """GET /post/{slug}/diff/?from=1.0&to=2.0 — 仅允许相邻版本对比
+    """Compare any two ordered revisions visible under the Post's Policy."""
+    from .revisions import (
+        build_structured_diff,
+        render_diff as compute_diff,
+        render_structured_diff,
+    )
 
-    严格校验：from 必须是 to 的直接前驱，否则返回 400。
-    优先使用预计算的 diff_from_previous。
-    """
-    from .revisions import render_diff as compute_diff
-
-    post = get_object_or_404(Post, slug=slug, status=Post.STATUS_NORMAL)
-    if not can_view_published_post(request.user, post):
+    post = get_object_or_404(Post, slug=slug)
+    if not can_view_post_detail(request.user, post):
         raise Http404("文章不存在")
     from_ver = request.GET.get('from', '')
     to_ver = request.GET.get('to', '')
+    mode = request.GET.get('mode', 'split')
+
+    if mode not in {'split', 'inline', 'stats'}:
+        return HttpResponse('Diff 展示模式无效', status=400)
 
     if not from_ver or not to_ver:
         return HttpResponse('请选择两个版本进行对比', status=400)
@@ -539,25 +587,41 @@ def revision_diff(request, slug):
     if not rev_from or not rev_to:
         return HttpResponse('版本号不存在', status=404)
 
-    # 严格检查：必须是相邻版本（to 的直接前驱是 from）
-    prev = _get_adjacent_previous(post, rev_to)
-    if not prev or prev.version != from_ver:
-        return HttpResponse(
-            f'仅支持相邻版本对比。v{to_ver} 的直接前驱是 v{prev.version if prev else "?"}',
-            status=400,
-        )
+    if (rev_from.major, rev_from.minor) > (rev_to.major, rev_to.minor):
+        return HttpResponse('起始版本必须早于结束版本', status=400)
 
-    # 优先预计算 diff
-    diff_html = rev_to.diff_from_previous or compute_diff(
-        rev_from.content, rev_to.content, from_ver, to_ver,
-    )
+    # 相邻版本复用写入时预计算的 R3 数据；任意版本按请求即时构建。
+    prev = _get_adjacent_previous(post, rev_to)
+    is_adjacent = bool(prev and prev.pk == rev_from.pk)
+    diff_html = None
+    if is_adjacent and rev_to.diff_structured:
+        try:
+            diff_html = render_structured_diff(rev_to.diff_structured, mode=mode)
+        except ValueError:
+            pass
+
+    if diff_html is None and is_adjacent and mode == 'split' and rev_to.diff_from_previous:
+        diff_html = rev_to.diff_from_previous
+
+    if diff_html is None:
+        diff_data = build_structured_diff(
+            rev_from.content, rev_to.content, from_ver, to_ver,
+        )
+        try:
+            diff_html = render_structured_diff(diff_data, mode=mode)
+        except ValueError:
+            diff_html = compute_diff(
+                rev_from.content, rev_to.content, from_ver, to_ver,
+            )
 
     return render(request, 'pages/blog/_revision_diff.html', {
+        'post': post,
         'diff_html': diff_html,
         'from_version': from_ver,
         'to_version': to_ver,
         'from_title': rev_from.title,
         'to_title': rev_to.title,
+        'diff_mode': mode,
     })
 
 

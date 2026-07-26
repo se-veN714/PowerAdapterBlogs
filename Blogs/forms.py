@@ -13,6 +13,7 @@
 # here put the import lib
 # forms.py
 from django import forms
+from django.templatetags.static import static
 
 from Blogs.models import Category, Post, Tag
 from Blogs.image_validation import validate_uploaded_image
@@ -65,10 +66,16 @@ class PostForm(forms.ModelForm):
         required=False,
     )
 
-    visibility = forms.ChoiceField(
-        choices=Post.VISIBILITY_ITEMS,
+    visibility = forms.TypedChoiceField(
+        choices=(
+            (Post.VISIBILITY_PUBLIC, '公开'),
+            (Post.VISIBILITY_STAFF_ONLY, '仅本板块成员可见'),
+        ),
+        coerce=int,
         initial=Post.VISIBILITY_PUBLIC,
         label='可见性',
+        help_text='公开文章所有访客可见；板块内文章仅授权成员可见。',
+        error_messages={'required': '请选择文章可见性。'},
         widget=forms.Select(attrs={'class': 'form-select'}),
     )
 
@@ -86,6 +93,7 @@ class PostForm(forms.ModelForm):
         label='编辑摘要',
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '简述本次修改'}),
     )
+    base_revision_id = forms.IntegerField(required=False, widget=forms.HiddenInput())
 
     class Meta:
         model = Post
@@ -98,6 +106,16 @@ class PostForm(forms.ModelForm):
             user,
             Category.objects.all(),
         )
+        self.category_cover_map = {
+            str(category.pk): static(category.default_cover_static_path)
+            for category in self.fields['category'].queryset
+        }
+        if not self.is_bound and self.instance.pk:
+            self.initial['base_revision_id'] = (
+                self.instance.revisions.order_by('-major', '-minor')
+                .values_list('pk', flat=True)
+                .first()
+            )
 
     def clean_cover(self):
         cover = self.cleaned_data.get('cover')

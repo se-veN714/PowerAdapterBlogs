@@ -8,8 +8,8 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from accounts.models import MyUser
-from Blogs.admin import PostAdmin, PostRevisionAdmin
-from Blogs.models import Category, Post, PostRevision
+from Blogs.admin import PostAdmin, PostRevisionAdmin, PostWorkflowEventAdmin
+from Blogs.models import Category, Post, PostRevision, PostWorkflowEvent
 from boards.admin import BoardAdmin
 from boards.models import Board, BoardMembership
 from comment.admin import BoardScopedCommentAdmin
@@ -57,6 +57,10 @@ class BoardScopedAdminTest(TestCase):
 
         self.post_admin = PostAdmin(Post, AdminSite())
         self.revision_admin = PostRevisionAdmin(PostRevision, AdminSite())
+        self.workflow_event_admin = PostWorkflowEventAdmin(
+            PostWorkflowEvent,
+            AdminSite(),
+        )
         self.board_admin = BoardAdmin(Board, AdminSite())
         self.comment_admin = BoardScopedCommentAdmin(Comment, AdminSite())
 
@@ -170,6 +174,25 @@ class BoardScopedAdminTest(TestCase):
         self.assertEqual(post.owner, self.owner)
         self.assertEqual(post.title, "Manager edit")
 
+    def test_superuser_status_only_edit_records_event_without_revision(self):
+        self.member.is_staff = True
+        self.member.is_superuser = True
+        self.member.save(update_fields=["is_staff", "is_superuser"])
+        request = self.request_for(self.member)
+        post = Post.objects.get(pk=self.own_post.pk)
+        revision = self.create_revision(post, self.member)
+        post.status = Post.STATUS_REVIEW
+
+        self.post_admin.save_model(request, post, form=None, change=True)
+
+        post.refresh_from_db()
+        self.assertEqual(post.status, Post.STATUS_REVIEW)
+        self.assertEqual(post.revisions.count(), 1)
+        event = post.workflow_events.get()
+        self.assertEqual(event.event_type, PostWorkflowEvent.EventType.SUBMITTED)
+        self.assertEqual(event.revision, revision)
+        self.assertEqual(event.actor, self.member)
+
     def test_comment_queue_is_readonly_and_scoped_to_reviewer_board(self):
         self.add_membership(BoardMembership.Role.REVIEWER)
         request = self.request_for(self.member)
@@ -225,6 +248,48 @@ class BoardScopedAdminTest(TestCase):
         queryset = self.revision_admin.get_queryset(request)
 
         self.assertQuerySetEqual(queryset, [own_revision])
+
+    def test_workflow_event_history_is_readonly_and_follows_post_scope(self):
+        self.add_membership(BoardMembership.Role.REVIEWER)
+        own_revision = self.create_revision(self.same_board_post, self.owner)
+        other_revision = self.create_revision(
+            self.other_board_post,
+            self.other_owner,
+        )
+        own_event = PostWorkflowEvent.objects.create(
+            post=self.same_board_post,
+            actor=self.owner,
+            event_type=PostWorkflowEvent.EventType.SUBMITTED,
+            from_status=Post.STATUS_DRAFT,
+            to_status=Post.STATUS_REVIEW,
+            revision=own_revision,
+        )
+        other_event = PostWorkflowEvent.objects.create(
+            post=self.other_board_post,
+            actor=self.other_owner,
+            event_type=PostWorkflowEvent.EventType.SUBMITTED,
+            from_status=Post.STATUS_DRAFT,
+            to_status=Post.STATUS_REVIEW,
+            revision=other_revision,
+        )
+        request = self.request_for(self.member)
+
+        queryset = self.workflow_event_admin.get_queryset(request)
+
+        self.assertQuerySetEqual(queryset, [own_event])
+        self.assertTrue(
+            self.workflow_event_admin.has_view_permission(request, own_event)
+        )
+        self.assertFalse(
+            self.workflow_event_admin.has_view_permission(request, other_event)
+        )
+        self.assertFalse(self.workflow_event_admin.has_add_permission(request))
+        self.assertFalse(
+            self.workflow_event_admin.has_change_permission(request, own_event)
+        )
+        self.assertFalse(
+            self.workflow_event_admin.has_delete_permission(request, own_event)
+        )
 
     def test_cross_board_change_url_cannot_reach_or_mutate_post(self):
         self.add_membership(BoardMembership.Role.MANAGER)

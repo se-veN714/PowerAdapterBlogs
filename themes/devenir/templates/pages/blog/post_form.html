@@ -29,62 +29,7 @@
     <div class="post-form-wrapper">
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
-
-            <!-- Selectable default covers -->
-            <fieldset class="cover-presets" aria-describedby="cover-preset-status">
-                <legend>预设封面</legend>
-                <div class="cover-preset-grid">
-                    <button type="button" class="cover-preset" aria-pressed="false"
-                            data-cover-url="{% static 'img/covers/default-code.webp' %}"
-                            data-cover-filename="default-code.webp">
-                        <img src="{% static 'img/covers/default-code.webp' %}" alt="代码矩阵预设封面" width="1024" height="1024">
-                        <span>Code</span>
-                    </button>
-                    <button type="button" class="cover-preset" aria-pressed="false"
-                            data-cover-url="{% static 'img/covers/default-music.webp' %}"
-                            data-cover-filename="default-music.webp">
-                        <img src="{% static 'img/covers/default-music.webp' %}" alt="音乐波形预设封面" width="1024" height="1024">
-                        <span>Music</span>
-                    </button>
-                    <button type="button" class="cover-preset" aria-pressed="false"
-                            data-cover-url="{% static 'img/covers/default-skate.webp' %}"
-                            data-cover-filename="default-skate.webp">
-                        <img src="{% static 'img/covers/default-skate.webp' %}" alt="滑板轨迹预设封面" width="1024" height="1024">
-                        <span>Skate</span>
-                    </button>
-                    <button type="button" class="cover-preset" aria-pressed="false"
-                            data-cover-url="{% static 'img/covers/default-rhizome.webp' %}"
-                            data-cover-filename="default-rhizome.webp">
-                        <img src="{% static 'img/covers/default-rhizome.webp' %}" alt="块茎网络预设封面" width="1024" height="1024">
-                        <span>Rhizome</span>
-                    </button>
-                    <button type="button" class="cover-preset" aria-pressed="false"
-                            data-cover-url="{% static 'img/covers/default-noise.webp' %}"
-                            data-cover-filename="default-noise.webp">
-                        <img src="{% static 'img/covers/default-noise.webp' %}" alt="噪声同心环预设封面" width="1024" height="1024">
-                        <span>Noise</span>
-                    </button>
-                </div>
-                <p class="cover-preset-status" id="cover-preset-status" aria-live="polite">
-                    选择预设，或在下方上传自己的封面。
-                </p>
-            </fieldset>
-
-            <!-- Cover upload -->
-            <div class="cover-upload" id="cover-upload-box" onclick="document.getElementById('id_cover').click();">
-                <input class="file-input" type="file" name="{{ form.cover.name }}" id="id_cover" style="display:none;"
-                       accept="image/*"/>
-                {% if form.instance.cover %}
-                    <img src="{{ form.instance.cover.url }}" alt="当前封面" id="cover-preview">
-                {% else %}
-                    <div style="padding:2rem;color:var(--text-muted);font-family:var(--font-mono);font-size:0.85rem;">
-                        &#128247; 点击或拖拽上传封面图
-                    </div>
-                {% endif %}
-                <span id="cover-filename" style="font-size:0.75rem;color:var(--text-tertiary);font-family:var(--font-mono);">
-                    {% if form.instance.cover %}{{ form.instance.cover.name }}{% else %}未选择文件{% endif %}
-                </span>
-            </div>
+            {{ form.base_revision_id }}
 
             <!-- Title -->
             <div class="field-group">
@@ -117,10 +62,47 @@
                 </div>
             </div>
 
+            <!-- Visibility -->
+            <div class="field-group">
+                <label for="id_visibility">{{ form.visibility.label }}</label>
+                {{ form.visibility }}
+                <p class="field-help">{{ form.visibility.help_text }}</p>
+            </div>
+
+            <!-- Optional custom cover; otherwise category decides the default. -->
+            {{ form.category_cover_map|json_script:"category-cover-map" }}
+            <div class="field-group">
+                <label for="id_cover">封面（可选）</label>
+                <div class="cover-upload" id="cover-upload-box" onclick="document.getElementById('id_cover').click();">
+                    <input class="file-input" type="file" name="{{ form.cover.name }}" id="id_cover" style="display:none;"
+                           accept="image/*"/>
+                    {% if form.instance.cover %}
+                        <img src="{{ form.instance.cover.url }}" alt="当前自定义封面" id="cover-preview">
+                    {% else %}
+                        <img src="{% static 'img/Cover.png' %}" alt="当前分类的默认封面" id="cover-preview">
+                    {% endif %}
+                    <span id="cover-filename">
+                        {% if form.instance.cover %}
+                            自定义封面：{{ form.instance.cover.name }}
+                        {% else %}
+                            未上传自定义封面，将根据分类自动使用默认封面
+                        {% endif %}
+                    </span>
+                </div>
+                <p class="field-help">上传图片会覆盖分类默认封面；不上传不会复制或生成媒体文件。</p>
+            </div>
+
             <!-- Errors -->
             {% if form.errors %}
             <div class="form-errors">
-                {{ form.errors }}
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <p><strong>{{ field.label }}</strong>：{{ error }}</p>
+                    {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
             </div>
             {% endif %}
 
@@ -138,68 +120,41 @@
 {% block extra_js %}
     {{ block.super }}
     <script>
-        // Cover preview and selectable defaults
+        // Custom cover preview; an empty field follows the selected category.
         var coverInput = document.getElementById('id_cover');
         var coverFilename = document.getElementById('cover-filename');
-        var coverPresetStatus = document.getElementById('cover-preset-status');
-        var coverPresetButtons = document.querySelectorAll('.cover-preset');
+        var coverPreview = document.getElementById('cover-preview');
+        var categoryInput = document.getElementById('id_category');
+        var categoryCoverMap = JSON.parse(document.getElementById('category-cover-map').textContent);
+        var genericCoverUrl = "{% static 'img/Cover.png' %}";
+        var hasStoredCover = {% if form.instance.cover %}true{% else %}false{% endif %};
+        var hasCustomCover = hasStoredCover;
+
+        function updateCategoryDefaultCover() {
+            if (hasCustomCover) return;
+            coverPreview.src = categoryCoverMap[categoryInput.value] || genericCoverUrl;
+            coverPreview.alt = '当前分类的默认封面';
+            coverFilename.textContent = '未上传自定义封面，将根据分类自动使用默认封面';
+        }
 
         coverInput.addEventListener('change', function(e) {
-            coverFilename.textContent = e.target.files.length > 0 ? e.target.files[0].name : '未选择文件';
             if (e.target.files.length > 0) {
+                hasCustomCover = true;
+                coverFilename.textContent = '自定义封面：' + e.target.files[0].name;
                 var reader = new FileReader();
                 reader.onload = function(ev) {
-                    var box = document.getElementById('cover-upload-box');
-                    var existing = box.querySelector('img');
-                    if (existing) {
-                        existing.src = ev.target.result;
-                    } else {
-                        var img = document.createElement('img');
-                        img.src = ev.target.result;
-                        img.id = 'cover-preview';
-                        box.insertBefore(img, box.firstChild);
-                    }
+                    coverPreview.src = ev.target.result;
+                    coverPreview.alt = '待上传的自定义封面';
                 };
                 reader.readAsDataURL(e.target.files[0]);
+            } else {
+                hasCustomCover = hasStoredCover;
+                updateCategoryDefaultCover();
             }
         });
 
-        coverPresetButtons.forEach(function(button) {
-            button.addEventListener('click', function() {
-                button.disabled = true;
-                coverPresetStatus.textContent = '正在载入 ' + button.textContent.trim() + ' 预设封面…';
-
-                fetch(button.dataset.coverUrl)
-                    .then(function(response) {
-                        if (!response.ok) throw new Error('预设封面载入失败');
-                        return response.blob();
-                    })
-                    .then(function(blob) {
-                        var file = new File(
-                            [blob],
-                            button.dataset.coverFilename,
-                            {type: blob.type || 'image/webp'}
-                        );
-                        var transfer = new DataTransfer();
-                        transfer.items.add(file);
-                        coverInput.files = transfer.files;
-                        coverInput.dispatchEvent(new Event('change', {bubbles: true}));
-
-                        coverPresetButtons.forEach(function(item) {
-                            var selected = item === button;
-                            item.classList.toggle('is-selected', selected);
-                            item.setAttribute('aria-pressed', selected ? 'true' : 'false');
-                        });
-                        coverPresetStatus.textContent = '已选择 ' + button.textContent.trim() + '；提交时将按普通封面上传。';
-                    })
-                    .catch(function(error) {
-                        coverPresetStatus.textContent = error.message + '，请改用本地上传。';
-                    })
-                    .finally(function() {
-                        button.disabled = false;
-                    });
-            });
-        });
+        categoryInput.addEventListener('change', updateCategoryDefaultCover);
+        updateCategoryDefaultCover();
 
         // Toast UI Editor
         var editor = null;

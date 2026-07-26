@@ -13,9 +13,29 @@
 from django.urls import path
 from django.contrib.auth.views import LogoutView
 
-from accounts.views import LoginView
+from accounts.views import (
+    AcceptAccountInvitationView,
+    AccountPasswordChangeView,
+    LoginView,
+    MyProfileRedirectView,
+    ProfileDetailView,
+    ProfileUpdateView,
+)
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
+    path('profile/', MyProfileRedirectView.as_view(), name='my-profile'),
+    path('u/<str:username>/', ProfileDetailView.as_view(), name='profile-detail'),
+    path('settings/profile/', ProfileUpdateView.as_view(), name='profile-update'),
+    path(
+        'password/change/',
+        AccountPasswordChangeView.as_view(),
+        name='password-change',
+    ),
+    path(
+        'invitation/<str:token>/',
+        AcceptAccountInvitationView.as_view(),
+        name='accept-invitation',
+    ),
     path('logout/', LogoutView.as_view(next_page='index'), name='logout'),
 ]

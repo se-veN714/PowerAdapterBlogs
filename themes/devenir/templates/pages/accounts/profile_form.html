@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static widget_tweaks %}
+
+{% block title %}编辑个人资料{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20260726.2">{% endblock %}
+
+{% block hero %}
+<div class="page-header">
+    <p class="page-subtitle">IDENTITY CONFIGURATION</p>
+    <h1 class="page-title">编辑个人资料</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="auth-page profile-settings-page">
+    <div class="auth-card profile-form-card">
+        <div class="term-bar" aria-hidden="true">
+            <span class="term-dots"><i></i><i></i><i></i></span>
+            <span class="term-title">pa@blog:~/config $ edit identity.cfg</span>
+        </div>
+
+        {% if form.instance.avatar %}
+        <div class="profile-avatar-preview">
+            <img src="{{ form.instance.avatar.url }}" alt="当前头像">
+            <div class="avatar-preview-meta">
+                <span>CURRENT AVATAR</span>
+                <small>上传新文件以替换</small>
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="field{% if field.field.widget.input_type == 'checkbox' %} field-checkbox{% endif %}">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {% if field.field.widget.input_type == 'checkbox' %}
+                        {{ field }}
+                    {% else %}
+                        {{ field|add_class:"input" }}
+                    {% endif %}
+                    {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
+                    {% for error in field.errors %}<div class="error-msg"><p>{{ error }}</p></div>{% endfor %}
+                </div>
+            {% endfor %}
+            <div class="profile-form-actions">
+                <button class="btn-login" type="submit">保存资料</button>
+                <a class="btn-ghost" href="{% url 'accounts:my-profile' %}">取消</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

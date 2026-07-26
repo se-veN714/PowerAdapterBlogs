@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ profile.public_name }} · Profile{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20260726.2">
+    <link rel="stylesheet" href="{% static 'css/blog.css' %}?v=20260726.2">
+{% endblock %}
+
+{% block hero %}
+<section class="profile-hero">
+    <div class="container">
+        <!-- Identity Rail: system metadata -->
+        <div class="profile-id-rail" aria-hidden="true">
+            <span class="id-rail-item">NODE: AUTHOR</span>
+            <span class="id-rail-item">STATUS: {% if profile_user.is_active %}ACTIVE{% else %}INACTIVE{% endif %}</span>
+            <span class="id-rail-item">VISIBILITY: {% if profile.is_public %}PUBLIC{% else %}PRIVATE{% endif %}</span>
+            <span class="id-rail-item id-rail-signal"><i></i>LINK OK</span>
+        </div>
+
+        <div class="profile-hero-grid">
+            <div class="profile-avatar-frame">
+                {% if profile.avatar %}
+                    <img src="{{ profile.avatar.url }}" alt="{{ profile.public_name }} 的头像">
+                {% else %}
+                    <img src="{% static 'img/avatar.jpg' %}" alt="默认作者头像">
+                {% endif %}
+                <div class="avatar-scanline" aria-hidden="true"></div>
+            </div>
+            <div class="profile-identity">
+                <p class="profile-kicker">AUTHOR / IDENTITY NODE</p>
+                <h1>{{ profile.public_name }}</h1>
+                <p class="profile-handle">@{{ profile_user.username }}</p>
+                {% if profile.bio %}<p class="profile-bio">{{ profile.bio|linebreaksbr }}</p>{% endif %}
+                <div class="profile-coordinates" aria-label="作者公开资料">
+                    {% if profile.location %}
+                        <span class="profile-coordinate"><small>LOC</small><b>{{ profile.location }}</b></span>
+                    {% endif %}
+                    {% if profile.website %}
+                        <a class="profile-coordinate" href="{{ profile.website }}" target="_blank" rel="me noopener"><small>WEB</small><b>{{ profile.website|truncatechars:28 }}</b></a>
+                    {% endif %}
+                    {% if profile.github_url %}
+                        <a class="profile-coordinate" href="{{ profile.github_url }}" target="_blank" rel="me noopener"><small>GIT</small><b>GitHub ↗</b></a>
+                    {% endif %}
+                </div>
+                {% if is_profile_owner %}
+                    <div class="profile-actions">
+                        <a class="btn-accent" href="{% url 'accounts:profile-update' %}">编辑资料</a>
+                        <a class="btn-ghost" href="{% url 'accounts:password-change' %}">修改密码</a>
+                    </div>
+                    {% if not profile.is_public %}
+                        <p class="profile-private-note">// 当前为私人预览，其他访问者会看到 404</p>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <div class="profile-signal" aria-hidden="true">
+                <span>{{ page_obj.paginator.count|stringformat:"02d" }}</span>
+                <small>PUBLIC POSTS</small>
+                <div class="signal-bars"><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<section class="container profile-posts">
+    <div class="profile-section-heading">
+        <span>TRANSMISSIONS</span>
+        <span>{{ page_obj.paginator.count }} records</span>
+    </div>
+    {% include 'pages/blog/_post_stream.html' %}
+
+    {% if is_paginated %}
+    <nav class="profile-pagination" aria-label="作者文章分页">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">← PREV</a>{% endif %}
+        <span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">NEXT →</a>{% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,6 +1,10 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import MyUser
+from django.contrib import messages
+
+from .forms import AccountInvitationCreationForm
+from .models import AccountInvitation, MyUser, UserProfile
+from .services import issue_account_invitation
 
 from PowerAdapterBlogs.cus_site import custom_site
 from PowerAdapterBlogs.base_admin import DashboardAdminMixin
@@ -8,6 +12,7 @@ from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 
 class MyUserAdmin(UserAdmin):
     model = MyUser
+    add_form = AccountInvitationCreationForm
     list_display = ('username', 'email', 'is_active', 'is_reviewer',
                     'is_dashboard_user', 'is_superuser')
     list_filter = ('is_active', 'is_reviewer', 'is_dashboard_user', 'is_superuser')
@@ -26,10 +31,36 @@ class MyUserAdmin(UserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'email', 'password1', 'password2',
-                       'is_active', 'is_reviewer', 'is_dashboard_user', 'is_superuser')}
+            'description': '账号将保持未激活；系统会向该邮箱发送一次性密码设置邀请。',
+            'fields': ('username', 'email', 'password')}
          ),
     )
+
+    actions = ("resend_account_invitation",)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not change:
+            issue_account_invitation(obj, created_by=request.user)
+
+    @admin.action(description="重新发送账号邀请")
+    def resend_account_invitation(self, request, queryset):
+        sent = 0
+        skipped = 0
+        for user in queryset:
+            if user.is_active:
+                skipped += 1
+                continue
+            issue_account_invitation(user, created_by=request.user)
+            sent += 1
+        if sent:
+            self.message_user(request, f"已为 {sent} 个未激活账号重新生成邀请。")
+        if skipped:
+            self.message_user(
+                request,
+                f"跳过 {skipped} 个已激活账号。",
+                level=messages.WARNING,
+            )
 
     def get_readonly_fields(self, request, obj=None):
         """
@@ -115,3 +146,41 @@ class CusMyUserAdmin(DashboardAdminMixin, MyUserAdmin):
     def get_readonly_fields(self, request, obj=None):
         """The permission methods reject non-superusers before form rendering."""
         return super().get_readonly_fields(request, obj)
+
+
+@admin.register(AccountInvitation)
+class AccountInvitationAdmin(admin.ModelAdmin):
+    list_display = ("user", "created_by", "created_at", "expires_at", "sent_at", "accepted_at")
+    readonly_fields = (
+        "user", "created_by", "token_digest", "created_at", "expires_at", "sent_at", "accepted_at"
+    )
+    search_fields = ("user__username", "user__email")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "display_name", "is_public", "updated_at")
+    list_filter = ("is_public",)
+    search_fields = ("user__username", "display_name")
+    readonly_fields = ("updated_at",)
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser

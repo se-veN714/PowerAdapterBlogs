@@ -1,6 +1,13 @@
+from pathlib import Path
+import uuid
+
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.urls import reverse
 import logging
+
+from PowerAdapterBlogs.image_validation import validate_uploaded_image
 
 from .thread_local import get_current_user
 
@@ -8,6 +15,14 @@ logger = logging.getLogger(__name__)
 
 # 敏感权限字段：非 superuser 禁止修改
 SENSITIVE_FIELDS = {'is_superuser', 'is_staff', 'is_dashboard_user', 'is_reviewer'}
+
+
+def profile_avatar_upload_to(_instance, filename):
+    """使用服务端随机文件名保存头像，避免信任客户端路径。"""
+    extension = Path(filename).suffix.lower()
+    if extension not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+        extension = ".upload"
+    return f"profile-avatars/{uuid.uuid4().hex}{extension}"
 
 
 # Create your models here.
@@ -87,3 +102,79 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
                         )
 
         super().save(*args, **kwargs)
+
+
+class AccountInvitation(models.Model):
+    """管理员发放账号后，由受邀用户完成密码设置和激活。"""
+
+    user = models.OneToOneField(
+        MyUser,
+        on_delete=models.CASCADE,
+        related_name="account_invitation",
+        verbose_name="受邀用户",
+    )
+    created_by = models.ForeignKey(
+        MyUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_account_invitations",
+        verbose_name="邀请人",
+    )
+    token_digest = models.CharField(max_length=64, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    expires_at = models.DateTimeField(verbose_name="过期时间")
+    sent_at = models.DateTimeField(null=True, blank=True, verbose_name="发送时间")
+    accepted_at = models.DateTimeField(null=True, blank=True, verbose_name="接受时间")
+
+    class Meta:
+        verbose_name = "账号邀请"
+        verbose_name_plural = "账号邀请"
+
+    @property
+    def is_pending(self):
+        from django.utils import timezone
+
+        return self.accepted_at is None and self.expires_at > timezone.now()
+
+    def __str__(self):
+        return f"{self.user.username} 的账号邀请"
+
+
+class UserProfile(models.Model):
+    """用户主动维护的公开作者资料；认证和权限字段仍留在 MyUser。"""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile",
+        verbose_name="用户",
+    )
+    display_name = models.CharField(max_length=64, blank=True, verbose_name="展示名称")
+    bio = models.TextField(max_length=500, blank=True, verbose_name="个人简介")
+    avatar = models.ImageField(
+        upload_to=profile_avatar_upload_to,
+        validators=(validate_uploaded_image,),
+        blank=True,
+        null=True,
+        verbose_name="头像",
+    )
+    website = models.URLField(blank=True, verbose_name="个人网站")
+    github_url = models.URLField(blank=True, verbose_name="GitHub")
+    location = models.CharField(max_length=64, blank=True, verbose_name="所在地")
+    is_public = models.BooleanField(default=False, verbose_name="公开作者主页")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        verbose_name = "用户资料"
+        verbose_name_plural = "用户资料"
+
+    @property
+    def public_name(self):
+        return self.display_name.strip() or self.user.username
+
+    def get_absolute_url(self):
+        return reverse("accounts:profile-detail", kwargs={"username": self.user.username})
+
+    def __str__(self):
+        return f"{self.user.username} 的资料"

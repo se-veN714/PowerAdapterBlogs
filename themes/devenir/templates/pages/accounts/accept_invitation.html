@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load static widget_tweaks %}
+
+{% block title %}激活账号{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% endblock %}
+
+{% block hero %}
+<div class="page-header">
+    <h1 class="page-title">激活账号</h1>
+    <p class="page-subtitle">此页面仅用于管理员发放的账号</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card">
+        {% if invalid_invitation %}
+            <div class="auth-title">Invitation Invalid</div>
+            <div class="error-msg">
+                <p>邀请无效、已经使用或已经过期，请联系管理员重新发送。</p>
+            </div>
+            <div class="auth-links"><a href="{% url 'index' %}">&#8592; 返回首页</a></div>
+        {% else %}
+            <div class="auth-title">Set Password</div>
+            <form method="post">
+                {% csrf_token %}
+                {% for field in form %}
+                    <div class="field">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field|add_class:"input" }}
+                        {% for error in field.errors %}<div class="error-msg"><p>{{ error }}</p></div>{% endfor %}
+                        {% if field.help_text %}<div class="field-help">{{ field.help_text|safe }}</div>{% endif %}
+                    </div>
+                {% endfor %}
+                <button class="btn-login" type="submit">设置密码并激活</button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

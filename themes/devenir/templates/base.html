@@ -195,6 +195,15 @@
             position: relative; z-index: 1; min-height: 60vh;
             padding: 2rem 0 4rem;
         }
+        .flash-messages { margin-bottom: 1.5rem; }
+        .flash-message {
+            padding: 0.8rem 1rem; border: 1px solid var(--border);
+            background: var(--bg-elevated); color: var(--text-secondary);
+            font-family: var(--font-mono); font-size: 0.82rem;
+        }
+        .flash-message.success {
+            border-color: var(--accent-deep); color: var(--accent);
+        }
 
         /* ===== Footer ===== */
         .footer {
@@ -285,7 +294,7 @@
                         {% csrf_token %}
                         <button type="submit" class="btn-ghost">登出</button>
                     </form>
-                    <span style="color:var(--accent-soft);font-size:0.85rem;">{{ user.username }}</span>
+                    <a href="{% url 'accounts:my-profile' %}" class="btn-ghost">{{ user.username }}</a>
                 {% else %}
                     <a href="{% url 'accounts:login' %}" class="btn-ghost">登录</a>
                 {% endif %}
@@ -324,6 +333,7 @@
             <a href="{% url 'Blogs:post_create' %}">新文章</a>
         {% endif %}
         {% if user.is_authenticated %}
+            <a href="{% url 'accounts:my-profile' %}">个人主页</a>
             <a href="#" onclick="document.getElementById('logout-form-mobile').submit(); return false;">登出</a>
             <form id="logout-form-mobile" action="{% url 'accounts:logout' %}" method="post" style="display:none;">
                 {% csrf_token %}
@@ -338,6 +348,13 @@
 {% block hero %}{% endblock %}
 
 <main class="main-content">
+    {% if messages %}
+    <div class="container flash-messages" aria-live="polite">
+        {% for message in messages %}
+            <p class="flash-message {{ message.tags }}" role="status">{{ message }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
 </main>
 

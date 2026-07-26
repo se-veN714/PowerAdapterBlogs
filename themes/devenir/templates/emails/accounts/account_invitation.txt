@@ -1,0 +1,7 @@
+{{ user.username }}，你好：
+
+管理员已为你创建 PowerAdapter 账号。请在 {{ expires_at }} 前访问下面的链接，设置自己的密码并激活账号：
+
+{{ activation_url }}
+
+如果你不认识本站管理员，请忽略这封邮件。请勿转发该链接。

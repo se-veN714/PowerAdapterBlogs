@@ -1,0 +1,31 @@
+{% comment %}
+Skateboard Board — Selected Line 片段（htmx 交换目标内容）。
+
+契约（BOARD_INDEX_HANDOFF.md §6.12，未实现，后端集成阶段提供）：
+    selected_homie 当前选中成员（node_index/name/location/updated_at，属性名以最终模型为准）
+    clip_list      当前成员公开 Clip 列表（title/category/spot/filmed_at/duration/
+                   status/notes/video_url/thumbnail_url）
+
+本片段只消费上下文，不查询权限；空列表渲染安全空态。
+{% endcomment %}
+<header class="sk-selected-head">
+    <p class="sk-selected-kicker">SELECTED NODE / <span>{{ selected_homie.node_index|stringformat:"02d" }}</span></p>
+    <div class="sk-selected-id">
+        <h2 class="sk-selected-name">{{ selected_homie.name|upper }}</h2>
+        <ul class="sk-selected-meta">
+            {% if selected_homie.location %}<li>{{ selected_homie.location|upper }}</li>{% endif %}
+            <li>{{ clip_list|length }} CLIP{{ clip_list|length|pluralize:"S" }}</li>
+            {% if selected_homie.updated_at %}<li>UPDATED {{ selected_homie.updated_at|date:"Y.m" }}</li>{% endif %}
+        </ul>
+    </div>
+</header>
+<div class="sk-clips">
+    {% for clip in clip_list %}
+    {% include 'pages/boards/skateboard/_clip_row.html' with index=forloop.counter|stringformat:"02d" name=clip.title|upper category=clip.category|upper spot=clip.spot filmed=clip.filmed_at|date:"m.d.y" duration=clip.duration status=clip.status notes=clip.notes flip=forloop.counter0|divisibleby:2 video_url=clip.video_url poster_url=clip.thumbnail_url %}
+    {% empty %}
+    <div class="sk-empty">
+        <strong>NO CLIPS</strong>
+        <p>该成员还没有公开片段。</p>
+    </div>
+    {% endfor %}
+</div>

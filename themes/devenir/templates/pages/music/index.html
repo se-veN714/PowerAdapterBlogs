@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）。
+概念图参考：.local/img/boards-music-sa.png
+旧版本保留在 index_legacy.html / music_legacy.css / music_legacy.js / music-mock-data_legacy.js
+核心内容静态预渲染，JS 仅负责 archive 展开等轻量交互。
+{% endcomment %}
+
+{% block title %}Music · PowerAdapter{% endblock %}
+{% block meta_description %}PowerAdapter Listening Field — 将听歌记录呈现为持续生成的声音场域：按年度沉积与按月追踪的两栏视图。{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/music/music.css' %}">
+{% endblock %}
+
+{% block hero %}
+<section class="music-hero" aria-label="Music">
+    <div class="container music-hero__grid">
+        <div class="music-hero__intro reveal">
+            <h1 class="music-title">
+                <span class="music-title__num">02</span>
+                <span class="music-title__slash" aria-hidden="true">/</span>
+                <span class="music-title__word">MUSIC</span>
+            </h1>
+            <p class="music-subtitle">LISTENING FIELD</p>
+            <p class="music-tagline">
+                SOUNDS DO NOT FORM A SINGLE TIMELINE.<br>
+                SOME RETURN AS YEARS.<br>
+                OTHERS LEAVE TRACES BY MONTH.
+            </p>
+            <dl class="music-source">
+                <div class="music-source__row">
+                    <dt>SPOTIFY</dt><dd>YEARLY</dd>
+                </div>
+                <div class="music-source__row">
+                    <dt>APPLE MUSIC</dt><dd>MONTHLY</dd>
+                </div>
+                <div class="music-source__row">
+                    <dt>LAST MANUAL UPDATE</dt><dd>2026.07.27</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="music-hero__visual" aria-hidden="true">
+            <svg viewBox="0 0 200 200" class="music-hero__headphones" role="img" aria-label="Headphone silhouette">
+                <defs>
+                    <radialGradient id="music-glow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="rgba(78,215,175,0.30)"/>
+                        <stop offset="70%" stop-color="rgba(78,215,175,0.05)"/>
+                        <stop offset="100%" stop-color="rgba(78,215,175,0)"/>
+                    </radialGradient>
+                </defs>
+                <circle cx="100" cy="100" r="85" fill="url(#music-glow)"/>
+                <path d="M 60 105 C 60 55 140 55 140 105" fill="none" stroke="rgba(78,215,175,0.35)" stroke-width="5" stroke-linecap="round"/>
+                <rect x="42" y="95" width="28" height="55" rx="10" fill="rgba(78,215,175,0.12)" stroke="rgba(78,215,175,0.45)" stroke-width="2"/>
+                <rect x="130" y="95" width="28" height="55" rx="10" fill="rgba(78,215,175,0.12)" stroke="rgba(78,215,175,0.45)" stroke-width="2"/>
+                <line x1="70" y1="115" x2="70" y2="135" stroke="rgba(78,215,175,0.25)" stroke-width="2"/>
+                <line x1="130" y1="115" x2="130" y2="135" stroke="rgba(78,215,175,0.25)" stroke-width="2"/>
+            </svg>
+        </div>
+
+        <div class="music-hero__period music-card reveal">
+            <div class="music-card__head">
+                <span class="music-card__num">01</span>
+                <h2 class="music-card__title">CURRENT PERIOD</h2>
+                <span class="music-card__hint">2026.07</span>
+            </div>
+            <p class="music-period__sub">RETURN TO LONG-FORM LISTENING</p>
+            <ul class="music-period__artists" role="list" aria-label="Current period artists">
+                <li class="music-period__artist">
+                    <span class="music-thumb" aria-hidden="true">WE</span>
+                    <div class="music-period__artist-info">
+                        <p class="music-period__artist-name">WORLD'S END GIRLFRIEND</p>
+                        <p class="music-period__artist-tag">CINEMATIC POST-ROCK</p>
+                    </div>
+                </li>
+                <li class="music-period__artist">
+                    <span class="music-thumb" aria-hidden="true">TE</span>
+                    <div class="music-period__artist-info">
+                        <p class="music-period__artist-name">TE'</p>
+                        <p class="music-period__artist-tag">ATMOSPHERIC / EMOTIONAL</p>
+                    </div>
+                </li>
+                <li class="music-period__artist">
+                    <span class="music-thumb" aria-hidden="true">AT</span>
+                    <div class="music-period__artist-info">
+                        <p class="music-period__artist-name">ABOUT TESS</p>
+                        <p class="music-period__artist-tag">INSTRUMENTAL / NARRATIVE</p>
+                    </div>
+                </li>
+                <li class="music-period__artist">
+                    <span class="music-thumb" aria-hidden="true">RS</span>
+                    <div class="music-period__artist-info">
+                        <p class="music-period__artist-name">ROUGHSKETCH</p>
+                        <p class="music-period__artist-tag">AMBIENT / EXPERIMENTAL</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<article class="music-page">
+    <div class="container music-dashboard">
+        <!-- LEFT COLUMN -->
+        <div class="music-col music-col--left">
+            <section class="music-card music-yearly reveal" aria-labelledby="music-yearly-title">
+                <div class="music-card__head">
+                    <span class="music-card__num">02</span>
+                    <h2 id="music-yearly-title" class="music-card__title">YEARLY OVERVIEW</h2>
+                    <span class="music-card__hint">SPOTIFY / ANNUAL</span>
+                </div>
+                <div class="music-yearly__main">
+                    <div class="music-yearly__figures">
+                        <p class="music-yearly__year">2025</p>
+                        <p class="music-yearly__total">32,481 <span>MIN</span></p>
+                        <div class="music-yearly__core">
+                            <p class="music-yearly__core-title">CORE ARTISTS</p>
+                            <ol class="music-yearly__core-list">
+                                <li><span class="music-rank">1</span> WORLD'S END GIRLFRIEND</li>
+                                <li><span class="music-rank">2</span> TE'</li>
+                                <li><span class="music-rank">3</span> ABOUT TESS</li>
+                                <li><span class="music-rank">4</span> ROUGHSKETCH</li>
+                                <li><span class="music-rank">5</span> HAIKU SALUT</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div class="music-yearly__chart" aria-hidden="true">
+                        <svg viewBox="0 0 300 120" preserveAspectRatio="none">
+                            <polyline points="0,90 20,70 40,80 60,50 80,65 100,40 120,55 140,35 160,60 180,30 200,50 220,25 240,45 260,20 280,40 300,15"/>
+                        </svg>
+                        <p class="music-yearly__summary">YEARLY TRACE SUMMARY</p>
+                        <p class="music-yearly__tags">LONG FORM / HIGH REPEAT / POST-ROCK</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="music-card music-cross reveal" aria-labelledby="music-cross-title">
+                <div class="music-card__head">
+                    <span class="music-card__num">04</span>
+                    <h2 id="music-cross-title" class="music-card__title">CROSS-SCALE RELATIONS</h2>
+                </div>
+                <ul class="music-cross__list" role="list">
+                    <li class="music-cross__item">
+                        <span class="music-thumb music-thumb--wide" aria-hidden="true">WE</span>
+                        <div class="music-cross__info">
+                            <p class="music-cross__name">WORLD'S END GIRLFRIEND</p>
+                            <p class="music-cross__scales">
+                                <span class="music-cross__scale">YEARLY: <strong>STABLE</strong></span>
+                                <span class="music-cross__scale">MONTHLY: <strong>CONTINUOUS</strong></span>
+                            </p>
+                        </div>
+                        <svg class="music-spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,18 13,14 26,16 39,9 52,13 65,7 80,10"/></svg>
+                    </li>
+                    <li class="music-cross__item">
+                        <span class="music-thumb music-thumb--wide" aria-hidden="true">RS</span>
+                        <div class="music-cross__info">
+                            <p class="music-cross__name">ROUGHSKETCH</p>
+                            <p class="music-cross__scales">
+                                <span class="music-cross__scale">YEARLY: <strong>HIGH</strong></span>
+                                <span class="music-cross__scale">MONTHLY: <strong>CONCENTRATED</strong></span>
+                            </p>
+                        </div>
+                        <svg class="music-spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,20 13,10 26,14 39,6 52,12 65,4 80,8"/></svg>
+                    </li>
+                    <li class="music-cross__item">
+                        <span class="music-thumb music-thumb--wide" aria-hidden="true">AT</span>
+                        <div class="music-cross__info">
+                            <p class="music-cross__name">ABOUT TESS</p>
+                            <p class="music-cross__scales">
+                                <span class="music-cross__scale">YEARLY: <strong>—</strong></span>
+                                <span class="music-cross__scale">MONTHLY: <strong>RISING</strong></span>
+                            </p>
+                        </div>
+                        <svg class="music-spark music-spark--rise" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,20 13,18 26,15 39,12 52,9 65,6 80,3"/></svg>
+                    </li>
+                </ul>
+            </section>
+
+            <section class="music-card music-archive-yearly reveal" aria-labelledby="music-archive-yearly-title">
+                <div class="music-card__head">
+                    <span class="music-card__num">06</span>
+                    <h2 id="music-archive-yearly-title" class="music-card__title">SPOTIFY / YEARLY ARCHIVE</h2>
+                </div>
+                <ul class="music-archive__list" role="list">
+                    <li class="music-archive__row">
+                        <span class="music-archive__label">2025</span>
+                        <span class="music-archive__value">32,481 MIN</span>
+                        <span class="music-archive__tags">LONG FORM / HIGH REPEAT / POST-ROCK</span>
+                        <a class="music-archive__link" href="#" data-period="2025">VIEW ARCHIVE &rarr;</a>
+                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
+                    </li>
+                    <li class="music-archive__row">
+                        <span class="music-archive__label">2024</span>
+                        <span class="music-archive__value">28,913 MIN</span>
+                        <span class="music-archive__tags">MELODIC / ATMOSPHERIC / EMOTIONAL</span>
+                        <a class="music-archive__link" href="#" data-period="2024">VIEW ARCHIVE &rarr;</a>
+                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
+                    </li>
+                    <li class="music-archive__row">
+                        <span class="music-archive__label">2023</span>
+                        <span class="music-archive__value">24,607 MIN</span>
+                        <span class="music-archive__tags">AMBIENT / EXPERIMENTAL / FIELD</span>
+                        <a class="music-archive__link" href="#" data-period="2023">VIEW ARCHIVE &rarr;</a>
+                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
+                    </li>
+                </ul>
+            </section>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="music-col music-col--right">
+            <section class="music-card music-monthly reveal" aria-labelledby="music-monthly-title">
+                <div class="music-card__head">
+                    <span class="music-card__num">03</span>
+                    <h2 id="music-monthly-title" class="music-card__title">MONTHLY TRACES</h2>
+                    <span class="music-card__hint">APPLE MUSIC / MONTHLY</span>
+                </div>
+                <div class="music-monthly__chart">
+                    <ul class="music-monthly__bars" role="list" aria-label="Monthly listening minutes">
+                        <li><span class="music-monthly__month">JAN</span><span class="music-monthly__bar" style="--pct:62%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">18,412 MIN</span></li>
+                        <li><span class="music-monthly__month">FEB</span><span class="music-monthly__bar" style="--pct:51%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">15,291 MIN</span></li>
+                        <li><span class="music-monthly__month">MAR</span><span class="music-monthly__bar" style="--pct:60%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">17,850 MIN</span></li>
+                        <li><span class="music-monthly__month">APR</span><span class="music-monthly__bar" style="--pct:68%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">20,114 MIN</span></li>
+                        <li><span class="music-monthly__month">MAY</span><span class="music-monthly__bar" style="--pct:65%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">19,387 MIN</span></li>
+                        <li><span class="music-monthly__month">JUN</span><span class="music-monthly__bar" style="--pct:51%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">15,220 MIN</span></li>
+                        <li class="is-current"><span class="music-monthly__month">JUL</span><span class="music-monthly__bar" style="--pct:75%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">22,476 MIN</span></li>
+                    </ul>
+                </div>
+                <div class="music-monthly__current">
+                    <div class="music-monthly__current-head">
+                        <span class="music-monthly__current-month">2026.07</span>
+                        <span class="music-monthly__current-min">22,476 MIN</span>
+                    </div>
+                    <p class="music-monthly__current-title">CORE ARTISTS</p>
+                    <ul class="music-monthly__current-artists" role="list">
+                        <li><span class="music-thumb" aria-hidden="true">WE</span><span class="music-monthly__artist-name">WORLD'S END GIRLFRIEND</span></li>
+                        <li><span class="music-thumb" aria-hidden="true">TE</span><span class="music-monthly__artist-name">TE'</span></li>
+                        <li><span class="music-thumb" aria-hidden="true">AT</span><span class="music-monthly__artist-name">ABOUT TESS</span></li>
+                        <li><span class="music-thumb" aria-hidden="true">RS</span><span class="music-monthly__artist-name">ROUGHSKETCH</span></li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="music-card music-companion reveal" aria-labelledby="music-companion-title">
+                <div class="music-card__head">
+                    <span class="music-card__num">05A</span>
+                    <h2 id="music-companion-title" class="music-card__title">LONGEST COMPANION</h2>
+                    <span class="music-card__hint">SPOTIFY / MULTI-YEAR</span>
+                </div>
+                <div class="music-companion__body">
+                    <span class="music-thumb music-thumb--xl" aria-hidden="true">WE</span>
+                    <div class="music-companion__info">
+                        <p class="music-companion__name">WORLD'S END GIRLFRIEND</p>
+                        <p class="music-companion__since">SINCE 2022</p>
+                        <p class="music-companion__stat">7,872 MIN / 3 YEARS</p>
+                        <p class="music-companion__note">A CONSTANT PRESENCE IN LONG NIGHTS.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="music-card music-gravity reveal" aria-labelledby="music-gravity-title">
+                <div class="music-card__head">
+                    <span class="music-card__num">05B</span>
+                    <h2 id="music-gravity-title" class="music-card__title">RECENT GRAVITY</h2>
+                    <span class="music-card__hint">APPLE MUSIC / RECENT</span>
+                </div>
+                <div class="music-companion__body">
+                    <span class="music-thumb music-thumb--xl" aria-hidden="true">AT</span>
+                    <div class="music-companion__info">
+                        <p class="music-companion__name">ABOUT TESS</p>
+                        <p class="music-companion__since">SINCE 2026.04</p>
+                        <p class="music-companion__stat">7,165 MIN / 4 MONTHS</p>
+                        <p class="music-companion__note">RISING WITH EACH MONTH.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="music-card music-archive-monthly reveal" aria-labelledby="music-archive-monthly-title">
+                <div class="music-card__head">
+                    <span class="music-card__num">07</span>
+                    <h2 id="music-archive-monthly-title" class="music-card__title">APPLE MUSIC / MONTHLY ARCHIVE</h2>
+                </div>
+                <ul class="music-archive__list" role="list">
+                    <li class="music-archive__row">
+                        <span class="music-archive__label">2026.07</span>
+                        <span class="music-archive__value">22,476 MIN</span>
+                        <span class="music-archive__tags">RETURN TO LONG-FORM LISTENING</span>
+                        <a class="music-archive__link" href="#" data-period="2026.07">VIEW ARCHIVE &rarr;</a>
+                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
+                    </li>
+                    <li class="music-archive__row">
+                        <span class="music-archive__label">2026.06</span>
+                        <span class="music-archive__value">16,220 MIN</span>
+                        <span class="music-archive__tags">FOCUS / EXPLORATION</span>
+                        <a class="music-archive__link" href="#" data-period="2026.06">VIEW ARCHIVE &rarr;</a>
+                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
+                    </li>
+                    <li class="music-archive__row">
+                        <span class="music-archive__label">2026.05</span>
+                        <span class="music-archive__value">19,387 MIN</span>
+                        <span class="music-archive__tags">DIVERSE / NEW PATTERNS</span>
+                        <a class="music-archive__link" href="#" data-period="2026.05">VIEW ARCHIVE &rarr;</a>
+                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
+                    </li>
+                </ul>
+            </section>
+        </div>
+    </div>
+
+    <section class="music-quote" aria-label="Closing note">
+        <div class="container reveal">
+            <blockquote>
+                <p>I archive what moves through me.<br>Across years, across months.</p>
+                <cite>— PowerAdapter</cite>
+            </blockquote>
+        </div>
+    </section>
+</article>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/music/music-mock-data.js' %}"></script>
+<script src="{% static 'js/music/music.js' %}"></script>
+{% endblock %}

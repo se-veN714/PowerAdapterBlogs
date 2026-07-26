@@ -1,0 +1,245 @@
+/* ============================================================
+   Devenir — Board Index: Skateboard（仅展示层）
+   1. MOCK：无 htmx 端点时，点击节点仅切换 Active 视觉态与选中头；
+      homie_line_url 注入后节点带 hx-get，本逻辑自动让位给 htmx。
+   2. 视频离屏暂停（IntersectionObserver），htmx 交换后重新绑定。
+   3. 移动端初始将 Active 节点滚动到可视区中央。
+   4. 关系图谱：节点圆心连线 + 拖拽；选中节点持久高亮关联边。
+   ============================================================ */
+
+document.addEventListener('DOMContentLoaded', function () {
+    'use strict';
+
+    var constellation = document.querySelector('.sk-constellation');
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    /* ---------- 0. glitch 颜色注入（与 main.js editorial-visual 同一模式） ---------- */
+
+    document.querySelectorAll('.sk-hero[data-glitch-color], .sk-constellation-section[data-glitch-color], .sk-selected[data-glitch-color]').forEach(function (el) {
+        el.style.setProperty('--glitch-c', el.dataset.glitchColor);
+    });
+
+    if (constellation) {
+        var nodes = Array.prototype.slice.call(
+            constellation.querySelectorAll('.sk-node:not(.sk-node--open)')
+        );
+        var htmxDriven = nodes.some(function (node) { return node.hasAttribute('hx-get'); });
+        var liveSvg = constellation.querySelector('.sk-links--live');
+        var dragMedia = window.matchMedia('(min-width: 768px)');
+
+        /* ---------- 1. 关系图谱：节点圆心连线 + 拖拽（桌面 ≥768px） ---------- */
+        // 渐进增强：节点仍是原生 button，连线只是展示层；拖拽位置以百分比写回，
+        // 视口缩放后构图保持。连线直接走圆心（圆会盖住线中段），无需边界锚定。
+        // 不作用力导向模拟（reduced-motion 与构图约束）。
+        var edges = [];
+        var lines = [];
+        var highlightActiveEdges = function () {};
+
+        if (liveSvg && nodes.length) {
+            edges = (constellation.dataset.edges || '')
+                .split(',')
+                .map(function (pair) { return pair.split(':').map(Number); })
+                .filter(function (e) { return e.length === 2 && nodes[e[0]] && nodes[e[1]]; });
+
+            // 节点用 transform: translate(-50%,-50%) 定位，layout 的 offsetLeft/Top 是
+            // 未偏移前的盒子角，不能直接 +width/2（会得到右下角）。改用真实圆
+            // （.sk-node-frame）的 getBoundingClientRect 相对 SVG 计算视觉圆心，
+            // 这样不受 translate 与下方 label 高度影响。
+            function nodeCenter(el) {
+                var frame = el.querySelector('.sk-node-frame') || el;
+                var fc = frame.getBoundingClientRect();
+                var sc = liveSvg.getBoundingClientRect();
+                return {
+                    x: fc.left + fc.width / 2 - sc.left,
+                    y: fc.top + fc.height / 2 - sc.top
+                };
+            }
+
+            function updateLines() {
+                if (!dragMedia.matches) return;
+                lines.forEach(function (l) {
+                    var a = nodeCenter(l.a);
+                    var b = nodeCenter(l.b);
+                    l.el.setAttribute('x1', a.x);
+                    l.el.setAttribute('y1', a.y);
+                    l.el.setAttribute('x2', b.x);
+                    l.el.setAttribute('y2', b.y);
+                });
+            }
+
+            highlightActiveEdges = function () {
+                var active = nodes.find(function (n) { return n.classList.contains('is-active'); });
+                lines.forEach(function (l) {
+                    l.el.classList.remove('is-active-edge');
+                    if (active && (l.a === active || l.b === active)) {
+                        l.el.classList.add('is-active-edge');
+                    }
+                });
+            };
+
+            if (edges.length) {
+                edges.forEach(function (e) {
+                    var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    liveSvg.appendChild(line);
+                    lines.push({ el: line, a: nodes[e[0]], b: nodes[e[1]] });
+                });
+                updateLines();
+                highlightActiveEdges();
+            }
+
+            var resizeTimer = null;
+            window.addEventListener('resize', function () {
+                window.clearTimeout(resizeTimer);
+                resizeTimer = window.setTimeout(updateLines, 120);
+            });
+            if (dragMedia.addEventListener) dragMedia.addEventListener('change', updateLines);
+
+            // hover + 选中高亮相连边（Obsidian 式）
+            nodes.forEach(function (node) {
+                node.addEventListener('mouseenter', function () {
+                    lines.forEach(function (l) {
+                        if (l.a === node || l.b === node) l.el.classList.add('is-lit');
+                    });
+                });
+                node.addEventListener('mouseleave', function () {
+                    lines.forEach(function (l) { l.el.classList.remove('is-lit'); });
+                });
+            });
+
+            // 拖拽：>4px 判定为拖动，松开后抑制 click（mock 切换与未来 hx-get 均不误触发）
+            var dragState = null;
+            nodes.forEach(function (node) {
+                node.addEventListener('pointerdown', function (ev) {
+                    if (!dragMedia.matches || ev.button !== 0) return;
+                    var rect = constellation.getBoundingClientRect();
+                    dragState = {
+                        node: node,
+                        startX: ev.clientX,
+                        startY: ev.clientY,
+                        baseL: parseFloat(node.style.left) || ((node.offsetLeft) / rect.width) * 100,
+                        baseT: parseFloat(node.style.top) || ((node.offsetTop) / rect.height) * 100,
+                        moved: false
+                    };
+                    node.setPointerCapture(ev.pointerId);
+                });
+                node.addEventListener('pointermove', function (ev) {
+                    if (!dragState || dragState.node !== node) return;
+                    var dx = ev.clientX - dragState.startX;
+                    var dy = ev.clientY - dragState.startY;
+                    if (!dragState.moved && Math.hypot(dx, dy) > 4) {
+                        dragState.moved = true;
+                        node.classList.add('is-dragging');
+                    }
+                    if (!dragState.moved) return;
+                    var rect = constellation.getBoundingClientRect();
+                    var pctL = Math.min(94, Math.max(6, dragState.baseL + (dx / rect.width) * 100));
+                    var pctT = Math.min(94, Math.max(6, dragState.baseT + (dy / rect.height) * 100));
+                    node.style.left = pctL + '%';
+                    node.style.top = pctT + '%';
+                    updateLines();
+                });
+                function endDrag() {
+                    if (!dragState || dragState.node !== node) return;
+                    if (dragState.moved) constellation.dataset.skDragged = '1';
+                    node.classList.remove('is-dragging');
+                    dragState = null;
+                }
+                node.addEventListener('pointerup', endDrag);
+                node.addEventListener('pointercancel', endDrag);
+            });
+
+            // 捕获阶段抑制拖拽后的 click（覆盖节点上的 mock 处理器与未来 hx-get）
+            constellation.addEventListener('click', function (ev) {
+                if (constellation.dataset.skDragged === '1') {
+                    delete constellation.dataset.skDragged;
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                }
+            }, true);
+        }
+
+        /* ---------- 2. MOCK Active 切换 ---------- */
+
+        if (!htmxDriven && nodes.length) {
+            var kicker = document.getElementById('sk-kicker-index');
+            var selectedName = document.getElementById('sk-selected-name');
+
+            nodes.forEach(function (node) {
+                node.addEventListener('click', function () {
+                    if (node.classList.contains('is-active')) return;
+
+                    nodes.forEach(function (other) {
+                        other.classList.remove('is-active');
+                        other.setAttribute('aria-pressed', 'false');
+                        var state = other.querySelector('.sk-node-state:not(.sk-node-state--role)');
+                        if (state) state.remove();
+                    });
+
+                    node.classList.add('is-active');
+                    node.setAttribute('aria-pressed', 'true');
+                    var label = node.querySelector('.sk-node-label');
+                    if (label && !node.querySelector('.sk-node-state:not(.sk-node-state--role)')) {
+                        var stateEl = document.createElement('span');
+                        stateEl.className = 'sk-node-state';
+                        stateEl.textContent = '[ ACTIVE NODE ]';
+                        label.insertBefore(stateEl, label.querySelector('.sk-node-meta'));
+                    }
+
+                    // 静态演示：仅同步选中头显示，不加载任何数据
+                    if (kicker) kicker.textContent = node.dataset.nodeIndex || '--';
+                    if (selectedName) selectedName.textContent = node.dataset.nodeName || '';
+                    highlightActiveEdges();
+                });
+            });
+        }
+
+        /* ---------- 3. 移动端：Active 节点居中 ---------- */
+
+        var mobileQuery = window.matchMedia('(max-width: 767px)');
+        if (mobileQuery.matches) {
+            var active = constellation.querySelector('.sk-node.is-active');
+            if (active && active.scrollIntoView) {
+                active.scrollIntoView({
+                    block: 'nearest',
+                    inline: 'center',
+                    behavior: reduceMotion.matches ? 'auto' : 'smooth'
+                });
+            }
+        }
+    }
+
+    /* ---------- 4. 视频离屏暂停 ---------- */
+
+    var observed = [];
+
+    function bindVideoObserver() {
+        if (!('IntersectionObserver' in window)) return;
+        var videos = document.querySelectorAll('.sk-clip-media video');
+        if (!videos.length) return;
+
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (!entry.isIntersecting && !entry.target.paused) {
+                    entry.target.pause();
+                }
+            });
+        }, { threshold: 0.15 });
+
+        videos.forEach(function (video) {
+            if (observed.indexOf(video) === -1) {
+                observer.observe(video);
+                observed.push(video);
+            }
+        });
+    }
+
+    bindVideoObserver();
+
+    // htmx 交换 Selected Line 后，旧视频随 DOM 移除，新视频重新绑定
+    document.body.addEventListener('htmx:afterSwap', function (event) {
+        if (event.detail.target && event.detail.target.id === 'selected-line') {
+            observed = observed.filter(function (video) { return document.contains(video); });
+            bindVideoObserver();
+        }
+    });
+});

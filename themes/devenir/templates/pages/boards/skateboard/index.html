@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Skateboard Board — 独立 Index（首轮：静态视觉 + mock 数据 + 空态）。
+
+契约（BOARD_INDEX_HANDOFF.md §6.12，未实现）：
+    homies / selected_homie / clip_list / homie_line_url / open_node_url
+后端上下文接入前，模板渲染 MOCK 分支；接入后数据分支自动生效，无需改路由。
+board.glitch_color = #4ed7af（种子数据），通过 data-glitch-color 注入 --glitch-c。
+{% endcomment %}
+
+{% block title %}Skateboard · PowerAdapter{% endblock %}
+{% block meta_description %}PowerAdapter Cloud Crew — 线上滑板档案空间：每个 Homie 是一个可切换节点，每条 Line 都是真实地形。{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/skateboard.css' %}">
+{% endblock %}
+
+{% block hero %}
+<section class="sk-hero" data-glitch-color="#4ed7af" aria-label="Homies">
+    <div class="container">
+        <div class="sk-hero-intro reveal">
+            <h1 class="sk-title">
+                <span class="sk-title-num">01</span>
+                <span class="sk-title-slash" aria-hidden="true">/</span>
+                <span class="sk-title-word">HOMIES</span>
+            </h1>
+            <p class="sk-crew">CLOUD CREW</p>
+            <p class="sk-tagline">WE DON'T SKATE THE SAME.<br>THAT'S WHY WE SKATE TOGETHER.</p>
+            <p class="sk-tagline-cn">不在同一座城市，不滑同一种风格，<br>但仍然构成一条线路。</p>
+            <p class="sk-scroll" aria-hidden="true"><span class="sk-scroll-line"></span>SCROLL<br>DOWN</p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<section class="sk-constellation-section" data-glitch-color="#4ed7af" aria-label="Crew constellation">
+    <div class="container">
+        <div class="sk-constellation-section__head reveal">
+            <span class="sk-constellation-section__title">CLOUD MAP</span>
+            <span class="sk-constellation-section__hint">DRAG NODES · SELECT ACTIVE</span>
+        </div>
+
+        {# data-edges：展示层连线关系（成员节点 DOM 序号对，纯装饰，与后端数据无关） #}
+        <div class="sk-constellation reveal" role="group" aria-label="Crew 成员选择器"
+             data-edges="0:1,0:2,1:3,2:3,3:4,3:5,2:6,5:6">
+            <svg class="sk-links sk-links--live" aria-hidden="true"></svg>
+
+            {% if homies is not None %}
+            {# 数据分支：后端契约 homies 接入后生效；空列表落入 for 的 empty 空态 #}
+            {% for homie in homies %}
+            {% include 'pages/boards/skateboard/_homie_node.html' with pos=forloop.counter node_index=homie.node_index|stringformat:"02d" name=homie.name|upper meta=homie.location|upper state=homie.state role_label=homie.role_label avatar_url=homie.avatar_url line_url=homie.line_url %}
+            {% empty %}
+            <div class="sk-empty sk-empty--nodes">
+                <strong>CREW OFFLINE</strong>
+                <p>Crew 组建中，敬请期待。</p>
+            </div>
+            {% endfor %}
+            {% else %}
+            {# MOCK：后端契约 homies 接入前的静态演示；以 FUMINORI 为视觉枢纽 #}
+            {% include 'pages/boards/skateboard/_homie_node.html' with pos=1 node_index="00" name="SEVEN1FOR" meta="KUNMING / 04" role_label="HOST" %}
+            {% include 'pages/boards/skateboard/_homie_node.html' with pos=2 node_index="02" name="LEXRAE" %}
+            {% include 'pages/boards/skateboard/_homie_node.html' with pos=3 node_index="03" name="JIMMY CAO" %}
+            {% include 'pages/boards/skateboard/_homie_node.html' with pos=4 node_index="01" name="FUMINORI" state="active" %}
+            {% include 'pages/boards/skateboard/_homie_node.html' with pos=5 node_index="04" name="MASAKI" %}
+            {% include 'pages/boards/skateboard/_homie_node.html' with pos=6 node_index="05" name="HEATH" %}
+            {% include 'pages/boards/skateboard/_homie_node.html' with pos=7 node_index="07" name="WILMS" %}
+            {% endif %}
+
+            {% if open_node_url %}
+            <a class="sk-node sk-node--open sk-node--pos8" href="{{ open_node_url }}">
+                <span class="sk-node-frame" aria-hidden="true"><span class="sk-node-plus">+</span></span>
+                <span class="sk-node-label">
+                    <span class="sk-node-idx">OPEN NODE</span>
+                    <span class="sk-node-name">JOIN THE CREW</span>
+                </span>
+            </a>
+            {% else %}
+            <button type="button" class="sk-node sk-node--open sk-node--pos8" disabled
+                    title="加入入口将在后端集成阶段开放">
+                <span class="sk-node-frame" aria-hidden="true"><span class="sk-node-plus">+</span></span>
+                <span class="sk-node-label">
+                    <span class="sk-node-idx">OPEN NODE</span>
+                    <span class="sk-node-name">JOIN THE CREW</span>
+                </span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+{# MOCK: 集成后 data-glitch-color 改由 board.glitch_color 输出 #}
+<section class="sk-selected" data-glitch-color="#4ed7af" aria-label="Selected Line">
+    <div class="container">
+        <div id="selected-line" aria-live="polite">
+            {% if selected_homie %}
+            {# 数据分支：后端契约接入后生效；htmx 端点返回的即此片段内容 #}
+            {% include 'pages/boards/skateboard/_selected_line.html' %}
+            {% else %}
+            {# MOCK：后端契约 selected_homie / clip_list 接入前的静态演示 #}
+            <header class="sk-selected-head">
+                <p class="sk-selected-kicker">SELECTED NODE / <span id="sk-kicker-index">01</span></p>
+                <div class="sk-selected-id">
+                    <h2 class="sk-selected-name" id="sk-selected-name">FUMINORI</h2>
+                    <ul class="sk-selected-meta">
+                        <li>KUNMING</li>
+                        <li>04 CLIPS</li>
+                        <li>UPDATED 2026.07</li>
+                    </ul>
+                </div>
+            </header>
+            <div class="sk-clips">
+                {% include 'pages/boards/skateboard/_clip_row.html' with index="01" name="FAKIE FS HEEL" category="ROTATION" spot="VENICE BOWL" filmed="06.12.24" duration="00:04" status="LANDED" notes="CLEAN ENTRY. LATE HEEL CATCH." hud="arc" timecode="00:00:02:10" bars=True %}
+                {% include 'pages/boards/skateboard/_clip_row.html' with index="02" name="BS FLIP" category="DISPLACEMENT" spot="SF EMBARCADERO" filmed="03.20.24" duration="00:05" status="LANDED" notes="SOLID POP. NEEDS MORE COMMIT." flip=True hud="speed" hud_label="SPD 3.2M/S" timecode="00:00:01:07" %}
+                {% include 'pages/boards/skateboard/_clip_row.html' with index="03" name="OLLIE" category="HEIGHT" spot="L.A. STREET LEDGE" filmed="03.18.24" duration="00:02" status="LANDED" notes="MORE KNEE DRIVING UP." hud="measure" hud_label="HEIGHT 0.58M" timecode="00:00:01:23" %}
+                {% include 'pages/boards/skateboard/_clip_row.html' with index="04" name="TRE FLIP" category="ROTATION" spot="BROOKLYN BANKS" filmed="02.22.24" duration="00:00" status="UNFINISHED" notes="ALMOST THERE." flip=True hud="ring" hud_label="ROTATION 312°" timecode="00:00:02:03" bars=True %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/boards/skateboard.js' %}"></script>
+{% endblock %}

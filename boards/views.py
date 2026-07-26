@@ -62,6 +62,28 @@ class SkateboardBoardPreviewView(TemplateView):
     template_name = "pages/boards/skateboard/index.html"
 
 
+class MusicPreviewView(TemplateView):
+    """本地预览用：直接渲染 Music 页面静态视觉（mock 数据分支）。
+
+    与 SkateboardBoardPreviewView 同模式，仅为开发预览，便于在浏览器查看
+    Music 页面前端效果；生产路由由后端在 music/ 接入真实数据契约后提供，
+    届时此视图可移除。详见 themes/devenir/MUSIC_PAGE_GUIDE.md。
+    """
+
+    template_name = "pages/music/index.html"
+
+
+class CodingPreviewView(TemplateView):
+    """本地预览用：直接渲染 Coding 页面静态视觉（mock 数据分支）。
+
+    与 SkateboardBoardPreviewView / MusicPreviewView 同模式，仅为开发预览，
+    便于在浏览器查看 Coding 页面前端效果；生产路由由后端在相关 App 接入
+    真实项目数据契约后提供，届时此视图可移除。
+    """
+
+    template_name = "pages/coding/index.html"
+
+
 def boards_context(request):
     """上下文处理器：注入活跃的首页板块列表。
 

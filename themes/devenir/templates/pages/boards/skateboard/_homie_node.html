@@ -1,0 +1,36 @@
+{% comment %}
+Skateboard Board — 单个 Homie 节点（纯展示组件）。
+
+with 参数：
+    pos        位置序号（1–8），对应 skateboard.css 的 .sk-node--pos{N}
+    node_index 节点编号显示值，如 "00"
+    name       成员名（大写），如 "SEVEN1FOR"
+    meta       可空：位置/片段数行，如 "KUNMING / 04"
+    state      "active" 表示当前选中，其他值留空
+    role_label 可空：非 Active 的角色行（如 HOST）
+    avatar_url 可空：头像图片；为空时渲染 monogram 占位
+    line_url   可空：后端契约 homie_line_url；提供后启用 htmx 局部切换
+{% endcomment %}
+<button type="button"
+        class="sk-node sk-node--pos{{ pos }}{% if state == 'active' %} is-active{% endif %}"
+        {% if line_url %}hx-get="{{ line_url }}" hx-target="#selected-line" hx-swap="innerHTML transition:true"{% endif %}
+        data-node-name="{{ name }}" data-node-index="{{ node_index }}"
+        aria-pressed="{% if state == 'active' %}true{% else %}false{% endif %}">
+    <span class="sk-node-frame" aria-hidden="true">
+        {% if avatar_url %}
+        <img class="sk-node-avatar" src="{{ avatar_url }}" alt="" loading="lazy">
+        {% else %}
+        <span class="sk-node-mono">{{ name|slice:':2' }}</span>
+        {% endif %}
+    </span>
+    <span class="sk-node-label">
+        <span class="sk-node-idx">NODE {{ node_index }}</span>
+        <span class="sk-node-name">{{ name }}</span>
+        {% if state == 'active' %}
+        <span class="sk-node-state">[ ACTIVE NODE ]</span>
+        {% elif role_label %}
+        <span class="sk-node-state sk-node-state--role">{{ role_label }}</span>
+        {% endif %}
+        {% if meta %}<span class="sk-node-meta">{{ meta }}</span>{% endif %}
+    </span>
+</button>

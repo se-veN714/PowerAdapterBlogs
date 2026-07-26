@@ -1,0 +1,402 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Music 页面 — 独立 Index（Phase 1：静态视觉 + mock 数据）。
+
+概念：将听歌记录呈现为持续生成的声音场域。
+所有数据均为静态 Mock，核心内容直接预渲染在 HTML 中（MUSIC_PAGE_GUIDE.md §13）。
+JavaScript 只负责轻量交互（active 切换 / archive 展开），不通过 innerHTML 生成整页。
+颜色全部引用 base.html 内联 Devenir 变量；--music-accent 在 music.css 中做语义别名，
+不重新定义色值（与 Skateboard Board 同约束）。
+{% endcomment %}
+
+{% block title %}Music · PowerAdapter{% endblock %}
+{% block meta_description %}PowerAdapter Listening Field — 将听歌记录呈现为持续生成的声音场域：声音如何经过、沉积、重复，并形成个人偏好结构。{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/music/music_legacy.css' %}">
+{% endblock %}
+
+{% block hero %}
+<section class="music-hero" aria-label="Music">
+    <div class="music-hero__glow" aria-hidden="true"></div>
+    <div class="container music-hero__grid">
+        <div class="music-hero__intro reveal">
+            <h1 class="music-title">
+                <span class="music-title__num">02</span>
+                <span class="music-title__slash" aria-hidden="true">/</span>
+                <span class="music-title__word">MUSIC</span>
+            </h1>
+            <p class="music-subtitle">LISTENING FIELD</p>
+            <p class="music-tagline">
+                MUSIC IS NOT WHAT REMAINS.<br>
+                IT IS WHAT PASSES THROUGH.
+            </p>
+            <dl class="music-source">
+                <div class="music-source__row">
+                    <dt>SOURCE</dt><dd>UNIFIED</dd>
+                </div>
+                <div class="music-source__row">
+                    <dt>STREAMS</dt><dd>SPOTIFY DATA + APPLE MUSIC DATA</dd>
+                </div>
+                <div class="music-source__row">
+                    <dt>LAST SYNC</dt><dd>2026.07.12 23:48</dd>
+                </div>
+            </dl>
+            <p class="music-scroll" aria-hidden="true"><span class="music-scroll__line"></span>SCROLL<br>DOWN</p>
+        </div>
+
+        <!-- ============ NOW PLAYING（Hero 右侧模块） ============ -->
+        <div class="music-now-playing reveal" aria-label="Now playing">
+            <p class="music-now-playing__kicker">NOW PLAYING</p>
+            <div class="music-np__body">
+                <div class="music-np__art" role="img" aria-label="Album cover for Epoch by Tycho">
+                    <span class="music-np__art-mark" aria-hidden="true">EP</span>
+                    <div class="music-np__eq" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
+                <div class="music-np__info">
+                    <p class="music-np__title">Unfold</p>
+                    <p class="music-np__artist">Tycho</p>
+                    <p class="music-np__album">Epoch</p>
+                    <p class="music-np__source">SOURCE / SPOTIFY</p>
+                    <div class="music-np__progress" aria-hidden="true">
+                        <span class="music-np__progress-fill"></span>
+                    </div>
+                    <p class="music-np__time"><span>02:48</span><span>05:27</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<article class="music-page">
+
+    <!-- ============ RECENT STREAM ============ -->
+    <section class="music-stream" aria-label="Recent stream">
+        <div class="container">
+            <header class="music-section-head reveal">
+                <span class="music-section-head__num">03</span>
+                <h2 class="music-section-head__title">RECENT STREAM</h2>
+                <span class="music-section-head__hint">TODAY · 00:00 — 24:00</span>
+            </header>
+
+            <div class="music-stream__viewport reveal">
+                <div class="music-stream__axis" aria-hidden="true">
+                    <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+                </div>
+                <div class="music-stream__track" role="list" aria-label="Tracks played today">
+                    {# 每条 track 的 left 由时间静态计算（px/24h*2400 像素轨宽），无 JS 也定位 #}
+                    <button type="button" class="music-track is-active" role="listitem"
+                            style="left:0.8%" data-idx="0"
+                            data-title="A Walk" data-artist="Tycho" data-time="00:12" data-dur="05:16" data-source="spotify"
+                            aria-pressed="true">
+                        <span class="music-track__time">00:12</span>
+                        <span class="music-track__cover" aria-hidden="true">TY</span>
+                        <span class="music-track__meta">
+                            <span class="music-track__name">A Walk</span>
+                            <span class="music-track__artist">Tycho</span>
+                        </span>
+                        <span class="music-track__wave" aria-hidden="true">
+                            <svg viewBox="0 0 120 24" preserveAspectRatio="none"><polyline points="0,12 8,6 16,14 24,4 32,16 40,9 48,18 56,7 64,13 72,5 80,15 88,8 96,17 104,6 112,14 120,10"/></svg>
+                        </span>
+                        <span class="music-track__dur">05:16</span>
+                        <span class="music-track__src music-track__src--spotify" title="Spotify" aria-hidden="true">SP</span>
+                    </button>
+
+                    <button type="button" class="music-track" role="listitem"
+                            style="left:13.8%" data-idx="1"
+                            data-title="Mogwai Fear Satan" data-artist="Mogwai" data-time="03:18" data-dur="16:19" data-source="apple"
+                            aria-pressed="false">
+                        <span class="music-track__time">03:18</span>
+                        <span class="music-track__cover" aria-hidden="true">MG</span>
+                        <span class="music-track__meta">
+                            <span class="music-track__name">Mogwai Fear Satan</span>
+                            <span class="music-track__artist">Mogwai</span>
+                        </span>
+                        <span class="music-track__wave" aria-hidden="true">
+                            <svg viewBox="0 0 120 24" preserveAspectRatio="none"><polyline points="0,12 9,4 18,18 27,7 36,16 45,5 54,19 63,8 72,14 81,6 90,17 99,9 108,15 117,7 120,12"/></svg>
+                        </span>
+                        <span class="music-track__dur">16:19</span>
+                        <span class="music-track__src music-track__src--apple" title="Apple Music" aria-hidden="true">AP</span>
+                    </button>
+
+                    <button type="button" class="music-track" role="listitem"
+                            style="left:28.1%" data-idx="2"
+                            data-title="Liminal" data-artist="Fkj" data-time="06:45" data-dur="04:28" data-source="spotify"
+                            aria-pressed="false">
+                        <span class="music-track__time">06:45</span>
+                        <span class="music-track__cover" aria-hidden="true">FK</span>
+                        <span class="music-track__meta">
+                            <span class="music-track__name">Liminal</span>
+                            <span class="music-track__artist">Fkj</span>
+                        </span>
+                        <span class="music-track__wave" aria-hidden="true">
+                            <svg viewBox="0 0 120 24" preserveAspectRatio="none"><polyline points="0,12 7,9 14,15 21,6 28,17 35,8 42,16 49,5 56,14 63,9 70,18 77,7 84,15 91,6 98,16 105,9 112,14 120,11"/></svg>
+                        </span>
+                        <span class="music-track__dur">04:28</span>
+                        <span class="music-track__src music-track__src--spotify" title="Spotify" aria-hidden="true">SP</span>
+                    </button>
+
+                    <button type="button" class="music-track" role="listitem"
+                            style="left:39%" data-idx="3"
+                            data-title="Replica" data-artist="Oneohtrix Point Never" data-time="09:21" data-dur="04:31" data-source="apple"
+                            aria-pressed="false">
+                        <span class="music-track__time">09:21</span>
+                        <span class="music-track__cover" aria-hidden="true">OP</span>
+                        <span class="music-track__meta">
+                            <span class="music-track__name">Replica</span>
+                            <span class="music-track__artist">Oneohtrix Point Never</span>
+                        </span>
+                        <span class="music-track__wave" aria-hidden="true">
+                            <svg viewBox="0 0 120 24" preserveAspectRatio="none"><polyline points="0,12 10,5 20,17 30,8 40,15 50,6 60,18 70,9 80,13 90,5 100,16 110,8 120,12"/></svg>
+                        </span>
+                        <span class="music-track__dur">04:31</span>
+                        <span class="music-track__src music-track__src--apple" title="Apple Music" aria-hidden="true">AP</span>
+                    </button>
+
+                    <button type="button" class="music-track" role="listitem"
+                            style="left:60.5%" data-idx="4"
+                            data-title="Blush" data-artist="Nils Frahm" data-time="14:32" data-dur="04:17" data-source="spotify"
+                            aria-pressed="false">
+                        <span class="music-track__time">14:32</span>
+                        <span class="music-track__cover" aria-hidden="true">NF</span>
+                        <span class="music-track__meta">
+                            <span class="music-track__name">Blush</span>
+                            <span class="music-track__artist">Nils Frahm</span>
+                        </span>
+                        <span class="music-track__wave" aria-hidden="true">
+                            <svg viewBox="0 0 120 24" preserveAspectRatio="none"><polyline points="0,12 8,8 16,16 24,6 32,18 40,9 48,15 56,7 64,17 72,8 80,14 88,6 96,16 104,9 112,15 120,11"/></svg>
+                        </span>
+                        <span class="music-track__dur">04:17</span>
+                        <span class="music-track__src music-track__src--spotify" title="Spotify" aria-hidden="true">SP</span>
+                    </button>
+
+                    <button type="button" class="music-track" role="listitem"
+                            style="left:84.5%" data-idx="5"
+                            data-title="Re: Stacks" data-artist="Bon Iver" data-time="20:17" data-dur="06:41" data-source="apple"
+                            aria-pressed="false">
+                        <span class="music-track__time">20:17</span>
+                        <span class="music-track__cover" aria-hidden="true">BI</span>
+                        <span class="music-track__meta">
+                            <span class="music-track__name">Re: Stacks</span>
+                            <span class="music-track__artist">Bon Iver</span>
+                        </span>
+                        <span class="music-track__wave" aria-hidden="true">
+                            <svg viewBox="0 0 120 24" preserveAspectRatio="none"><polyline points="0,12 9,6 18,17 27,8 36,15 45,5 54,18 63,9 72,14 81,7 90,16 99,8 108,15 117,6 120,12"/></svg>
+                        </span>
+                        <span class="music-track__dur">06:41</span>
+                        <span class="music-track__src music-track__src--apple" title="Apple Music" aria-hidden="true">AP</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="music-stream__detail reveal" id="music-stream-detail" aria-live="polite">
+                <span class="music-stream__detail-idx">#01</span>
+                <div class="music-stream__detail-body">
+                    <p class="music-stream__detail-title">A Walk</p>
+                    <p class="music-stream__detail-artist">Tycho</p>
+                </div>
+                <dl class="music-stream__detail-meta">
+                    <div><dt>PLAYED</dt><dd>00:12</dd></div>
+                    <div><dt>DURATION</dt><dd>05:16</dd></div>
+                    <div><dt>SOURCE</dt><dd>SPOTIFY</dd></div>
+                </dl>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ CURRENT PROFILE ============ -->
+    <section class="music-profile" aria-label="Current profile">
+        <div class="container">
+            <header class="music-section-head reveal">
+                <span class="music-section-head__num">04</span>
+                <h2 class="music-section-head__title">CURRENT PROFILE</h2>
+            </header>
+            <p class="music-profile__summary reveal">
+                I return more than I explore.<br>
+                Long-form listening remains the current gravity.
+            </p>
+
+            <div class="music-profile__grid reveal">
+                <div class="music-metric">
+                    <p class="music-metric__value">18,642</p>
+                    <p class="music-metric__label">TOTAL LISTENING</p>
+                    <p class="music-metric__unit">MIN</p>
+                    <svg class="music-metric__spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,18 13,14 26,16 39,9 52,13 65,7 80,10"/></svg>
+                </div>
+                <div class="music-metric">
+                    <p class="music-metric__value">78%</p>
+                    <p class="music-metric__label">FAMILIAR TRACKS</p>
+                    <svg class="music-metric__spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,16 13,12 26,14 39,10 52,12 65,8 80,9"/></svg>
+                </div>
+                <div class="music-metric">
+                    <p class="music-metric__value">22%</p>
+                    <p class="music-metric__label">NEW DISCOVERIES</p>
+                    <svg class="music-metric__spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,19 13,17 26,15 39,16 52,13 65,12 80,10"/></svg>
+                </div>
+                <div class="music-metric">
+                    <p class="music-metric__value">71%</p>
+                    <p class="music-metric__label">ALBUM CONTINUITY</p>
+                    <svg class="music-metric__spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,14 13,15 26,11 39,13 52,9 65,11 80,8"/></svg>
+                </div>
+                <div class="music-metric">
+                    <p class="music-metric__value">4.2</p>
+                    <p class="music-metric__label">REPLAY DEPTH</p>
+                    <svg class="music-metric__spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,17 13,13 26,15 39,10 52,12 65,8 80,9"/></svg>
+                </div>
+                <div class="music-metric">
+                    <p class="music-metric__value">63%</p>
+                    <p class="music-metric__label">NIGHT LISTENING</p>
+                    <p class="music-metric__unit">19:00 — 06:00</p>
+                    <svg class="music-metric__spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,18 13,11 26,16 39,8 52,14 65,7 80,12"/></svg>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ SAVED VS RETURNED + CURRENT GRAVITY ============ -->
+    <section class="music-dual" aria-label="Saved vs returned and current gravity">
+        <div class="container music-dual__grid">
+
+            <!-- Saved vs Returned -->
+            <div class="music-saved reveal" aria-label="Saved versus returned">
+                <header class="music-section-head">
+                    <span class="music-section-head__num">05</span>
+                    <h2 class="music-section-head__title">SAVED VS RETURNED</h2>
+                </header>
+                <div class="music-saved__plot">
+                    <svg viewBox="0 0 320 320" class="music-saved__svg" role="img"
+                         aria-label="四象限散点：横轴为是否收藏，纵轴为回听频次。四个象限分别标注 SAVED NOT RETURNED、LONG-TERM COMPANIONS、PASSED THROUGH、UNNAMED FAVORITES。">
+                        <!-- 网格 -->
+                        <g class="music-saved__grid" aria-hidden="true">
+                            <line x1="40" y1="40" x2="40" y2="280"/>
+                            <line x1="40" y1="280" x2="280" y2="280"/>
+                            <line x1="160" y1="40" x2="160" y2="280" class="music-saved__axis"/>
+                            <line x1="40" y1="160" x2="280" y2="160" class="music-saved__axis"/>
+                        </g>
+                        <!-- 点位（data-group 决定颜色，静态渲染） -->
+                        <circle class="music-pt music-pt--companion" cx="231" cy="94" r="6" data-group="companion"/>
+                        <circle class="music-pt music-pt--companion" cx="260" cy="119" r="6" data-group="companion"/>
+                        <circle class="music-pt music-pt--saved" cx="90" cy="96" r="6" data-group="saved"/>
+                        <circle class="music-pt music-pt--passed" cx="112" cy="218" r="6" data-group="passed"/>
+                        <circle class="music-pt music-pt--unnamed" cx="237" cy="231" r="6" data-group="unnamed"/>
+                        <circle class="music-pt music-pt--companion" cx="205" cy="70" r="6" data-group="companion"/>
+                        <circle class="music-pt music-pt--unnamed" cx="214" cy="205" r="6" data-group="unnamed"/>
+                    </svg>
+                    <ul class="music-saved__labels" aria-hidden="true">
+                        <li class="music-saved__lab music-saved__lab--tl">SAVED, NOT RETURNED</li>
+                        <li class="music-saved__lab music-saved__lab--tr">LONG-TERM COMPANIONS</li>
+                        <li class="music-saved__lab music-saved__lab--bl">PASSED THROUGH</li>
+                        <li class="music-saved__lab music-saved__lab--br">UNNAMED FAVORITES</li>
+                    </ul>
+                    <p class="music-saved__legend">
+                        <span><i class="music-dot music-dot--companion"></i>LONG-TERM</span>
+                        <span><i class="music-dot music-dot--saved"></i>SAVED ONLY</span>
+                        <span><i class="music-dot music-dot--passed"></i>PASSED</span>
+                        <span><i class="music-dot music-dot--unnamed"></i>UNNAMED</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Current Gravity -->
+            <div class="music-gravity reveal" aria-label="Current gravity">
+                <header class="music-section-head">
+                    <span class="music-section-head__num">06</span>
+                    <h2 class="music-section-head__title">CURRENT GRAVITY</h2>
+                </header>
+                <div class="music-gravity__cards">
+                    <article class="music-grav-card">
+                        <p class="music-grav-card__kicker">LONGEST COMPANION</p>
+                        <div class="music-grav-card__body">
+                            <div class="music-grav-card__art" role="img" aria-label="Album cover for Weightless by Marconi Union">
+                                <span aria-hidden="true">WU</span>
+                            </div>
+                            <div class="music-grav-card__info">
+                                <p class="music-grav-card__title">Weightless</p>
+                                <p class="music-grav-card__artist">Marconi Union</p>
+                                <dl class="music-grav-card__meta">
+                                    <div><dt>FIRST PLAYED</dt><dd>2024.11.03</dd></div>
+                                    <div><dt>PLAYS</dt><dd>186</dd></div>
+                                    <div><dt>LAST PLAYED</dt><dd>2026.07.11</dd></div>
+                                </dl>
+                                <p class="music-grav-card__note">Six hundred and twenty-three days of slow persistence.</p>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="music-grav-card">
+                        <p class="music-grav-card__kicker">RECENT GRAVITY</p>
+                        <div class="music-grav-card__body">
+                            <div class="music-grav-card__art" role="img" aria-label="Album cover for Sundial by Helios">
+                                <span aria-hidden="true">HE</span>
+                            </div>
+                            <div class="music-grav-card__info">
+                                <p class="music-grav-card__title">Sundial</p>
+                                <p class="music-grav-card__artist">Helios</p>
+                                <dl class="music-grav-card__meta">
+                                    <div><dt>FIRST PLAYED</dt><dd>2026.06.30</dd></div>
+                                    <div><dt>PLAYS</dt><dd>23</dd></div>
+                                    <div><dt>LAST PLAYED</dt><dd>2026.07.12</dd></div>
+                                </dl>
+                                <p class="music-grav-card__note">New orbit. Still settling into the field.</p>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ PERIOD ARCHIVE ============ -->
+    <section class="music-archive" aria-label="Period archive">
+        <div class="container">
+            <header class="music-section-head reveal">
+                <span class="music-section-head__num">07</span>
+                <h2 class="music-section-head__title">PERIOD ARCHIVE</h2>
+            </header>
+            <ul class="music-archive__list reveal">
+                <li class="music-archive__row" data-period="2026.07">
+                    <span class="music-archive__month">2026.07</span>
+                    <span class="music-archive__phase">LONG FORM / POST-ROCK</span>
+                    <span class="music-archive__desc">Expansive soundscapes and slow builds.</span>
+                    <span class="music-archive__wave" aria-hidden="true">
+                        <svg viewBox="0 0 120 24" preserveAspectRatio="none"><polyline points="0,12 10,7 20,16 30,9 40,15 50,6 60,17 70,8 80,14 90,7 100,16 110,9 120,12"/></svg>
+                    </span>
+                    <a class="music-archive__link" href="#" data-period="2026.07">VIEW ARCHIVE &rarr;</a>
+                    <p class="music-archive__note" hidden>归档详情页待后端接入（TODO: connect to period archive page）。</p>
+                </li>
+                <li class="music-archive__row" data-period="2026.06">
+                    <span class="music-archive__month">2026.06</span>
+                    <span class="music-archive__phase">HARDCORE / HIGH REPEAT</span>
+                    <span class="music-archive__desc">Intensity, loops and short bursts.</span>
+                    <span class="music-archive__wave" aria-hidden="true">
+                        <svg viewBox="0 0 120 24" preserveAspectRatio="none"><polyline points="0,12 8,5 16,18 24,7 32,16 40,6 48,18 56,8 64,15 72,5 80,17 88,9 96,15 104,7 112,16 120,11"/></svg>
+                    </span>
+                    <a class="music-archive__link" href="#" data-period="2026.06">VIEW ARCHIVE &rarr;</a>
+                    <p class="music-archive__note" hidden>归档详情页待后端接入（TODO: connect to period archive page）。</p>
+                </li>
+                <li class="music-archive__row" data-period="2026.05">
+                    <span class="music-archive__month">2026.05</span>
+                    <span class="music-archive__phase">VOCAL / KAMITSUBAKI</span>
+                    <span class="music-archive__desc">Voices, emotion and fictional worlds.</span>
+                    <span class="music-archive__wave" aria-hidden="true">
+                        <svg viewBox="0 0 120 24" preserveAspectRatio="none"><polyline points="0,12 9,8 18,15 27,6 36,17 45,9 54,14 63,7 72,16 81,8 90,15 99,6 108,17 117,9 120,12"/></svg>
+                    </span>
+                    <a class="music-archive__link" href="#" data-period="2026.05">VIEW ARCHIVE &rarr;</a>
+                    <p class="music-archive__note" hidden>归档详情页待后端接入（TODO: connect to period archive page）。</p>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+</article>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/music/music-mock-data_legacy.js' %}"></script>
+<script src="{% static 'js/music/music_legacy.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Coding 页面 — PowerAdapter 项目档案页。
+概念图参考：.local/img/boards-coding.png
+核心内容静态预渲染，JS 仅负责轻量交互增强。
+{% endcomment %}
+
+{% block title %}Coding · PowerAdapter{% endblock %}
+{% block meta_description %}PowerAdapter Coding — 从真实问题中生成结构：工具、系统、自动化。{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/coding/coding.css' %}">
+{% endblock %}
+
+{% block hero %}
+<section class="coding-hero" aria-label="Coding">
+    <div class="container coding-hero__grid">
+        <div class="coding-hero__intro reveal">
+            <h1 class="coding-title">
+                <span class="coding-title__num">03</span>
+                <span class="coding-title__slash" aria-hidden="true">/</span>
+                <span class="coding-title__word">CODING</span>
+            </h1>
+            <p class="coding-subtitle">BUILT TO BE USED</p>
+            <p class="coding-tagline">
+                I build tools from real needs.<br>
+                I reduce until the structure becomes clear.
+            </p>
+            <div class="coding-meta">
+                <div class="coding-meta__row">
+                    <span class="coding-meta__key">LANGUAGE</span>
+                    <span class="coding-meta__val">PYTHON, JS, HTML</span>
+                </div>
+                <div class="coding-meta__row">
+                    <span class="coding-meta__key">ENVIRONMENT</span>
+                    <span class="coding-meta__val">LINUX, DOCKER</span>
+                </div>
+                <div class="coding-meta__row">
+                    <span class="coding-meta__key">FOCUS</span>
+                    <span class="coding-meta__val">TOOLS, SYSTEMS, AUTOMATION</span>
+                </div>
+                <div class="coding-meta__row">
+                    <span class="coding-meta__key">UPDATED</span>
+                    <span class="coding-meta__val">2026.07</span>
+                </div>
+            </div>
+            <div class="coding-scroll" aria-hidden="true">
+                <span class="coding-scroll__line"></span>
+                <span class="coding-scroll__text">SCROLL<br>DOWN</span>
+            </div>
+        </div>
+
+        <div class="coding-hero__visual reveal" aria-hidden="true">
+            <div class="coding-hero__panel">
+                <div class="coding-tree">
+                    <p class="coding-tree__root">/projects</p>
+                    <ul class="coding-tree__list">
+                        <li><span class="coding-tree__folder">monitor/</span></li>
+                        <li><span class="coding-tree__folder">poweradapter/</span></li>
+                        <li><span class="coding-tree__folder">credits/</span></li>
+                        <li><span class="coding-tree__folder">security_log/</span></li>
+                        <li><span class="coding-tree__folder">experiments/</span></li>
+                        <li><span class="coding-tree__file">README.md</span></li>
+                        <li><span class="coding-tree__file">notes.txt</span></li>
+                    </ul>
+                    <p class="coding-tree__hint">trace / connect / reduce / continue</p>
+                </div>
+                <div class="coding-code">
+                    <div class="coding-code__line"><span class="coding-code__ln">01</span><span class="coding-code__kw">def</span> <span class="coding-code__fn">build</span>(problem):</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">02</span>    traces = <span class="coding-code__fn">observe</span>(problem)</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">03</span>    relations = <span class="coding-code__fn">connect</span>(traces)</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">04</span>    body = <span class="coding-code__fn">compose</span>(relations)</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">05</span></div>
+                    <div class="coding-code__line"><span class="coding-code__ln">06</span>    <span class="coding-code__kw">while</span> body.can_still_transform():</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">07</span>        body = <span class="coding-code__fn">reduce</span>(body)</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">08</span>        body = <span class="coding-code__fn">let_differ</span>(body)</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">09</span></div>
+                    <div class="coding-code__line"><span class="coding-code__ln">10</span>    <span class="coding-code__kw">return</span> <span class="coding-code__fn">usable_tool</span>(body)</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">11</span></div>
+                    <div class="coding-code__line"><span class="coding-code__ln">12</span><span class="coding-code__kw">def</span> <span class="coding-code__fn">continue</span>(tool, world):</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">13</span>    <span class="coding-code__kw">while</span> world.is_moving():</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">14</span>        affects = <span class="coding-code__fn">trace</span>(world)</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">15</span>        tool = <span class="coding-code__fn">adapt</span>(tool, affects)</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">16</span></div>
+                    <div class="coding-code__line"><span class="coding-code__ln">17</span>        <span class="coding-code__kw">if</span> tool.has_hardened():</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">18</span>            tool = <span class="coding-code__fn">open</span>(tool)</div>
+                    <div class="coding-code__line"><span class="coding-code__ln">19</span></div>
+                    <div class="coding-code__line"><span class="coding-code__ln">20</span>    <span class="coding-code__kw">return</span> tool</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<article class="coding-page">
+    <section class="coding-section" aria-labelledby="coding-projects-title">
+        <div class="container">
+            <div class="coding-section__head reveal">
+                <h2 id="coding-projects-title" class="coding-section__title">SELECTED PROJECTS</h2>
+                <p class="coding-section__hint">tools / systems / archives</p>
+            </div>
+            <ul class="coding-projects" role="list">
+                <li class="coding-project reveal">
+                    <span class="coding-project__num">01</span>
+                    <div class="coding-project__main">
+                        <p class="coding-project__name">MONITOR</p>
+                        <p class="coding-project__desc">Remote training log viewer</p>
+                    </div>
+                    <span class="coding-project__stack">PYTHON / SSE</span>
+                    <span class="coding-project__year">2026</span>
+                    <span class="coding-project__status">STATUS / IN USE</span>
+                    <span class="coding-project__arrow" aria-hidden="true">→</span>
+                </li>
+                <li class="coding-project reveal">
+                    <span class="coding-project__num">02</span>
+                    <div class="coding-project__main">
+                        <p class="coding-project__name">POWERADAPTER</p>
+                        <p class="coding-project__desc">Personal publishing and archive system</p>
+                    </div>
+                    <span class="coding-project__stack">DJANGO / MONGO</span>
+                    <span class="coding-project__year">2026</span>
+                    <span class="coding-project__status">STATUS / ACTIVE</span>
+                    <span class="coding-project__arrow" aria-hidden="true">→</span>
+                </li>
+                <li class="coding-project reveal">
+                    <span class="coding-project__num">03</span>
+                    <div class="coding-project__main">
+                        <p class="coding-project__name">CREDITS</p>
+                        <p class="coding-project__desc">AI tool usage dashboard</p>
+                    </div>
+                    <span class="coding-project__stack">HTML / API</span>
+                    <span class="coding-project__year">2026</span>
+                    <span class="coding-project__status">STATUS / ACTIVE</span>
+                    <span class="coding-project__arrow" aria-hidden="true">→</span>
+                </li>
+                <li class="coding-project reveal">
+                    <span class="coding-project__num">04</span>
+                    <div class="coding-project__main">
+                        <p class="coding-project__name">SECURITY LOG</p>
+                        <p class="coding-project__desc">Operational audit trail</p>
+                    </div>
+                    <span class="coding-project__stack">MONGO / HMAC</span>
+                    <span class="coding-project__year">2026</span>
+                    <span class="coding-project__status">STATUS / STABLE</span>
+                    <span class="coding-project__arrow" aria-hidden="true">→</span>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="coding-section coding-principles" aria-labelledby="coding-principles-title">
+        <div class="container">
+            <div class="coding-section__head reveal">
+                <h2 id="coding-principles-title" class="coding-section__title">WORKING PRINCIPLES</h2>
+                <p class="coding-section__hint">how structure emerges</p>
+            </div>
+            <div class="coding-principles__grid">
+                <div class="coding-principle reveal">
+                    <div class="coding-principle__num">01</div>
+                    <h3 class="coding-principle__title">NEED BEFORE FRAMEWORK</h3>
+                    <p class="coding-principle__body">Start from the problem.<br>Let the structure emerge from use.</p>
+                </div>
+                <div class="coding-principle reveal">
+                    <div class="coding-principle__num">02</div>
+                    <h3 class="coding-principle__title">FIRST WORKING, THEN CLEAR</h3>
+                    <p class="coding-principle__body">Build a form that moves.<br>Refine until the relations become readable.</p>
+                </div>
+                <div class="coding-principle reveal">
+                    <div class="coding-principle__num">03</div>
+                    <h3 class="coding-principle__title">SMALL TOOLS, LONG LIFE</h3>
+                    <p class="coding-principle__body">Keep the scope open enough to evolve,<br>and small enough to stay useful.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="coding-section coding-experiments" aria-labelledby="coding-experiments-title">
+        <div class="container">
+            <div class="coding-section__head reveal">
+                <h2 id="coding-experiments-title" class="coding-section__title">SMALL EXPERIMENTS</h2>
+                <p class="coding-section__hint">notes / traces / side lines</p>
+            </div>
+            <ul class="coding-experiment__list" role="list">
+                <li class="coding-experiment reveal">
+                    <span class="coding-experiment__dot" aria-hidden="true"></span>
+                    <span class="coding-experiment__date">2026.07</span>
+                    <span class="coding-experiment__title">HTMX partial refresh experiment</span>
+                    <span class="coding-experiment__arrow" aria-hidden="true">→</span>
+                </li>
+                <li class="coding-experiment reveal">
+                    <span class="coding-experiment__dot" aria-hidden="true"></span>
+                    <span class="coding-experiment__date">2026.06</span>
+                    <span class="coding-experiment__title">MongoDB logging migration</span>
+                    <span class="coding-experiment__arrow" aria-hidden="true">→</span>
+                </li>
+                <li class="coding-experiment reveal">
+                    <span class="coding-experiment__dot" aria-hidden="true"></span>
+                    <span class="coding-experiment__date">2026.05</span>
+                    <span class="coding-experiment__title">Private admin access with Tailscale</span>
+                    <span class="coding-experiment__arrow" aria-hidden="true">→</span>
+                </li>
+                <li class="coding-experiment reveal">
+                    <span class="coding-experiment__dot" aria-hidden="true"></span>
+                    <span class="coding-experiment__date">2026.04</span>
+                    <span class="coding-experiment__title">Unity IL2CPP mod research</span>
+                    <span class="coding-experiment__arrow" aria-hidden="true">→</span>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+</article>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/coding/coding.js' %}"></script>
+{% endblock %}

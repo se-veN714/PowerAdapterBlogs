@@ -3,7 +3,7 @@
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
 > **更新**: 2026-07-27
-> **状态**: Board Scope Stage 0–6b、邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0 及 H1 已完成；下一步进入 Stage 7 旧字段观察期
+> **状态**: Board Scope Stage 0–6b、邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0–H1 已完成；H2 契约已冻结，下一步实现 H2a 绑定与恢复能力
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -69,6 +69,8 @@ sequenceDiagram
 这里的证书绑定与 mTLS 是两层：Nginx 判断“证书是否由受信 CA 签发且当前有效”，Django 再判断“该证书是否绑定到当前 active superuser”。禁止仅凭可伪造的普通请求头授予权限；Nginx 必须覆盖/清除外部同名头，Gunicorn 仍只通过本机 Unix socket 接收请求。客户端证书的签发、分发、续期、吊销、丢失恢复和销毁纳入 v2.5+ 密钥生命周期，不允许成为无人能恢复的单点锁。
 
 截至 2026-07-27，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的各入口接入 `boards.policies`，Stage 6a 已初始化固定全局 Group，Stage 6b 已实现权限申请、分级审批与 Membership 自动写入。下一步进入 Stage 7：停止读取 `is_reviewer` 并观察一个发布周期。
+
+后台加固主线不被 Stage 7 清债阻塞：H2 已在 `accounts/SECURITY_ROADMAP.md` 冻结为 H2a/H2b 两段。H2a 只实现 TOTP 绑定、加密 seed、恢复码与撤销审计，不改变登录；完成绑定和 break-glass 演练后，H2b 才接入密码后置 challenge、防重放、限流和 15 分钟特权 Session。当前尚未生成、保存任何 TOTP seed，也未把 MFA 接入登录链路。
 
 #### 邀请制账号决策（2026-07-26）
 

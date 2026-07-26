@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-27 | v3.14 | H2 契约冻结：先 H2a 绑定/恢复、后 H2b 登录强制；仅加入跳过的安全测试骨架，未生成密钥或修改登录 |
 | 2026-07-27 | v3.13 | Stage 6a：固定 VerifiedUsers/UserManagers/SiteOperators Permission；接通受限账号管理、审计入口和历史身份迁移 |
 | 2026-07-27 | v3.12 | 后台加固 H0：默认 AdminSite 与登录表单改为 active-superuser-only，补齐匿名、staff-only、dashboard、superuser 和停用账号拒绝路径 |
 | 2026-07-26 | v3.11 | 不开放公共注册；superuser 发放未激活账号，受邀者通过一次性邮件链接自行设置密码，成功后原子激活并加入 VerifiedUsers |
@@ -155,7 +156,7 @@ flowchart TD
 | `apps.py` | `AccountsConfig` | AppConfig |
 | `LOGGUIDE.md` | — | 日志规范（含安全红线） |
 | `PERMISSIONS_GUIDE.md` | — | Group + Permission + BoardMembership + Policy 授权设计与线性实施路线 |
-| `SECURITY_ROADMAP.md` | — | H0 已实现；v2.5+ superuser 证书 + TOTP、`/super_admin/` mTLS 与密钥全生命周期仍为规划 |
+| `SECURITY_ROADMAP.md` | — | H0–H1 已实现；H2a/H2b TOTP 契约已冻结但运行时未实现；证书、mTLS 与密钥全生命周期仍为规划 |
 
 ### 2.1 协同模块（审核工作流）
 
@@ -173,7 +174,7 @@ flowchart TD
 | MyUser、UserManager、登录/登出 | Board、BoardMembership |
 | `is_active`、`is_staff`、`is_superuser` 等全局账号状态 | Contributor / Editor / Reviewer / Manager 板块角色 |
 | 邮箱/证书验证、后续 MFA | `access_rules.py`、`policies.py` |
-| VerifiedUsers、UserManagers、SiteOperators 的归组编排（Stage 6a 已完成） | Stage 6b BoardAccessRequest、角色审批与 Membership 变更 |
+| VerifiedUsers、UserManagers、SiteOperators 的归组编排（Stage 6a 已完成） | BoardAccessRequest、角色审批与 Membership 变更（Stage 6b 已完成） |
 | 全局 Group 与 `user_permissions` 的管理边界 | Post/Comment 的 Board Scope 最终裁决 |
 
 各业务 App 自己定义 Permission；accounts 负责全局 Group 的组合和分配，不接管 security、Blogs 或 comment 的领域模型。Board 申请属于 boards，因为申请对象和审批结果都围绕一个 Board。

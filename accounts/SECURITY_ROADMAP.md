@@ -2,7 +2,7 @@
 
 > **文档权重**：88（v2.5+ 安全规划；状态为规划时不得视为已实现）
 > **模块**：`accounts/`、`security/`
-> **状态**：H0 与 H1/Stage 6a 已完成；下一步 H1/Stage 6b
+> **状态**：H0、H1/Stage 6a–6b 已完成；H2 契约已冻结，下一步从 H2a 绑定与恢复能力开始实现
 > **日期**：2026-07-27
 > **版本原则**：复杂安全能力默认进入 v2.5+；若前置测试、运维方案和回滚路径提前成熟，可以前移，但不以赶版本为目标。
 
@@ -27,12 +27,25 @@
 - 自动化测试固定匿名、普通账号、dashboard 用户、staff-only、active superuser 和 inactive superuser 的入口矩阵，并验证 staff-only 凭据无法建立系统后台 Session。
 - H0 不实现 TOTP 或 mTLS，也不把 `robots.txt`、URL 隐蔽性视为授权控制。
 
-### H1 / Stage 6a 完成结果（2026-07-27）
+### H1 / Stage 6a–6b 完成结果（2026-07-27）
 
 - 固定 `VerifiedUsers`、`UserManagers`、`SiteOperators` 三个全局 Group 及其最小 Permission 集。
 - UserManagers 与 SiteOperators 的 Permission 已接入 dashboard 外壳及各自 Admin 模块；普通 dashboard 旗标不能越权查看全站审计或账号。
 - 迁移不根据旧 `is_reviewer` 推断安全运维身份，避免把 Board 审核职责错误升级为全站审计权限。
-- Manager 的稳定定义仍依赖 Stage 6b 的申请审批流；完成前不进入 H2 TOTP。
+- Stage 6b 已通过 `BoardAccessRequest` 审批服务稳定产生 Manager Membership；H2 不再读取旧 `is_reviewer` 推断强制范围。
+
+### H2 分段与实施闸门（2026-07-27 冻结）
+
+H2 必须拆成两个可独立回滚的阶段，禁止在首次引入密钥模型时同时修改登录链路：
+
+| 阶段 | 范围 | 明确不做 | 完成条件 |
+|---|---|---|---|
+| H2a | TOTP 设备绑定、首次验证码确认、加密 seed、恢复码、撤销/重置审计 | 不拦截登录，不签发 `mfa_verified` Session，不生成仓库内测试 seed | superuser 与 Manager 可在已有登录 Session 中完成绑定和恢复材料验证；失败不会改变现有登录 |
+| H2b | 密码后置 TOTP challenge、防重放、限流、短时特权 Session、角色变化失效 | 不加入 mTLS、无密码登录、Microsoft 推送或 Passkey | 仅密码不能进入特权入口；TOTP/恢复码成功、失败、锁定、过期、撤销和回滚均有测试 |
+
+H2a 上线后先保留“可绑定但不强制”的观察窗口。确认至少一个 active superuser 已绑定、恢复码已离线保存且 break-glass 流程经过演练后，才允许开启 H2b。不得把“用户没有设备”自动降级成密码直通，也不得在没有恢复证据时强制唯一管理员启用 MFA。
+
+H2 首期明确强制 active superuser 与任意 active Board Manager。`UserManagers`、`SiteOperators` 同样属于敏感全局职责，是否随 H2b 一并强制是进入 H2b 前的显式决策；旧 `is_dashboard_user` 旗标本身不构成 MFA 身份。推荐最终把两个全局敏感 Group 纳入，但不得在未确认时静默扩大上线范围。
 
 | 版本 | 目标 | 是否修改运行时 | 进入条件 |
 |---|---|:---:|---|
@@ -45,6 +58,87 @@
 版本号是实施窗口，不是完成承诺。任何复杂项都可以后移；若依赖和验收条件提前满足，也可以作为较早版本的可选增强。
 
 ## 3. TOTP 动态验证码规划
+
+### 3.0 数据模型契约（H2a）
+
+首期单用户只允许一个逻辑设备，避免多设备撤销和恢复语义扩散。建议模型归 `accounts` 所有：
+
+```text
+MfaTotpDevice
+  user: OneToOne(settings.AUTH_USER_MODEL)
+  status: pending | active | revoked
+  secret_ciphertext: BinaryField        # 永不保存明文 seed
+  secret_nonce: BinaryField             # AES-GCM 唯一 nonce
+  key_id: CharField                     # 指向环境中的版本化 KEK
+  confirmed_at / revoked_at
+  last_accepted_step: BigIntegerField   # 行锁内更新，阻止同一步重放
+  auth_version: PositiveIntegerField    # 撤销/重置后使既有特权 Session 失效
+  created_at / updated_at
+
+MfaRecoveryCode
+  device: ForeignKey(MfaTotpDevice)
+  code_hash: CharField                   # 使用 Django password hasher，只展示一次
+  used_at: DateTimeField(null=True)
+  created_at: DateTimeField
+```
+
+约束与密钥边界：
+
+- seed 只在服务内存中产生，写库前使用独立于 Django `SECRET_KEY` 的版本化 KEK 加密；KEK 只来自部署环境/密钥管理设施，不进入数据库、日志、邮件、二维码缓存、仓库或测试快照。
+- 每次加密使用独立随机 nonce，并把 `user_id`、设备 ID/临时绑定 ID 与 `key_id` 作为认证上下文；解密失败必须默认拒绝并写不含密文的结果码。
+- `pending` 绑定默认 10 分钟过期；首次有效 TOTP 确认后才转为 `active`。中断或过期绑定应删除密文，不能成为可登录设备。
+- 首期生成 10 枚高熵恢复码，只保存 password hash；页面只展示一次，单枚成功后立即原子写入 `used_at`。不得提供“重新显示旧恢复码”。
+- 撤销或重置递增 `auth_version`、清除可用恢复码并使相关 privileged Session 失效；历史审计只保留 device ID、actor、原因码和时间。
+
+本契约不固定 Python 库。H2a 开工前需要比较维护状态良好的 TOTP 与 AEAD 实现，并固定依赖版本；禁止自行实现 OTP、Base32 或加密算法。
+
+### 3.0.1 登录与 Session 状态机（H2b）
+
+```mermaid
+stateDiagram-v2
+    [*] --> Anonymous
+    Anonymous --> Denied: 密码失败 / 账号停用
+    Anonymous --> NormalSession: 密码成功且不要求 MFA
+    Anonymous --> PendingMfa: 密码成功且要求 MFA
+    PendingMfa --> Denied: challenge 过期 / 次数超限 / 设备不可用
+    PendingMfa --> PendingMfa: 错误 TOTP 且未锁定
+    PendingMfa --> PrivilegedSession: 新时间步 TOTP 验证成功
+    PendingMfa --> RestrictedRecovery: 一次性恢复码成功
+    RestrictedRecovery --> PendingMfa: 仅在新设备确认后重新验证
+    PrivilegedSession --> StepUpRequired: 15 分钟到期 / auth_version 变化 / 角色变化
+    StepUpRequired --> PendingMfa: 重新验证密码或按策略发起 step-up
+    PrivilegedSession --> NormalSession: 失去全部特权身份
+```
+
+状态机约束：
+
+- 对强制 MFA 的用户，密码通过后不得先调用 Django `login()` 建立完整认证 Session；pending challenge 只保存最小 user ID、签发时间、随机 nonce、目标入口和失败计数，不保存密码、seed 或验证码。
+- TOTP 使用 6 位、30 秒周期，首期最多接受当前时间步前后各 1 步；成功时在同一事务内锁定设备并更新 `last_accepted_step`，相同或更旧时间步一律拒绝。
+- challenge 默认 5 分钟有效、最多错误 5 次；按账号与客户端地址执行 15 分钟冷却。具体缓存/数据库实现必须保证多进程 Gunicorn 下共享，不能依赖进程内字典。
+- 验证成功后才建立/升级 Session，并记录 `mfa_verified_at`、设备 ID 与 `auth_version`。特权有效期首期 15 分钟；到期可保留普通站点 Session，但 `/dashboard/`、`/super_admin/` 及敏感 action 必须重新 step-up。
+- 恢复码成功只授予受限的恢复状态，不直接等价于长期特权 Session；用户必须立即重新绑定设备。重置与 break-glass 需要当前密码和更高权限复核，单一 superuser 场景使用预先演练的离线流程，不能降级为仅邮箱重置。
+- 所有失败对外使用统一提示，审计内部只记录枚举原因码。任何日志和异常不得包含 seed、`otpauth://` URI、二维码内容、TOTP code 或恢复码。
+
+### 3.0.2 分阶段验收标准
+
+H2a：
+
+- [ ] pending 设备未确认、过期或撤销时不能被当作 active 设备。
+- [ ] 数据库、日志、邮件和测试失败输出中均找不到 seed、URI、TOTP code 或恢复码明文。
+- [ ] 首次验证码错误不会激活设备；正确验证码只激活一次。
+- [ ] 恢复码只展示一次、库中只有 hash、并发消费最多成功一次。
+- [ ] 重置需要重新验证当前密码与更高权限边界，并递增 `auth_version`。
+- [ ] 未启用 H2b 时，新增模型与绑定页面不改变现有登录成功/失败行为。
+
+H2b：
+
+- [ ] 强制用户仅通过密码后仍未认证，不能访问任何特权页面或 action。
+- [ ] challenge 绑定用户、Session 和目标入口；换用户、换 Session、过期或篡改均失败。
+- [ ] 当前允许窗口内的新时间步成功，同一步重放及窗口外验证码失败。
+- [ ] 第 5 次失败进入共享冷却；更换 Gunicorn worker 或重复请求不能绕过。
+- [ ] privileged Session 15 分钟到期，设备撤销、`auth_version` 或特权角色变化后立即失效。
+- [ ] 普通非特权用户的登录、Profile 与公开阅读路径不受影响。
+- [ ] 功能开关关闭时可回滚到 H2a，但不得删除已加密设备或把密码直通误标为 MFA 成功。
 
 ### 3.1 推荐方案
 
@@ -221,7 +315,7 @@ stateDiagram-v2
 
 | 严重度 | 问题 | 处理窗口 |
 |---|---|---|
-| 🔴 高 | 当前尚无稳定的 Board Manager 身份，无法可靠决定 MFA 强制范围 | v2.4 权限模型先完成 |
+| ✅ | Board Manager 身份稳定性 | Stage 6b 已以 active `BoardMembership.role=manager` 作为 H2 强制范围事实来源 |
 | 🔴 高 | `LOG_HMAC_KEY` 若直接轮换会影响历史日志验证 | v2.5+ K2 前禁止无版本轮换 |
 | 🔴 高 | TOTP seed 的根加密密钥会引入新的密钥管理问题 | v2.5 设计评审必须说明根密钥来源与恢复方案 |
 | 🔴 高 | mTLS 若直接作用于现有整站 vhost，可能干扰普通用户 TLS 握手；若保留公网平行入口又会被绕过 | 优先独立 admin vhost，并对公网 `/super_admin/` 做拒绝测试 |

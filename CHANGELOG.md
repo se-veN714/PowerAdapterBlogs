@@ -4,6 +4,12 @@
 
 ## [2026-07-27]
 
+### 后台加固 H2 设计冻结
+- 将 TOTP 拆分为 H2a 绑定/恢复与 H2b 登录强制，禁止首次引入密钥模型时同步改造登录链路
+- 冻结加密 seed、版本化 KEK、恢复码 hash、防重放时间步、`auth_version` 与 15 分钟特权 Session 契约
+- 明确 H2a 观察和 break-glass 演练是 H2b 强制登录的进入条件，不允许未绑定时密码降级直通
+- 新增跳过状态的 H2 安全测试骨架；当前未引入 TOTP 依赖、未生成或保存 seed、未修改登录运行时
+
 ### 后台加固 H1 / Stage 6b
 - 新增 `BoardAccessRequest`、`/boards/access/` 申请入口与只读审核记录，VerifiedUsers 可申请但不会在提交时直接获得 Board CRUD
 - Board Manager 只可审核自己板块的 Contributor、Editor、Reviewer；禁止跨板块、自审、授予 Manager、恢复停用权限和变更已有 Manager

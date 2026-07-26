@@ -167,6 +167,8 @@ DjangoProject/                 # 项目根目录
 
 ## 6. 开发文档索引
 
+Agent HANDOFF、线程上下文和一次性 worktree 任务快照不属于本索引：统一放入 `.local/handoffs/` 或使用包含 `HANDOFF` 的文件名，并保持 Git 未跟踪。长期结论必须回写下列正式文档。
+
 | 文档 | 内容 |
 |------|------|
 | `V2GUIDE.md` | 最高权重：当前版本、架构与路线决策 |
@@ -178,13 +180,11 @@ DjangoProject/                 # 项目根目录
 | `docs/guides/BLOG_FOUNDATION_GUIDE.md` | Profile、账号设置、About、隐私、归档、Feed 与公开站点元数据路线 |
 | `docs/guides/DEPLOYMENT_CHECKLIST.md` | 生产环境变量、部署、冒烟、安全、审计与回滚执行清单 |
 | `DOCUMENTATION_GUIDE.md` | 文档权重、Agent 阅读顺序与冲突处理总则 |
-| `themes/devenir/BOARD_INDEX_HANDOFF.md` | K3 Board 独立 Index 前端分支边界与后端上下文契约 |
 | `docs/guides/LOGGUIDE.md` | 全项目日志主规范 |
 | `requirements.txt` | 依赖清单 |
 | `accounts/DEVELOPMENT.md` | 用户模块详细架构 |
 | `security/DEVELOPMENT.md` | 日志完整性详细架构 |
 | `themes/devenir/DEVELOPMENT.md` | 当前 Devenir 主题架构、模板与静态资源说明 |
-| `themes/devenir/POSTLIST_HANDOFF.md` | PostList 前端重构规划、K3 修改边界与验收标准 |
 | `accounts/LOGGUIDE.md` | accounts 日志规范 |
 | `Blogs/LOGGUIDE.md` | Blogs 日志规范 |
 | `comment/LOGGUIDE.md` | comment 日志规范 |

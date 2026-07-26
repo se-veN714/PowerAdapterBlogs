@@ -121,27 +121,46 @@ admin.site.register(MyUser, MyUserAdmin)
 # === 注册到 custom_site（/dashboard/，dashboard 用户仅审核 is_active） ===
 @admin.register(MyUser, site=custom_site)
 class CusMyUserAdmin(DashboardAdminMixin, MyUserAdmin):
-    """custom_site account view, reserved for active superusers until Stage 6."""
+    """Account management for superusers and the ``UserManagers`` group."""
 
     @staticmethod
-    def _is_active_superuser(request):
-        return request.user.is_active and request.user.is_superuser
+    def _can_manage_accounts(request):
+        user = request.user
+        return user.is_active and (
+            user.is_superuser or user.has_perm("accounts.manage_user_accounts")
+        )
 
     def has_module_permission(self, request):
         """Board dashboard access must not imply global account management."""
-        return self._is_active_superuser(request)
+        return self._can_manage_accounts(request)
 
     def has_view_permission(self, request, obj=None):
-        return self._is_active_superuser(request)
+        if not self._can_manage_accounts(request):
+            return False
+        return obj is None or request.user.is_superuser or not obj.is_superuser
 
     def has_change_permission(self, request, obj=None):
-        return self._is_active_superuser(request)
+        if not self._can_manage_accounts(request):
+            return False
+        return obj is None or request.user.is_superuser or not obj.is_superuser
 
     def has_add_permission(self, request):
-        return self._is_active_superuser(request)
+        return request.user.is_active and request.user.is_superuser
 
     def has_delete_permission(self, request, obj=None):
-        return self._is_active_superuser(request)
+        return request.user.is_active and request.user.is_superuser
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.is_superuser:
+            return queryset
+        return queryset.filter(is_superuser=False)
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not request.user.is_superuser:
+            actions.pop("resend_account_invitation", None)
+        return actions
 
     def get_readonly_fields(self, request, obj=None):
         """The permission methods reject non-superusers before form rendering."""

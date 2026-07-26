@@ -38,3 +38,7 @@ package-lock.json
 /docs/guides/DJANGO_ASYNC_GUIDE.md
 /docs/guides/*_LEARNING_GUIDE.md
 /.codebuddy/
+
+# ====== Agent handoff artifacts ======
+**/*HANDOFF*.md
+**/*handoff*.md

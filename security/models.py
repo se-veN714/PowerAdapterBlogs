@@ -21,6 +21,10 @@ class SecureLogEntry(models.Model):
     class Meta:
         verbose_name = "日志完整性记录"
         verbose_name_plural = "日志完整性记录"
+        permissions = [
+            ("view_audit_log", "可查看安全审计日志"),
+            ("run_integrity_audit", "可运行日志完整性审计"),
+        ]
         indexes = [
             models.Index(fields=['is_tampered']),
             models.Index(fields=['computed_at']),

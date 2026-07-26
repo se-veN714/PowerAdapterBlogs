@@ -201,6 +201,8 @@ flowchart LR
 
 Board 是授权边界，不是 Django Group：Group 只承载 `SiteOperators`、`UserManagers` 等全局职责；Contributor / Editor / Reviewer / Manager 的唯一事实来源是 `BoardMembership`。
 
+Stage 6a 已创建 `boards.apply_board_access` 并只授予 `VerifiedUsers`。该 Permission 仅作为 Stage 6b 申请入口资格，不授予 Board、Post 或 Comment 的任何 CRUD；最终对象授权仍由 Membership + Policy 裁决。
+
 ### Stage 4–5 Policy 状态
 
 `policies.py` 已被 Dashboard Admin 的 queryset、对象和关键字段入口调用：
@@ -216,7 +218,7 @@ Board 是授权边界，不是 Django Group：Group 只承载 `SiteOperators`、
 
 Stage 5 已恢复审核/发布/驳回和评论 action，但每个对象都会在事务 Service 或审核 Service 中重新校验 Policy，不再批量直写状态。写作 View、上传、STAFF_ONLY/修订端点和只读 DRF API 也复用相同范围；完整测试集 65 个全部通过。下一步是 Stage 6 的 Group 初始化与 BoardAccessRequest 自动审批。
 
-Board 独立 Index 视觉在 `codex/board-index-k3` 并行推进，K3 仅修改 Devenir 专用模板/CSS/展示脚本；路由、QuerySet、Policy 与上下文组装仍由 boards 后端所有。详细边界见 [`themes/devenir/BOARD_INDEX_HANDOFF.md`](../themes/devenir/BOARD_INDEX_HANDOFF.md)。
+Board 独立 Index 视觉在 `codex/board-index-k3` 并行推进，K3 仅修改 Devenir 专用模板/CSS/展示脚本；路由、QuerySet、Policy 与上下文组装仍由 boards 后端所有。本地 HANDOFF 仅用于临时交接，不进入 Git；长期边界以本节和 V2 指南为准。
 
 未来的板块权限申请与审批也属于 boards：accounts 只确认用户已登录、激活和完成邮箱验证，boards 负责申请的目标 Board、目标角色、审批人边界、结果及 Membership 更新。
 

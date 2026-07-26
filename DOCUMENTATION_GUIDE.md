@@ -27,3 +27,14 @@
 - TODO 使用红/黄/绿严重度，分别表示安全/一致性、重要设计债务、可选优化。
 - Mermaid 用于三个及以上组件之间的权限、状态或请求流程。
 - `.venv`、依赖包、构建产物、Agent 临时上下文和归档副本不纳入项目文档权重体系。
+
+## 4. Agent 临时交接材料不得跟踪
+
+HANDOFF、一次性 Agent 上下文、线程移交说明和仅服务某个 worktree 的任务快照属于本地协作材料，不是项目开发文档，不得加入 Git。
+
+- 新建时统一放入 `.local/handoffs/<task>/`；若工具必须把文件放在源码附近，文件名必须包含 `HANDOFF`，由根 `.gitignore` 的 `**/*HANDOFF*.md` / `**/*handoff*.md` 规则排除。
+- 临时材料不声明项目文档权重，不加入根 `DEVELOPMENT.md` 或 `docs/README.md` 索引，也不能被已跟踪文档作为唯一依据链接。
+- 可长期复用的架构结论、权限边界、上下文契约和验收标准必须回写 `V2GUIDE.md`、专项 Guide 或对应 App `DEVELOPMENT.md`；HANDOFF 只引用这些正式来源。
+- 需要长期纳入仓库的内容不得继续使用 `HANDOFF` 命名，应改写为职责明确的 `*_GUIDE.md` 或 `DEVELOPMENT.md`，补充权重后按正常文档流程评审。
+- 提交前执行 `git ls-files | rg -i "handoff"`，结果必须为空；新文件另用 `git check-ignore -v <path>` 确认命中忽略规则。
+- 若文件已误跟踪，使用 `git rm --cached -- <path>` 只移除索引并保留本地文件，同时清理仓库文档中的死链。

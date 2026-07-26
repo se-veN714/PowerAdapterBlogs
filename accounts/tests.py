@@ -132,7 +132,7 @@ class DashboardLoginTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('_auth_user_id', self.client.session)
-        self.assertContains(response, '工作人员账户')
+        self.assertContains(response, '超级管理员')
 
     def test_dashboard_login_remains_case_sensitive(self):
         response = self.client.post(
@@ -207,6 +207,8 @@ class AccountInvitationTest(TestCase):
         self.assertTrue(user.check_password(self.password))
         self.assertIsNotNone(invitation.accepted_at)
         self.assertTrue(user.groups.filter(name="VerifiedUsers").exists())
+        self.assertTrue(user.has_perm("boards.apply_board_access"))
+        self.assertFalse(user.has_perm("boards.add_board"))
         self.assertEqual(self.client.get(url).status_code, 400)
 
     def test_resending_invitation_invalidates_previous_link(self):

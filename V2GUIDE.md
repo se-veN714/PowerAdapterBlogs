@@ -3,7 +3,7 @@
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
 > **更新**: 2026-07-27
-> **状态**: Board Scope Stage 0–5、邀请制账号激活及 `blog_foundation_linear` F1–F5 已完成；下一步恢复 accounts Stage 6a/6b
+> **状态**: Board Scope Stage 0–5、邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0 及 H1/Stage 6a 已完成；下一步进入 H1/Stage 6b
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -68,17 +68,17 @@ sequenceDiagram
 
 这里的证书绑定与 mTLS 是两层：Nginx 判断“证书是否由受信 CA 签发且当前有效”，Django 再判断“该证书是否绑定到当前 active superuser”。禁止仅凭可伪造的普通请求头授予权限；Nginx 必须覆盖/清除外部同名头，Gunicorn 仍只通过本机 Unix socket 接收请求。客户端证书的签发、分发、续期、吊销、丢失恢复和销毁纳入 v2.5+ 密钥生命周期，不允许成为无人能恢复的单点锁。
 
-截至 2026-07-19，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的 Admin、状态 action、写作 View、上传、修订端点和只读 DRF API 接入 `boards.policies`。下一步进入 Stage 6a/6b，自动化全局 Group 与 Board 权限申请/审批；当前仍未实现动态申请页面和 Membership 自动写入。
+截至 2026-07-27，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的各入口接入 `boards.policies`，Stage 6a 已初始化并接通固定全局 Group。下一步进入 Stage 6b；当前仍未实现动态申请页面和 Membership 自动写入。
 
 #### 邀请制账号决策（2026-07-26）
 
-本站是小规模个人站，不开放匿名公共注册。superuser 在 `/super_admin/` 中只填写用户名和邮箱，系统创建未激活且没有可用密码的账号，并在数据库提交成功后发送一次性邀请。受邀者通过邮件自行设置密码；激活事务同时加入 `VerifiedUsers`，但该 Group 的 `boards.apply_board_access` Permission 仍由 Stage 6a 初始化。重新发送邀请会使旧链接失效，邀请默认 24 小时过期。
+本站是小规模个人站，不开放匿名公共注册。superuser 在 `/super_admin/` 中只填写用户名和邮箱，系统创建未激活且没有可用密码的账号，并在数据库提交成功后发送一次性邀请。受邀者通过邮件自行设置密码；激活事务同时加入已绑定 `boards.apply_board_access` 的 `VerifiedUsers`，但不自动获得任何 Board CRUD。重新发送邀请会使旧链接失效，邀请默认 24 小时过期。
 
 邮件传输、模板和公网基址可以继续供投稿审核提醒复用；邀请 Token、账号状态转换和 Board 审核通知不得共用业务逻辑。投稿提醒仍是后续邮件阶段任务。
 
 #### blog_foundation_linear（2026-07-26，推进中）
 
-按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界；F1 已实现公开作者 Profile、本人资料编辑及带邮箱短时验证的密码修改；F2 已补齐 About、隐私说明和全局入口；F3 已实现公开年月归档、RSS/Atom 与统一公开文章 QuerySet helper；F4 已接入 canonical/Open Graph、Feed 自动发现、robots、公开 Sitemap 与生产错误页；F5 已按 RFC 9116 发布 `security.txt` 并补齐上线检查清单。该路线 F0–F5 已完成，下一步恢复 accounts Stage 6a/6b。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 [`BLOG_FOUNDATION_GUIDE.md`](docs/guides/BLOG_FOUNDATION_GUIDE.md) 为准。
+按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界；F1 已实现公开作者 Profile、本人资料编辑及带邮箱短时验证的密码修改；F2 已补齐 About、隐私说明和全局入口；F3 已实现公开年月归档、RSS/Atom 与统一公开文章 QuerySet helper；F4 已接入 canonical/Open Graph、Feed 自动发现、robots、公开 Sitemap 与生产错误页；F5 已按 RFC 9116 发布 `security.txt` 并补齐上线检查清单。该路线 F0–F5 已完成，accounts Stage 6a 也已完成，下一步为 Stage 6b。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 [`BLOG_FOUNDATION_GUIDE.md`](docs/guides/BLOG_FOUNDATION_GUIDE.md) 为准。
 
 #### 2026-07-27 双分支并行决策
 
@@ -89,7 +89,7 @@ sequenceDiagram
 | `codex/admin-hardening` | Codex | Stage 6a/6b 前置权限身份、特权认证、Session、审计与 mTLS 应用侧契约 | 不实现 Board Index 视觉，不修改其专用模板/CSS |
 | `codex/board-index-k3` | Kimi K3 | 各 Board 独立 Index 的 Devenir 模板、CSS、展示脚本与空态 | 不修改 Python、Migration、Policy、URLConf、Admin、API 或权限测试 |
 
-两个分支必须使用独立 worktree。后台先冻结只读上下文契约，K3 只消费契约；最终先合并后台数据/权限边界，再合并前端模板，导航与路由由集成方最后接线。Board Index 交接以 [`themes/devenir/BOARD_INDEX_HANDOFF.md`](themes/devenir/BOARD_INDEX_HANDOFF.md) 为准。
+两个分支必须使用独立 worktree。后台先冻结只读上下文契约，K3 只消费契约；最终先合并后台数据/权限边界，再合并前端模板，导航与路由由集成方最后接线。具体 HANDOFF 属于本地 Agent 交接材料，不纳入 Git；长期有效边界必须回写本指南或对应 App 文档。
 
 ### 0.2 前端架构决策：Devenir HDA，不做全面分离
 

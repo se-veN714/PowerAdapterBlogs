@@ -16,7 +16,12 @@ from django.contrib import admin
 
 def has_dashboard_access(user):
     """Return whether a user may enter the custom dashboard shell."""
-    return user.is_active and (user.is_dashboard_user or user.is_superuser)
+    return user.is_active and (
+        user.is_dashboard_user
+        or user.is_superuser
+        or user.has_perm("accounts.manage_user_accounts")
+        or user.has_perm("security.view_audit_log")
+    )
 
 
 class BaseOwnerAdmin(admin.ModelAdmin):

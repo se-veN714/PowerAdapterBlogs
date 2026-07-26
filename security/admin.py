@@ -18,8 +18,18 @@ class SecureLogEntryAdmin(DashboardAdminMixin, admin.ModelAdmin):
 
     actions = ["audit_selected_logentries"]
 
-    # DashboardAdminMixin 已提供 has_module_permission/has_view_permission 基于 is_dashboard_user
-    # change/delete 仍收紧到 superuser
+    @staticmethod
+    def _can_view_audit_log(request):
+        user = request.user
+        return user.is_active and (
+            user.is_superuser or user.has_perm("security.view_audit_log")
+        )
+
+    def has_module_permission(self, request):
+        return self._can_view_audit_log(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._can_view_audit_log(request)
 
     def has_change_permission(self, request, obj=None):
         """仅超级管理员可修改完整性记录"""
@@ -47,7 +57,16 @@ class SecureLogEntryAdmin(DashboardAdminMixin, admin.ModelAdmin):
 
     hmac_truncated.short_description = "HMAC摘要"
 
-    @admin.action(description="审计选中的日志完整性")
+    def has_run_integrity_audit_permission(self, request):
+        user = request.user
+        return user.is_active and (
+            user.is_superuser or user.has_perm("security.run_integrity_audit")
+        )
+
+    @admin.action(
+        description="审计选中的日志完整性",
+        permissions=["run_integrity_audit"],
+    )
     def audit_selected_logentries(self, request, queryset):
         secret_key = ""
         try:

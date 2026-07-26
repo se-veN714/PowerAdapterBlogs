@@ -50,6 +50,9 @@ class Board(models.Model):
     class Meta:
         ordering = ['sort_order', 'pk']
         verbose_name = verbose_name_plural = "首页板块"
+        permissions = [
+            ("apply_board_access", "可申请板块权限"),
+        ]
 
     def __str__(self):
         return f"{self.sort_order:02d} {self.name}"

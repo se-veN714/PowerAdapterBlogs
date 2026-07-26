@@ -5,7 +5,7 @@
 > **职责**: 自定义用户模型、认证、账号状态、全局 Group 编排与用户安全；不拥有 Board Policy
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-26 — 修改密码增加短时邮箱验证、冷却与次数限制
+> **最后更新**: 2026-07-27 — H0 将 `/super_admin/` 收紧为 active superuser 并固定双后台拒绝矩阵
 
 ---
 
@@ -13,6 +13,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-27 | v3.13 | Stage 6a：固定 VerifiedUsers/UserManagers/SiteOperators Permission；接通受限账号管理、审计入口和历史身份迁移 |
+| 2026-07-27 | v3.12 | 后台加固 H0：默认 AdminSite 与登录表单改为 active-superuser-only，补齐匿名、staff-only、dashboard、superuser 和停用账号拒绝路径 |
 | 2026-07-26 | v3.11 | 不开放公共注册；superuser 发放未激活账号，受邀者通过一次性邮件链接自行设置密码，成功后原子激活并加入 VerifiedUsers |
 | 2026-07-22 | v3.10 | 文档同步：`SECURITY_ROADMAP.md` 新增 superuser 客户端证书绑定、TOTP、独立 admin vhost mTLS、证书生命周期和 break-glass 规划；运行时代码未变 |
 | 2026-07-19 | v3.9 | Stage 5 状态 Service、普通 View、上传、修订与只读 API 已停止使用全局审核/staff 旗标 |
@@ -128,7 +130,7 @@ flowchart TD
 - **单一事实来源**：Contributor / Editor / Reviewer / Manager 不写入 Group；BoardMembership + Policy 跨 App 控制 Post 与 Comment
 - **全局旗标边界**：`is_active` / `is_dashboard_user` / `is_staff` / `is_superuser` 只表达账号或入口状态；`is_reviewer` 为待删除遗留字段，不再代表 Board 角色
 - **纵深防御**：4 层防护，模型层是最后一道防线
-- **双 Admin 注册**：同一 `MyUserAdmin` 注册到 `admin.site` 和 `custom_site`，使用不同的 `has_permission()` 逻辑
+- **双 Admin 注册**：同一 `MyUserAdmin` 注册到 superuser-only 的 `admin.site` 和 Board 工作台 `custom_site`，使用不同入口边界
 - **审核工作流**：编辑者写草稿 → 提交审核 → 审核者通过/驳回，所有变更自动产生 PostRevision 快照
 
 > 🟠 橙色 = 模型层防御 (SENSITIVE_FIELDS 回滚)  
@@ -149,10 +151,11 @@ flowchart TD
 | `urls.py` | — | 登录/邀请/Profile/邮箱验证/密码修改路由 |
 | `thread_local.py` | `get_current_user()`, `set_current_user()`, `clear_current_user()` | thread-local 用户存储 |
 | `middleware.py` | `RequestUserMiddleware` | 请求生命周期捕获 `request.user` |
+| `PowerAdapterBlogs/admin_site.py` / `admin_config.py` | `SuperuserAdminSite`, `SuperuserAuthenticationForm` | `/super_admin/` active-superuser-only 的入口与认证边界 |
 | `apps.py` | `AccountsConfig` | AppConfig |
 | `LOGGUIDE.md` | — | 日志规范（含安全红线） |
 | `PERMISSIONS_GUIDE.md` | — | Group + Permission + BoardMembership + Policy 授权设计与线性实施路线 |
-| `SECURITY_ROADMAP.md` | — | v2.5+ superuser 证书 + TOTP、`/super_admin/` mTLS 与密钥全生命周期规划；均未实现 |
+| `SECURITY_ROADMAP.md` | — | H0 已实现；v2.5+ superuser 证书 + TOTP、`/super_admin/` mTLS 与密钥全生命周期仍为规划 |
 
 ### 2.1 协同模块（审核工作流）
 
@@ -170,7 +173,7 @@ flowchart TD
 | MyUser、UserManager、登录/登出 | Board、BoardMembership |
 | `is_active`、`is_staff`、`is_superuser` 等全局账号状态 | Contributor / Editor / Reviewer / Manager 板块角色 |
 | 邮箱/证书验证、后续 MFA | `access_rules.py`、`policies.py` |
-| VerifiedUsers、UserManagers、SiteOperators 的归组编排 | 后续 BoardAccessRequest、角色审批与 Membership 变更 |
+| VerifiedUsers、UserManagers、SiteOperators 的归组编排（Stage 6a 已完成） | Stage 6b BoardAccessRequest、角色审批与 Membership 变更 |
 | 全局 Group 与 `user_permissions` 的管理边界 | Post/Comment 的 Board Scope 最终裁决 |
 
 各业务 App 自己定义 Permission；accounts 负责全局 Group 的组合和分配，不接管 security、Blogs 或 comment 的领域模型。Board 申请属于 boards，因为申请对象和审批结果都围绕一个 Board。
@@ -181,12 +184,12 @@ flowchart TD
 
 `is_dashboard_user` 只控制自定义 `/dashboard/` 工作台外壳入口，不等于账号管理、Board CRUD
 或跨 App 对象权限。Board 角色测试账号需要该入口旗标才能使用工作台，但具体模块和对象继续执行
-各自的 Policy。`accounts.MyUser` 属于全局身份域；Stage 6 `UserManagers` Group 落地前，工作台中的
-账号管理模块仅向激活的 superuser 开放。
+各自的 Policy。`accounts.MyUser` 属于全局身份域；`UserManagers` 可在工作台启停非 superuser
+账号，但不能创建、删除、重发邀请、修改权限关系或接触 superuser。
 
 `/dashboard/login/` 使用 `DashboardAuthenticationForm`，登录条件为账号激活且具有
-`is_dashboard_user` 或 superuser 身份，不要求 `is_staff`。`/super_admin/login/` 继续使用 Django
-默认 Admin 登录表单并要求 staff；两套入口不得通过放宽 `is_staff` 相互打通。直接访问
+`is_dashboard_user` 或 superuser 身份，不要求 `is_staff`。`/super_admin/login/` 使用
+`SuperuserAuthenticationForm`，只接受 active superuser；staff-only 凭据不会建立后台 Session。直接访问
 `/dashboard/login/` 未携带 `next` 时默认返回 `/dashboard/`，不使用 Django 的
 `/accounts/profile/` 默认回跳。
 
@@ -197,7 +200,7 @@ flowchart TD
 │  is_active         账号启用（可登录）                   │
 │  is_dashboard_user 可访问 /dashboard/ (CustomSite)     │
 │  is_reviewer       遗留审核旗标（业务入口已停止读取）      │  ← 待 Stage 7–8 删除
-│  is_staff          可访问 /super_admin/ (默认 Django)   │
+│  is_staff          Django 兼容旗标，不单独授予后台入口      │
 │  is_superuser      拥有所有模型层特权                    │
 │                                                      │
 │  groups            Django 权限组 (M2M)                │
@@ -261,8 +264,8 @@ flowchart TD
 ```
 
 **入口分离逻辑**：
-- `admin.site` (Django 默认) → `AdminSite.has_permission()` → 检查 `is_active and is_staff`
-- `custom_site` (`cus_site.py`) → `CustomSite.has_permission()` → 检查 `is_active and is_dashboard_user`
+- `admin.site` (`SuperuserAdminSite`) → 登录表单与 `has_permission()` 均检查 `is_active and is_superuser`
+- `custom_site` (`cus_site.py`) → `CustomSite.has_permission()` → 检查 `is_active and (is_dashboard_user or is_superuser)`
 
 ---
 
@@ -459,7 +462,7 @@ class CusMyUserAdmin(MyUserAdmin):
     pass  # 所有行为继承父类
 ```
 
-两个 Admin 共享同一个 `MyUserAdmin` 类，权限行为通过 `get_*` 方法动态判断。
+两个 Admin 共享同一个 `MyUserAdmin` 类；系统入口由 `SuperuserAdminSite` 先拒绝非 superuser，工作台中的账号模块在 Stage 6 前也只向 active superuser 开放。
 
 ### 6.2 动态字段权限（v3.0 颗粒化）
 
@@ -602,8 +605,10 @@ erDiagram
 | Board 跨入口对象隔离 | ✅ Stage 5 | Admin、状态 action、普通 View、上传、修订与只读 API 均调用 `boards.policies` |
 | thread-local 仅 HTTP 上下文 | 🟢 低 | `manage.py shell` 中 `get_current_user()` 返回 None，防御回退。属于设计决策，暂不修改。 |
 | 审核通知 | ⏸ 已评估 | 个人站当前 dashboard 状态与 Admin 即时反馈足够，暂不为此新增完整 messaging 模块；开放注册时采用邮件验证，评论通知按实际需要再做轻量站内实现 |
-| Category/Tag 管理边界 | 🟡 中 | Category dashboard 已收紧为 superuser-only；Tag 保留全局 Permission，Stage 6a 初始化 Group 时复核 |
+| Category/Tag 管理边界 | ✅ Stage 6a 复核 | Category dashboard 为 superuser-only；`Blogs.manage_tag` 不加入三个固定全局 Group，当前同样仅 superuser 可用。 |
 | Profile 与密码修改 | ✅ F1 | `UserProfile` 默认私密；公开页仅列公开已发布文章；Profile 改密入口以 `restart=1` 强制开启新邮箱验证（10 分钟、60 秒冷却、每小时 3 封、最多错 5 次），随后仍校验旧密码并保留当前 Session。 |
+| 双后台入口边界 | ✅ H0 | `/super_admin/` 只接受 active superuser；`/dashboard/` 接受 active dashboard 用户或 superuser；staff-only 不能获得系统后台 Session。 |
+| 固定全局 Group | ✅ Stage 6a | VerifiedUsers 仅可申请 Board 权限；UserManagers 受限管理账号；SiteOperators 查看并运行完整性审计。 |
 
 ---
 
@@ -611,7 +616,7 @@ erDiagram
 
 ### A. 测试现状
 
-- `tests.py` — 已覆盖邀请、登录锁定、双后台边界、Profile 隔离，以及改密邮箱验证的 TTL、Session 绑定、强制重开、倒计时数据、冷却、发送和错误上限；accounts 测试 30 项、全项目 150 项通过（2026-07-27）
+- `tests.py` + `test_admin_hardening.py` + `test_global_roles.py` — 已覆盖邀请、登录锁定、H0 双后台入口/Session 拒绝矩阵、Stage 6a 固定组与最小权限、Profile 隔离及改密邮箱验证限制；全项目 163 项通过（2026-07-27）
 - 建议优先覆盖：
   1. `MyUser.save()` SENSITIVE_FIELDS 回滚逻辑
   2. `LoginView` 登录成功/失败/不活跃三种路径

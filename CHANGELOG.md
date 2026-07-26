@@ -4,6 +4,17 @@
 
 ## [2026-07-27]
 
+### 后台加固 H0
+- 使用项目自定义 `SuperuserAdminSite` 作为默认 Django AdminSite，`/super_admin/` 从 active staff 收紧为 active superuser
+- 系统后台登录表单在认证阶段拒绝 staff-only 与 dashboard-only 账号，不为其建立后台 Session
+- 新增双后台入口矩阵测试，覆盖匿名、普通账号、dashboard、staff-only、active superuser 和 inactive superuser；全量 157 项测试与 Ruff 通过
+
+### 后台加固 H1 / Stage 6a
+- 新增 `boards.apply_board_access`、`accounts.manage_user_accounts`、`security.view_audit_log` 与 `security.run_integrity_audit` 自定义 Permission
+- 幂等初始化 VerifiedUsers、UserManagers、SiteOperators；active 旧账号迁入 VerifiedUsers，active 非 superuser staff 收敛到 UserManagers
+- UserManagers 仅可启停非 superuser 账号；SiteOperators 仅可查看和运行日志完整性审计；全局 Group 不授予任何 Board CRUD
+- 首次迁移、幂等初始化、Group 运行时入口与拒绝路径均有测试；全量 163 项测试与 Ruff 通过
+
 ### 博客基础 F3
 - 新增 `/Blogs/archive/` 公开年月归档，复用 Devenir Post Stream 卡片并提供月份快速索引
 - 新增 `/feed/` RSS 与 `/feed/atom/` Atom，只输出公开已发布文章和固定公网基址的绝对链接
@@ -28,7 +39,8 @@
 ### 并行开发与文档治理
 - 新增权重 95 的 `DOCUMENTATION_GUIDE.md`，保持 `V2GUIDE.md` 为唯一最高权重并固定 Agent 阅读顺序
 - 冻结 `codex/admin-hardening` 与 `codex/board-index-k3` 的分支、worktree、所有权和合并边界
-- 新增 K3 Board Index 前端交接文档；明确不得修改 Python、Migration、Policy、URLConf、Admin 或 API
+- K3 Board Index 的长期前后端边界回写 V2 与 boards 文档；临时交接文件不再作为仓库文档
+- HANDOFF 与同类 Agent 临时材料统一改为本地未跟踪文件；推荐存入 `.local/handoffs/`，长期结论必须提升到正式 Guide/DEVELOPMENT/V2 文档
 
 ## [2026-07-26]
 

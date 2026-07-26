@@ -64,6 +64,11 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email']
 
+    class Meta:
+        permissions = [
+            ("manage_user_accounts", "可管理用户账号"),
+        ]
+
     def __str__(self):
         return self.username
 

@@ -37,7 +37,6 @@
 | 81 | `docs/README.md` | 项目文档导航，不承载高于目标文档的设计结论 |
 | 78 | `themes/devenir/DEVELOPMENT.md` | 当前主题实现细节 |
 | 75 | `docs/guides/LOGGUIDE.md` | 全项目日志规范 |
-| 74 | `themes/devenir/POSTLIST_HANDOFF.md` | PostList 前端重构的实施快照、模型边界与验收标准 |
 | 70 | 各 App `LOGGUIDE.md` | 模块日志细节 |
 | 60 | `CHANGELOG.md` | 历史变更记录，不代表当前设计 |
 | 50 | `README.md`、主题 README | 项目介绍与快速入口 |
@@ -54,7 +53,22 @@
 4. 与任务直接相关且纳入仓库的专项 Guide
 5. 如涉及日志，再阅读 `docs/guides/LOGGUIDE.md` 与目标 App 的 `LOGGUIDE.md`
 
-执行 Devenir PostList 重构时，专项 Guide 为 `themes/devenir/POSTLIST_HANDOFF.md`；仍须先服从 `V2GUIDE.md` 与 `themes/devenir/DEVELOPMENT.md`。
+HANDOFF 文件属于本地 Agent 临时交接材料，不纳入 Git，也不能成为长期架构依据。需要保留的结论必须回写 `V2GUIDE.md`、对应 App `DEVELOPMENT.md` 或专项 Guide。
+
+### 4.1 HANDOFF 与同类临时材料规范
+
+以下内容一律视为本地协作材料：Agent/线程移交说明、一次性 worktree 任务边界、临时上下文快照、只为某次合并准备的核对表。推荐统一存放在 `.local/handoffs/<task>/`；必须靠近源码时，文件名须包含 `HANDOFF`，以命中根 `.gitignore`。
+
+临时材料不得声明文档权重、进入正式文档索引或成为仓库内链接的唯一目标。需要跨会话长期保留的结论必须提升到有明确职责的 `*_GUIDE.md`、App `DEVELOPMENT.md` 或 `V2GUIDE.md`；提升后不再使用 HANDOFF 命名。
+
+提交前检查：
+
+```powershell
+git ls-files | rg -i "handoff"
+git check-ignore -v .local/handoffs/<task>/HANDOFF.md
+```
+
+第一条必须无输出。若已有 HANDOFF 被跟踪，执行 `git rm --cached -- <path>`，确认本地文件仍存在，再清理正式文档对它的链接。
 
 执行 `blog_foundation_linear` 时，专项 Guide 为 `docs/guides/BLOG_FOUNDATION_GUIDE.md`；Profile 身份字段继续服从 `accounts/DEVELOPMENT.md`，文章可见性继续服从 `accounts/PERMISSIONS_GUIDE.md` 与 `boards.policies`。
 

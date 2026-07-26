@@ -2,7 +2,7 @@
 
 > **文档权重**：88（v2.5+ 安全规划；状态为规划时不得视为已实现）
 > **模块**：`accounts/`、`security/`
-> **状态**：规划；将在 `codex/admin-hardening` 分阶段实施
+> **状态**：H0 与 H1/Stage 6a 已完成；下一步 H1/Stage 6b
 > **日期**：2026-07-27
 > **版本原则**：复杂安全能力默认进入 v2.5+；若前置测试、运维方案和回滚路径提前成熟，可以前移，但不以赶版本为目标。
 
@@ -19,6 +19,20 @@
 ## 2. 版本路线
 
 后台加固分支不直接跳到证书和 TOTP。实施顺序为：H0 固定特权入口/拒绝路径测试；H1 完成 Stage 6a/6b 使 Manager 身份稳定；H2 实现 TOTP、恢复码和短时特权 Session；H3 完成独立管理域名的 mTLS Header 契约与应用侧证书绑定；H4 进行恢复、撤销、审计和回滚演练。任何阶段均不得以隐藏 URL 或 `robots.txt` 作为安全边界。
+
+### H0 完成结果（2026-07-27）
+
+- 默认 Django `AdminSite` 已通过 `SuperuserAdminConfig` 替换为 active-superuser-only 的 `SuperuserAdminSite`；`is_staff=True` 不再单独授予 `/super_admin/` 入口。
+- `/dashboard/` 继续只接受 active `is_dashboard_user` 或 active superuser；普通账号与 staff-only 账号均被拒绝。
+- 自动化测试固定匿名、普通账号、dashboard 用户、staff-only、active superuser 和 inactive superuser 的入口矩阵，并验证 staff-only 凭据无法建立系统后台 Session。
+- H0 不实现 TOTP 或 mTLS，也不把 `robots.txt`、URL 隐蔽性视为授权控制。
+
+### H1 / Stage 6a 完成结果（2026-07-27）
+
+- 固定 `VerifiedUsers`、`UserManagers`、`SiteOperators` 三个全局 Group 及其最小 Permission 集。
+- UserManagers 与 SiteOperators 的 Permission 已接入 dashboard 外壳及各自 Admin 模块；普通 dashboard 旗标不能越权查看全站审计或账号。
+- 迁移不根据旧 `is_reviewer` 推断安全运维身份，避免把 Board 审核职责错误升级为全站审计权限。
+- Manager 的稳定定义仍依赖 Stage 6b 的申请审批流；完成前不进入 H2 TOTP。
 
 | 版本 | 目标 | 是否修改运行时 | 进入条件 |
 |---|---|:---:|---|

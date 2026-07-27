@@ -546,39 +546,6 @@
     padding-top: 0.5rem;
 }
 
-/* ============ Closing Quote ============ */
-.music-quote {
-    padding: 5rem 0 4rem;
-    border-top: 1px solid var(--music-border);
-    margin-top: 3rem;
-    text-align: center;
-}
-.music-quote blockquote {
-    max-width: 640px;
-    margin: 0 auto;
-}
-.music-quote blockquote p {
-    font-size: 1.25rem;
-    font-style: italic;
-    color: var(--music-text-muted);
-    line-height: 1.8;
-}
-.music-quote blockquote p::before {
-    content: """;
-    font-size: 2.5rem;
-    line-height: 0;
-    color: var(--music-accent);
-    margin-right: 0.25rem;
-    vertical-align: -0.3em;
-}
-.music-quote cite {
-    display: block;
-    margin-top: 1.5rem;
-    font-size: 0.85rem;
-    font-style: normal;
-    color: var(--music-text-dark);
-}
-
 /* ============ Responsive ============ */
 @media (max-width: 1199px) {
     .music-hero__grid { grid-template-columns: 1fr 1fr; gap: 2rem; }

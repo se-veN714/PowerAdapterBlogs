@@ -3,10 +3,10 @@
 {% comment %}
 Skateboard Board — 独立 Index（首轮：静态视觉 + mock 数据 + 空态）。
 
-契约（BOARD_INDEX_HANDOFF.md §6.12，未实现）：
+契约（BOARD_INDEX_HANDOFF.md §6.12，已由 board-back 后端 assemble_skateboard 提供）：
     homies / selected_homie / clip_list / homie_line_url / open_node_url
-后端上下文接入前，模板渲染 MOCK 分支；接入后数据分支自动生效，无需改路由。
-board.glitch_color = #4ed7af（种子数据），通过 data-glitch-color 注入 --glitch-c。
+后端上下文接入后模板走数据分支；空列表落入安全空态（CREW OFFLINE / NO CLIPS）。
+board.glitch_color 由后端 Board 模型提供（种子值 #4ed7af），通过 data-glitch-color 注入 --glitch-c。
 {% endcomment %}
 
 {% block title %}Skateboard · PowerAdapter{% endblock %}
@@ -18,7 +18,7 @@ board.glitch_color = #4ed7af（种子数据），通过 data-glitch-color 注入
 {% endblock %}
 
 {% block hero %}
-<section class="sk-hero" data-glitch-color="#4ed7af" aria-label="Homies">
+<section class="sk-hero" data-glitch-color="{{ board.glitch_color }}" aria-label="Homies">
     <div class="container">
         <div class="sk-hero-intro reveal">
             <h1 class="sk-title">
@@ -36,7 +36,7 @@ board.glitch_color = #4ed7af（种子数据），通过 data-glitch-color 注入
 {% endblock %}
 
 {% block content %}
-<section class="sk-constellation-section" data-glitch-color="#4ed7af" aria-label="Crew constellation">
+<section class="sk-constellation-section" data-glitch-color="{{ board.glitch_color }}" aria-label="Crew constellation">
     <div class="container">
         <div class="sk-constellation-section__head reveal">
             <span class="sk-constellation-section__title">CLOUD MAP</span>
@@ -91,8 +91,8 @@ board.glitch_color = #4ed7af（种子数据），通过 data-glitch-color 注入
     </div>
 </section>
 
-{# MOCK: 集成后 data-glitch-color 改由 board.glitch_color 输出 #}
-<section class="sk-selected" data-glitch-color="#4ed7af" aria-label="Selected Line">
+{# 已集成：data-glitch-color 由 board.glitch_color 输出（后端 Board.glitch_color，种子值 #4ed7af） #}
+<section class="sk-selected" data-glitch-color="{{ board.glitch_color }}" aria-label="Selected Line">
     <div class="container">
         <div id="selected-line" aria-live="polite">
             {% if selected_homie %}

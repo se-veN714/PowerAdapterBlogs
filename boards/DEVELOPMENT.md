@@ -316,4 +316,6 @@ index.html
 5. **Music 叙事区数据建模（绿色）**：Yearly 大数字 / Monthly bars / Companion / Gravity / Cross-Scale 仍静态 mock，仅 archive 与 hero 日期已数据驱动；若需全量数据驱动需更丰富快照建模。
 6. **mock 降级清理决策（绿色）**：后端已接线，决定是否保留模板 `{% empty %}` mock 分支。
 
+7. **板块申请复用 accounts 邮箱验证流程（红色）**：Open Node / `BoardAccessRequestView` 的申请前置条件应复用 accounts 已有的邮箱验证机制（`PasswordEmailVerification` 会话校验 + 验证邮件发送，见 `accounts/services.py` 的 `mark_password_email_verified` / `password_email_verification_remaining_seconds` 与 `accounts/views.py` 的 `PasswordEmailVerificationView`），不要为每个 Board 重新实现邮箱验证；申请入口应在用户完成邮箱验证后才开放（与 boards §4 “accounts 只确认用户已登录、激活和完成邮箱验证” 保持一致）。
+
 > 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。

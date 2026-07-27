@@ -127,11 +127,9 @@
         <p class="editorial-body" data-scramble-text>
             {{ board.description|safe }}
         </p>
-        {% if board.category %}
-        <a href="{% url 'blogs:category_list' category_id=board.category.id %}" class="editorial-link">
+        <a href="{% url 'boards:index' slug=board.slug %}" class="editorial-link">
             Enter {{ board.name }} World <span class="link-arrow">&#8594;</span>
         </a>
-        {% endif %}
     </div>
     <div class="editorial-visual editorial-visual--{{ board.slug }}" data-glitch-color="{{ board.glitch_color }}">
         {% include 'pages/_board_visuals.html' with board=board %}

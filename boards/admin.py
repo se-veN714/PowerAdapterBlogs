@@ -285,10 +285,8 @@ class SkateHomieAdmin(SuperuserBoardContentAdmin):
         "call_sign",
         "location",
         "role_label",
-        "is_active",
         "updated_at",
     ]
-    list_filter = ["is_active"]
     search_fields = ["name", "call_sign", "location"]
     ordering = ["node_index"]
 

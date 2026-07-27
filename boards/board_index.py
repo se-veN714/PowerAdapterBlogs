@@ -48,17 +48,18 @@ def _homie_line_url(board_slug, node_index):
 
 
 def assemble_skateboard(board):
-    """组装 Skateboard Index 上下文：成员节点 + 当前选中成员的公开片段。"""
+    """组装 Skateboard Index 上下文：成员节点 + 首个成员的公开片段。
+
+    选中状态完全由前端控制（默认首个节点），不依赖数据库 is_active 字段。
+    """
     homies = list(SkateHomie.objects.filter(board=board).select_related("board"))
     for homie in homies:
         # 模板只读取这些属性，分派层附加，避免污染模型字段
-        homie.state = "active" if homie.is_active else ""
+        homie.state = ""  # active 视觉态由前端 JS 控制
         homie.avatar_url = homie.avatar.url if homie.avatar else ""
         homie.line_url = _homie_line_url(board.slug, homie.node_index)
 
-    selected = next((h for h in homies if h.is_active), None)
-    if selected is None and homies:
-        selected = homies[0]
+    selected = homies[0] if homies else None
 
     clip_list = []
     if selected is not None:

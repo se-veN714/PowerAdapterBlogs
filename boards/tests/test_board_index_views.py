@@ -45,7 +45,6 @@ class BoardIndexDispatchTests(TestCase):
             name="Fuminori",
             location="Kunming",
             joined_at=datetime.date(2024, 1, 1),
-            is_active=True,
         )
         SkateClip.objects.create(
             homie=homie,
@@ -70,7 +69,6 @@ class BoardIndexDispatchTests(TestCase):
             node_index=1,
             name="Fuminori",
             joined_at=datetime.date(2024, 1, 1),
-            is_active=True,
         )
         SkateClip.objects.create(
             homie=homie, order=1, title="Secret Clip", is_public=False
@@ -85,7 +83,6 @@ class BoardIndexDispatchTests(TestCase):
             node_index=3,
             name="Jimmy Cao",
             joined_at=datetime.date(2024, 1, 1),
-            is_active=False,
         )
         SkateClip.objects.create(
             homie=homie, order=1, title="Bs Flip", is_public=True

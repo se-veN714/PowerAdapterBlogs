@@ -1,7 +1,8 @@
 /* ============================================================
    Devenir — Board Index: Skateboard（仅展示层）
-   1. MOCK：无 htmx 端点时，点击节点仅切换 Active 视觉态与选中头；
-      homie_line_url 注入后节点带 hx-get，本逻辑自动让位给 htmx。
+   1. 选中状态完全由前端控制（不依赖数据库 is_active 字段）：
+      - 默认首个节点 active；点击切换 active 视觉态。
+      - 与 htmx 共存：htmx 加载 Selected Line 内容，JS 同时更新 active 态。
    2. 视频离屏暂停（IntersectionObserver），htmx 交换后重新绑定。
    3. 移动端初始将 Active 节点滚动到可视区中央。
    4. 关系图谱：节点圆心连线 + 拖拽；选中节点持久高亮关联边。
@@ -23,7 +24,6 @@ document.addEventListener('DOMContentLoaded', function () {
         var nodes = Array.prototype.slice.call(
             constellation.querySelectorAll('.sk-node:not(.sk-node--open)')
         );
-        var htmxDriven = nodes.some(function (node) { return node.hasAttribute('hx-get'); });
         var liveSvg = constellation.querySelector('.sk-links--live');
         var dragMedia = window.matchMedia('(min-width: 768px)');
 
@@ -158,11 +158,25 @@ document.addEventListener('DOMContentLoaded', function () {
             }, true);
         }
 
-        /* ---------- 2. MOCK Active 切换 ---------- */
+        /* ---------- 2. Active 切换（前端完全控制，与 htmx 共存） ---------- */
 
-        if (!htmxDriven && nodes.length) {
+        if (nodes.length) {
             var kicker = document.getElementById('sk-kicker-index');
             var selectedName = document.getElementById('sk-selected-name');
+
+            // 初始：若无 active 则将首个节点设为 active（assembler 不再设置 state）
+            if (!constellation.querySelector('.sk-node.is-active')) {
+                var firstNode = nodes[0];
+                firstNode.classList.add('is-active');
+                firstNode.setAttribute('aria-pressed', 'true');
+                var firstLabel = firstNode.querySelector('.sk-node-label');
+                if (firstLabel && !firstNode.querySelector('.sk-node-state:not(.sk-node-state--role)')) {
+                    var firstStateEl = document.createElement('span');
+                    firstStateEl.className = 'sk-node-state';
+                    firstStateEl.textContent = '[ ACTIVE NODE ]';
+                    firstLabel.insertBefore(firstStateEl, firstLabel.querySelector('.sk-node-meta'));
+                }
+            }
 
             nodes.forEach(function (node) {
                 node.addEventListener('click', function () {
@@ -185,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         label.insertBefore(stateEl, label.querySelector('.sk-node-meta'));
                     }
 
-                    // 静态演示：仅同步选中头显示，不加载任何数据
+                    // 静态头（MOCK 模式才存在；数据驱动模式下为 no-op）
                     if (kicker) kicker.textContent = node.dataset.nodeIndex || '--';
                     if (selectedName) selectedName.textContent = node.dataset.nodeName || '';
                     highlightActiveEdges();

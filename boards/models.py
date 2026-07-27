@@ -279,6 +279,10 @@ class SkateHomie(models.Model):
 
     与 BoardMembership 分离；通过 memberships M2M 仅作展示关联。
     所属板块固定为 skateboard（由模型类型决定，不可在 Admin 手动选择）。
+
+    注意：成员"当前选中"状态**不存数据库**——前端 htmx 端点不写 is_active，
+    而 JS 点击处理器被 !htmxDriven 门控会导致数据驱动模式下点击不更新视觉态。
+    选中完全由前端控制（默认首个节点，JS 切换 active 视觉态）。
     """
 
     BOARD_SLUG = "skateboard"
@@ -304,7 +308,6 @@ class SkateHomie(models.Model):
         null=True,
         verbose_name="头像",
     )
-    is_active = models.BooleanField(default=False, verbose_name="当前选中")
     memberships = models.ManyToManyField(
         BoardMembership,
         blank=True,

@@ -77,7 +77,6 @@ class SkateboardModelTests(TestCase):
             node_index=1,
             name="A",
             joined_at="2024-01-01",
-            is_active=True,
         )
         SkateClip.objects.create(
             homie=homie, order=1, title="PUBLIC", is_public=True, status=ClipStatus.LANDED

@@ -113,7 +113,6 @@ class Command(BaseCommand):
                     joined_at=FAKE.date_between(start_date="-6y", end_date="-1y"),
                     role_label=FAKE.random_element(
                         ["HOST", "CREW", "REGULAR", "GUEST"]),
-                    is_active=(i == 0),
                 )
             else:
                 homie = None

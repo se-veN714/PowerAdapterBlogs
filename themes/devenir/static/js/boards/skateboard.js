@@ -252,6 +252,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // htmx 交换 Selected Line 后，旧视频随 DOM 移除，新视频重新绑定
     document.body.addEventListener('htmx:afterSwap', function (event) {
         if (event.detail.target && event.detail.target.id === 'selected-line') {
+            // htmx 交换后的新 .reveal 元素未被 main.js 的 IntersectionObserver 观察，
+            // 手动添加 .visible 使其立即可见（用户已主动点击，无需滚动触发动画）
+            event.detail.target.querySelectorAll('.reveal').forEach(function (el) {
+                el.classList.add('visible');
+            });
             observed = observed.filter(function (video) { return document.contains(video); });
             bindVideoObserver();
         }

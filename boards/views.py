@@ -12,7 +12,7 @@ from django.urls import reverse_lazy
 from django.views.generic import FormView, TemplateView
 
 from PowerAdapterBlogs.base_admin import has_dashboard_access
-from boards.board_index import ASSEMBLERS, BOARD_TEMPLATES
+from boards.board_index import ASSEMBLERS, BOARD_TEMPLATES, _format_duration
 from boards.forms import BoardAccessRequestForm
 from boards.models import Board, BoardAccessRequest, SkateClip, SkateHomie
 from boards.policies import can_create_post_in_any_board
@@ -100,6 +100,8 @@ class HomieLineView(TemplateView):
         self.clip_list = list(
             SkateClip.objects.filter(homie=homie, is_public=True).order_by("order", "pk")
         )
+        for clip in self.clip_list:
+            clip.duration_display = _format_duration(clip.duration)
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):

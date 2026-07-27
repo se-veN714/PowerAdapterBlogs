@@ -284,9 +284,11 @@ class SkateHomieAdmin(SuperuserBoardContentAdmin):
         "name",
         "call_sign",
         "location",
+        "stance",
         "role_label",
         "updated_at",
     ]
+    list_filter = ["stance"]
     search_fields = ["name", "call_sign", "location"]
     ordering = ["node_index"]
 

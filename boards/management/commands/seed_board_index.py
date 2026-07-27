@@ -111,6 +111,7 @@ class Command(BaseCommand):
                     call_sign=FAKE.unique.bothify("?#??").upper(),
                     location=FAKE.city().upper(),
                     joined_at=FAKE.date_between(start_date="-6y", end_date="-1y"),
+                    stance=FAKE.random_element(["regular", "goofy"]),
                     role_label=FAKE.random_element(
                         ["HOST", "CREW", "REGULAR", "GUEST"]),
                 )

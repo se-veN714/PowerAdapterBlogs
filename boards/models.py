@@ -274,6 +274,11 @@ class HudType(models.TextChoices):
     RING = "ring", "Ring"
 
 
+class Stance(models.TextChoices):
+    REGULAR = "regular", "Regular"
+    GOOFY = "goofy", "Goofy"
+
+
 class SkateHomie(models.Model):
     """Skateboard Crew 的一个成员节点（展示内容实体）。
 
@@ -300,6 +305,13 @@ class SkateHomie(models.Model):
     call_sign = models.CharField(max_length=32, blank=True, verbose_name="称呼")
     location = models.CharField(max_length=64, blank=True, verbose_name="地区")
     joined_at = models.DateField(verbose_name="加入时间")
+    stance = models.CharField(
+        max_length=16,
+        choices=Stance.choices,
+        default=Stance.REGULAR,
+        verbose_name="站姿",
+        help_text="Regular=左脚在前，Goofy=右脚在前",
+    )
     role_label = models.CharField(max_length=32, blank=True, verbose_name="角色标签")
     avatar = models.ImageField(
         upload_to="skateboard/avatars/",
@@ -564,6 +576,7 @@ __all__ = [
     "ClipCategory",
     "ClipStatus",
     "HudType",
+    "Stance",
     "MusicScope",
     "MusicRecordBase",
     "SpotifyRecord",

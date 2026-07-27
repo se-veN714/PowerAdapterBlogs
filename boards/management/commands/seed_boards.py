@@ -19,7 +19,7 @@ SEED_BOARDS = [
             '关于滑板的一切：关于平衡、起跳<br>'
             '以及反复摔倒的瞬间。'
         ),
-        'glitch_color': '#4ed7af',
+        'glitch_color': '#ff4d5e',
         'keywords': 'Ollie,Grind,Flip',
         'sort_order': 1,
         'category_index': 1,

@@ -6,7 +6,7 @@ Skateboard Board — 独立 Index（首轮：静态视觉 + mock 数据 + 空态
 契约（BOARD_INDEX_HANDOFF.md §6.12，已由 board-back 后端 assemble_skateboard 提供）：
     homies / selected_homie / clip_list / homie_line_url / open_node_url
 后端上下文接入后模板走数据分支；空列表落入安全空态（CREW OFFLINE / NO CLIPS）。
-board.glitch_color 由后端 Board 模型提供（种子值 #4ed7af），通过 data-glitch-color 注入 --glitch-c。
+board.glitch_color 由后端 Board 模型提供（skateboard 种子值 #ff4d5e，红色），通过 data-glitch-color 注入 --glitch-c。
 {% endcomment %}
 
 {% block title %}Skateboard · PowerAdapter{% endblock %}
@@ -91,7 +91,7 @@ board.glitch_color 由后端 Board 模型提供（种子值 #4ed7af），通过 
     </div>
 </section>
 
-{# 已集成：data-glitch-color 由 board.glitch_color 输出（后端 Board.glitch_color，种子值 #4ed7af） #}
+{# 已集成：data-glitch-color 由 board.glitch_color 输出（后端 Board.glitch_color，skateboard 种子值 #ff4d5e 红） #}
 <section class="sk-selected" data-glitch-color="{{ board.glitch_color }}" aria-label="Selected Line">
     <div class="container">
         <div id="selected-line" aria-live="polite">

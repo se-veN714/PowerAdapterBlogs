@@ -12,6 +12,8 @@ Coding 页面 — PowerAdapter 项目档案页。
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/coding/coding.css' %}">
+{# 数据驱动：本板块 glitch 颜色来自 Board.glitch_color（seed_boards 写入库），供 coding.css 派生全部强调色 #}
+<style>:root{--glitch-c:{{ board.glitch_color }};}</style>
 {% endblock %}
 
 {% block hero %}

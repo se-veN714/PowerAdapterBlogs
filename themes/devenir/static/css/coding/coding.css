@@ -2,9 +2,10 @@
 /* 概念图参考：.local/img/boards-coding.png */
 
 :root {
-    --coding-accent: rgb(78, 215, 175);
-    --coding-accent-soft: rgb(143, 204, 175);
-    --coding-accent-muted: rgb(111, 153, 130);
+    /* 强调色派生自 --glitch-c（= Board.glitch_color，由模板注入），不再写死绿色 */
+    --coding-accent: var(--glitch-c);
+    --coding-accent-soft: color-mix(in srgb, var(--glitch-c) 60%, #ffffff);
+    --coding-accent-muted: color-mix(in srgb, var(--glitch-c) 50%, #8a8f8a);
     --coding-bg-panel: rgb(20, 24, 24);
     --coding-bg-elevated: rgb(28, 35, 35);
     --coding-border: rgba(216, 255, 225, 0.08);
@@ -146,7 +147,7 @@
     inset: -1px;
     border: 1px solid transparent;
     pointer-events: none;
-    background: linear-gradient(135deg, rgba(78,215,175,0.10), transparent 40%) border-box;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--glitch-c) 10%, transparent), transparent 40%) border-box;
     -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
@@ -296,7 +297,7 @@
 
 .coding-project:hover {
     border-color: var(--coding-border-hover);
-    box-shadow: 0 6px 24px rgba(78, 215, 175, 0.06);
+    box-shadow: 0 6px 24px color-mix(in srgb, var(--glitch-c) 6%, transparent);
     transform: translateY(-2px);
 }
 
@@ -367,7 +368,7 @@
 
 .coding-principle:hover {
     border-color: var(--coding-border-hover);
-    box-shadow: 0 6px 24px rgba(78, 215, 175, 0.06);
+    box-shadow: 0 6px 24px color-mix(in srgb, var(--glitch-c) 6%, transparent);
 }
 
 .coding-principle__num {

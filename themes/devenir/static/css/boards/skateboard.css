@@ -2,7 +2,7 @@
    Devenir — Board Index: Skateboard
    契约：themes/devenir/BOARD_INDEX_HANDOFF.md §6
    颜色全部引用 base.html 内联 Devenir 变量；
-   --glitch-c 由页面 data-glitch-color 注入（skateboard = #4ed7af），
+   --glitch-c 由页面 data-glitch-color 注入（= Board.glitch_color，skateboard 种子为 #ff4d5e 红），
    本文件不重新定义任何色值。
    ============================================================ */
 
@@ -392,13 +392,13 @@
         repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 255, 255, 0.018) 3px 4px),
         linear-gradient(158deg, var(--bg-elevated) 0%, var(--bg-primary) 62%);
 }
-/* 轻量绿色叠加（非全画面滤镜） */
+/* 轻量强调色叠加（随 --glitch-c 变化，非全画面滤镜） */
 .sk-clip-media::after {
     content: '';
     position: absolute;
     inset: 0;
     z-index: 1;
-    background: linear-gradient(150deg, transparent 55%, rgba(78, 215, 175, 0.07));
+    background: linear-gradient(150deg, transparent 55%, color-mix(in srgb, var(--glitch-c) 7%, transparent));
     mix-blend-mode: screen;
     pointer-events: none;
 }

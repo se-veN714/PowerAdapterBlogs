@@ -1,16 +1,18 @@
 /* ============================================================
    Devenir — Music Page v2 (Dual Column: Spotify Yearly + Apple Music Monthly)
    契约：themes/devenir/MUSIC_PAGE_GUIDE.md
-   颜色引用 base.html Devenir 变量；--music-accent 为 #4ed7af 语义别名
-   （与 Skateboard glitch 同族绿），不重新定义无关色值。
+   颜色引用 base.html Devenir 变量；--music-accent 派生自 --glitch-c
+   （= Board.glitch_color，music 种子为 #b794f4 紫），不重新定义无关色值。
    ============================================================ */
 
 .music-hero,
 .music-page {
-    --music-accent: #4ed7af;
-    --music-accent-soft: rgba(78, 215, 175, 0.55);
-    --music-accent-faint: rgba(78, 215, 175, 0.10);
-    --music-accent-deep: rgba(78, 215, 175, 0.25);
+    /* 强调色全部派生自 --glitch-c（= Board.glitch_color，由模板注入），
+       不再写死绿色；color-mix 按透明度派生变体，随板块颜色自动变化 */
+    --music-accent: var(--glitch-c);
+    --music-accent-soft: color-mix(in srgb, var(--glitch-c) 55%, transparent);
+    --music-accent-faint: color-mix(in srgb, var(--glitch-c) 10%, transparent);
+    --music-accent-deep: color-mix(in srgb, var(--glitch-c) 25%, transparent);
     --music-bg: var(--bg-primary);
     --music-surface: var(--bg-elevated);
     --music-surface-soft: var(--bg-secondary);
@@ -18,7 +20,7 @@
     --music-text-muted: var(--text-secondary);
     --music-text-dark: var(--text-tertiary);
     --music-border: var(--fragment-border);
-    --music-grid: rgba(78, 215, 175, 0.06);
+    --music-grid: color-mix(in srgb, var(--glitch-c) 6%, transparent);
     --music-radius: 2px;
     color: var(--music-text);
 }
@@ -31,7 +33,7 @@
     border-bottom: 1px solid var(--music-border);
     background:
         radial-gradient(ellipse at 70% 40%, var(--music-accent-faint) 0%, transparent 55%),
-        linear-gradient(180deg, rgba(78, 215, 175, 0.03) 0%, transparent 40%),
+        linear-gradient(180deg, color-mix(in srgb, var(--glitch-c) 3%, transparent) 0%, transparent 40%),
         var(--music-bg);
 }
 .music-hero::before {
@@ -104,7 +106,8 @@
     width: 100%;
     max-width: 360px;
     height: auto;
-    filter: drop-shadow(0 0 40px rgba(78, 215, 175, 0.15));
+    color: var(--glitch-c); /* 耳机 SVG 用 currentColor，随板块颜色变化 */
+    filter: drop-shadow(0 0 40px color-mix(in srgb, var(--glitch-c) 15%, transparent));
 }
 
 .music-hero__period {
@@ -121,7 +124,7 @@
 }
 .music-card:hover {
     border-color: var(--music-accent-deep);
-    box-shadow: 0 0 30px rgba(78, 215, 175, 0.06);
+    box-shadow: 0 0 30px color-mix(in srgb, var(--glitch-c) 6%, transparent);
 }
 .music-card__head {
     display: flex;
@@ -292,7 +295,7 @@
     width: 100%;
     height: 100px;
     border: 1px solid var(--music-border);
-    background: rgba(78, 215, 175, 0.03);
+    background: color-mix(in srgb, var(--glitch-c) 3%, transparent);
     border-radius: var(--music-radius);
 }
 .music-yearly__chart polyline {
@@ -338,7 +341,7 @@
 .music-monthly__bar {
     position: relative;
     height: 8px;
-    background: rgba(78, 215, 175, 0.08);
+    background: color-mix(in srgb, var(--glitch-c) 8%, transparent);
     border-radius: 1px;
     overflow: hidden;
 }

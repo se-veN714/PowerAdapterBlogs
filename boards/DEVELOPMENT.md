@@ -79,7 +79,7 @@ boards/
 ### 数据流
 
 ```
-Dashboard (BoardAdmin)
+Super Admin (/super_admin/, BoardAdmin)
     │ POST / PATCH
     ▼
 Board 表 (SQLite)
@@ -133,7 +133,7 @@ Board Index 三页（skateboard / music / coding）的内容模型也位于 `boa
 | 组 | 模型 | 所属板块（固定） |
 |----|------|------------------|
 | Skateboard | `SkateHomie`（成员节点）、`SkateClip`（动作片段） | skateboard |
-| Music | `MusicSnapshotBase`（抽象）+ `SpotifySnapshot` / `AppleSnapshot`，以及 `MusicEntryBase`（抽象）+ `SpotifyEntry` / `AppleEntry` | music |
+| Music | `MusicRecordBase`（抽象）+ `SpotifyRecord` / `AppleRecord`（平铺，按 (year, month) 分组重建快照视图） | music |
 | Coding | `CodingProject`、`CodingPrinciple`、`CodingExperiment` | coding |
 
 **关键约束（2026-07-28 用户决策）**：内容模型的 `board` 外键**不由人工选择**，而是由模型类型固定——每个内容模型声明 `BOARD_SLUG` 类属性，`board` 字段的 `default` 通过 `_board_default(slug)` → `_board_for_slug(slug)` 按 slug 自动解析对应 `Board`；Admin 中 `SuperuserBoardContentAdmin.exclude = ("board",)` 统一隐藏该字段。任何内容记录创建时都被强制归属到正确板块，不存在“任选板块”的可能。
@@ -294,7 +294,7 @@ index.html
 - **模型**：`boards/models.py` 单文件承载全部内容模型（见 §2 Board Index 内容模型）。
 - **分派**：`boards/board_index.py` 的 `ASSEMBLERS`（`{"skateboard": assemble_skateboard, ...}`）+ 三板 `assemble_*` 函数组装上下文；`BOARD_TEMPLATES` 给出每板模板。
 - **路由/视图**：`boards/views.py` 的 `BoardIndexView`（`/boards/<slug>/`，按 slug 分派 + 404 未知/下线板块）与 `HomieLineView`（htmx 端点 `/boards/<slug>/homie/<node_index>/`，返回 `_selected_line.html` 片段）。`boards/urls.py` 已注册。
-- **Admin**：`SuperuserBoardContentAdmin` 注册 9 个内容模型于 `custom_site`，仅 superuser 可维护；`board` 字段已从表单隐藏（见 §2）。
+- **Admin**：`SuperuserBoardContentAdmin` 注册 7 个内容模型于 `admin.site`（= `SuperuserAdminSite`，`/super_admin/`），仅 superuser 可维护；`BoardAdmin` 亦仅 superuser；`board` 字段已从表单隐藏（见 §2）。dashboard（`/dashboard/`）不再暴露任何板块内容管理入口。
 - **迁移**：`boards/migrations/0005_board_index_content.py`（10 个 CreateModel + 唯一约束 `unique_homie_node_per_board`）。
 - **测试**：`boards/tests/test_board_index_models.py`（7）+ `test_board_index_views.py`（8）= 15 项全绿；`manage.py test boards` 全量 89 项通过。
 

@@ -10,7 +10,8 @@
 按 BOARD_INDEX_BACKEND_GUIDE.md 决策：
 - 决策 2：不引入 board_type 字段，分派完全基于 Board.slug。
 - 决策 3：SkateHomie 与 BoardMembership 分离，仅通过 M2M 作展示/归属标注。
-- 决策 4：Music 区分 Spotify 与 Apple Music，先分离为两套具体模型（共享抽象基类）。
+- 决策 4：Music 区分 Spotify 与 Apple Music，各自一个平铺 Record 模型（共享抽象基类），
+  不再拆分 Snapshot/Entry 容器——assembler 按 (year, month) 在 Python 层分组。
 - 决策 5：内容仅由 superuser（站长）在 Admin 维护，无公开投稿。
 """
 
@@ -388,8 +389,15 @@ class MusicScope(models.TextChoices):
     MONTHLY = "monthly", "Monthly"
 
 
-class MusicSnapshotBase(models.Model):
-    """某 provider 在某周期（yearly/monthly）的一屏数据容器（抽象）。
+class MusicRecordBase(models.Model):
+    """某 provider 在某周期的一条音乐指标记录（平铺，无快照/条目拆分）。
+
+    同一 (year, month) 的多条记录组成一个"快照组"——由 assembler 在 Python
+    层按 (year, month) 分组重建，不再用 FK 容器。kind 区分指标语义：
+    total（主值）/ tag（归档标签）/ core_artist（年度核心艺人，value=排名）/
+    period_artist（当前周期艺人，value=风格标签）/ cross_scale（跨尺度关系，
+    value=年度描述，value2=月度描述）/ companion / gravity（常伴/近期引力，
+    value=起始，value2=统计，note=注记）。
 
     所属板块固定为 music（由模型类型决定，不可在 Admin 手动选择）。
     """
@@ -415,25 +423,6 @@ class MusicSnapshotBase(models.Model):
     month = models.PositiveSmallIntegerField(
         null=True, blank=True, verbose_name="月份"
     )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
-
-    class Meta:
-        abstract = True
-        ordering = ["-year", "-month"]
-        verbose_name = "音乐快照"
-        verbose_name_plural = "音乐快照"
-
-
-class MusicEntryBase(models.Model):
-    """快照内的一条指标（抽象）。value 以文本承载，保留单位。
-
-    `kind` 区分指标语义：`total`（主值）/ `tag`（归档标签）/ `core_artist`
-    （年度核心艺人，value=排名）/ `period_artist`（当前周期艺人，value=风格标签）/
-    `cross_scale`（跨尺度关系，value=年度描述，value2=月度描述）/
-    `companion` / `gravity`（常伴/近期引力，value=起始，value2=统计，note=注记）。
-    """
-
     label = models.CharField(max_length=64, verbose_name="指标")
     value = models.CharField(max_length=64, verbose_name="值")
     value2 = models.CharField(max_length=64, blank=True, verbose_name="次值")
@@ -442,50 +431,25 @@ class MusicEntryBase(models.Model):
     note = models.TextField(blank=True, verbose_name="注记")
     display_order = models.PositiveSmallIntegerField(default=0, verbose_name="排序")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
     class Meta:
         abstract = True
-        ordering = ["display_order", "pk"]
-        verbose_name = "音乐条目"
-        verbose_name_plural = "音乐条目"
+        ordering = ["-year", "-month", "display_order", "pk"]
+        verbose_name = "音乐记录"
+        verbose_name_plural = "音乐记录"
 
 
-class SpotifySnapshot(MusicSnapshotBase):
-    class Meta(MusicSnapshotBase.Meta):
-        verbose_name = "Spotify 年度快照"
-        verbose_name_plural = "Spotify 年度快照"
+class SpotifyRecord(MusicRecordBase):
+    class Meta(MusicRecordBase.Meta):
+        verbose_name = "Spotify 记录"
+        verbose_name_plural = "Spotify 记录"
 
 
-class SpotifyEntry(MusicEntryBase):
-    snapshot = models.ForeignKey(
-        SpotifySnapshot,
-        on_delete=models.CASCADE,
-        related_name="entries",
-        verbose_name="快照",
-    )
-
-    class Meta(MusicEntryBase.Meta):
-        verbose_name = "Spotify 条目"
-        verbose_name_plural = "Spotify 条目"
-
-
-class AppleSnapshot(MusicSnapshotBase):
-    class Meta(MusicSnapshotBase.Meta):
-        verbose_name = "Apple Music 月度快照"
-        verbose_name_plural = "Apple Music 月度快照"
-
-
-class AppleEntry(MusicEntryBase):
-    snapshot = models.ForeignKey(
-        AppleSnapshot,
-        on_delete=models.CASCADE,
-        related_name="entries",
-        verbose_name="快照",
-    )
-
-    class Meta(MusicEntryBase.Meta):
-        verbose_name = "Apple Music 条目"
-        verbose_name_plural = "Apple Music 条目"
+class AppleRecord(MusicRecordBase):
+    class Meta(MusicRecordBase.Meta):
+        verbose_name = "Apple Music 记录"
+        verbose_name_plural = "Apple Music 记录"
 
 
 # ---------------------------------------------------------------------------
@@ -598,12 +562,9 @@ __all__ = [
     "ClipStatus",
     "HudType",
     "MusicScope",
-    "MusicSnapshotBase",
-    "MusicEntryBase",
-    "SpotifySnapshot",
-    "SpotifyEntry",
-    "AppleSnapshot",
-    "AppleEntry",
+    "MusicRecordBase",
+    "SpotifyRecord",
+    "AppleRecord",
     "CodingProject",
     "CodingPrinciple",
     "CodingExperiment",

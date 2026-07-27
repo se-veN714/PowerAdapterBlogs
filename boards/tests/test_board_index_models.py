@@ -9,7 +9,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from boards.models import (
-    AppleSnapshot,
+    AppleRecord,
     Board,
     BoardMembership,
     ClipStatus,
@@ -19,8 +19,7 @@ from boards.models import (
     MusicScope,
     SkateClip,
     SkateHomie,
-    SpotifyEntry,
-    SpotifySnapshot,
+    SpotifyRecord,
 )
 
 
@@ -28,19 +27,20 @@ class BoardIndexModelStructureTests(TestCase):
     """无 DB 副作用的结构性断言。"""
 
     def test_music_base_is_abstract(self):
-        from boards.models import MusicEntryBase, MusicSnapshotBase
+        from boards.models import MusicRecordBase
 
-        self.assertTrue(MusicSnapshotBase._meta.abstract)
-        self.assertTrue(MusicEntryBase._meta.abstract)
+        self.assertTrue(MusicRecordBase._meta.abstract)
 
     def test_music_related_name_expands_per_class(self):
         board = Board.objects.create(slug="music", name="Music")
-        spotify = SpotifySnapshot.objects.create(board=board, title="2025", year=2025)
-        apple = AppleSnapshot.objects.create(
-            board=board, title="2026-06", year=2026, month=6, scope=MusicScope.MONTHLY
+        spotify = SpotifyRecord.objects.create(
+            board=board, title="2025", year=2025, label="X", value="1")
+        apple = AppleRecord.objects.create(
+            board=board, title="2026-06", year=2026, month=6,
+            scope=MusicScope.MONTHLY, label="Y", value="2"
         )
-        self.assertIn(spotify, board.spotifysnapshots.all())
-        self.assertIn(apple, board.applesnapshots.all())
+        self.assertIn(spotify, board.spotifyrecords.all())
+        self.assertIn(apple, board.applerecords.all())
 
 
 class SkateboardModelTests(TestCase):
@@ -94,15 +94,18 @@ class MusicModelTests(TestCase):
     def setUp(self):
         self.board = Board.objects.create(slug="music", name="Music")
 
-    def test_spotify_entry_cascade_and_ordering(self):
-        snap = SpotifySnapshot.objects.create(board=self.board, title="2025", year=2025)
-        SpotifyEntry.objects.create(
-            snapshot=snap, label="TOP TRACK", value="X", display_order=2
+    def test_spotify_record_ordering(self):
+        SpotifyRecord.objects.create(
+            board=self.board, title="2025", year=2025,
+            label="TOP TRACK", value="X", display_order=2)
+        SpotifyRecord.objects.create(
+            board=self.board, title="2025", year=2025,
+            label="HEIGHT", value="1.8", display_order=1)
+        labels = list(
+            SpotifyRecord.objects.filter(board=self.board)
+            .order_by("display_order")
+            .values_list("label", flat=True)
         )
-        SpotifyEntry.objects.create(
-            snapshot=snap, label="HEIGHT", value="1.8", display_order=1
-        )
-        labels = list(snap.entries.values_list("label", flat=True))
         self.assertEqual(labels, ["HEIGHT", "TOP TRACK"])
 
 

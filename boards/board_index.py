@@ -8,16 +8,19 @@
 公开过滤（如 `SkateClip.is_public`）在查询层完成，避免泄露非公开内容。
 """
 
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
 from django.urls import reverse
 
 from boards.models import (
-    AppleSnapshot,
+    AppleRecord,
     CodingExperiment,
     CodingPrinciple,
     CodingProject,
     SkateClip,
     SkateHomie,
-    SpotifySnapshot,
+    SpotifyRecord,
 )
 
 __all__ = ["ASSEMBLERS", "BOARD_TEMPLATES", "assemble_context"]
@@ -76,25 +79,6 @@ def assemble_skateboard(board):
     }
 
 
-def _archive_rows(snapshots):
-    """将快照序列化为 archive 行（label / value / tags / period），供模板遍历。
-
-    value 优先取 kind='total' 的条目，否则取 display_order 最小者；
-    tags 取 kind='tag' 的条目 label 拼接。空快照给出安全空值。
-    """
-    rows = []
-    for snap in snapshots:
-        entries = list(snap.entries.all())
-        primary = next((e for e in entries if e.kind == "total"), None)
-        if primary is None and entries:
-            primary = entries[0]
-        value = f"{primary.value} {primary.unit}".strip() if primary else ""
-        tags = " / ".join(e.label for e in entries if e.kind == "tag") if entries else ""
-        label = f"{snap.year}.{snap.month:02d}" if snap.month else str(snap.year)
-        rows.append({"label": label, "value": value, "tags": tags, "period": label})
-    return rows
-
-
 def _safe_int(text):
     """从可能含逗号/单位的文本提取整数（如 '32,481 MIN' → 32481）。"""
     if not text:
@@ -107,63 +91,111 @@ _MONTH_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
                "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
 
-def _month_label(snapshot):
-    """快照 → 月度缩写（有 month）或年份标签。"""
-    if snapshot.month:
-        idx = snapshot.month - 1
+@dataclass
+class _RecordGroup:
+    """平铺记录按 (year, month) 分组后的快照视图，保持 assembler 接口兼容。
+
+    records 是同一 (year, month) 内的记录列表（已按 display_order 排序），
+    替代旧 Snapshot.entries.all() 的遍历语义。
+    """
+    title: str
+    scope: str
+    year: int
+    month: int | None
+    records: list
+    updated_at: datetime
+
+
+def _group_by_period(records):
+    """按 (year, month) 分组，返回按 (-year, -month) 排序的 _RecordGroup 列表。"""
+    groups = defaultdict(list)
+    for r in records:
+        key = (r.year, r.month or 0)
+        groups[key].append(r)
+    result = []
+    for key in sorted(groups.keys(), reverse=True):
+        recs = groups[key]
+        first = recs[0]
+        result.append(_RecordGroup(
+            title=first.title,
+            scope=first.scope,
+            year=first.year,
+            month=first.month,
+            records=recs,
+            updated_at=max(r.updated_at for r in recs),
+        ))
+    return result
+
+
+def _group_month_label(group):
+    """_RecordGroup → 月度缩写（有 month）或年份标签。"""
+    if group.month:
+        idx = group.month - 1
         if 0 <= idx < len(_MONTH_ABBR):
             return _MONTH_ABBR[idx]
-    return str(snapshot.year)
+    return str(group.year)
 
 
-def _entries_by_kind(snapshots, kind):
-    """收集若干快照内指定 kind 的条目（保持各自 display_order 顺序）。"""
-    out = []
-    for snap in snapshots:
-        out.extend(e for e in snap.entries.all() if e.kind == kind)
-    return out
+def _archive_rows(groups):
+    """将分组序列化为 archive 行（label / value / tags / period），供模板遍历。
 
-
-def _latest(snapshots):
-    """取最新快照（Meta 已 -year,-month 排序，首项即最新）。"""
-    return snapshots[0] if snapshots else None
+    value 优先取 kind='total' 的条目，否则取 display_order 最小者；
+    tags 取 kind='tag' 的条目 label 拼接。空组给出安全空值。
+    """
+    rows = []
+    for g in groups:
+        entries = g.records
+        primary = next((e for e in entries if e.kind == "total"), None)
+        if primary is None and entries:
+            primary = entries[0]
+        value = f"{primary.value} {primary.unit}".strip() if primary else ""
+        tags = " / ".join(e.label for e in entries if e.kind == "tag") if entries else ""
+        label = f"{g.year}.{g.month:02d}" if g.month else str(g.year)
+        rows.append({"label": label, "value": value, "tags": tags, "period": label})
+    return rows
 
 
 def assemble_music(board):
     """组装 Music Index 上下文：全部叙事区数据驱动。
 
-    编辑性条目（core_artist / period_artist / cross_scale / companion /
-    gravity）仅挂在各 provider 的最新快照上，assembler 只读取最新快照。
+    平铺 Record 按 (year, month) 分组重建快照视图。编辑性条目（core_artist /
+    period_artist / cross_scale / companion / gravity）仅挂在各 provider 的
+    最新周期记录上。
     """
-    spotify = list(
-        SpotifySnapshot.objects.filter(board=board).prefetch_related("entries")
+    spotify_records = list(
+        SpotifyRecord.objects.filter(board=board)
+        .order_by("-year", "-month", "display_order", "pk")
     )
-    apple = list(
-        AppleSnapshot.objects.filter(board=board).prefetch_related("entries")
+    apple_records = list(
+        AppleRecord.objects.filter(board=board)
+        .order_by("-year", "-month", "display_order", "pk")
     )
 
     updated = None
-    for snap in spotify + apple:
-        if updated is None or snap.updated_at > updated:
-            updated = snap.updated_at
+    for r in spotify_records + apple_records:
+        if updated is None or r.updated_at > updated:
+            updated = r.updated_at
 
-    latest_spotify = _latest(spotify)
-    latest_apple = _latest(apple)
+    spotify_groups = _group_by_period(spotify_records)
+    apple_groups = _group_by_period(apple_records)
 
-    # 当前周期（hero + monthly current）：来自最新 Apple 月度快照
+    latest_spotify = spotify_groups[0] if spotify_groups else None
+    latest_apple = apple_groups[0] if apple_groups else None
+
+    # 当前周期（hero + monthly current）：来自最新 Apple 月度组
     current_period_label = None
     current_period_artists = []
     if latest_apple is not None:
         current_period_label = f"{latest_apple.year}.{latest_apple.month:02d}"
         current_period_artists = [
-            {"name": e.label, "tag": e.value}
-            for e in _entries_by_kind([latest_apple], "period_artist")
+            {"name": r.label, "tag": r.value}
+            for r in latest_apple.records if r.kind == "period_artist"
         ]
 
-    # 年度概览：来自最新 Spotify 年度快照
+    # 年度概览：来自最新 Spotify 年度组
     yearly = None
     if latest_spotify is not None:
-        entries = list(latest_spotify.entries.all())
+        entries = latest_spotify.records
         total = next((e for e in entries if e.kind == "total"), None)
         total_str = f"{total.value} {total.unit}".strip() if total else ""
         core = sorted(
@@ -180,26 +212,26 @@ def assemble_music(board):
             "tags": tags,
         }
 
-    # 月度柱状：来自 Apple 月度快照（按时间升序，pct 相对最高）
+    # 月度柱状：来自 Apple 组（按时间升序，pct 相对最高）
     monthly_bars = []
     monthly_current = None
-    if apple:
-        ordered = sorted(apple, key=lambda s: (s.year, s.month or 0))
+    if apple_groups:
+        ordered = sorted(apple_groups, key=lambda g: (g.year, g.month or 0))
         minutes = []
-        for s in ordered:
-            t = next((e for e in s.entries.all() if e.kind == "total"), None)
+        for g in ordered:
+            t = next((e for e in g.records if e.kind == "total"), None)
             minutes.append(_safe_int(t.value) if t else 0)
         max_min = max(minutes) if minutes else 1
-        for s, m in zip(ordered, minutes):
+        for g, m in zip(ordered, minutes):
             monthly_bars.append({
-                "month_label": _month_label(s),
+                "month_label": _group_month_label(g),
                 "minutes": m,
                 "minutes_display": "{:,}".format(m),
                 "pct": round(m / max_min * 100) if max_min else 0,
-                "is_current": s is latest_apple,
+                "is_current": g is latest_apple,
             })
         if latest_apple is not None:
-            cur = next((e for e in latest_apple.entries.all()
+            cur = next((e for e in latest_apple.records
                         if e.kind == "total"), None)
             monthly_current = {
                 "label": current_period_label,
@@ -207,14 +239,16 @@ def assemble_music(board):
                     "{:,}".format(_safe_int(cur.value)) if cur else "0"),
             }
 
-    # 跨尺度关系：来自 Spotify 快照
+    # 跨尺度关系 / 常伴 / 近期引力：平铺过滤（编辑性条目仅挂在最新周期）
     cross_scale = [
-        {"name": e.label, "yearly": e.value, "monthly": e.value2}
-        for e in _entries_by_kind(spotify, "cross_scale")
+        {"name": r.label, "yearly": r.value, "monthly": r.value2}
+        for r in spotify_records if r.kind == "cross_scale"
     ]
 
-    companion_entry = next(iter(_entries_by_kind(spotify, "companion")), None)
-    gravity_entry = next(iter(_entries_by_kind(apple, "gravity")), None)
+    companion_entry = next(
+        (r for r in spotify_records if r.kind == "companion"), None)
+    gravity_entry = next(
+        (r for r in apple_records if r.kind == "gravity"), None)
     companion = (
         {"name": companion_entry.label, "since": companion_entry.value,
          "stat": companion_entry.value2, "note": companion_entry.note}
@@ -235,8 +269,8 @@ def assemble_music(board):
         "cross_scale": cross_scale,
         "companion": companion,
         "gravity": gravity,
-        "spotify_archive": _archive_rows(spotify),
-        "apple_archive": _archive_rows(apple),
+        "spotify_archive": _archive_rows(spotify_groups),
+        "apple_archive": _archive_rows(apple_groups),
         "music_updated": updated.strftime("%Y.%m.%d") if updated else "",
     }
 

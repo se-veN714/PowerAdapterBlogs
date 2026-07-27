@@ -15,7 +15,7 @@ from django.core.management.base import BaseCommand
 from faker import Faker
 
 from boards.models import (
-    AppleSnapshot,
+    AppleRecord,
     CodingExperiment,
     CodingPrinciple,
     CodingProject,
@@ -24,7 +24,7 @@ from boards.models import (
     HudType,
     SkateClip,
     SkateHomie,
-    SpotifySnapshot,
+    SpotifyRecord,
     Board,
 )
 
@@ -154,43 +154,42 @@ class Command(BaseCommand):
     def _seed_music(self, board, dry_run, reset):
         if dry_run:
             self.stdout.write(self.style.SUCCESS(
-                "music: 3 Spotify 年度 + 3 Apple 月度快照（含 core_artist / "
+                "music: 3 Spotify 年度 + 3 Apple 月度记录（含 core_artist / "
                 "period_artist / cross_scale / companion / gravity），dry_run=True"))
             return
-        if SpotifySnapshot.objects.filter(board=board).exists():
+        if SpotifyRecord.objects.filter(board=board).exists():
             if not reset:
                 self.stdout.write(self.style.WARNING(
                     "music 已有内容，跳过（使用 --reset 重建）"))
                 return
-            AppleSnapshot.objects.filter(board=board).delete()
-            SpotifySnapshot.objects.filter(board=board).delete()
+            AppleRecord.objects.filter(board=board).delete()
+            SpotifyRecord.objects.filter(board=board).delete()
 
         genres = ["POST-ROCK", "AMBIENT", "EXPERIMENTAL", "NOISE",
                   "ATMOSPHERIC", "EMOTIONAL", "MELODIC", "CINEMATIC"]
         scales_yearly = ["STABLE", "HIGH", "—", "RISING", "CONCENTRATED"]
         scales_monthly = ["CONTINUOUS", "RISING", "CONCENTRATED", "STEADY", "PEAKING"]
 
-        # Spotify 年度快照（yearly）
+        # Spotify 年度记录（yearly）
         for year in (2023, 2024, 2025):
-            snap = SpotifySnapshot.objects.create(
-                board=board, title=f"Spotify Wrapped {year}",
-                scope="yearly", year=year)
-            snap.entries.create(
+            title = f"Spotify Wrapped {year}"
+            SpotifyRecord.objects.create(
+                board=board, title=title, scope="yearly", year=year,
                 label="TOTAL MINUTES",
                 value="{:,}".format(FAKE.random_int(20000, 35000)),
                 unit="MIN", kind="total", display_order=0)
             for j, genre in enumerate(
                     FAKE.random_elements(elements=genres, length=3, unique=True)):
-                snap.entries.create(
+                SpotifyRecord.objects.create(
+                    board=board, title=title, scope="yearly", year=year,
                     label=genre, value="", unit="", kind="tag",
                     display_order=j + 1)
 
-        # Apple Music 月度快照（monthly）
+        # Apple Music 月度记录（monthly）
         for year, month in [(2026, 7), (2026, 6), (2026, 5)]:
-            snap = AppleSnapshot.objects.create(
-                board=board, title=f"Apple Music {year}.{month:02d}",
-                scope="monthly", year=year, month=month)
-            snap.entries.create(
+            title = f"Apple Music {year}.{month:02d}"
+            AppleRecord.objects.create(
+                board=board, title=title, scope="monthly", year=year, month=month,
                 label="TOTAL MINUTES",
                 value="{:,}".format(FAKE.random_int(14000, 23000)),
                 unit="MIN", kind="total", display_order=0)
@@ -198,20 +197,23 @@ class Command(BaseCommand):
                     FAKE.random_elements(
                         elements=["LONG FORM", "HIGH REPEAT", "DIVERSE",
                                   "FOCUS", "NEW PATTERNS"], length=2, unique=True)):
-                snap.entries.create(
+                AppleRecord.objects.create(
+                    board=board, title=title, scope="monthly", year=year, month=month,
                     label=tag, value="", unit="", kind="tag",
                     display_order=j + 1)
 
-        # 编辑性条目：仅挂在最新快照上，assembler 只读取最新快照
-        latest_spotify = SpotifySnapshot.objects.filter(board=board).order_by("-year").first()
-        latest_apple = AppleSnapshot.objects.filter(board=board).order_by("-year", "-month").first()
+        # 编辑性条目：仅挂在最新周期记录上（assembler 只读取最新周期）
+        spotify_title = "Spotify Wrapped 2025"
+        apple_title = "Apple Music 2026.07"
 
         # 年度核心艺人（Top 5，value=排名）
         for rank, name in enumerate(self._artist_names(5), start=1):
-            latest_spotify.entries.create(
+            SpotifyRecord.objects.create(
+                board=board, title=spotify_title, scope="yearly", year=2025,
                 label=name, value=str(rank), kind="core_artist", display_order=rank)
         # 最长常伴
-        latest_spotify.entries.create(
+        SpotifyRecord.objects.create(
+            board=board, title=spotify_title, scope="yearly", year=2025,
             label=self._artist_names(1)[0],
             value="SINCE 2022",
             value2="{:,} MIN / 3 YEARS".format(FAKE.random_int(5000, 9000)),
@@ -220,7 +222,8 @@ class Command(BaseCommand):
             display_order=10)
         # 跨尺度关系（3 条：value=年度描述，value2=月度描述）
         for i in range(3):
-            latest_spotify.entries.create(
+            SpotifyRecord.objects.create(
+                board=board, title=spotify_title, scope="yearly", year=2025,
                 label=self._artist_names(1)[0],
                 value=FAKE.random_element(elements=scales_yearly),
                 value2=FAKE.random_element(elements=scales_monthly),
@@ -228,11 +231,13 @@ class Command(BaseCommand):
 
         # 当前周期艺人（hero + monthly current，4 条，value=风格标签）
         for i, name in enumerate(self._artist_names(4), start=1):
-            latest_apple.entries.create(
+            AppleRecord.objects.create(
+                board=board, title=apple_title, scope="monthly", year=2026, month=7,
                 label=name, value=FAKE.random_element(elements=genres),
                 kind="period_artist", display_order=i)
         # 近期引力
-        latest_apple.entries.create(
+        AppleRecord.objects.create(
+            board=board, title=apple_title, scope="monthly", year=2026, month=7,
             label=self._artist_names(1)[0],
             value="SINCE 2026.04",
             value2="{:,} MIN / 4 MONTHS".format(FAKE.random_int(4000, 8000)),
@@ -241,7 +246,7 @@ class Command(BaseCommand):
             display_order=10)
 
         self.stdout.write(self.style.SUCCESS(
-            "music: 3 Spotify 年度 + 3 Apple 月度快照（含 core_artist / "
+            "music: 3 Spotify 年度 + 3 Apple 月度记录（含 core_artist / "
             "period_artist / cross_scale / companion / gravity 条目）"))
 
     # -- Coding -------------------------------------------------------------

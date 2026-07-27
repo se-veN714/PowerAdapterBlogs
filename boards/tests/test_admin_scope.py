@@ -137,17 +137,14 @@ class BoardScopedAdminTest(TestCase):
         )
         self.assertFalse(self.post_admin.has_add_permission(request))
 
-    def test_manager_sees_only_manageable_board_and_structural_fields_are_readonly(self):
+    def test_manager_cannot_access_board_admin(self):
+        """Board admin is superuser-only; managers get no access at all."""
         self.add_membership(BoardMembership.Role.MANAGER)
         request = self.request_for(self.member)
 
-        queryset = self.board_admin.get_queryset(request)
-
-        self.assertQuerySetEqual(queryset, [self.board])
-        self.assertEqual(
-            set(self.board_admin.get_readonly_fields(request, self.board)),
-            {"slug", "category", "is_active"},
-        )
+        self.assertFalse(self.board_admin.has_module_permission(request))
+        self.assertFalse(self.board_admin.has_view_permission(request, self.board))
+        self.assertFalse(self.board_admin.has_change_permission(request, self.board))
         self.assertFalse(self.board_admin.has_add_permission(request))
         self.assertFalse(self.board_admin.has_delete_permission(request, self.board))
 

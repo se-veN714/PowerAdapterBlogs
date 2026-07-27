@@ -1,16 +1,17 @@
 """Boards 应用的 Django Admin 注册。
 
-Board 模型注册到 custom_site (dashboard)，使用 DashboardAdminMixin 权限控制。
+Board 与 Board Index 内容模型全部注册到默认 admin.site（= SuperuserAdminSite，
+/super_admin/），仅 superuser 可维护。dashboard (/dashboard/) 不再暴露任何板块
+内容管理入口。BoardAccessRequest 保留双注册（dashboard 供板块 Manager 审核本板
+申请，super_admin 供站长全局审核）。
 """
 
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
 
-from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 from PowerAdapterBlogs.cus_site import custom_site
 from boards.models import (
-    AppleEntry,
-    AppleSnapshot,
+    AppleRecord,
     Board,
     BoardAccessRequest,
     BoardMembership,
@@ -19,13 +20,10 @@ from boards.models import (
     CodingProject,
     SkateClip,
     SkateHomie,
-    SpotifyEntry,
-    SpotifySnapshot,
+    SpotifyRecord,
 )
 from boards.policies import (
-    boards_manageable_by,
     can_access_board_admin,
-    can_change_board_settings,
     can_manage_board_members,
 )
 from boards.services import (
@@ -34,9 +32,9 @@ from boards.services import (
 )
 
 
-@admin.register(Board, site=custom_site)
-class BoardAdmin(DashboardAdminMixin, admin.ModelAdmin):
-    """首页板块管理。
+@admin.register(Board)
+class BoardAdmin(admin.ModelAdmin):
+    """首页板块管理：仅 superuser（站点结构与前端代码绑定，不可委托给 dashboard）。
 
     行内编辑排序、颜色、启用状态，方便快速调整首页布局。
     """
@@ -82,35 +80,20 @@ class BoardAdmin(DashboardAdminMixin, admin.ModelAdmin):
         ),
     )
 
+    def has_module_permission(self, request):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
+
     def has_add_permission(self, request):
-        """A new Board implies new frontend code and is superuser-only."""
+        return request.user.is_active and request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
         return request.user.is_active and request.user.is_superuser
 
     def has_delete_permission(self, request, obj=None):
-        """Deleting a Board changes the site structure and is superuser-only."""
         return request.user.is_active and request.user.is_superuser
-
-    def has_module_permission(self, request):
-        return can_access_board_admin(request.user)
-
-    def has_view_permission(self, request, obj=None):
-        if obj is None:
-            return can_access_board_admin(request.user)
-        return can_change_board_settings(request.user, obj)
-
-    def has_change_permission(self, request, obj=None):
-        if obj is None:
-            return can_access_board_admin(request.user)
-        return can_change_board_settings(request.user, obj)
-
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        return boards_manageable_by(request.user, queryset)
-
-    def get_readonly_fields(self, request, obj=None):
-        if request.user.is_superuser:
-            return []
-        return ["slug", "category", "is_active"]
 
     def glitch_color_preview(self, obj):
         """在列表中展示颜色预览色块。"""
@@ -294,7 +277,7 @@ class SuperuserBoardContentAdmin(admin.ModelAdmin):
         return request.user.is_active and request.user.is_superuser
 
 
-@admin.register(SkateHomie, site=custom_site)
+@admin.register(SkateHomie)
 class SkateHomieAdmin(SuperuserBoardContentAdmin):
     list_display = [
         "node_index",
@@ -310,7 +293,7 @@ class SkateHomieAdmin(SuperuserBoardContentAdmin):
     ordering = ["node_index"]
 
 
-@admin.register(SkateClip, site=custom_site)
+@admin.register(SkateClip)
 class SkateClipAdmin(SuperuserBoardContentAdmin):
     list_display = [
         "order",
@@ -326,37 +309,23 @@ class SkateClipAdmin(SuperuserBoardContentAdmin):
     ordering = ["order"]
 
 
-@admin.register(SpotifySnapshot, site=custom_site)
-class SpotifySnapshotAdmin(SuperuserBoardContentAdmin):
-    list_display = ["title", "scope", "year", "month", "updated_at"]
-    list_filter = ["scope", "year"]
-    search_fields = ["title"]
+@admin.register(SpotifyRecord)
+class SpotifyRecordAdmin(SuperuserBoardContentAdmin):
+    list_display = ["title", "scope", "year", "month", "kind", "label", "value", "display_order", "updated_at"]
+    list_filter = ["scope", "year", "kind"]
+    search_fields = ["title", "label", "value"]
+    ordering = ["-year", "-month", "display_order"]
 
 
-@admin.register(SpotifyEntry, site=custom_site)
-class SpotifyEntryAdmin(SuperuserBoardContentAdmin):
-    list_display = ["snapshot", "label", "value", "unit", "kind", "display_order"]
-    list_filter = ["kind"]
-    search_fields = ["label", "value"]
-    ordering = ["display_order"]
+@admin.register(AppleRecord)
+class AppleRecordAdmin(SuperuserBoardContentAdmin):
+    list_display = ["title", "scope", "year", "month", "kind", "label", "value", "display_order", "updated_at"]
+    list_filter = ["scope", "year", "kind"]
+    search_fields = ["title", "label", "value"]
+    ordering = ["-year", "-month", "display_order"]
 
 
-@admin.register(AppleSnapshot, site=custom_site)
-class AppleSnapshotAdmin(SuperuserBoardContentAdmin):
-    list_display = ["title", "scope", "year", "month", "updated_at"]
-    list_filter = ["scope", "year"]
-    search_fields = ["title"]
-
-
-@admin.register(AppleEntry, site=custom_site)
-class AppleEntryAdmin(SuperuserBoardContentAdmin):
-    list_display = ["snapshot", "label", "value", "unit", "kind", "display_order"]
-    list_filter = ["kind"]
-    search_fields = ["label", "value"]
-    ordering = ["display_order"]
-
-
-@admin.register(CodingProject, site=custom_site)
+@admin.register(CodingProject)
 class CodingProjectAdmin(SuperuserBoardContentAdmin):
     list_display = ["index", "name", "year", "status", "is_active", "order"]
     list_filter = ["status", "is_active"]
@@ -364,14 +333,14 @@ class CodingProjectAdmin(SuperuserBoardContentAdmin):
     ordering = ["order"]
 
 
-@admin.register(CodingPrinciple, site=custom_site)
+@admin.register(CodingPrinciple)
 class CodingPrincipleAdmin(SuperuserBoardContentAdmin):
     list_display = ["index", "title", "order"]
     search_fields = ["title"]
     ordering = ["order"]
 
 
-@admin.register(CodingExperiment, site=custom_site)
+@admin.register(CodingExperiment)
 class CodingExperimentAdmin(SuperuserBoardContentAdmin):
     list_display = ["date", "title", "order"]
     search_fields = ["title"]

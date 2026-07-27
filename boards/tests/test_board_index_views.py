@@ -19,8 +19,7 @@ from boards.models import (
     CodingProject,
     SkateClip,
     SkateHomie,
-    SpotifyEntry,
-    SpotifySnapshot,
+    SpotifyRecord,
 )
 
 
@@ -103,15 +102,14 @@ class BoardIndexDispatchTests(TestCase):
 
     def test_music_renders_archive_data_driven(self):
         board = _board("music")
-        snap = SpotifySnapshot.objects.create(
-            board=board, title="2025 Wrap", year=2025
-        )
-        SpotifyEntry.objects.create(
-            snapshot=snap, label="TOTAL", value="32,481", unit="MIN",
+        SpotifyRecord.objects.create(
+            board=board, title="2025 Wrap", year=2025,
+            label="TOTAL", value="32,481", unit="MIN",
             kind="total", display_order=0,
         )
-        SpotifyEntry.objects.create(
-            snapshot=snap, label="POST-ROCK", kind="tag", display_order=1,
+        SpotifyRecord.objects.create(
+            board=board, title="2025 Wrap", year=2025,
+            label="POST-ROCK", kind="tag", display_order=1,
         )
         response = self.client.get(reverse("boards:index", args=["music"]))
         self.assertEqual(response.status_code, 200)

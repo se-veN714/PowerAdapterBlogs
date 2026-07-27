@@ -34,11 +34,12 @@ package-lock.json
 /V2GUIDE.md
 /codex_context.md
 /GITGUIDE.md
-/docs/guides/GITGUIDE.md
-/docs/guides/DJANGO_ASYNC_GUIDE.md
-/docs/guides/*_LEARNING_GUIDE.md
 /.codebuddy/
 
 # ====== Agent handoff artifacts ======
 **/*HANDOFF*.md
 **/*handoff*.md
+/.agents/
+/docs/
+/themes/devenir/MUSIC_PAGE_GUIDE.md
+/boards/guide/

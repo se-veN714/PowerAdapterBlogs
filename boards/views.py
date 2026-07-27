@@ -6,12 +6,15 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import ValidationError
+from django.http import Http404
+from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import FormView, TemplateView
 
 from PowerAdapterBlogs.base_admin import has_dashboard_access
+from boards.board_index import ASSEMBLERS, BOARD_TEMPLATES
 from boards.forms import BoardAccessRequestForm
-from boards.models import Board, BoardAccessRequest
+from boards.models import Board, BoardAccessRequest, SkateClip, SkateHomie
 from boards.policies import can_create_post_in_any_board
 from boards.services import submit_board_access_request
 
@@ -51,37 +54,59 @@ class BoardAccessRequestView(
         return super().form_valid(form)
 
 
-class SkateboardBoardPreviewView(TemplateView):
-    """本地预览用：直接渲染 Skateboard Board Index 静态视觉（mock 数据分支）。
+class BoardIndexView(TemplateView):
+    """GET /boards/<slug:slug>/ — 按 Board.slug 分派三板索引内容与模板。
 
-    仅作开发预览，便于在浏览器查看前端效果；生产路由由后端集成阶段在接入
-    §6.12 契约（homies / selected_homie / clip_list / homie_line_url / open_node_url）
-    后提供，届时此视图可移除。
+    替换原 3 个 PreviewView（开发预览用静态视觉）。分派完全基于 Board.slug，
+    不引入 board_type 字段（决策 2）；内容模板由 BOARD_TEMPLATES 给出。
+    未知 slug 或已下线的板块统一返回 404。
     """
 
-    template_name = "pages/boards/skateboard/index.html"
+    def get(self, request, *args, **kwargs):
+        slug = kwargs["slug"]
+        if slug not in BOARD_TEMPLATES:
+            raise Http404("Unknown board index slug")
+        board = get_object_or_404(
+            Board.objects.filter(slug__in=BOARD_TEMPLATES),
+            slug=slug,
+            is_active=True,
+        )
+        self.board = board
+        self.template_name = BOARD_TEMPLATES[slug]
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["board"] = self.board
+        context.update(ASSEMBLERS[self.board.slug](self.board))
+        return context
 
 
-class MusicPreviewView(TemplateView):
-    """本地预览用：直接渲染 Music 页面静态视觉（mock 数据分支）。
+class HomieLineView(TemplateView):
+    """htmx 端点：GET /boards/<slug>/homie/<node_index>/ 返回 Selected Line 片段。
 
-    与 SkateboardBoardPreviewView 同模式，仅为开发预览，便于在浏览器查看
-    Music 页面前端效果；生产路由由后端在 music/ 接入真实数据契约后提供，
-    届时此视图可移除。详见 themes/devenir/MUSIC_PAGE_GUIDE.md。
+    仅渲染单个 Homie 的 _selected_line.html 片段（其公开 Clip 列表）。
+    无权限查询、不鉴权——内容仅展示，授权由 Admin 写权限（superuser）保证。
     """
 
-    template_name = "pages/music/index.html"
+    template_name = "pages/boards/skateboard/_selected_line.html"
 
+    def get(self, request, *args, **kwargs):
+        board = get_object_or_404(Board, slug=kwargs["slug"], is_active=True)
+        homie = get_object_or_404(
+            SkateHomie, board=board, node_index=kwargs["node_index"]
+        )
+        self.selected_homie = homie
+        self.clip_list = list(
+            SkateClip.objects.filter(homie=homie, is_public=True).order_by("order", "pk")
+        )
+        return super().get(request, *args, **kwargs)
 
-class CodingPreviewView(TemplateView):
-    """本地预览用：直接渲染 Coding 页面静态视觉（mock 数据分支）。
-
-    与 SkateboardBoardPreviewView / MusicPreviewView 同模式，仅为开发预览，
-    便于在浏览器查看 Coding 页面前端效果；生产路由由后端在相关 App 接入
-    真实项目数据契约后提供，届时此视图可移除。
-    """
-
-    template_name = "pages/coding/index.html"
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["selected_homie"] = self.selected_homie
+        context["clip_list"] = self.clip_list
+        return context
 
 
 def boards_context(request):

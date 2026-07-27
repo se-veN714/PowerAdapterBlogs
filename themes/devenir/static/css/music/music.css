@@ -498,6 +498,7 @@
 }
 .music-archive__row:last-child { border-bottom: none; padding-bottom: 0; }
 .music-archive__row:first-child { padding-top: 0; }
+.music-archive__row--empty { color: var(--muted, #6b7280); font-style: italic; }
 .music-archive__label {
     font-size: 0.95rem;
     font-weight: 700;

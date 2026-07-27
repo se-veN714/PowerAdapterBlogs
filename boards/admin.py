@@ -8,7 +8,20 @@ from django.core.exceptions import PermissionDenied, ValidationError
 
 from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 from PowerAdapterBlogs.cus_site import custom_site
-from boards.models import Board, BoardAccessRequest, BoardMembership
+from boards.models import (
+    AppleEntry,
+    AppleSnapshot,
+    Board,
+    BoardAccessRequest,
+    BoardMembership,
+    CodingExperiment,
+    CodingPrinciple,
+    CodingProject,
+    SkateClip,
+    SkateHomie,
+    SpotifyEntry,
+    SpotifySnapshot,
+)
 from boards.policies import (
     boards_manageable_by,
     can_access_board_admin,
@@ -254,3 +267,112 @@ class SystemBoardAccessRequestAdmin(BoardAccessRequestAdminBase):
     """The system admin is already restricted to active superusers."""
 
     pass
+
+
+class SuperuserBoardContentAdmin(admin.ModelAdmin):
+    """Board Index 内容模型：仅 superuser 可维护（决策 5，无公开投稿）。
+
+    content 模型的 board 由模型类型固定（见 boards.models），不可手动选择，
+    因此统一从表单中排除。
+    """
+
+    exclude = ("board",)
+
+    def has_module_permission(self, request):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
+
+
+@admin.register(SkateHomie, site=custom_site)
+class SkateHomieAdmin(SuperuserBoardContentAdmin):
+    list_display = [
+        "node_index",
+        "name",
+        "call_sign",
+        "location",
+        "role_label",
+        "is_active",
+        "updated_at",
+    ]
+    list_filter = ["is_active"]
+    search_fields = ["name", "call_sign", "location"]
+    ordering = ["node_index"]
+
+
+@admin.register(SkateClip, site=custom_site)
+class SkateClipAdmin(SuperuserBoardContentAdmin):
+    list_display = [
+        "order",
+        "title",
+        "homie",
+        "category",
+        "spot",
+        "status",
+        "is_public",
+    ]
+    list_filter = ["category", "status", "is_public"]
+    search_fields = ["title", "spot"]
+    ordering = ["order"]
+
+
+@admin.register(SpotifySnapshot, site=custom_site)
+class SpotifySnapshotAdmin(SuperuserBoardContentAdmin):
+    list_display = ["title", "scope", "year", "month", "updated_at"]
+    list_filter = ["scope", "year"]
+    search_fields = ["title"]
+
+
+@admin.register(SpotifyEntry, site=custom_site)
+class SpotifyEntryAdmin(SuperuserBoardContentAdmin):
+    list_display = ["snapshot", "label", "value", "unit", "kind", "display_order"]
+    list_filter = ["kind"]
+    search_fields = ["label", "value"]
+    ordering = ["display_order"]
+
+
+@admin.register(AppleSnapshot, site=custom_site)
+class AppleSnapshotAdmin(SuperuserBoardContentAdmin):
+    list_display = ["title", "scope", "year", "month", "updated_at"]
+    list_filter = ["scope", "year"]
+    search_fields = ["title"]
+
+
+@admin.register(AppleEntry, site=custom_site)
+class AppleEntryAdmin(SuperuserBoardContentAdmin):
+    list_display = ["snapshot", "label", "value", "unit", "kind", "display_order"]
+    list_filter = ["kind"]
+    search_fields = ["label", "value"]
+    ordering = ["display_order"]
+
+
+@admin.register(CodingProject, site=custom_site)
+class CodingProjectAdmin(SuperuserBoardContentAdmin):
+    list_display = ["index", "name", "year", "status", "is_active", "order"]
+    list_filter = ["status", "is_active"]
+    search_fields = ["name", "stack"]
+    ordering = ["order"]
+
+
+@admin.register(CodingPrinciple, site=custom_site)
+class CodingPrincipleAdmin(SuperuserBoardContentAdmin):
+    list_display = ["index", "title", "order"]
+    search_fields = ["title"]
+    ordering = ["order"]
+
+
+@admin.register(CodingExperiment, site=custom_site)
+class CodingExperimentAdmin(SuperuserBoardContentAdmin):
+    list_display = ["date", "title", "order"]
+    search_fields = ["title"]
+    ordering = ["-date"]

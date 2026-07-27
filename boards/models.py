@@ -1,12 +1,44 @@
-"""Boards 应用的模型定义。
+"""Boards 应用的模型。
 
-Board 模型：首页 Editorial 板块的元数据。
-每个板块对应首页一个 editorial-section，包含名称、颜色、关键词等信息。
+- Board：首页 Editorial 板块的元数据，亦作为三块 Board Index 的注册表
+  （skateboard / music / coding，由 slug 唯一标识，分派时直接用 slug）。
+- BoardMembership：用户在单个 Board 中的权限角色（与展示内容无关）。
+- BoardAccessRequest：权限申请的不可变审核记录。
+- 三块内容模型（Skateboard / Music / Coding）：其所属板块由模型类型固定，
+  通过 `board` FK 的 default 自动写入对应 Board，Admin 中不可手动选择。
+
+按 BOARD_INDEX_BACKEND_GUIDE.md 决策：
+- 决策 2：不引入 board_type 字段，分派完全基于 Board.slug。
+- 决策 3：SkateHomie 与 BoardMembership 分离，仅通过 M2M 作展示/归属标注。
+- 决策 4：Music 区分 Spotify 与 Apple Music，先分离为两套具体模型（共享抽象基类）。
+- 决策 5：内容仅由 superuser（站长）在 Admin 维护，无公开投稿。
 """
+
+import functools
 
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+
+from PowerAdapterBlogs.image_validation import validate_uploaded_image
+
+
+# ---------------------------------------------------------------------------
+# Board 解析辅助：content 模型的 board 由模型类型固定，default 调用时按 slug 解析，
+# 不经过 Admin 表单，杜绝“任意板块可选”的错误。
+# ---------------------------------------------------------------------------
+
+def _board_for_slug(slug):
+    """按 slug 解析固定的归属 Board（每次 save 一次查询，开销可忽略）。"""
+    return Board.objects.get(slug=slug)
+
+
+def _board_default(slug):
+    """生成可直接用作 ForeignKey.default 的零参 callable。
+
+    返回 functools.partial 而非 lambda，因为 Django 迁移序列化器无法序列化 lambda。
+    """
+    return functools.partial(_board_for_slug, slug)
 
 
 class Board(models.Model):
@@ -215,3 +247,364 @@ class BoardAccessRequest(models.Model):
             f"{self.board.name} / {self.applicant.username} / "
             f"{self.get_requested_role_display()} / {self.get_status_display()}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Skateboard Board Index 内容模型：成员节点 + 动作片段。
+# ---------------------------------------------------------------------------
+
+class ClipCategory(models.TextChoices):
+    ROTATION = "rotation", "Rotation"
+    DISPLACEMENT = "displacement", "Displacement"
+    HEIGHT = "height", "Height"
+
+
+class ClipStatus(models.TextChoices):
+    LANDED = "landed", "Landed"
+    UNFINISHED = "unfinished", "Unfinished"
+    WIP = "wip", "WIP"
+    FAILED = "failed", "Failed"
+
+
+class HudType(models.TextChoices):
+    ARC = "arc", "Arc"
+    SPEED = "speed", "Speed"
+    MEASURE = "measure", "Measure"
+    RING = "ring", "Ring"
+
+
+class SkateHomie(models.Model):
+    """Skateboard Crew 的一个成员节点（展示内容实体）。
+
+    与 BoardMembership 分离；通过 memberships M2M 仅作展示关联。
+    所属板块固定为 skateboard（由模型类型决定，不可在 Admin 手动选择）。
+    """
+
+    BOARD_SLUG = "skateboard"
+
+    board = models.ForeignKey(
+        Board,
+        on_delete=models.CASCADE,
+        related_name="homies",
+        verbose_name="板块",
+        default=_board_default("skateboard"),
+        help_text="由模型类型固定为 skateboard，不可手动选择",
+    )
+    node_index = models.PositiveSmallIntegerField(verbose_name="节点编号")
+    name = models.CharField(max_length=64, verbose_name="成员名")
+    call_sign = models.CharField(max_length=32, blank=True, verbose_name="称呼")
+    location = models.CharField(max_length=64, blank=True, verbose_name="地区")
+    joined_at = models.DateField(verbose_name="加入时间")
+    role_label = models.CharField(max_length=32, blank=True, verbose_name="角色标签")
+    avatar = models.ImageField(
+        upload_to="skateboard/avatars/",
+        validators=[validate_uploaded_image],
+        blank=True,
+        null=True,
+        verbose_name="头像",
+    )
+    is_active = models.BooleanField(default=False, verbose_name="当前选中")
+    memberships = models.ManyToManyField(
+        BoardMembership,
+        blank=True,
+        related_name="homies",
+        verbose_name="关联成员",
+        help_text="仅作展示/归属标注，不作为授权依据",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        ordering = ["node_index"]
+        verbose_name = "滑板成员"
+        verbose_name_plural = "滑板成员"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["board", "node_index"],
+                name="unique_homie_node_per_board",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.node_index:02d} {self.name}"
+
+
+class SkateClip(models.Model):
+    """某个成员的一个滑板动作片段。"""
+
+    homie = models.ForeignKey(
+        SkateHomie,
+        on_delete=models.CASCADE,
+        related_name="clips",
+        verbose_name="成员",
+    )
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="排序")
+    title = models.CharField(max_length=80, verbose_name="动作名")
+    category = models.CharField(
+        max_length=32,
+        choices=ClipCategory.choices,
+        blank=True,
+        verbose_name="分类",
+    )
+    spot = models.CharField(max_length=128, blank=True, verbose_name="地点")
+    filmed_at = models.DateField(null=True, blank=True, verbose_name="拍摄日期")
+    duration = models.DurationField(null=True, blank=True, verbose_name="时长")
+    status = models.CharField(
+        max_length=16,
+        choices=ClipStatus.choices,
+        default=ClipStatus.LANDED,
+        verbose_name="状态",
+    )
+    notes = models.TextField(blank=True, verbose_name="备注")
+    video_url = models.URLField(blank=True, verbose_name="视频")
+    thumbnail_url = models.URLField(blank=True, verbose_name="封面")
+    hud_type = models.CharField(
+        max_length=16,
+        choices=HudType.choices,
+        blank=True,
+        verbose_name="HUD 类型",
+    )
+    hud_label = models.CharField(max_length=64, blank=True, verbose_name="HUD 文案")
+    timecode = models.CharField(max_length=16, blank=True, verbose_name="时间码")
+    is_public = models.BooleanField(default=True, verbose_name="公开")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        ordering = ["order", "pk"]
+        verbose_name = "滑板动作片段"
+        verbose_name_plural = "滑板动作片段"
+
+    def __str__(self):
+        return f"{self.order:02d} {self.title}"
+
+
+# ---------------------------------------------------------------------------
+# Music Board Index 内容模型：听歌场域时间序列化分析。
+# ---------------------------------------------------------------------------
+
+class MusicScope(models.TextChoices):
+    YEARLY = "yearly", "Yearly"
+    MONTHLY = "monthly", "Monthly"
+
+
+class MusicSnapshotBase(models.Model):
+    """某 provider 在某周期（yearly/monthly）的一屏数据容器（抽象）。
+
+    所属板块固定为 music（由模型类型决定，不可在 Admin 手动选择）。
+    """
+
+    BOARD_SLUG = "music"
+
+    board = models.ForeignKey(
+        Board,
+        on_delete=models.CASCADE,
+        related_name="%(class)ss",
+        verbose_name="板块",
+        default=_board_default("music"),
+        help_text="由模型类型固定为 music，不可手动选择",
+    )
+    title = models.CharField(max_length=128, verbose_name="标题")
+    scope = models.CharField(
+        max_length=16,
+        choices=MusicScope.choices,
+        default=MusicScope.YEARLY,
+        verbose_name="周期",
+    )
+    year = models.PositiveSmallIntegerField(verbose_name="年份")
+    month = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="月份"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        abstract = True
+        ordering = ["-year", "-month"]
+        verbose_name = "音乐快照"
+        verbose_name_plural = "音乐快照"
+
+
+class MusicEntryBase(models.Model):
+    """快照内的一条指标（抽象）。value 以文本承载，保留单位。
+
+    `kind` 区分指标语义：`total`（主值）/ `tag`（归档标签）/ `core_artist`
+    （年度核心艺人，value=排名）/ `period_artist`（当前周期艺人，value=风格标签）/
+    `cross_scale`（跨尺度关系，value=年度描述，value2=月度描述）/
+    `companion` / `gravity`（常伴/近期引力，value=起始，value2=统计，note=注记）。
+    """
+
+    label = models.CharField(max_length=64, verbose_name="指标")
+    value = models.CharField(max_length=64, verbose_name="值")
+    value2 = models.CharField(max_length=64, blank=True, verbose_name="次值")
+    unit = models.CharField(max_length=16, blank=True, verbose_name="单位")
+    kind = models.CharField(max_length=32, blank=True, verbose_name="类型")
+    note = models.TextField(blank=True, verbose_name="注记")
+    display_order = models.PositiveSmallIntegerField(default=0, verbose_name="排序")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        abstract = True
+        ordering = ["display_order", "pk"]
+        verbose_name = "音乐条目"
+        verbose_name_plural = "音乐条目"
+
+
+class SpotifySnapshot(MusicSnapshotBase):
+    class Meta(MusicSnapshotBase.Meta):
+        verbose_name = "Spotify 年度快照"
+        verbose_name_plural = "Spotify 年度快照"
+
+
+class SpotifyEntry(MusicEntryBase):
+    snapshot = models.ForeignKey(
+        SpotifySnapshot,
+        on_delete=models.CASCADE,
+        related_name="entries",
+        verbose_name="快照",
+    )
+
+    class Meta(MusicEntryBase.Meta):
+        verbose_name = "Spotify 条目"
+        verbose_name_plural = "Spotify 条目"
+
+
+class AppleSnapshot(MusicSnapshotBase):
+    class Meta(MusicSnapshotBase.Meta):
+        verbose_name = "Apple Music 月度快照"
+        verbose_name_plural = "Apple Music 月度快照"
+
+
+class AppleEntry(MusicEntryBase):
+    snapshot = models.ForeignKey(
+        AppleSnapshot,
+        on_delete=models.CASCADE,
+        related_name="entries",
+        verbose_name="快照",
+    )
+
+    class Meta(MusicEntryBase.Meta):
+        verbose_name = "Apple Music 条目"
+        verbose_name_plural = "Apple Music 条目"
+
+
+# ---------------------------------------------------------------------------
+# Coding Board Index 内容模型：项目档案索引。
+# ---------------------------------------------------------------------------
+
+class CodingProject(models.Model):
+    """Selected Projects 中的一个项目。
+
+    所属板块固定为 coding（由模型类型决定，不可在 Admin 手动选择）。
+    """
+
+    BOARD_SLUG = "coding"
+
+    board = models.ForeignKey(
+        Board,
+        on_delete=models.CASCADE,
+        related_name="projects",
+        verbose_name="板块",
+        default=_board_default("coding"),
+        help_text="由模型类型固定为 coding，不可手动选择",
+    )
+    index = models.PositiveSmallIntegerField(verbose_name="序号")
+    name = models.CharField(max_length=64, verbose_name="项目名")
+    description = models.TextField(blank=True, verbose_name="简述")
+    stack = models.CharField(max_length=128, blank=True, verbose_name="技术栈")
+    year = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="年份")
+    status = models.CharField(max_length=32, blank=True, verbose_name="状态")
+    url = models.URLField(blank=True, verbose_name="链接")
+    is_active = models.BooleanField(default=True, verbose_name="展示")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="排序")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        ordering = ["order", "pk"]
+        verbose_name = "编码项目"
+        verbose_name_plural = "编码项目"
+
+    def __str__(self):
+        return f"{self.index:02d} {self.name}"
+
+
+class CodingPrinciple(models.Model):
+    """Working Principles 中的一条原则。
+
+    所属板块固定为 coding（由模型类型决定，不可在 Admin 手动选择）。
+    """
+
+    BOARD_SLUG = "coding"
+
+    board = models.ForeignKey(
+        Board,
+        on_delete=models.CASCADE,
+        related_name="principles",
+        verbose_name="板块",
+        default=_board_default("coding"),
+        help_text="由模型类型固定为 coding，不可手动选择",
+    )
+    index = models.PositiveSmallIntegerField(verbose_name="序号")
+    title = models.CharField(max_length=64, verbose_name="原则标题")
+    body = models.TextField(blank=True, verbose_name="原则正文")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="排序")
+
+    class Meta:
+        ordering = ["order", "pk"]
+        verbose_name = "编码原则"
+        verbose_name_plural = "编码原则"
+
+    def __str__(self):
+        return f"{self.index:02d} {self.title}"
+
+
+class CodingExperiment(models.Model):
+    """Small Experiments 中的一次小型实验。
+
+    所属板块固定为 coding（由模型类型决定，不可在 Admin 手动选择）。
+    """
+
+    BOARD_SLUG = "coding"
+
+    board = models.ForeignKey(
+        Board,
+        on_delete=models.CASCADE,
+        related_name="experiments",
+        verbose_name="板块",
+        default=_board_default("coding"),
+        help_text="由模型类型固定为 coding，不可手动选择",
+    )
+    date = models.DateField(verbose_name="日期")
+    title = models.CharField(max_length=128, verbose_name="实验名")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="排序")
+
+    class Meta:
+        ordering = ["-date", "pk"]
+        verbose_name = "小型实验"
+        verbose_name_plural = "小型实验"
+
+    def __str__(self):
+        return f"{self.date} {self.title}"
+
+
+__all__ = [
+    "Board",
+    "BoardMembership",
+    "BoardAccessRequest",
+    "SkateHomie",
+    "SkateClip",
+    "ClipCategory",
+    "ClipStatus",
+    "HudType",
+    "MusicScope",
+    "MusicSnapshotBase",
+    "MusicEntryBase",
+    "SpotifySnapshot",
+    "SpotifyEntry",
+    "AppleSnapshot",
+    "AppleEntry",
+    "CodingProject",
+    "CodingPrinciple",
+    "CodingExperiment",
+]

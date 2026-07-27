@@ -104,6 +104,19 @@ Coding 页面 — PowerAdapter 项目档案页。
                 <p class="coding-section__hint">tools / systems / archives</p>
             </div>
             <ul class="coding-projects" role="list">
+                {% for project in projects %}
+                <li class="coding-project reveal">
+                    <span class="coding-project__num">{{ project.index|stringformat:"02d" }}</span>
+                    <div class="coding-project__main">
+                        <p class="coding-project__name">{{ project.name|upper }}</p>
+                        <p class="coding-project__desc">{{ project.description }}</p>
+                    </div>
+                    <span class="coding-project__stack">{{ project.stack|upper }}</span>
+                    <span class="coding-project__year">{% if project.year %}{{ project.year }}{% endif %}</span>
+                    <span class="coding-project__status">STATUS / {{ project.status|upper }}</span>
+                    {% if project.url %}<a class="coding-project__arrow" href="{{ project.url }}" aria-label="Open {{ project.name }}">→</a>{% else %}<span class="coding-project__arrow" aria-hidden="true">→</span>{% endif %}
+                </li>
+                {% empty %}
                 <li class="coding-project reveal">
                     <span class="coding-project__num">01</span>
                     <div class="coding-project__main">
@@ -148,6 +161,7 @@ Coding 页面 — PowerAdapter 项目档案页。
                     <span class="coding-project__status">STATUS / STABLE</span>
                     <span class="coding-project__arrow" aria-hidden="true">→</span>
                 </li>
+                {% endfor %}
             </ul>
         </div>
     </section>
@@ -158,23 +172,31 @@ Coding 页面 — PowerAdapter 项目档案页。
                 <h2 id="coding-principles-title" class="coding-section__title">WORKING PRINCIPLES</h2>
                 <p class="coding-section__hint">how structure emerges</p>
             </div>
-            <div class="coding-principles__grid">
-                <div class="coding-principle reveal">
-                    <div class="coding-principle__num">01</div>
-                    <h3 class="coding-principle__title">NEED BEFORE FRAMEWORK</h3>
-                    <p class="coding-principle__body">Start from the problem.<br>Let the structure emerge from use.</p>
+                <div class="coding-principles__grid">
+                    {% for principle in principles %}
+                    <div class="coding-principle reveal">
+                        <div class="coding-principle__num">{{ principle.index|stringformat:"02d" }}</div>
+                        <h3 class="coding-principle__title">{{ principle.title|upper }}</h3>
+                        <p class="coding-principle__body">{{ principle.body|linebreaksbr }}</p>
+                    </div>
+                    {% empty %}
+                    <div class="coding-principle reveal">
+                        <div class="coding-principle__num">01</div>
+                        <h3 class="coding-principle__title">NEED BEFORE FRAMEWORK</h3>
+                        <p class="coding-principle__body">Start from the problem.<br>Let the structure emerge from use.</p>
+                    </div>
+                    <div class="coding-principle reveal">
+                        <div class="coding-principle__num">02</div>
+                        <h3 class="coding-principle__title">FIRST WORKING, THEN CLEAR</h3>
+                        <p class="coding-principle__body">Build a form that moves.<br>Refine until the relations become readable.</p>
+                    </div>
+                    <div class="coding-principle reveal">
+                        <div class="coding-principle__num">03</div>
+                        <h3 class="coding-principle__title">SMALL TOOLS, LONG LIFE</h3>
+                        <p class="coding-principle__body">Keep the scope open enough to evolve,<br>and small enough to stay useful.</p>
+                    </div>
+                    {% endfor %}
                 </div>
-                <div class="coding-principle reveal">
-                    <div class="coding-principle__num">02</div>
-                    <h3 class="coding-principle__title">FIRST WORKING, THEN CLEAR</h3>
-                    <p class="coding-principle__body">Build a form that moves.<br>Refine until the relations become readable.</p>
-                </div>
-                <div class="coding-principle reveal">
-                    <div class="coding-principle__num">03</div>
-                    <h3 class="coding-principle__title">SMALL TOOLS, LONG LIFE</h3>
-                    <p class="coding-principle__body">Keep the scope open enough to evolve,<br>and small enough to stay useful.</p>
-                </div>
-            </div>
         </div>
     </section>
 
@@ -184,32 +206,41 @@ Coding 页面 — PowerAdapter 项目档案页。
                 <h2 id="coding-experiments-title" class="coding-section__title">SMALL EXPERIMENTS</h2>
                 <p class="coding-section__hint">notes / traces / side lines</p>
             </div>
-            <ul class="coding-experiment__list" role="list">
-                <li class="coding-experiment reveal">
-                    <span class="coding-experiment__dot" aria-hidden="true"></span>
-                    <span class="coding-experiment__date">2026.07</span>
-                    <span class="coding-experiment__title">HTMX partial refresh experiment</span>
-                    <span class="coding-experiment__arrow" aria-hidden="true">→</span>
-                </li>
-                <li class="coding-experiment reveal">
-                    <span class="coding-experiment__dot" aria-hidden="true"></span>
-                    <span class="coding-experiment__date">2026.06</span>
-                    <span class="coding-experiment__title">MongoDB logging migration</span>
-                    <span class="coding-experiment__arrow" aria-hidden="true">→</span>
-                </li>
-                <li class="coding-experiment reveal">
-                    <span class="coding-experiment__dot" aria-hidden="true"></span>
-                    <span class="coding-experiment__date">2026.05</span>
-                    <span class="coding-experiment__title">Private admin access with Tailscale</span>
-                    <span class="coding-experiment__arrow" aria-hidden="true">→</span>
-                </li>
-                <li class="coding-experiment reveal">
-                    <span class="coding-experiment__dot" aria-hidden="true"></span>
-                    <span class="coding-experiment__date">2026.04</span>
-                    <span class="coding-experiment__title">Unity IL2CPP mod research</span>
-                    <span class="coding-experiment__arrow" aria-hidden="true">→</span>
-                </li>
-            </ul>
+                <ul class="coding-experiment__list" role="list">
+                    {% for experiment in experiments %}
+                    <li class="coding-experiment reveal">
+                        <span class="coding-experiment__dot" aria-hidden="true"></span>
+                        <span class="coding-experiment__date">{{ experiment.date|date:"Y.m" }}</span>
+                        <span class="coding-experiment__title">{{ experiment.title }}</span>
+                        <span class="coding-experiment__arrow" aria-hidden="true">→</span>
+                    </li>
+                    {% empty %}
+                    <li class="coding-experiment reveal">
+                        <span class="coding-experiment__dot" aria-hidden="true"></span>
+                        <span class="coding-experiment__date">2026.07</span>
+                        <span class="coding-experiment__title">HTMX partial refresh experiment</span>
+                        <span class="coding-experiment__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li class="coding-experiment reveal">
+                        <span class="coding-experiment__dot" aria-hidden="true"></span>
+                        <span class="coding-experiment__date">2026.06</span>
+                        <span class="coding-experiment__title">MongoDB logging migration</span>
+                        <span class="coding-experiment__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li class="coding-experiment reveal">
+                        <span class="coding-experiment__dot" aria-hidden="true"></span>
+                        <span class="coding-experiment__date">2026.05</span>
+                        <span class="coding-experiment__title">Private admin access with Tailscale</span>
+                        <span class="coding-experiment__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li class="coding-experiment reveal">
+                        <span class="coding-experiment__dot" aria-hidden="true"></span>
+                        <span class="coding-experiment__date">2026.04</span>
+                        <span class="coding-experiment__title">Unity IL2CPP mod research</span>
+                        <span class="coding-experiment__arrow" aria-hidden="true">→</span>
+                    </li>
+                    {% endfor %}
+                </ul>
         </div>
     </section>
 

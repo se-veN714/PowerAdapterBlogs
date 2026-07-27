@@ -5,7 +5,7 @@
 > **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及板块申请审批
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-07-27 — 完成 Stage 6b 权限申请、分级审批与 Membership 自动写入
+> **最后更新**: 2026-07-28 — Board Index 后端落地（codex/board-back）+ 文档与代码同步
 
 ---
 
@@ -14,6 +14,7 @@
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2026-07-27 | v2.1 | Stage 6b：BoardAccessRequest、用户入口、分级审批、事务写入与审计完成；完整测试 179 个 |
+| 2026-07-28 | v2.2 | Board Index 后端落地（codex/board-back）：content 模型合并入单一 `models.py`；board 由模型类型固定（auto-default + Admin 隐藏）；`board_index.py` 分派、`BoardIndexView`+`HomieLineView` 路由、Admin 注册完成；board-index 测试 15 项全绿 |
 | 2026-07-19 | v2.0 | 增加仅限 DEBUG 的幂等测试账号命令，覆盖四种 Board 角色和无 Membership 拒绝样本 |
 | 2026-07-19 | v1.9 | Stage 5：状态 action、写作 View、上传、修订端点与只读 API 接入 Policy；完整测试 65 个 |
 | 2026-07-19 | v1.8 | Stage 4：Board/Post/PostRevision/Comment Admin 接入 Board Policy，新增 8 个运行时隔离测试 |
@@ -54,9 +55,10 @@ flowchart LR
 boards/
 ├── __init__.py
 ├── apps.py              # BoardsConfig
-├── models.py            # Board、BoardMembership 模型
-├── admin.py             # BoardAdmin + Membership 只读观察入口
-├── views.py             # boards_context 上下文处理器
+├── models.py            # Board / BoardMembership / BoardAccessRequest + Board Index 内容模型（SkateHomie/SkateClip、Music Spotify/Apple、Coding Project/Principle/Experiment）
+├── board_index.py       # assemble_context 分派（ASSEMBLERS + 三板 assemble_*）
+├── admin.py             # BoardAdmin + Membership 只读观察入口 + Board Index 内容模型（superuser）
+├── views.py             # boards_context 上下文处理器 + BoardIndexView / HomieLineView
 ├── access_rules.py      # Board 角色动作矩阵与纯拒绝规则（无 ORM）
 ├── policies.py          # Post/Comment → Board ORM 解析与统一授权入口
 ├── tests/
@@ -64,7 +66,9 @@ boards/
 │   ├── test_membership.py    # 阶段 2 ORM 与 Admin 边界测试
 │   ├── test_policies.py      # 阶段 3 跨 App Policy 契约测试
 │   ├── test_admin_scope.py   # 阶段 4 Dashboard 隔离与阶段 5 action 测试
-│   └── test_stage5_runtime.py # 阶段 5 View/Upload/API/Service 测试
+│   ├── test_stage5_runtime.py # 阶段 5 View/Upload/API/Service 测试
+│   ├── test_board_index_models.py  # Board Index 内容模型行为测试
+│   └── test_board_index_views.py   # BoardIndexView / HomieLineView 分派与渲染测试
 ├── management/
 │   └── commands/
 │       ├── seed_boards.py   # 板块种子数据命令
@@ -121,6 +125,22 @@ editorial-section × N (动态渲染)
 | `created_at` | DateTimeField | 创建时间 |
 
 数据库约束 `unique_board_member` 保证同一用户在同一 Board 只有一条记录。角色调整或停用更新原记录，不堆叠历史角色；后续审批和审计流程引用这条稳定记录。
+
+### Board Index 内容模型
+
+Board Index 三页（skateboard / music / coding）的内容模型也位于 `boards/models.py`，与 `Board` 同 app。分为三组：
+
+| 组 | 模型 | 所属板块（固定） |
+|----|------|------------------|
+| Skateboard | `SkateHomie`（成员节点）、`SkateClip`（动作片段） | skateboard |
+| Music | `MusicSnapshotBase`（抽象）+ `SpotifySnapshot` / `AppleSnapshot`，以及 `MusicEntryBase`（抽象）+ `SpotifyEntry` / `AppleEntry` | music |
+| Coding | `CodingProject`、`CodingPrinciple`、`CodingExperiment` | coding |
+
+**关键约束（2026-07-28 用户决策）**：内容模型的 `board` 外键**不由人工选择**，而是由模型类型固定——每个内容模型声明 `BOARD_SLUG` 类属性，`board` 字段的 `default` 通过 `_board_default(slug)` → `_board_for_slug(slug)` 按 slug 自动解析对应 `Board`；Admin 中 `SuperuserBoardContentAdmin.exclude = ("board",)` 统一隐藏该字段。任何内容记录创建时都被强制归属到正确板块，不存在“任选板块”的可能。
+
+- `SkateHomie.memberships` 为 M2M → `BoardMembership`，仅作展示/归属标注，**绝不作为授权依据**（决策 3）。
+- `SkateClip.is_public` 过滤在查询层完成（`boards/board_index.py` 的 `assemble_skateboard`），不泄露非公开内容。
+- 三组的查询分派由 `boards/board_index.py` 的 `ASSEMBLERS` 表按 `board.slug` 完成，详见 §7 与 `boards/guide/BOARD_INDEX_BACKEND_GUIDE.md`。
 
 ---
 
@@ -262,3 +282,38 @@ index.html
 2. CSS `editorial-visual::after` 伪元素使用 `--glitch-c` 作为背景色
 3. Hover 触发 `glitch-chromatic` 动画（±3px 水平抖动 + 透明度闪烁）
 4. 伪元素 `mix-blend-mode: lighten` 模拟 PS 单通道效果
+
+---
+
+## 7. Board Index 后端（已落地）
+
+> **状态**：已落地（`codex/board-back` 分支）。详细设计文档见 `boards/guide/`（本地非跟踪，git-ignored）。
+
+三个 Board Index 页（Skateboard / Music / Coding）的后端已在 `boards` app 内完整实现：
+
+- **模型**：`boards/models.py` 单文件承载全部内容模型（见 §2 Board Index 内容模型）。
+- **分派**：`boards/board_index.py` 的 `ASSEMBLERS`（`{"skateboard": assemble_skateboard, ...}`）+ 三板 `assemble_*` 函数组装上下文；`BOARD_TEMPLATES` 给出每板模板。
+- **路由/视图**：`boards/views.py` 的 `BoardIndexView`（`/boards/<slug>/`，按 slug 分派 + 404 未知/下线板块）与 `HomieLineView`（htmx 端点 `/boards/<slug>/homie/<node_index>/`，返回 `_selected_line.html` 片段）。`boards/urls.py` 已注册。
+- **Admin**：`SuperuserBoardContentAdmin` 注册 9 个内容模型于 `custom_site`，仅 superuser 可维护；`board` 字段已从表单隐藏（见 §2）。
+- **迁移**：`boards/migrations/0005_board_index_content.py`（10 个 CreateModel + 唯一约束 `unique_homie_node_per_board`）。
+- **测试**：`boards/tests/test_board_index_models.py`（7）+ `test_board_index_views.py`（8）= 15 项全绿；`manage.py test boards` 全量 89 项通过。
+
+详细设计、决策记录与边界见 `boards/guide/`：
+
+- `BOARD_INDEX_BACKEND_GUIDE.md`（82）：单 app 架构、`Board.slug` 判别、单一 `models.py`、分派视图、路由与 htmx 端点、与 `Board`/`BoardMembership`/Policy 边界、决策记录。
+- `SKATEBOARD_BACKEND_GUIDE.md`（80）：`SkateHomie` + `SkateClip`。
+- `MUSIC_BACKEND_GUIDE.md`（80）：Spotify / Apple Music 分离模型。
+- `CODING_BACKEND_GUIDE.md`（80）：`CodingProject` / `CodingPrinciple` / `CodingExperiment`。
+
+### 7.1 如何继续推进（剩余工作）
+
+后端代码已就绪，前端三页为数据驱动 + mock 降级。当前最大缺口是**没有内容种子数据**（`seed_boards` 只写入 `Board` 行，不写内容模型），因此页面目前只走 mock 分支。建议下一步：
+
+1. **填充内容数据（红色/已解）**：已新增 `boards/management/commands/seed_board_index.py`（Faker 驱动，幂等 + `--reset`），填充三块内容模型；三页已渲染真实数据。
+2. **`SkateHomie.avatar` 图片校验与存储策略（黄色）**：本地公开图片约束未定，参考 `docs/guides/BLOG_FOUNDATION_GUIDE.md`（本地）。
+3. **`CodingProject.status` / experiment 取值表（黄色）**：状态枚举与展示文案未定。
+4. **`SkateHomie.call_sign` 与 `name` 展示区分规则（绿色）**：未定。
+5. **Music 叙事区数据建模（绿色）**：Yearly 大数字 / Monthly bars / Companion / Gravity / Cross-Scale 仍静态 mock，仅 archive 与 hero 日期已数据驱动；若需全量数据驱动需更丰富快照建模。
+6. **mock 降级清理决策（绿色）**：后端已接线，决定是否保留模板 `{% empty %}` mock 分支。
+
+> 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。

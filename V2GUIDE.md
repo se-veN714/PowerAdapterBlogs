@@ -2,8 +2,8 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-07-27
-> **状态**: Board Scope Stage 0–6b、邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0–H1 已完成；H2 契约已冻结，下一步实现 H2a 绑定与恢复能力
+> **更新**: 2026-07-28
+> **状态**: Board Scope Stage 0–6b、邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0–H1 已完成；H2a-0–1 加密边界与设备模型已完成，下一步实现 H2a-2 绑定确认
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -25,7 +25,7 @@
 | 版本 | 目标 | 主文档 |
 |---|---|---|
 | v2.4 | accounts 管身份/全局 Group，boards 管 Membership/申请审批/跨 App Policy；Board 创建仅限 superuser | `accounts/PERMISSIONS_GUIDE.md` |
-| v2.4 | 个人博客基础体验：Profile、密码修改、About/隐私、归档、Feed、SEO 与错误页 | `docs/guides/BLOG_FOUNDATION_GUIDE.md` |
+| v2.4 | 个人博客基础体验：Profile、密码修改、About/隐私、归档、Feed、SEO 与错误页 | `docs/guides/BLOG_FOUNDATION_GUIDE.md`（本地，git-ignored） |
 | v2.5 | superuser 证书绑定 + TOTP、Board Manager 强制 TOTP；`/super_admin/` 增加 Nginx mTLS 边界验证 | `accounts/SECURITY_ROADMAP.md` |
 | v2.5+ | 密钥产生、分发、存储、使用、更新、归档、撤销、备份、恢复和销毁 | `accounts/SECURITY_ROADMAP.md` |
 | v2.6+ 候选 | ASGI 基线、异步 Middleware 审计与友情链接异步岛 | 本地试验规划（不入库） |
@@ -70,7 +70,7 @@ sequenceDiagram
 
 截至 2026-07-27，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的各入口接入 `boards.policies`，Stage 6a 已初始化固定全局 Group，Stage 6b 已实现权限申请、分级审批与 Membership 自动写入。下一步进入 Stage 7：停止读取 `is_reviewer` 并观察一个发布周期。
 
-后台加固主线不被 Stage 7 清债阻塞：H2 已在 `accounts/SECURITY_ROADMAP.md` 冻结为 H2a/H2b 两段。H2a 只实现 TOTP 绑定、加密 seed、恢复码与撤销审计，不改变登录；完成绑定和 break-glass 演练后，H2b 才接入密码后置 challenge、防重放、限流和 15 分钟特权 Session。当前尚未生成、保存任何 TOTP seed，也未把 MFA 接入登录链路。
+后台加固主线不被 Stage 7 清债阻塞：H2 已在 `accounts/SECURITY_ROADMAP.md` 冻结为 H2a/H2b 两段。H2a-0 已选定 PyOTP 与 cryptography 并建立 AES-256-GCM 加密边界；H2a-1 已新增单用户单设备、状态/时间戳、防重放时间步与认证版本约束的 encrypted-only 模型。下一步 H2a-2 才生成临时 seed、开放绑定确认和一次性二维码。完成绑定和 break-glass 演练后，H2b 才接入密码后置 challenge、防重放、限流和 15 分钟特权 Session。当前尚未生成、保存任何业务 TOTP seed，也未把 MFA 接入登录链路。
 
 #### 邀请制账号决策（2026-07-26）
 
@@ -80,18 +80,21 @@ sequenceDiagram
 
 #### blog_foundation_linear（2026-07-26，推进中）
 
-按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界；F1 已实现公开作者 Profile、本人资料编辑及带邮箱短时验证的密码修改；F2 已补齐 About、隐私说明和全局入口；F3 已实现公开年月归档、RSS/Atom 与统一公开文章 QuerySet helper；F4 已接入 canonical/Open Graph、Feed 自动发现、robots、公开 Sitemap 与生产错误页；F5 已按 RFC 9116 发布 `security.txt` 并补齐上线检查清单。该路线 F0–F5 与 accounts Stage 6a–6b 均已完成，下一步为 Stage 7 旧授权字段观察。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 [`BLOG_FOUNDATION_GUIDE.md`](docs/guides/BLOG_FOUNDATION_GUIDE.md) 为准。
+按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界；F1 已实现公开作者 Profile、本人资料编辑及带邮箱短时验证的密码修改；F2 已补齐 About、隐私说明和全局入口；F3 已实现公开年月归档、RSS/Atom 与统一公开文章 QuerySet helper；F4 已接入 canonical/Open Graph、Feed 自动发现、robots、公开 Sitemap 与生产错误页；F5 已按 RFC 9116 发布 `security.txt` 并补齐上线检查清单。该路线 F0–F5 与 accounts Stage 6a–6b 均已完成，下一步为 Stage 7 旧授权字段观察。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 `BLOG_FOUNDATION_GUIDE.md`（本地 docs/，git-ignored）为准。
 
-#### 2026-07-27 双分支并行决策
+#### 2026-07-27 三分支并行决策
 
-当前稳定基线完成后从同一提交派生两个分支：
+当前稳定基线完成后从同一提交派生三个分支：
 
 | 分支 | 所有者 | 范围 | 禁止交叉修改 |
 |---|---|---|---|
 | `codex/admin-hardening` | Codex | Stage 6a/6b 前置权限身份、特权认证、Session、审计与 mTLS 应用侧契约 | 不实现 Board Index 视觉，不修改其专用模板/CSS |
+| `codex/board-back` | Codex | Board Index 内容模型、分派视图、路由、Admin、迁移与种子数据；与 `Board`/`BoardMembership`/Policy 边界 | 不修改 MFA/特权认证相关代码（属 admin-hardening） |
 | `codex/board-index-k3` | Kimi K3 | 各 Board 独立 Index 的 Devenir 模板、CSS、展示脚本与空态 | 不修改 Python、Migration、Policy、URLConf、Admin、API 或权限测试 |
 
-两个分支必须使用独立 worktree。后台先冻结只读上下文契约，K3 只消费契约；最终先合并后台数据/权限边界，再合并前端模板，导航与路由由集成方最后接线。具体 HANDOFF 属于本地 Agent 交接材料，不纳入 Git；长期有效边界必须回写本指南或对应 App 文档。
+三个分支必须使用独立 worktree。后台先冻结只读上下文契约，K3 只消费契约；最终先合并后台数据/权限边界（`board-back`），再合并前端模板（`board-index-k3`），导航与路由由集成方最后接线。具体 HANDOFF 属于本地 Agent 交接材料，不纳入 Git；长期有效边界必须回写本指南或对应 App 文档。
+
+> **进展（2026-07-28）**：`codex/board-back` 的 Board Index 后端已落地（内容模型合并入单一 `boards/models.py`、`board` 由模型类型固定、分派视图与路由、`0005`+`0006` 迁移、89 项 `boards` 测试全绿）。内容种子数据（`seed_board_index`，Faker 驱动，幂等+`--reset`）已补齐；Music 叙事区（Yearly 大数字 / Monthly bars / Cross-Scale / Companion / Gravity）已全量数据驱动，模板硬编码 mock 与 `{% empty %}` 假数据分支已清除，死脚本 `music-mock-data.js` 已删除。
 
 ### 0.2 前端架构决策：Devenir HDA，不做全面分离
 

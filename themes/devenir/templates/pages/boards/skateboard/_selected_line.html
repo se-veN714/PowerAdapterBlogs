@@ -21,7 +21,7 @@ Skateboard Board — Selected Line 片段（htmx 交换目标内容）。
 </header>
 <div class="sk-clips">
     {% for clip in clip_list %}
-    {% include 'pages/boards/skateboard/_clip_row.html' with index=forloop.counter|stringformat:"02d" name=clip.title|upper category=clip.category|upper spot=clip.spot filmed=clip.filmed_at|date:"m.d.y" duration=clip.duration status=clip.status notes=clip.notes flip=forloop.counter0|divisibleby:2 video_url=clip.video_url poster_url=clip.thumbnail_url %}
+    {% include 'pages/boards/skateboard/_clip_row.html' with index=forloop.counter|stringformat:"02d" name=clip.title|upper category=clip.category|upper spot=clip.spot filmed=clip.filmed_at|date:"m.d.y" duration=clip.duration_display|default:"" status=clip.status notes=clip.notes flip=forloop.counter0|divisibleby:2 video_url=clip.video_url poster_url=clip.thumbnail_url %}
     {% empty %}
     <div class="sk-empty">
         <strong>NO CLIPS</strong>

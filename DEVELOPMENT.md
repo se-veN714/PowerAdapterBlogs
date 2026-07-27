@@ -174,15 +174,15 @@ Agent HANDOFF、线程上下文和一次性 worktree 任务快照不属于本索
 | 文档 | 内容 |
 |------|------|
 | `V2GUIDE.md` | 最高权重：当前版本、架构与路线决策 |
-| `docs/README.md` | 全项目文档索引 |
-| `docs/guides/DOCUMENTATION_GUIDE.md` | 文档权重、阅读顺序与冲突处理规则 |
+| `docs/README.md`（本地，git-ignored） | 全项目文档索引 |
+| `docs/guides/DOCUMENTATION_GUIDE.md`（本地，git-ignored） | 文档权重、阅读顺序与冲突处理规则 |
 | `CHANGELOG.md` | 全项目变更日志 |
-| `docs/guides/CODING_GUIDE.md` | Python 之禅、Django 分层、Mixin/继承准入条件与 Code Review 清单 |
-| `docs/guides/DJANGO_LTS_UPGRADE.md` | Django 5.2 LTS 版本、兼容边界与升级验证 |
-| `docs/guides/BLOG_FOUNDATION_GUIDE.md` | Profile、账号设置、About、隐私、归档、Feed 与公开站点元数据路线 |
-| `docs/guides/DEPLOYMENT_CHECKLIST.md` | 生产环境变量、部署、冒烟、安全、审计与回滚执行清单 |
+| `docs/guides/CODING_GUIDE.md`（本地，git-ignored） | Python 之禅、Django 分层、Mixin/继承准入条件与 Code Review 清单 |
+| `docs/guides/DJANGO_LTS_UPGRADE.md`（本地，git-ignored） | Django 5.2 LTS 版本、兼容边界与升级验证 |
+| `docs/guides/BLOG_FOUNDATION_GUIDE.md`（本地，git-ignored） | Profile、账号设置、About、隐私、归档、Feed 与公开站点元数据路线 |
+| `docs/guides/DEPLOYMENT_CHECKLIST.md`（本地，git-ignored） | 生产环境变量、部署、冒烟、安全、审计与回滚执行清单 |
 | `DOCUMENTATION_GUIDE.md` | 文档权重、Agent 阅读顺序与冲突处理总则 |
-| `docs/guides/LOGGUIDE.md` | 全项目日志主规范 |
+| `docs/guides/LOGGUIDE.md`（本地，git-ignored） | 全项目日志主规范 |
 | `requirements.txt` | 依赖清单 |
 | `accounts/DEVELOPMENT.md` | 用户模块详细架构 |
 | `security/DEVELOPMENT.md` | 日志完整性详细架构 |

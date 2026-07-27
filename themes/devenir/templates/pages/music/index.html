@@ -38,7 +38,7 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                     <dt>APPLE MUSIC</dt><dd>MONTHLY</dd>
                 </div>
                 <div class="music-source__row">
-                    <dt>LAST MANUAL UPDATE</dt><dd>2026.07.27</dd>
+                    <dt>LAST MANUAL UPDATE</dt><dd>{{ music_updated|default:"—" }}</dd>
                 </div>
             </dl>
         </div>
@@ -65,38 +65,19 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
             <div class="music-card__head">
                 <span class="music-card__num">01</span>
                 <h2 class="music-card__title">CURRENT PERIOD</h2>
-                <span class="music-card__hint">2026.07</span>
+                <span class="music-card__hint">{{ current_period_label|default:"—" }}</span>
             </div>
-            <p class="music-period__sub">RETURN TO LONG-FORM LISTENING</p>
+            <p class="music-period__sub">{% if current_period_artists %}RETURN TO LONG-FORM LISTENING{% else %}—{% endif %}</p>
             <ul class="music-period__artists" role="list" aria-label="Current period artists">
+                {% for artist in current_period_artists %}
                 <li class="music-period__artist">
-                    <span class="music-thumb" aria-hidden="true">WE</span>
+                    <span class="music-thumb" aria-hidden="true">{{ artist.name|slice:":2" }}</span>
                     <div class="music-period__artist-info">
-                        <p class="music-period__artist-name">WORLD'S END GIRLFRIEND</p>
-                        <p class="music-period__artist-tag">CINEMATIC POST-ROCK</p>
+                        <p class="music-period__artist-name">{{ artist.name }}</p>
+                        <p class="music-period__artist-tag">{{ artist.tag }}</p>
                     </div>
                 </li>
-                <li class="music-period__artist">
-                    <span class="music-thumb" aria-hidden="true">TE</span>
-                    <div class="music-period__artist-info">
-                        <p class="music-period__artist-name">TE'</p>
-                        <p class="music-period__artist-tag">ATMOSPHERIC / EMOTIONAL</p>
-                    </div>
-                </li>
-                <li class="music-period__artist">
-                    <span class="music-thumb" aria-hidden="true">AT</span>
-                    <div class="music-period__artist-info">
-                        <p class="music-period__artist-name">ABOUT TESS</p>
-                        <p class="music-period__artist-tag">INSTRUMENTAL / NARRATIVE</p>
-                    </div>
-                </li>
-                <li class="music-period__artist">
-                    <span class="music-thumb" aria-hidden="true">RS</span>
-                    <div class="music-period__artist-info">
-                        <p class="music-period__artist-name">ROUGHSKETCH</p>
-                        <p class="music-period__artist-tag">AMBIENT / EXPERIMENTAL</p>
-                    </div>
-                </li>
+                {% endfor %}
             </ul>
         </div>
     </div>
@@ -114,18 +95,17 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                     <h2 id="music-yearly-title" class="music-card__title">YEARLY OVERVIEW</h2>
                     <span class="music-card__hint">SPOTIFY / ANNUAL</span>
                 </div>
+                {% if yearly %}
                 <div class="music-yearly__main">
                     <div class="music-yearly__figures">
-                        <p class="music-yearly__year">2025</p>
-                        <p class="music-yearly__total">32,481 <span>MIN</span></p>
+                        <p class="music-yearly__year">{{ yearly.year }}</p>
+                        <p class="music-yearly__total">{{ yearly.total }}</p>
                         <div class="music-yearly__core">
                             <p class="music-yearly__core-title">CORE ARTISTS</p>
                             <ol class="music-yearly__core-list">
-                                <li><span class="music-rank">1</span> WORLD'S END GIRLFRIEND</li>
-                                <li><span class="music-rank">2</span> TE'</li>
-                                <li><span class="music-rank">3</span> ABOUT TESS</li>
-                                <li><span class="music-rank">4</span> ROUGHSKETCH</li>
-                                <li><span class="music-rank">5</span> HAIKU SALUT</li>
+                                {% for ca in yearly.core_artists %}
+                                <li><span class="music-rank">{{ ca.rank }}</span> {{ ca.name }}</li>
+                                {% endfor %}
                             </ol>
                         </div>
                     </div>
@@ -134,9 +114,10 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                             <polyline points="0,90 20,70 40,80 60,50 80,65 100,40 120,55 140,35 160,60 180,30 200,50 220,25 240,45 260,20 280,40 300,15"/>
                         </svg>
                         <p class="music-yearly__summary">YEARLY TRACE SUMMARY</p>
-                        <p class="music-yearly__tags">LONG FORM / HIGH REPEAT / POST-ROCK</p>
+                        <p class="music-yearly__tags">{{ yearly.tags }}</p>
                     </div>
                 </div>
+                {% endif %}
             </section>
 
             <section class="music-card music-cross reveal" aria-labelledby="music-cross-title">
@@ -145,39 +126,19 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                     <h2 id="music-cross-title" class="music-card__title">CROSS-SCALE RELATIONS</h2>
                 </div>
                 <ul class="music-cross__list" role="list">
+                    {% for item in cross_scale %}
                     <li class="music-cross__item">
-                        <span class="music-thumb music-thumb--wide" aria-hidden="true">WE</span>
+                        <span class="music-thumb music-thumb--wide" aria-hidden="true">{{ item.name|slice:":2" }}</span>
                         <div class="music-cross__info">
-                            <p class="music-cross__name">WORLD'S END GIRLFRIEND</p>
+                            <p class="music-cross__name">{{ item.name }}</p>
                             <p class="music-cross__scales">
-                                <span class="music-cross__scale">YEARLY: <strong>STABLE</strong></span>
-                                <span class="music-cross__scale">MONTHLY: <strong>CONTINUOUS</strong></span>
+                                <span class="music-cross__scale">YEARLY: <strong>{{ item.yearly }}</strong></span>
+                                <span class="music-cross__scale">MONTHLY: <strong>{{ item.monthly }}</strong></span>
                             </p>
                         </div>
                         <svg class="music-spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,18 13,14 26,16 39,9 52,13 65,7 80,10"/></svg>
                     </li>
-                    <li class="music-cross__item">
-                        <span class="music-thumb music-thumb--wide" aria-hidden="true">RS</span>
-                        <div class="music-cross__info">
-                            <p class="music-cross__name">ROUGHSKETCH</p>
-                            <p class="music-cross__scales">
-                                <span class="music-cross__scale">YEARLY: <strong>HIGH</strong></span>
-                                <span class="music-cross__scale">MONTHLY: <strong>CONCENTRATED</strong></span>
-                            </p>
-                        </div>
-                        <svg class="music-spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,20 13,10 26,14 39,6 52,12 65,4 80,8"/></svg>
-                    </li>
-                    <li class="music-cross__item">
-                        <span class="music-thumb music-thumb--wide" aria-hidden="true">AT</span>
-                        <div class="music-cross__info">
-                            <p class="music-cross__name">ABOUT TESS</p>
-                            <p class="music-cross__scales">
-                                <span class="music-cross__scale">YEARLY: <strong>—</strong></span>
-                                <span class="music-cross__scale">MONTHLY: <strong>RISING</strong></span>
-                            </p>
-                        </div>
-                        <svg class="music-spark music-spark--rise" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,20 13,18 26,15 39,12 52,9 65,6 80,3"/></svg>
-                    </li>
+                    {% endfor %}
                 </ul>
             </section>
 
@@ -187,27 +148,21 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                     <h2 id="music-archive-yearly-title" class="music-card__title">SPOTIFY / YEARLY ARCHIVE</h2>
                 </div>
                 <ul class="music-archive__list" role="list">
+                    {% for row in spotify_archive %}
                     <li class="music-archive__row">
-                        <span class="music-archive__label">2025</span>
-                        <span class="music-archive__value">32,481 MIN</span>
-                        <span class="music-archive__tags">LONG FORM / HIGH REPEAT / POST-ROCK</span>
-                        <a class="music-archive__link" href="#" data-period="2025">VIEW ARCHIVE &rarr;</a>
+                        <span class="music-archive__label">{{ row.label }}</span>
+                        <span class="music-archive__value">{{ row.value }}</span>
+                        <span class="music-archive__tags">{{ row.tags }}</span>
+                        <a class="music-archive__link" href="#" data-period="{{ row.period }}">VIEW ARCHIVE &rarr;</a>
                         <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
                     </li>
-                    <li class="music-archive__row">
-                        <span class="music-archive__label">2024</span>
-                        <span class="music-archive__value">28,913 MIN</span>
-                        <span class="music-archive__tags">MELODIC / ATMOSPHERIC / EMOTIONAL</span>
-                        <a class="music-archive__link" href="#" data-period="2024">VIEW ARCHIVE &rarr;</a>
-                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
+                    {% empty %}
+                    <li class="music-archive__row music-archive__row--empty">
+                        <span class="music-archive__label">—</span>
+                        <span class="music-archive__value">NO ARCHIVE YET</span>
+                        <span class="music-archive__tags"></span>
                     </li>
-                    <li class="music-archive__row">
-                        <span class="music-archive__label">2023</span>
-                        <span class="music-archive__value">24,607 MIN</span>
-                        <span class="music-archive__tags">AMBIENT / EXPERIMENTAL / FIELD</span>
-                        <a class="music-archive__link" href="#" data-period="2023">VIEW ARCHIVE &rarr;</a>
-                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
-                    </li>
+                    {% endfor %}
                 </ul>
             </section>
         </div>
@@ -222,28 +177,25 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                 </div>
                 <div class="music-monthly__chart">
                     <ul class="music-monthly__bars" role="list" aria-label="Monthly listening minutes">
-                        <li><span class="music-monthly__month">JAN</span><span class="music-monthly__bar" style="--pct:62%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">18,412 MIN</span></li>
-                        <li><span class="music-monthly__month">FEB</span><span class="music-monthly__bar" style="--pct:51%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">15,291 MIN</span></li>
-                        <li><span class="music-monthly__month">MAR</span><span class="music-monthly__bar" style="--pct:60%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">17,850 MIN</span></li>
-                        <li><span class="music-monthly__month">APR</span><span class="music-monthly__bar" style="--pct:68%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">20,114 MIN</span></li>
-                        <li><span class="music-monthly__month">MAY</span><span class="music-monthly__bar" style="--pct:65%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">19,387 MIN</span></li>
-                        <li><span class="music-monthly__month">JUN</span><span class="music-monthly__bar" style="--pct:51%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">15,220 MIN</span></li>
-                        <li class="is-current"><span class="music-monthly__month">JUL</span><span class="music-monthly__bar" style="--pct:75%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">22,476 MIN</span></li>
+                        {% for bar in monthly_bars %}
+                        <li{% if bar.is_current %} class="is-current"{% endif %}><span class="music-monthly__month">{{ bar.month_label }}</span><span class="music-monthly__bar" style="--pct:{{ bar.pct }}%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">{{ bar.minutes_display }} MIN</span></li>
+                        {% endfor %}
                     </ul>
                 </div>
+                {% if monthly_current %}
                 <div class="music-monthly__current">
                     <div class="music-monthly__current-head">
-                        <span class="music-monthly__current-month">2026.07</span>
-                        <span class="music-monthly__current-min">22,476 MIN</span>
+                        <span class="music-monthly__current-month">{{ monthly_current.label }}</span>
+                        <span class="music-monthly__current-min">{{ monthly_current.minutes_display }} MIN</span>
                     </div>
                     <p class="music-monthly__current-title">CORE ARTISTS</p>
                     <ul class="music-monthly__current-artists" role="list">
-                        <li><span class="music-thumb" aria-hidden="true">WE</span><span class="music-monthly__artist-name">WORLD'S END GIRLFRIEND</span></li>
-                        <li><span class="music-thumb" aria-hidden="true">TE</span><span class="music-monthly__artist-name">TE'</span></li>
-                        <li><span class="music-thumb" aria-hidden="true">AT</span><span class="music-monthly__artist-name">ABOUT TESS</span></li>
-                        <li><span class="music-thumb" aria-hidden="true">RS</span><span class="music-monthly__artist-name">ROUGHSKETCH</span></li>
+                        {% for artist in current_period_artists %}
+                        <li><span class="music-thumb" aria-hidden="true">{{ artist.name|slice:":2" }}</span><span class="music-monthly__artist-name">{{ artist.name }}</span></li>
+                        {% endfor %}
                     </ul>
                 </div>
+                {% endif %}
             </section>
 
             <section class="music-card music-companion reveal" aria-labelledby="music-companion-title">
@@ -252,15 +204,17 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                     <h2 id="music-companion-title" class="music-card__title">LONGEST COMPANION</h2>
                     <span class="music-card__hint">SPOTIFY / MULTI-YEAR</span>
                 </div>
+                {% if companion %}
                 <div class="music-companion__body">
-                    <span class="music-thumb music-thumb--xl" aria-hidden="true">WE</span>
+                    <span class="music-thumb music-thumb--xl" aria-hidden="true">{{ companion.name|slice:":2" }}</span>
                     <div class="music-companion__info">
-                        <p class="music-companion__name">WORLD'S END GIRLFRIEND</p>
-                        <p class="music-companion__since">SINCE 2022</p>
-                        <p class="music-companion__stat">7,872 MIN / 3 YEARS</p>
-                        <p class="music-companion__note">A CONSTANT PRESENCE IN LONG NIGHTS.</p>
+                        <p class="music-companion__name">{{ companion.name }}</p>
+                        <p class="music-companion__since">{{ companion.since }}</p>
+                        <p class="music-companion__stat">{{ companion.stat }}</p>
+                        <p class="music-companion__note">{{ companion.note }}</p>
                     </div>
                 </div>
+                {% endif %}
             </section>
 
             <section class="music-card music-gravity reveal" aria-labelledby="music-gravity-title">
@@ -269,15 +223,17 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                     <h2 id="music-gravity-title" class="music-card__title">RECENT GRAVITY</h2>
                     <span class="music-card__hint">APPLE MUSIC / RECENT</span>
                 </div>
+                {% if gravity %}
                 <div class="music-companion__body">
-                    <span class="music-thumb music-thumb--xl" aria-hidden="true">AT</span>
+                    <span class="music-thumb music-thumb--xl" aria-hidden="true">{{ gravity.name|slice:":2" }}</span>
                     <div class="music-companion__info">
-                        <p class="music-companion__name">ABOUT TESS</p>
-                        <p class="music-companion__since">SINCE 2026.04</p>
-                        <p class="music-companion__stat">7,165 MIN / 4 MONTHS</p>
-                        <p class="music-companion__note">RISING WITH EACH MONTH.</p>
+                        <p class="music-companion__name">{{ gravity.name }}</p>
+                        <p class="music-companion__since">{{ gravity.since }}</p>
+                        <p class="music-companion__stat">{{ gravity.stat }}</p>
+                        <p class="music-companion__note">{{ gravity.note }}</p>
                     </div>
                 </div>
+                {% endif %}
             </section>
 
             <section class="music-card music-archive-monthly reveal" aria-labelledby="music-archive-monthly-title">
@@ -286,27 +242,21 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                     <h2 id="music-archive-monthly-title" class="music-card__title">APPLE MUSIC / MONTHLY ARCHIVE</h2>
                 </div>
                 <ul class="music-archive__list" role="list">
+                    {% for row in apple_archive %}
                     <li class="music-archive__row">
-                        <span class="music-archive__label">2026.07</span>
-                        <span class="music-archive__value">22,476 MIN</span>
-                        <span class="music-archive__tags">RETURN TO LONG-FORM LISTENING</span>
-                        <a class="music-archive__link" href="#" data-period="2026.07">VIEW ARCHIVE &rarr;</a>
+                        <span class="music-archive__label">{{ row.label }}</span>
+                        <span class="music-archive__value">{{ row.value }}</span>
+                        <span class="music-archive__tags">{{ row.tags }}</span>
+                        <a class="music-archive__link" href="#" data-period="{{ row.period }}">VIEW ARCHIVE &rarr;</a>
                         <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
                     </li>
-                    <li class="music-archive__row">
-                        <span class="music-archive__label">2026.06</span>
-                        <span class="music-archive__value">16,220 MIN</span>
-                        <span class="music-archive__tags">FOCUS / EXPLORATION</span>
-                        <a class="music-archive__link" href="#" data-period="2026.06">VIEW ARCHIVE &rarr;</a>
-                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
+                    {% empty %}
+                    <li class="music-archive__row music-archive__row--empty">
+                        <span class="music-archive__label">—</span>
+                        <span class="music-archive__value">NO ARCHIVE YET</span>
+                        <span class="music-archive__tags"></span>
                     </li>
-                    <li class="music-archive__row">
-                        <span class="music-archive__label">2026.05</span>
-                        <span class="music-archive__value">19,387 MIN</span>
-                        <span class="music-archive__tags">DIVERSE / NEW PATTERNS</span>
-                        <a class="music-archive__link" href="#" data-period="2026.05">VIEW ARCHIVE &rarr;</a>
-                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
-                    </li>
+                    {% endfor %}
                 </ul>
             </section>
         </div>
@@ -324,6 +274,5 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/music/music-mock-data.js' %}"></script>
 <script src="{% static 'js/music/music.js' %}"></script>
 {% endblock %}

@@ -7,7 +7,7 @@
 
 1. `V2GUIDE.md`（100）：当前版本、跨 App 架构、路线和用户已确认决策的唯一最高依据。
 2. `DOCUMENTATION_GUIDE.md`（95）：文档权重、冲突处理和维护规则。
-3. 专项安全/架构 Guide（86–90）：例如 `accounts/SECURITY_ROADMAP.md`、`docs/guides/BLOG_FOUNDATION_GUIDE.md`。
+3. 专项安全/架构 Guide（86–90）：例如 `accounts/SECURITY_ROADMAP.md`、`docs/guides/BLOG_FOUNDATION_GUIDE.md`（本地，git-ignored）。
 4. App `DEVELOPMENT.md`（85）：当前模块实现、测试入口、模型和 TODO。
 5. 根 `DEVELOPMENT.md`（82）与专项交接文档（78–84）：开发入口、部署清单和受限任务边界。
 6. `CHANGELOG.md`（60）：历史记录，不覆盖当前代码和高权重文档。

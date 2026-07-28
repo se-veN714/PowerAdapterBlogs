@@ -8,6 +8,7 @@ Board 与 Board Index 内容模型全部注册到默认 admin.site（= Superuser
 
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.utils.html import format_html
 
 from PowerAdapterBlogs.cus_site import custom_site
 from boards.models import (
@@ -95,17 +96,17 @@ class BoardAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return request.user.is_active and request.user.is_superuser
 
+    @admin.display(description="Glitch 颜色")
     def glitch_color_preview(self, obj):
         """在列表中展示颜色预览色块。"""
-        return (
-            f'<span style="display:inline-block;width:20px;height:20px;'
-            f"background:{obj.glitch_color};border-radius:3px;"
-            f'border:1px solid rgba(255,255,255,0.15);"></span>'
-            f" <code>{obj.glitch_color}</code>"
+        return format_html(
+            '<span style="display:inline-block;width:20px;height:20px;'
+            "background:{};border-radius:3px;"
+            'border:1px solid rgba(255,255,255,0.15);"></span> '
+            "<code>{}</code>",
+            obj.glitch_color,
+            obj.glitch_color,
         )
-
-    glitch_color_preview.short_description = "Glitch 颜色"
-    glitch_color_preview.allow_tags = True
 
 
 @admin.register(BoardMembership)
@@ -311,7 +312,17 @@ class SkateClipAdmin(SuperuserBoardContentAdmin):
 
 @admin.register(SpotifyRecord)
 class SpotifyRecordAdmin(SuperuserBoardContentAdmin):
-    list_display = ["title", "scope", "year", "month", "kind", "label", "value", "display_order", "updated_at"]
+    list_display = [
+        "title",
+        "scope",
+        "year",
+        "month",
+        "kind",
+        "label",
+        "value",
+        "display_order",
+        "updated_at",
+    ]
     list_filter = ["scope", "year", "kind"]
     search_fields = ["title", "label", "value"]
     ordering = ["-year", "-month", "display_order"]
@@ -319,7 +330,17 @@ class SpotifyRecordAdmin(SuperuserBoardContentAdmin):
 
 @admin.register(AppleRecord)
 class AppleRecordAdmin(SuperuserBoardContentAdmin):
-    list_display = ["title", "scope", "year", "month", "kind", "label", "value", "display_order", "updated_at"]
+    list_display = [
+        "title",
+        "scope",
+        "year",
+        "month",
+        "kind",
+        "label",
+        "value",
+        "display_order",
+        "updated_at",
+    ]
     list_filter = ["scope", "year", "kind"]
     search_fields = ["title", "label", "value"]
     ordering = ["-year", "-month", "display_order"]

@@ -94,7 +94,7 @@ sequenceDiagram
 
 三个分支必须使用独立 worktree。后台先冻结只读上下文契约，K3 只消费契约；最终先合并后台数据/权限边界（`board-back`），再合并前端模板（`board-index-k3`），导航与路由由集成方最后接线。具体 HANDOFF 属于本地 Agent 交接材料，不纳入 Git；长期有效边界必须回写本指南或对应 App 文档。
 
-> **进展（2026-07-28）**：`codex/board-back` 的 Board Index 后端已落地（内容模型合并入单一 `boards/models.py`、`board` 由模型类型固定、分派视图与路由、`0005`+`0006` 迁移、89 项 `boards` 测试全绿）。内容种子数据（`seed_board_index`，Faker 驱动，幂等+`--reset`）已补齐；Music 叙事区（Yearly 大数字 / Monthly bars / Cross-Scale / Companion / Gravity）已全量数据驱动，模板硬编码 mock 与 `{% empty %}` 假数据分支已清除，死脚本 `music-mock-data.js` 已删除。
+> **进展（2026-07-28）**：`codex/board-back` 的 Board Index 后端已落地（内容模型合并入单一 `boards/models.py`、固定 Board 归属由 Model 层强制、分派视图与路由、数据保留型音乐扁平化迁移）。内容种子数据（`seed_board_index`，Faker 驱动，幂等+`--reset`）已补齐；Music 叙事区（Yearly 大数字 / Monthly bars / Cross-Scale / Companion / Gravity）已全量数据驱动，模板硬编码 mock 与 `{% empty %}` 假数据分支已清除，死脚本 `music-mock-data.js` 已删除。合并前已在 Python 3.13.5 + Django 5.2.16 环境通过 system check、迁移漂移检查、100 项 Board/全局角色回归及 215 项全项目测试（16 项未来 MFA 契约按设计跳过）。
 
 ### 0.2 前端架构决策：Devenir HDA，不做全面分离
 

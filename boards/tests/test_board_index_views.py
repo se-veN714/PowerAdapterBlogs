@@ -28,6 +28,14 @@ def _board(slug, name="Board", active=True):
 
 
 class BoardIndexDispatchTests(TestCase):
+    def test_home_context_excludes_active_boards_without_an_index(self):
+        unsupported = _board("journal")
+
+        response = self.client.get(reverse("index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(unsupported, list(response.context["boards"]))
+
     def test_unknown_slug_returns_404(self):
         response = self.client.get(reverse("boards:index", args=["nope"]))
         self.assertEqual(response.status_code, 404)
@@ -84,9 +92,7 @@ class BoardIndexDispatchTests(TestCase):
             name="Jimmy Cao",
             joined_at=datetime.date(2024, 1, 1),
         )
-        SkateClip.objects.create(
-            homie=homie, order=1, title="Bs Flip", is_public=True
-        )
+        SkateClip.objects.create(homie=homie, order=1, title="Bs Flip", is_public=True)
         url = reverse("boards:homie-line", args=[board.slug, 3])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -100,13 +106,22 @@ class BoardIndexDispatchTests(TestCase):
     def test_music_renders_archive_data_driven(self):
         board = _board("music")
         SpotifyRecord.objects.create(
-            board=board, title="2025 Wrap", year=2025,
-            label="TOTAL", value="32,481", unit="MIN",
-            kind="total", display_order=0,
+            board=board,
+            title="2025 Wrap",
+            year=2025,
+            label="TOTAL",
+            value="32,481",
+            unit="MIN",
+            kind="total",
+            display_order=0,
         )
         SpotifyRecord.objects.create(
-            board=board, title="2025 Wrap", year=2025,
-            label="POST-ROCK", kind="tag", display_order=1,
+            board=board,
+            title="2025 Wrap",
+            year=2025,
+            label="POST-ROCK",
+            kind="tag",
+            display_order=1,
         )
         response = self.client.get(reverse("boards:index", args=["music"]))
         self.assertEqual(response.status_code, 200)
@@ -118,15 +133,23 @@ class BoardIndexDispatchTests(TestCase):
     def test_coding_renders_lists_data_driven(self):
         board = _board("coding")
         CodingProject.objects.create(
-            board=board, index=1, name="Monitor", description="Training log viewer",
-            stack="Python / SSE", year=2026, status="in use",
+            board=board,
+            index=1,
+            name="Monitor",
+            description="Training log viewer",
+            stack="Python / SSE",
+            year=2026,
+            status="in use",
         )
         CodingPrinciple.objects.create(
-            board=board, index=1, title="Need before framework",
+            board=board,
+            index=1,
+            title="Need before framework",
             body="Start from the problem.",
         )
         CodingExperiment.objects.create(
-            board=board, date=datetime.date(2026, 7, 1),
+            board=board,
+            date=datetime.date(2026, 7, 1),
             title="HTMX partial refresh",
         )
         response = self.client.get(reverse("boards:index", args=["coding"]))

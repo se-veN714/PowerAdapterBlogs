@@ -18,6 +18,7 @@
 import functools
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
@@ -28,6 +29,7 @@ from PowerAdapterBlogs.image_validation import validate_uploaded_image
 # Board 解析辅助：content 模型的 board 由模型类型固定，default 调用时按 slug 解析，
 # 不经过 Admin 表单，杜绝“任意板块可选”的错误。
 # ---------------------------------------------------------------------------
+
 
 def _board_for_slug(slug):
     """按 slug 解析固定的归属 Board（每次 save 一次查询，开销可忽略）。"""
@@ -40,6 +42,36 @@ def _board_default(slug):
     返回 functools.partial 而非 lambda，因为 Django 迁移序列化器无法序列化 lambda。
     """
     return functools.partial(_board_for_slug, slug)
+
+
+class FixedBoardContentModel(models.Model):
+    """Base class for content whose model type determines its Board."""
+
+    BOARD_SLUG = None
+
+    class Meta:
+        abstract = True
+
+    def _validate_fixed_board(self):
+        if not self.BOARD_SLUG:
+            raise TypeError(f"{type(self).__name__} must declare BOARD_SLUG")
+        database = self._state.db
+        belongs_to_expected_board = (
+            self.board_id is not None
+            and Board.objects.using(database)
+            .filter(pk=self.board_id, slug=self.BOARD_SLUG)
+            .exists()
+        )
+        if not belongs_to_expected_board:
+            raise ValidationError({"board": f"内容必须归属 {self.BOARD_SLUG} 板块。"})
+
+    def clean(self):
+        super().clean()
+        self._validate_fixed_board()
+
+    def save(self, *args, **kwargs):
+        self._validate_fixed_board()
+        return super().save(*args, **kwargs)
 
 
 class Board(models.Model):
@@ -254,6 +286,7 @@ class BoardAccessRequest(models.Model):
 # Skateboard Board Index 内容模型：成员节点 + 动作片段。
 # ---------------------------------------------------------------------------
 
+
 class ClipCategory(models.TextChoices):
     ROTATION = "rotation", "Rotation"
     DISPLACEMENT = "displacement", "Displacement"
@@ -279,7 +312,7 @@ class Stance(models.TextChoices):
     GOOFY = "goofy", "Goofy"
 
 
-class SkateHomie(models.Model):
+class SkateHomie(FixedBoardContentModel):
     """Skateboard Crew 的一个成员节点（展示内容实体）。
 
     与 BoardMembership 分离；通过 memberships M2M 仅作展示关联。
@@ -399,12 +432,13 @@ class SkateClip(models.Model):
 # Music Board Index 内容模型：听歌场域时间序列化分析。
 # ---------------------------------------------------------------------------
 
+
 class MusicScope(models.TextChoices):
     YEARLY = "yearly", "Yearly"
     MONTHLY = "monthly", "Monthly"
 
 
-class MusicRecordBase(models.Model):
+class MusicRecordBase(FixedBoardContentModel):
     """某 provider 在某周期的一条音乐指标记录（平铺，无快照/条目拆分）。
 
     同一 (year, month) 的多条记录组成一个"快照组"——由 assembler 在 Python
@@ -435,9 +469,7 @@ class MusicRecordBase(models.Model):
         verbose_name="周期",
     )
     year = models.PositiveSmallIntegerField(verbose_name="年份")
-    month = models.PositiveSmallIntegerField(
-        null=True, blank=True, verbose_name="月份"
-    )
+    month = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="月份")
     label = models.CharField(max_length=64, verbose_name="指标")
     value = models.CharField(max_length=64, verbose_name="值")
     value2 = models.CharField(max_length=64, blank=True, verbose_name="次值")
@@ -471,7 +503,8 @@ class AppleRecord(MusicRecordBase):
 # Coding Board Index 内容模型：项目档案索引。
 # ---------------------------------------------------------------------------
 
-class CodingProject(models.Model):
+
+class CodingProject(FixedBoardContentModel):
     """Selected Projects 中的一个项目。
 
     所属板块固定为 coding（由模型类型决定，不可在 Admin 手动选择）。
@@ -508,7 +541,7 @@ class CodingProject(models.Model):
         return f"{self.index:02d} {self.name}"
 
 
-class CodingPrinciple(models.Model):
+class CodingPrinciple(FixedBoardContentModel):
     """Working Principles 中的一条原则。
 
     所属板块固定为 coding（由模型类型决定，不可在 Admin 手动选择）。
@@ -538,7 +571,7 @@ class CodingPrinciple(models.Model):
         return f"{self.index:02d} {self.title}"
 
 
-class CodingExperiment(models.Model):
+class CodingExperiment(FixedBoardContentModel):
     """Small Experiments 中的一次小型实验。
 
     所属板块固定为 coding（由模型类型决定，不可在 Admin 手动选择）。
@@ -571,6 +604,7 @@ __all__ = [
     "Board",
     "BoardMembership",
     "BoardAccessRequest",
+    "FixedBoardContentModel",
     "SkateHomie",
     "SkateClip",
     "ClipCategory",

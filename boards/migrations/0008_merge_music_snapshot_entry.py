@@ -6,87 +6,263 @@ import functools
 from django.db import migrations, models
 
 
-class Migration(migrations.Migration):
+def _copy_entries_to_records(apps, schema_editor, provider):
+    database = schema_editor.connection.alias
+    Entry = apps.get_model("boards", f"{provider}Entry")
+    Record = apps.get_model("boards", f"{provider}Record")
 
+    entries = Entry.objects.using(database).select_related("snapshot").order_by("pk")
+    for entry in entries.iterator():
+        snapshot = entry.snapshot
+        record = Record.objects.using(database).create(
+            board_id=snapshot.board_id,
+            title=snapshot.title,
+            scope=snapshot.scope,
+            year=snapshot.year,
+            month=snapshot.month,
+            label=entry.label,
+            value=entry.value,
+            value2=entry.value2,
+            unit=entry.unit,
+            kind=entry.kind,
+            note=entry.note,
+            display_order=entry.display_order,
+        )
+        Record.objects.using(database).filter(pk=record.pk).update(
+            created_at=entry.created_at,
+            updated_at=snapshot.updated_at,
+        )
+
+
+def copy_music_entries_forward(apps, schema_editor):
+    for provider in ("Apple", "Spotify"):
+        _copy_entries_to_records(apps, schema_editor, provider)
+
+
+def _copy_records_to_entries(apps, schema_editor, provider):
+    database = schema_editor.connection.alias
+    Entry = apps.get_model("boards", f"{provider}Entry")
+    Record = apps.get_model("boards", f"{provider}Record")
+    Snapshot = apps.get_model("boards", f"{provider}Snapshot")
+    snapshots = {}
+
+    for record in Record.objects.using(database).order_by("pk").iterator():
+        snapshot_key = (
+            record.board_id,
+            record.title,
+            record.scope,
+            record.year,
+            record.month,
+        )
+        snapshot = snapshots.get(snapshot_key)
+        if snapshot is None:
+            snapshot = Snapshot.objects.using(database).create(
+                board_id=record.board_id,
+                title=record.title,
+                scope=record.scope,
+                year=record.year,
+                month=record.month,
+            )
+            Snapshot.objects.using(database).filter(pk=snapshot.pk).update(
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+            )
+            snapshots[snapshot_key] = snapshot
+
+        entry = Entry.objects.using(database).create(
+            snapshot_id=snapshot.pk,
+            label=record.label,
+            value=record.value,
+            value2=record.value2,
+            unit=record.unit,
+            kind=record.kind,
+            note=record.note,
+            display_order=record.display_order,
+        )
+        Entry.objects.using(database).filter(pk=entry.pk).update(
+            created_at=record.created_at,
+        )
+
+
+def copy_music_entries_backward(apps, schema_editor):
+    for provider in ("Apple", "Spotify"):
+        _copy_records_to_entries(apps, schema_editor, provider)
+
+
+class Migration(migrations.Migration):
     dependencies = [
-        ('boards', '0007_alter_applesnapshot_board_and_more'),
+        ("boards", "0007_alter_applesnapshot_board_and_more"),
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='applesnapshot',
-            name='board',
-        ),
-        migrations.RemoveField(
-            model_name='spotifyentry',
-            name='snapshot',
-        ),
-        migrations.RemoveField(
-            model_name='spotifysnapshot',
-            name='board',
-        ),
         migrations.CreateModel(
-            name='AppleRecord',
+            name="AppleRecord",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(max_length=128, verbose_name='标题')),
-                ('scope', models.CharField(choices=[('yearly', 'Yearly'), ('monthly', 'Monthly')], default='yearly', max_length=16, verbose_name='周期')),
-                ('year', models.PositiveSmallIntegerField(verbose_name='年份')),
-                ('month', models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='月份')),
-                ('label', models.CharField(max_length=64, verbose_name='指标')),
-                ('value', models.CharField(max_length=64, verbose_name='值')),
-                ('value2', models.CharField(blank=True, max_length=64, verbose_name='次值')),
-                ('unit', models.CharField(blank=True, max_length=16, verbose_name='单位')),
-                ('kind', models.CharField(blank=True, max_length=32, verbose_name='类型')),
-                ('note', models.TextField(blank=True, verbose_name='注记')),
-                ('display_order', models.PositiveSmallIntegerField(default=0, verbose_name='排序')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='创建时间')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='更新时间')),
-                ('board', models.ForeignKey(default=functools.partial(boards.models._board_for_slug, *('music',), **{}), help_text='由模型类型固定为 music，不可手动选择', on_delete=django.db.models.deletion.CASCADE, related_name='%(class)ss', to='boards.board', verbose_name='板块')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("title", models.CharField(max_length=128, verbose_name="标题")),
+                (
+                    "scope",
+                    models.CharField(
+                        choices=[("yearly", "Yearly"), ("monthly", "Monthly")],
+                        default="yearly",
+                        max_length=16,
+                        verbose_name="周期",
+                    ),
+                ),
+                ("year", models.PositiveSmallIntegerField(verbose_name="年份")),
+                (
+                    "month",
+                    models.PositiveSmallIntegerField(
+                        blank=True, null=True, verbose_name="月份"
+                    ),
+                ),
+                ("label", models.CharField(max_length=64, verbose_name="指标")),
+                ("value", models.CharField(max_length=64, verbose_name="值")),
+                (
+                    "value2",
+                    models.CharField(blank=True, max_length=64, verbose_name="次值"),
+                ),
+                (
+                    "unit",
+                    models.CharField(blank=True, max_length=16, verbose_name="单位"),
+                ),
+                (
+                    "kind",
+                    models.CharField(blank=True, max_length=32, verbose_name="类型"),
+                ),
+                ("note", models.TextField(blank=True, verbose_name="注记")),
+                (
+                    "display_order",
+                    models.PositiveSmallIntegerField(default=0, verbose_name="排序"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="创建时间"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="更新时间"),
+                ),
+                (
+                    "board",
+                    models.ForeignKey(
+                        default=functools.partial(
+                            boards.models._board_for_slug, *("music",), **{}
+                        ),
+                        help_text="由模型类型固定为 music，不可手动选择",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(class)ss",
+                        to="boards.board",
+                        verbose_name="板块",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Apple Music 记录',
-                'verbose_name_plural': 'Apple Music 记录',
-                'ordering': ['-year', '-month', 'display_order', 'pk'],
-                'abstract': False,
+                "verbose_name": "Apple Music 记录",
+                "verbose_name_plural": "Apple Music 记录",
+                "ordering": ["-year", "-month", "display_order", "pk"],
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='SpotifyRecord',
+            name="SpotifyRecord",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(max_length=128, verbose_name='标题')),
-                ('scope', models.CharField(choices=[('yearly', 'Yearly'), ('monthly', 'Monthly')], default='yearly', max_length=16, verbose_name='周期')),
-                ('year', models.PositiveSmallIntegerField(verbose_name='年份')),
-                ('month', models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='月份')),
-                ('label', models.CharField(max_length=64, verbose_name='指标')),
-                ('value', models.CharField(max_length=64, verbose_name='值')),
-                ('value2', models.CharField(blank=True, max_length=64, verbose_name='次值')),
-                ('unit', models.CharField(blank=True, max_length=16, verbose_name='单位')),
-                ('kind', models.CharField(blank=True, max_length=32, verbose_name='类型')),
-                ('note', models.TextField(blank=True, verbose_name='注记')),
-                ('display_order', models.PositiveSmallIntegerField(default=0, verbose_name='排序')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='创建时间')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='更新时间')),
-                ('board', models.ForeignKey(default=functools.partial(boards.models._board_for_slug, *('music',), **{}), help_text='由模型类型固定为 music，不可手动选择', on_delete=django.db.models.deletion.CASCADE, related_name='%(class)ss', to='boards.board', verbose_name='板块')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("title", models.CharField(max_length=128, verbose_name="标题")),
+                (
+                    "scope",
+                    models.CharField(
+                        choices=[("yearly", "Yearly"), ("monthly", "Monthly")],
+                        default="yearly",
+                        max_length=16,
+                        verbose_name="周期",
+                    ),
+                ),
+                ("year", models.PositiveSmallIntegerField(verbose_name="年份")),
+                (
+                    "month",
+                    models.PositiveSmallIntegerField(
+                        blank=True, null=True, verbose_name="月份"
+                    ),
+                ),
+                ("label", models.CharField(max_length=64, verbose_name="指标")),
+                ("value", models.CharField(max_length=64, verbose_name="值")),
+                (
+                    "value2",
+                    models.CharField(blank=True, max_length=64, verbose_name="次值"),
+                ),
+                (
+                    "unit",
+                    models.CharField(blank=True, max_length=16, verbose_name="单位"),
+                ),
+                (
+                    "kind",
+                    models.CharField(blank=True, max_length=32, verbose_name="类型"),
+                ),
+                ("note", models.TextField(blank=True, verbose_name="注记")),
+                (
+                    "display_order",
+                    models.PositiveSmallIntegerField(default=0, verbose_name="排序"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="创建时间"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="更新时间"),
+                ),
+                (
+                    "board",
+                    models.ForeignKey(
+                        default=functools.partial(
+                            boards.models._board_for_slug, *("music",), **{}
+                        ),
+                        help_text="由模型类型固定为 music，不可手动选择",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(class)ss",
+                        to="boards.board",
+                        verbose_name="板块",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Spotify 记录',
-                'verbose_name_plural': 'Spotify 记录',
-                'ordering': ['-year', '-month', 'display_order', 'pk'],
-                'abstract': False,
+                "verbose_name": "Spotify 记录",
+                "verbose_name_plural": "Spotify 记录",
+                "ordering": ["-year", "-month", "display_order", "pk"],
+                "abstract": False,
             },
         ),
-        migrations.DeleteModel(
-            name='AppleEntry',
+        migrations.RunPython(
+            copy_music_entries_forward,
+            copy_music_entries_backward,
         ),
         migrations.DeleteModel(
-            name='AppleSnapshot',
+            name="AppleEntry",
         ),
         migrations.DeleteModel(
-            name='SpotifyEntry',
+            name="AppleSnapshot",
         ),
         migrations.DeleteModel(
-            name='SpotifySnapshot',
+            name="SpotifyEntry",
+        ),
+        migrations.DeleteModel(
+            name="SpotifySnapshot",
         ),
     ]

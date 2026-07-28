@@ -126,6 +126,7 @@
         .nav a {
             color: var(--text-muted); text-decoration: none;
             font-size: 0.9rem; font-weight: 500; transition: color 0.2s;
+            white-space: nowrap;
         }
         .nav a:hover, .nav a.active { color: var(--text); }
         .nav a.active { color: var(--accent); }
@@ -263,10 +264,14 @@
         }
 
         /* ===== Responsive ===== */
-        @media (max-width: 768px) {
+        /* Authenticated users can have four additional actions. Switch to the
+           drawer before flex shrinking turns their Chinese labels vertical. */
+        @media (max-width: 1180px) {
             .nav { display: none; }
             .menu-toggle { display: flex; }
             .sidebar-overlay { display: block; }
+        }
+        @media (max-width: 768px) {
             .container { padding: 0 1.25rem; }
         }
     </style>

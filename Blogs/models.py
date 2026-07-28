@@ -169,6 +169,10 @@ class Post(models.Model):
                 fields=["status", "-pv"],
                 name="pv_status_idx",
             ),
+            models.Index(
+                fields=["status", "-created_time", "-id"],
+                name="post_status_created_idx",
+            ),
         ]
         permissions = [
             ("publish_post", "可发布/下架文章"),

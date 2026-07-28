@@ -18,6 +18,10 @@
     .access-field select:focus, .access-field textarea:focus { outline: 1px solid var(--accent-soft); border-color: var(--accent-soft); }
     .access-help { color: var(--text-tertiary); font-size: .72rem; margin-top: .4rem; }
     .access-errors { color: var(--error-accent); font-size: .78rem; margin-bottom: 1rem; }
+    .access-verification { border: 1px dashed var(--accent-deep); background: var(--bg-primary); padding: 1rem; }
+    .access-verification strong { color: var(--accent); }
+    .access-verification p { color: var(--text-secondary); font-size: .78rem; line-height: 1.7; margin-bottom: .9rem; }
+    .access-verification-status { color: var(--accent-soft); font-size: .72rem; letter-spacing: .08em; margin-bottom: .9rem; }
     .request-list { display: grid; gap: .8rem; }
     .request-item { border-left: 2px solid var(--accent-deep); background: var(--bg-primary); padding: .85rem 1rem; }
     .request-head { display: flex; justify-content: space-between; gap: 1rem; }
@@ -27,6 +31,13 @@
     .request-item[data-status="approved"] .request-status { color: var(--accent); }
     .request-item[data-status="rejected"] .request-status { color: var(--error-accent); }
     .access-empty { color: var(--text-tertiary); font-size: .82rem; padding: 1rem 0; }
+    .access-dialog { width: min(92vw, 520px); color: var(--text-primary); background: var(--bg-elevated); border: 1px solid var(--accent-deep); padding: 0; box-shadow: 0 24px 80px rgba(0,0,0,.72); }
+    .access-dialog::backdrop { background: rgba(3, 7, 7, .78); backdrop-filter: blur(4px); }
+    .access-dialog-body { padding: 1.75rem; position: relative; }
+    .access-dialog-kicker { color: var(--accent-soft); font-size: .7rem; letter-spacing: .18em; }
+    .access-dialog h2 { color: var(--accent); font-size: 1.5rem; margin: .55rem 0 .8rem; }
+    .access-dialog p { color: var(--text-secondary); line-height: 1.8; }
+    .access-dialog-actions { display: flex; justify-content: flex-end; margin-top: 1.4rem; }
     @media (max-width: 768px) { .access-shell { padding: 4rem 1.25rem 1rem; } .access-grid { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
@@ -40,6 +51,10 @@
     <div class="access-grid">
         <section class="access-panel" aria-labelledby="new-request-title">
             <h2 id="new-request-title">NEW REQUEST</h2>
+            {% if email_verified %}
+            <p class="access-verification-status">
+                MAIL VERIFIED · <span data-email-grant-countdown data-seconds="{{ email_verification_remaining }}">{{ email_verification_remaining }}s</span>
+            </p>
             <form method="post">
                 {% csrf_token %}
                 {% if form.non_field_errors %}<div class="access-errors">{{ form.non_field_errors }}</div>{% endif %}
@@ -53,6 +68,12 @@
                 {% endfor %}
                 <button class="btn-accent" type="submit">提交审核</button>
             </form>
+            {% else %}
+            <div class="access-verification">
+                <p><strong>需要短时邮箱确认。</strong><br>验证账号邮箱后，可在 10 分钟内提交一次申请；申请成功后授权立即失效。</p>
+                <a class="btn-accent" href="{{ email_verification_url }}">验证邮箱并继续</a>
+            </div>
+            {% endif %}
         </section>
 
         <section class="access-panel" aria-labelledby="history-title">
@@ -76,4 +97,45 @@
         </section>
     </div>
 </section>
+
+{% if show_submission_dialog %}
+<dialog class="access-dialog" id="access-success-dialog" aria-labelledby="access-dialog-title">
+    <div class="access-dialog-body">
+        <p class="access-dialog-kicker">REQUEST / TRANSMITTED</p>
+        <h2 id="access-dialog-title">申请已提交</h2>
+        <p>请等待板块管理员审核，或主动联系管理员说明申请用途。处理结果会持续更新在右侧的 REQUEST HISTORY 中。</p>
+        <div class="access-dialog-actions"><button class="btn-accent" type="button" data-dialog-close>知道了</button></div>
+    </div>
+</dialog>
+<script>
+    (() => {
+        const dialog = document.getElementById('access-success-dialog');
+        if (!dialog) return;
+        if (typeof dialog.showModal === 'function') dialog.showModal();
+        else dialog.setAttribute('open', '');
+        dialog.querySelector('[data-dialog-close]')?.addEventListener('click', () => dialog.close());
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) dialog.close();
+        });
+    })();
+</script>
+{% endif %}
+<script>
+    (() => {
+        const countdown = document.querySelector('[data-email-grant-countdown]');
+        if (!countdown) return;
+        let remaining = Number.parseInt(countdown.dataset.seconds || '0', 10);
+        const render = () => {
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            countdown.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        };
+        render();
+        const timer = window.setInterval(() => {
+            remaining = Math.max(0, remaining - 1);
+            render();
+            if (remaining === 0) window.clearInterval(timer);
+        }, 1000);
+    })();
+</script>
 {% endblock %}

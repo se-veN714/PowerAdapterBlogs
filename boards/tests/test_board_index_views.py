@@ -103,6 +103,57 @@ class BoardIndexDispatchTests(TestCase):
         url = reverse("boards:homie-line", args=["skateboard", 99])
         self.assertEqual(self.client.get(url).status_code, 404)
 
+    def test_skate_clip_list_is_public_and_newest_filmed_first(self):
+        board = _board("skateboard")
+        homie = SkateHomie.objects.create(
+            board=board,
+            node_index=1,
+            name="Maria",
+            joined_at=datetime.date(2024, 1, 1),
+        )
+        SkateClip.objects.create(
+            homie=homie,
+            title="Older Public",
+            filmed_at=datetime.date(2024, 1, 1),
+            is_public=True,
+        )
+        SkateClip.objects.create(
+            homie=homie,
+            title="Newest Public",
+            filmed_at=datetime.date(2025, 1, 1),
+            is_public=True,
+        )
+        SkateClip.objects.create(
+            homie=homie,
+            title="Private Clip",
+            filmed_at=datetime.date(2026, 1, 1),
+            is_public=False,
+        )
+
+        response = self.client.get(reverse("boards:skate-clip-list"))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertLess(content.index("NEWEST PUBLIC"), content.index("OLDER PUBLIC"))
+        self.assertNotIn("PRIVATE CLIP", content)
+
+    def test_skateboard_cycle_renders_both_portraits_in_shared_box(self):
+        board = _board("skateboard")
+        homie = SkateHomie.objects.create(
+            board=board,
+            node_index=1,
+            name="Maria",
+            joined_at=datetime.date(2024, 1, 1),
+        )
+        SkateClip.objects.create(homie=homie, order=1, title="First", is_public=True)
+        SkateClip.objects.create(homie=homie, order=2, title="Second", is_public=True)
+
+        response = self.client.get(reverse("boards:index", args=["skateboard"]))
+
+        self.assertContains(response, "FIRST")
+        self.assertContains(response, "SECOND")
+        self.assertContains(response, 'class="sk-clip-pair reveal"', html=False)
+
     def test_music_renders_archive_data_driven(self):
         board = _board("music")
         SpotifyRecord.objects.create(

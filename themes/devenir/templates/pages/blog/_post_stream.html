@@ -36,9 +36,19 @@
                     <span class="meta-date">{{ post.created_time|date:"Y-m-d" }}</span>
                     <span class="meta-sep">//</span>
                     <span class="meta-views">{{ post.pv }} views</span>
+                    {% if show_profile_post_management %}
+                        <span class="meta-sep">//</span>
+                        <span class="meta-status meta-status--{{ post.status }}">{{ post.get_status_display }}</span>
+                    {% endif %}
                     {% if post.can_edit %}
                         <span class="meta-sep">//</span>
                         <a href="{% url 'Blogs:post_edit' slug=post.slug %}" class="meta-edit">EDIT</a>
+                    {% endif %}
+                    {% if post.can_submit %}
+                        <span class="meta-sep">//</span>
+                        <form class="meta-action-form" method="post" action="{% url 'Blogs:post_submit_review' slug=post.slug %}">
+                            {% csrf_token %}<button type="submit" class="meta-edit meta-submit">SUBMIT REVIEW</button>
+                        </form>
                     {% endif %}
                 </div>
             </div>

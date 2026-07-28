@@ -85,6 +85,23 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Desktop Mega Menu: native details keeps keyboard semantics; these handlers
+    // add the expected click-outside and Escape dismissal behavior.
+    const desktopMenu = document.querySelector('.nav-menu');
+    if (desktopMenu) {
+        document.addEventListener('click', function (event) {
+            if (desktopMenu.open && !desktopMenu.contains(event.target)) {
+                desktopMenu.removeAttribute('open');
+            }
+        });
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && desktopMenu.open) {
+                desktopMenu.removeAttribute('open');
+                desktopMenu.querySelector('summary').focus();
+            }
+        });
+    }
+
     // ===== Scroll Reveal =====
     const revealObserver = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
@@ -138,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ===== Editorial Section Glitch Observer =====
-    // sessionStorage 去重：同一会话内 glitch 入场动画只播放一次
+    // sessionStorage 只去重文字扰动；扫描线入场每次加载主页都播放。
     const glitchStorageKey = 'devenir_glitch_played';
     const glitchPlayed = sessionStorage.getItem(glitchStorageKey);
 
@@ -147,24 +164,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (entry.isIntersecting) {
                 const section = entry.target;
 
-                if (glitchPlayed) {
-                    // 已播放过：直接标记为已完成，跳过动画
+                // 扫描线和板块入场在每次页面加载时播放；仅文字扰动按会话去重。
+                section.classList.add('editorial-entering');
+                setTimeout(function () {
+                    section.classList.remove('editorial-entering');
                     section.classList.add('editorial-entered');
-                    const scrambleTargets = section.querySelectorAll('[data-scramble-text]');
-                    scrambleTargets.forEach(function (el) {
-                        if (!el.dataset.original) {
-                            el.dataset.original = el.textContent;
-                        }
-                    });
-                } else {
-                    // 首次播放：完整 glitch 入场
-                    section.classList.add('editorial-entering');
+                }, 300);
 
-                    setTimeout(function () {
-                        section.classList.remove('editorial-entering');
-                        section.classList.add('editorial-entered');
-                    }, 300);
-
+                if (!glitchPlayed) {
                     const scrambleTargets = section.querySelectorAll('[data-scramble-text]');
                     scrambleTargets.forEach(function (el, idx) {
                         setTimeout(function () { scrambleText(el); }, 400 + idx * 150);

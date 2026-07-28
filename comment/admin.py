@@ -3,7 +3,6 @@ import logging
 from django.contrib import admin, messages
 
 from PowerAdapterBlogs.base_admin import DashboardAdminMixin
-from PowerAdapterBlogs.cus_site import custom_site
 from boards.policies import (
     can_access_comment_admin,
     can_moderate_comment,
@@ -74,9 +73,8 @@ class CommentAdmin(admin.ModelAdmin):
     mark_spam.short_description = "标记为垃圾"
 
 
-@admin.register(Comment, site=custom_site)
 class BoardScopedCommentAdmin(DashboardAdminMixin, admin.ModelAdmin):
-    """Board-scoped, read-only moderation queue for Stage 4."""
+    """Legacy adapter retained for tests; reviews now live at /review/comments/."""
 
     list_display = [
         "content_short_description",

@@ -12,6 +12,9 @@ from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.contrib.admin.models import CHANGE, LogEntry
+from django.contrib.contenttypes.models import ContentType
 from django.utils.crypto import constant_time_compare, salted_hmac
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -20,6 +23,39 @@ from django.utils import timezone
 from .models import AccountInvitation
 
 logger = logging.getLogger(__name__)
+
+
+@transaction.atomic
+def set_account_active_state(*, actor, target, is_active: bool):
+    """Enable or disable a regular account through the scoped review surface."""
+    if not actor.is_active or not (
+        actor.is_superuser or actor.has_perm("accounts.manage_user_accounts")
+    ):
+        raise PermissionDenied("当前账号没有用户审核权限。")
+    if target.is_superuser or target.is_dashboard_user or target.is_staff:
+        raise ValidationError("特权账号只能由超级用户在系统后台中管理。")
+    if actor.pk == target.pk:
+        raise ValidationError("不能在审核中心停用自己的账号。")
+    if is_active and AccountInvitation.objects.filter(
+        user=target,
+        accepted_at__isnull=True,
+    ).exists():
+        raise ValidationError("该账号尚未完成邮箱邀请，不能绕过邀请流程直接启用。")
+    if target.is_active == is_active:
+        return target
+
+    locked = type(target).objects.select_for_update().get(pk=target.pk)
+    locked.is_active = is_active
+    locked.save(update_fields=("is_active",))
+    LogEntry.objects.log_action(
+        user_id=actor.pk,
+        content_type_id=ContentType.objects.get_for_model(locked).pk,
+        object_id=str(locked.pk),
+        object_repr=str(locked),
+        action_flag=CHANGE,
+        change_message=f"moderation_center account_active={is_active}",
+    )
+    return locked
 
 PASSWORD_CODE_SENT = "sent"
 PASSWORD_CODE_COOLDOWN = "cooldown"
@@ -30,6 +66,26 @@ PASSWORD_CODE_EXPIRED = "expired"
 PASSWORD_CODE_LOCKED = "locked"
 PASSWORD_CODE_VERIFIED = "verified"
 PASSWORD_EMAIL_VERIFIED_SESSION_KEY = "password_email_verified"
+BOARD_ACCESS_EMAIL_VERIFIED_SESSION_KEY = "board_access_email_verified"
+EMAIL_PURPOSE_PASSWORD_CHANGE = "password_change"
+EMAIL_PURPOSE_BOARD_ACCESS = "board_access"
+
+EMAIL_VERIFICATION_PURPOSES = {
+    EMAIL_PURPOSE_PASSWORD_CHANGE: {
+        "hmac_salt": "accounts.password-change-email",
+        "subject": "PowerAdapter 修改密码验证码",
+        "text_template": "emails/accounts/password_change_code.txt",
+        "html_template": "emails/accounts/password_change_code.html",
+        "session_key": PASSWORD_EMAIL_VERIFIED_SESSION_KEY,
+    },
+    EMAIL_PURPOSE_BOARD_ACCESS: {
+        "hmac_salt": "accounts.board-access-email",
+        "subject": "PowerAdapter 板块权限申请验证码",
+        "text_template": "emails/accounts/board_access_code.txt",
+        "html_template": "emails/accounts/board_access_code.html",
+        "session_key": BOARD_ACCESS_EMAIL_VERIFIED_SESSION_KEY,
+    },
+}
 
 
 def invitation_token_digest(token):
@@ -123,18 +179,26 @@ def accept_account_invitation(token, password, *, expected_invitation_id):
         return user
 
 
-def _password_code_identity(user_id, session_key):
-    raw = f"{user_id}:{session_key}".encode("utf-8")
+def _email_code_identity(user_id, session_key, purpose):
+    raw = f"{purpose}:{user_id}:{session_key}".encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
 
 
-def _password_code_key(user_id, session_key, suffix):
-    return f"password-email:{suffix}:{_password_code_identity(user_id, session_key)}"
+def _email_code_key(user_id, session_key, purpose, suffix):
+    identity = _email_code_identity(user_id, session_key, purpose)
+    return f"account-email:{purpose}:{suffix}:{identity}"
 
 
-def _password_user_key(user_id, suffix):
+def _email_user_key(user_id, suffix):
     digest = hashlib.sha256(str(user_id).encode("ascii")).hexdigest()
-    return f"password-email:{suffix}:{digest}"
+    return f"account-email:{suffix}:{digest}"
+
+
+def _email_purpose_config(purpose):
+    try:
+        return EMAIL_VERIFICATION_PURPOSES[purpose]
+    except KeyError as exc:
+        raise ValueError("Unsupported email verification purpose") from exc
 
 
 def _increment_cache_counter(key, timeout):
@@ -147,10 +211,11 @@ def _increment_cache_counter(key, timeout):
         return 1
 
 
-def password_change_code_pending(user_id, session_key):
+def email_verification_code_pending(user_id, session_key, purpose):
     if not session_key:
         return False
-    return cache.get(_password_code_key(user_id, session_key, "code")) is not None
+    _email_purpose_config(purpose)
+    return cache.get(_email_code_key(user_id, session_key, purpose, "code")) is not None
 
 
 def _deadline_remaining_seconds(deadline):
@@ -161,29 +226,31 @@ def _deadline_remaining_seconds(deadline):
     return max(0, math.ceil(remaining))
 
 
-def password_change_resend_remaining_seconds(user_id):
-    deadline = cache.get(_password_user_key(user_id, "cooldown"))
+def email_verification_resend_remaining_seconds(user_id):
+    deadline = cache.get(_email_user_key(user_id, "cooldown"))
     return _deadline_remaining_seconds(deadline)
 
 
-def password_change_code_remaining_seconds(user_id, session_key):
+def email_verification_code_remaining_seconds(user_id, session_key, purpose):
     if not session_key:
         return 0
-    deadline = cache.get(_password_code_key(user_id, session_key, "expires"))
+    _email_purpose_config(purpose)
+    deadline = cache.get(_email_code_key(user_id, session_key, purpose, "expires"))
     return _deadline_remaining_seconds(deadline)
 
 
-def issue_password_change_email_code(user, session_key):
-    """向当前账号邮箱发送短时验证码，并限制冷却与发送次数。"""
+def issue_email_verification_code(user, session_key, purpose):
+    """发送 purpose 隔离的短时验证码；冷却和小时上限按账号共享。"""
+    config = _email_purpose_config(purpose)
     cooldown = settings.PASSWORD_EMAIL_SEND_COOLDOWN_SECONDS
-    cooldown_key = _password_user_key(user.pk, "cooldown")
+    cooldown_key = _email_user_key(user.pk, "cooldown")
     cooldown_deadline = timezone.now().timestamp() + cooldown
     if not cache.add(cooldown_key, cooldown_deadline, timeout=cooldown):
         return PASSWORD_CODE_COOLDOWN
 
     send_window = settings.PASSWORD_EMAIL_SEND_WINDOW_SECONDS
     send_count = _increment_cache_counter(
-        _password_user_key(user.pk, "send-count"),
+        _email_user_key(user.pk, "send-count"),
         send_window,
     )
     if send_count > settings.PASSWORD_EMAIL_MAX_SENDS:
@@ -191,27 +258,31 @@ def issue_password_change_email_code(user, session_key):
 
     code = f"{secrets.randbelow(1_000_000):06d}"
     digest = salted_hmac(
-        "accounts.password-change-email",
-        f"{user.pk}:{session_key}:{code}",
+        config["hmac_salt"],
+        f"{purpose}:{user.pk}:{session_key}:{code}",
     ).hexdigest()
     ttl = settings.PASSWORD_EMAIL_CODE_TTL_SECONDS
-    cache.set(_password_code_key(user.pk, session_key, "code"), digest, timeout=ttl)
     cache.set(
-        _password_code_key(user.pk, session_key, "expires"),
+        _email_code_key(user.pk, session_key, purpose, "code"),
+        digest,
+        timeout=ttl,
+    )
+    cache.set(
+        _email_code_key(user.pk, session_key, purpose, "expires"),
         timezone.now().timestamp() + ttl,
         timeout=ttl,
     )
-    cache.delete(_password_code_key(user.pk, session_key, "attempts"))
+    cache.delete(_email_code_key(user.pk, session_key, purpose, "attempts"))
 
     context = {"user": user, "code": code, "ttl_minutes": max(1, ttl // 60)}
     message = EmailMultiAlternatives(
-        subject="PowerAdapter 修改密码验证码",
-        body=render_to_string("emails/accounts/password_change_code.txt", context),
+        subject=config["subject"],
+        body=render_to_string(config["text_template"], context),
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[user.email],
     )
     message.attach_alternative(
-        render_to_string("emails/accounts/password_change_code.html", context),
+        render_to_string(config["html_template"], context),
         "text/html",
     )
     try:
@@ -219,38 +290,39 @@ def issue_password_change_email_code(user, session_key):
     except Exception:
         cache.delete_many(
             (
-                _password_code_key(user.pk, session_key, "code"),
-                _password_code_key(user.pk, session_key, "expires"),
+                _email_code_key(user.pk, session_key, purpose, "code"),
+                _email_code_key(user.pk, session_key, purpose, "expires"),
             )
         )
-        logger.exception("修改密码验证码发送失败: user_id=%s", user.pk)
+        logger.exception("邮箱验证码发送失败: user_id=%s purpose=%s", user.pk, purpose)
         return PASSWORD_CODE_SEND_FAILED
-    logger.info("修改密码验证码已发送: user_id=%s", user.pk)
+    logger.info("邮箱验证码已发送: user_id=%s purpose=%s", user.pk, purpose)
     return PASSWORD_CODE_SENT
 
 
-def verify_password_change_email_code(user, session_key, code):
-    """校验当前 Session 的验证码；永不记录或返回验证码明文。"""
-    code_key = _password_code_key(user.pk, session_key, "code")
+def verify_email_verification_code(user, session_key, purpose, code):
+    """校验 purpose + 用户 + Session 绑定的验证码；不记录验证码明文。"""
+    config = _email_purpose_config(purpose)
+    code_key = _email_code_key(user.pk, session_key, purpose, "code")
     expected_digest = cache.get(code_key)
     if expected_digest is None:
         return PASSWORD_CODE_EXPIRED
 
-    attempts_key = _password_code_key(user.pk, session_key, "attempts")
+    attempts_key = _email_code_key(user.pk, session_key, purpose, "attempts")
     attempts = _increment_cache_counter(
         attempts_key,
         settings.PASSWORD_EMAIL_CODE_TTL_SECONDS,
     )
     submitted_digest = salted_hmac(
-        "accounts.password-change-email",
-        f"{user.pk}:{session_key}:{code}",
+        config["hmac_salt"],
+        f"{purpose}:{user.pk}:{session_key}:{code}",
     ).hexdigest()
     if constant_time_compare(expected_digest, submitted_digest):
         cache.delete_many(
             (
                 code_key,
                 attempts_key,
-                _password_code_key(user.pk, session_key, "expires"),
+                _email_code_key(user.pk, session_key, purpose, "expires"),
             )
         )
         return PASSWORD_CODE_VERIFIED
@@ -258,38 +330,97 @@ def verify_password_change_email_code(user, session_key, code):
         cache.delete_many(
             (
                 code_key,
-                _password_code_key(user.pk, session_key, "expires"),
+                _email_code_key(user.pk, session_key, purpose, "expires"),
             )
         )
-        logger.warning("修改密码验证码尝试次数耗尽: user_id=%s", user.pk)
+        logger.warning(
+            "邮箱验证码尝试次数耗尽: user_id=%s purpose=%s",
+            user.pk,
+            purpose,
+        )
         return PASSWORD_CODE_LOCKED
     return PASSWORD_CODE_INVALID
 
 
-def mark_password_email_verified(request):
-    request.session[PASSWORD_EMAIL_VERIFIED_SESSION_KEY] = {
+def mark_email_verification_verified(request, purpose):
+    config = _email_purpose_config(purpose)
+    request.session[config["session_key"]] = {
         "user_id": request.user.pk,
+        "purpose": purpose,
         "verified_at": timezone.now().timestamp(),
     }
 
 
-def password_email_is_verified(request):
-    return password_email_verification_remaining_seconds(request) > 0
+def email_verification_is_verified(request, purpose):
+    return email_verification_remaining_seconds(request, purpose) > 0
 
 
-def password_email_verification_remaining_seconds(request):
-    verification = request.session.get(PASSWORD_EMAIL_VERIFIED_SESSION_KEY)
-    if not isinstance(verification, dict) or verification.get("user_id") != request.user.pk:
+def email_verification_remaining_seconds(request, purpose):
+    config = _email_purpose_config(purpose)
+    verification = request.session.get(config["session_key"])
+    if (
+        not isinstance(verification, dict)
+        or verification.get("user_id") != request.user.pk
+        or verification.get("purpose", purpose) != purpose
+    ):
         return 0
     try:
         age = timezone.now().timestamp() - float(verification["verified_at"])
     except (KeyError, TypeError, ValueError):
         return 0
     if age < 0 or age > settings.PASSWORD_EMAIL_VERIFIED_TTL_SECONDS:
-        request.session.pop(PASSWORD_EMAIL_VERIFIED_SESSION_KEY, None)
+        request.session.pop(config["session_key"], None)
         return 0
     return max(0, math.ceil(settings.PASSWORD_EMAIL_VERIFIED_TTL_SECONDS - age))
 
 
+def clear_email_verification(request, purpose):
+    config = _email_purpose_config(purpose)
+    request.session.pop(config["session_key"], None)
+
+
+# Password-change compatibility API. Existing callers and session migrations keep working.
+def password_change_code_pending(user_id, session_key):
+    return email_verification_code_pending(
+        user_id, session_key, EMAIL_PURPOSE_PASSWORD_CHANGE
+    )
+
+
+def password_change_resend_remaining_seconds(user_id):
+    return email_verification_resend_remaining_seconds(user_id)
+
+
+def password_change_code_remaining_seconds(user_id, session_key):
+    return email_verification_code_remaining_seconds(
+        user_id, session_key, EMAIL_PURPOSE_PASSWORD_CHANGE
+    )
+
+
+def issue_password_change_email_code(user, session_key):
+    return issue_email_verification_code(
+        user, session_key, EMAIL_PURPOSE_PASSWORD_CHANGE
+    )
+
+
+def verify_password_change_email_code(user, session_key, code):
+    return verify_email_verification_code(
+        user, session_key, EMAIL_PURPOSE_PASSWORD_CHANGE, code
+    )
+
+
+def mark_password_email_verified(request):
+    mark_email_verification_verified(request, EMAIL_PURPOSE_PASSWORD_CHANGE)
+
+
+def password_email_is_verified(request):
+    return email_verification_is_verified(request, EMAIL_PURPOSE_PASSWORD_CHANGE)
+
+
+def password_email_verification_remaining_seconds(request):
+    return email_verification_remaining_seconds(
+        request, EMAIL_PURPOSE_PASSWORD_CHANGE
+    )
+
+
 def clear_password_email_verification(request):
-    request.session.pop(PASSWORD_EMAIL_VERIFIED_SESSION_KEY, None)
+    clear_email_verification(request, EMAIL_PURPOSE_PASSWORD_CHANGE)

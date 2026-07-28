@@ -23,7 +23,12 @@ from boards.models import (
     SpotifyRecord,
 )
 
-__all__ = ["ASSEMBLERS", "BOARD_TEMPLATES", "assemble_context"]
+__all__ = [
+    "ASSEMBLERS",
+    "BOARD_TEMPLATES",
+    "assemble_context",
+    "prepare_skate_clips",
+]
 
 
 BOARD_TEMPLATES = {
@@ -47,6 +52,22 @@ def _homie_line_url(board_slug, node_index):
     return reverse("boards:homie-line", args=[board_slug, node_index])
 
 
+def prepare_skate_clips(clips):
+    """Decorate clips and group each display cycle as 2 portrait + 3 landscape."""
+    prepared = list(clips)
+    for index, clip in enumerate(prepared, start=1):
+        clip.duration_display = _format_duration(clip.duration)
+        clip.display_index = f"{index:02d}"
+
+    return [
+        {
+            "vertical": prepared[start : start + 2],
+            "horizontal": prepared[start + 2 : start + 5],
+        }
+        for start in range(0, len(prepared), 5)
+    ]
+
+
 def assemble_skateboard(board):
     """组装 Skateboard Index 上下文：成员节点 + 首个成员的公开片段。
 
@@ -68,13 +89,13 @@ def assemble_skateboard(board):
             .select_related("homie")
             .order_by("order", "pk")
         )
-        for clip in clip_list:
-            clip.duration_display = _format_duration(clip.duration)
+    clip_groups = prepare_skate_clips(clip_list)
 
     return {
         "homies": homies,
         "selected_homie": selected,
         "clip_list": clip_list,
+        "clip_groups": clip_groups,
         # open_node_url 保持占位（决策 5：无公开投稿），模板据此禁用按钮
         "open_node_url": None,
     }

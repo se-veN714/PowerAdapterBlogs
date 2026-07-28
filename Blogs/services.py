@@ -111,9 +111,9 @@ def commit_post_form(
 def submit_post_for_review(*, post: Post, user) -> Post:
     locked_post = Post.objects.select_for_update().get(pk=post.pk)
     if not can_submit_post(user, locked_post):
-        raise PermissionDenied("You cannot submit this post for review.")
+        raise PermissionDenied("当前账号不能提交这篇文章。")
     if locked_post.status != Post.STATUS_DRAFT:
-        raise ValidationError("Only draft posts can be submitted for review.")
+        raise ValidationError("只有草稿可以提交审核。")
 
     from_status = locked_post.status
     locked_post.status = Post.STATUS_REVIEW
@@ -132,9 +132,9 @@ def submit_post_for_review(*, post: Post, user) -> Post:
 def approve_post(*, post: Post, user) -> Post:
     locked_post = Post.objects.select_for_update().get(pk=post.pk)
     if not can_publish_post(user, locked_post):
-        raise PermissionDenied("You cannot publish this post.")
+        raise PermissionDenied("当前账号不能发布这篇文章。")
     if locked_post.status != Post.STATUS_REVIEW:
-        raise ValidationError("Only posts under review can be published.")
+        raise ValidationError("只有审核中的文章可以通过并发布。")
 
     from_status = locked_post.status
     locked_post.status = Post.STATUS_NORMAL
@@ -153,9 +153,9 @@ def approve_post(*, post: Post, user) -> Post:
 def reject_post(*, post: Post, user) -> Post:
     locked_post = Post.objects.select_for_update().get(pk=post.pk)
     if not can_review_post(user, locked_post):
-        raise PermissionDenied("You cannot reject this post.")
+        raise PermissionDenied("当前账号不能驳回这篇文章。")
     if locked_post.status != Post.STATUS_REVIEW:
-        raise ValidationError("Only posts under review can be rejected.")
+        raise ValidationError("只有审核中的文章可以驳回为草稿。")
 
     from_status = locked_post.status
     locked_post.status = Post.STATUS_DRAFT
@@ -174,9 +174,9 @@ def reject_post(*, post: Post, user) -> Post:
 def unpublish_post(*, post: Post, user) -> Post:
     locked_post = Post.objects.select_for_update().get(pk=post.pk)
     if not can_publish_post(user, locked_post):
-        raise PermissionDenied("You cannot unpublish this post.")
+        raise PermissionDenied("当前账号不能下架这篇文章。")
     if locked_post.status != Post.STATUS_NORMAL:
-        raise ValidationError("Only published posts can be unpublished.")
+        raise ValidationError("只有已发布文章可以下架。")
 
     from_status = locked_post.status
     locked_post.status = Post.STATUS_DELETE

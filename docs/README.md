@@ -18,6 +18,7 @@
 |---|---:|---|
 | [DOCUMENTATION_GUIDE.md](guides/DOCUMENTATION_GUIDE.md) | 99 | 文档阅读顺序、作用域和冲突规则 |
 | [CODING_GUIDE.md](guides/CODING_GUIDE.md) | 95 | Python/Django 编码硬约束 |
+| [GIT_AGENT_WORKFLOW_GUIDE.md](guides/GIT_AGENT_WORKFLOW_GUIDE.md) | 89 | Git 分支、worktree、多 Agent 交接、ref 快照与事故恢复流程 |
 | [BLOG_FOUNDATION_GUIDE.md](guides/BLOG_FOUNDATION_GUIDE.md) | 87 | Profile、账号设置、About、隐私、归档、Feed 与站点元数据实施路线 |
 | [DJANGO_LTS_UPGRADE.md](guides/DJANGO_LTS_UPGRADE.md) | 86 | Django 5.2 LTS 升级记录与能力边界 |
 | [LOGGUIDE.md](guides/LOGGUIDE.md) | 75 | 全项目日志主规范 |

@@ -1142,6 +1142,12 @@
     border-color: var(--accent-soft);
 }
 
+.meta-action-form { display: inline-flex; margin: 0; }
+.meta-submit { background: transparent; font-family: var(--font-mono); cursor: pointer; }
+.meta-status { color: var(--warning-accent); }
+.meta-status--1 { color: var(--accent-soft); }
+.meta-status--2 { color: var(--warning-accent); }
+
 .revision-compare-form {
     display: flex;
     align-items: end;
@@ -1900,6 +1906,24 @@
     .cate-cards { grid-template-columns: 1fr; }
     .comment-form { flex-direction: column; }
     .comment-form .form-row { flex-direction: column; }
+}
+
+.comment-identity,
+.comment-login-required p {
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+}
+.comment-identity strong { color: var(--accent-soft); }
+.comment-login-required .btn-comment {
+    align-self: flex-start;
+    text-decoration: none;
+}
+.comment-pending {
+    margin-left: 0.55rem;
+    color: var(--warning-accent);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
 }
 
 /* ===== Public Archive ===== */

@@ -4,12 +4,34 @@
 
 ## [2026-07-29]
 
+### Stage 7 审核入口收敛
+
+- 新增 `/review/` 统一审核中心，汇总账号、板块权限、稿件与评论审核；业务授权继续由全局 Permission、Board Policy 和既有事务 Service 裁决。
+- `/dashboard/` 收紧为 active `dashboard_user` 或 superuser，UserManagers、SiteOperators 与 Board Manager 不再因 Group/Membership 自动获得 AdminSite 外壳。
+- `dashboard_user` 纳入 MFA 强制对象；MyUser、BoardAccessRequest、Comment 的业务审核入口移出 Dashboard，避免形成第二套状态修改路径。
+- UserManager 只能启停非 staff、非 dashboard、非 superuser 普通账号，且不能绕过尚未完成的邮箱邀请；Board Manager 继续只能审批所属板块可授予角色。
+- 明确 Board Manager 是 `BoardMembership.role` 而非 Django Group，用户编辑页不显示该组属于正确行为。
+
+### Git 与多 Agent 交接治理
+
+- 固化“先向用户确认，再由主 Agent 从已提交 SHA 创建新的 `codex/<task>` 分支和独立 worktree”；接收 Agent 不得操作 branch/ref/worktree 生命周期。
+- 针对 `refs/heads/codex/` 丢失事件补充 ref/worktree 快照、分步创建、全量核验、立即停手和 reflog 恢复规范；本地执行手册与 WorkBuddy memory 均保持 git-ignored。
+
+### Devenir 投稿与审核体验修复
+
+- Board 权限申请成功后显示一次性的 Devenir 中央确认层，明确提示等待审核或主动联系管理员，申请历史仍在原页更新。
+- Board 权限申请提交前强制短时邮箱验证：复用 accounts purpose 隔离的验证码、冷却、小时上限和失败锁定；改密凭据不可互用，申请成功立即消费 10 分钟 grant；40 项相关定向契约与 Ruff 检查通过。
+- 评论表单移除匿名昵称输入，服务端从登录账号 Profile/username 确定作者并忽略伪造 nickname；未登录用户只显示登录入口。
+- 新增 `/Blogs/review/` Board-scoped 稿件流程页，按有效状态展示提审、通过、驳回和下架操作；Admin 分开报告无权限与状态不匹配。
+- “PUBLISHED / 可下架”增加 Board、Tag、作者和标题/摘要组合筛选；以每批 8 篇的签名游标进行 htmx 懒加载，片段请求不执行顶层分页 COUNT 或重查其他状态栏；新增 `status/created_time/id` 复合索引支撑顺序读取。
+- 修复窄桌面切换汉堡导航后 Hero 仍保留 `100vh` 造成的大面积顶部空白；本轮 53 项定向回归与 Ruff 检查通过。
+
 ### accounts_linear Stage 7（观察期开始）
 
 - 移除 `is_reviewer` 的 Admin 展示/分配入口、superuser 默认赋值和 Board 测试账号写入；旧旗标不再形成新的运行时状态。
 - 增加旧旗标无授权效果的回归测试；字段与模型层防篡改保护暂留一个发布周期，删除迁移归入 Stage 8。
 - 新服务器日常运维入口确定为 Tailscale + 非 root SSH key + 按需 `sudo`；TLS 1.3 mTLS、密码与 TOTP 继续保护应用管理面。
-- 记录后续 Board 缺口：申请前复用短时邮箱验证、Index 接入文章流、Skate Clip 的 1 竖 3 横比例契约，以及按 Board Policy 隔离的内容管理工作区；均为未实现 TODO。
+- 记录后续 Board 缺口；其中申请前短时邮箱验证已于同日后续补丁完成，尚余 Index 文章流、Skate Clip 的 1 竖 3 横比例契约，以及按 Board Policy 隔离的内容管理工作区。
 - 修复登录后窄桌面窗口的 Devenir 顶栏挤压：宽度不足时提前切换侧边抽屉，并禁止导航标签逐字换行。
 
 ### H3 生产传输路线冻结

@@ -184,19 +184,24 @@ rewrap_content_action.short_description = "📝 对选中文章内容执行单�
 
 def _run_post_workflow_action(*, request, queryset, service, success_label):
     succeeded = 0
-    rejected = 0
+    denied = 0
+    state_mismatch = 0
     for post in queryset.select_related("category", "owner"):
         try:
             service(post=post, user=request.user)
-        except (PermissionDenied, ValidationError):
-            rejected += 1
+        except PermissionDenied:
+            denied += 1
+        except ValidationError:
+            state_mismatch += 1
         else:
             succeeded += 1
 
     if succeeded:
         messages.success(request, f"{success_label} {succeeded} 篇文章")
-    if rejected:
-        messages.warning(request, f"跳过 {rejected} 篇无权限或状态不匹配的文章")
+    if denied:
+        messages.warning(request, f"未处理 {denied} 篇：当前账号没有执行该操作的权限")
+    if state_mismatch:
+        messages.warning(request, f"未处理 {state_mismatch} 篇：文章当前状态不适用于该操作")
 
 def submit_for_review_action(modeladmin, request, queryset):
     """编辑者：提交文章进入审核队列"""
@@ -208,7 +213,7 @@ def submit_for_review_action(modeladmin, request, queryset):
     )
 
 
-submit_for_review_action.short_description = "📤 提交审核"
+submit_for_review_action.short_description = "📤 作者提审：草稿 → 审核中"
 
 
 def approve_review_action(modeladmin, request, queryset):
@@ -221,7 +226,7 @@ def approve_review_action(modeladmin, request, queryset):
     )
 
 
-approve_review_action.short_description = "✅ 通过审核（发布）"
+approve_review_action.short_description = "✅ 审核通过：审核中 → 已发布"
 
 
 def reject_review_action(modeladmin, request, queryset):
@@ -234,7 +239,7 @@ def reject_review_action(modeladmin, request, queryset):
     )
 
 
-reject_review_action.short_description = "❌ 驳回（退回草稿）"
+reject_review_action.short_description = "❌ 审核驳回：审核中 → 草稿"
 
 
 def unpublish_action(modeladmin, request, queryset):
@@ -247,7 +252,7 @@ def unpublish_action(modeladmin, request, queryset):
     )
 
 
-unpublish_action.short_description = "📥 下架"
+unpublish_action.short_description = "📥 内容下架：已发布 → 下架"
 
 
 # ===== PostAdmin =====

@@ -1,0 +1,44 @@
+{% comment %}
+Two portrait clips in one shared box. The central information column is wider
+than either media rail and splits diagonally: left clip at top-left, right clip
+at bottom-right. Both clips retain complete public metadata.
+{% endcomment %}
+<article class="sk-clip-pair reveal">
+    {% include 'pages/boards/skateboard/_clip_media.html' with name=left.title|upper video_url=left.video_url poster_url=left.thumbnail_url hud=left.hud_type|default:"" hud_label=left.hud_label timecode=left.timecode bars=left.hud_type vertical=True %}
+
+    <div class="sk-pair-info">
+        <section class="sk-pair-detail sk-pair-detail--left">
+            <p class="sk-clip-index">{{ left.display_index }}</p>
+            <h3 class="sk-clip-name">{{ left.title|upper }}</h3>
+            {% if left.category %}<p class="sk-clip-category">/ {{ left.category|upper }}</p>{% endif %}
+            <dl class="sk-clip-meta sk-pair-meta">
+                {% if left.spot %}<div><dt>SPOT</dt><dd>{{ left.spot }}</dd></div>{% endif %}
+                {% if left.filmed_at %}<div><dt>FILMED</dt><dd>{{ left.filmed_at|date:"m.d.y" }}</dd></div>{% endif %}
+                {% if left.duration_display %}<div><dt>DURATION</dt><dd>{{ left.duration_display }}</dd></div>{% endif %}
+                <div><dt>STATUS</dt><dd class="sk-status--{{ left.status|lower }}">{{ left.status }}</dd></div>
+                {% if left.notes %}<div class="sk-clip-notes"><dt>NOTES</dt><dd>{{ left.notes }}</dd></div>{% endif %}
+            </dl>
+            <button type="button" class="sk-watch" {% if not left.video_url %}disabled title="片段素材待接入"{% endif %}>
+                <span class="sk-watch-tri" aria-hidden="true"></span>WATCH CLIP
+            </button>
+        </section>
+
+        <section class="sk-pair-detail sk-pair-detail--right">
+            <p class="sk-clip-index">{{ right.display_index }}</p>
+            <h3 class="sk-clip-name">{{ right.title|upper }}</h3>
+            {% if right.category %}<p class="sk-clip-category">/ {{ right.category|upper }}</p>{% endif %}
+            <dl class="sk-clip-meta sk-pair-meta">
+                {% if right.spot %}<div><dt>SPOT</dt><dd>{{ right.spot }}</dd></div>{% endif %}
+                {% if right.filmed_at %}<div><dt>FILMED</dt><dd>{{ right.filmed_at|date:"m.d.y" }}</dd></div>{% endif %}
+                {% if right.duration_display %}<div><dt>DURATION</dt><dd>{{ right.duration_display }}</dd></div>{% endif %}
+                <div><dt>STATUS</dt><dd class="sk-status--{{ right.status|lower }}">{{ right.status }}</dd></div>
+                {% if right.notes %}<div class="sk-clip-notes"><dt>NOTES</dt><dd>{{ right.notes }}</dd></div>{% endif %}
+            </dl>
+            <button type="button" class="sk-watch" {% if not right.video_url %}disabled title="片段素材待接入"{% endif %}>
+                <span class="sk-watch-tri" aria-hidden="true"></span>WATCH CLIP
+            </button>
+        </section>
+    </div>
+
+    {% include 'pages/boards/skateboard/_clip_media.html' with name=right.title|upper video_url=right.video_url poster_url=right.thumbnail_url hud=right.hud_type|default:"" hud_label=right.hud_label timecode=right.timecode bars=right.hud_type vertical=True %}
+</article>

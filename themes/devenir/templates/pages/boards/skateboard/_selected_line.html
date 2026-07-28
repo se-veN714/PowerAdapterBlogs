@@ -7,6 +7,11 @@ Skateboard Board — Selected Line 片段（htmx 交换目标内容）。
                    status/notes/video_url/thumbnail_url/hud_type/hud_label/timecode）
 
 本片段只消费上下文，不查询权限；空列表渲染安全空态（NO CLIPS）。
+
+版式：每 5 条一组节奏——前 2 条共用一个 box，结构为左 9:16 媒体、
+  中央双层信息、右 9:16 媒体；左 Clip 信息在上层左对齐，右 Clip 信息在
+  下层右对齐。后 3 条为标准 16:9 横幅行。
+末尾"查看更多"为本片段一部分，htmx 切换成员后保持一致。
 {% endcomment %}
 <header class="sk-selected-head">
     <p class="sk-selected-kicker">SELECTED NODE / <span>{{ selected_homie.node_index|stringformat:"02d" }}</span></p>
@@ -20,8 +25,19 @@ Skateboard Board — Selected Line 片段（htmx 交换目标内容）。
     </div>
 </header>
 <div class="sk-clips">
-    {% for clip in clip_list %}
-    {% include 'pages/boards/skateboard/_clip_row.html' with index=forloop.counter|stringformat:"02d" name=clip.title|upper category=clip.category|upper spot=clip.spot filmed=clip.filmed_at|date:"m.d.y" duration=clip.duration_display|default:"" status=clip.status notes=clip.notes flip=forloop.counter0|divisibleby:2 video_url=clip.video_url poster_url=clip.thumbnail_url hud=clip.hud_type|default:"" hud_label=clip.hud_label timecode=clip.timecode bars=clip.hud_type %}
+    {% for group in clip_groups %}
+    {% if group.vertical %}
+        {% if group.vertical|length == 2 %}
+        {% include 'pages/boards/skateboard/_clip_pair.html' with left=group.vertical.0 right=group.vertical.1 %}
+        {% else %}
+        {% for clip in group.vertical %}
+        {% include 'pages/boards/skateboard/_clip_row.html' with index=clip.display_index name=clip.title|upper category=clip.category|upper spot=clip.spot filmed=clip.filmed_at|date:"m.d.y" duration=clip.duration_display|default:"" status=clip.status notes=clip.notes vertical=True video_url=clip.video_url poster_url=clip.thumbnail_url hud=clip.hud_type|default:"" hud_label=clip.hud_label timecode=clip.timecode bars=clip.hud_type %}
+        {% endfor %}
+        {% endif %}
+    {% endif %}
+    {% for clip in group.horizontal %}
+    {% include 'pages/boards/skateboard/_clip_row.html' with index=clip.display_index name=clip.title|upper category=clip.category|upper spot=clip.spot filmed=clip.filmed_at|date:"m.d.y" duration=clip.duration_display|default:"" status=clip.status notes=clip.notes flip=forloop.counter|divisibleby:2 video_url=clip.video_url poster_url=clip.thumbnail_url hud=clip.hud_type|default:"" hud_label=clip.hud_label timecode=clip.timecode bars=clip.hud_type %}
+    {% endfor %}
     {% empty %}
     <div class="sk-empty">
         <strong>NO CLIPS</strong>
@@ -29,3 +45,8 @@ Skateboard Board — Selected Line 片段（htmx 交换目标内容）。
     </div>
     {% endfor %}
 </div>
+<a class="sk-more reveal" href="{% url 'boards:skate-clip-list' %}">
+    <span class="sk-more-plus" aria-hidden="true">+</span>
+    <span class="sk-more-label">查看更多<span class="sk-more-label-en">ALL CLIPS</span></span>
+    <span class="sk-more-arrow" aria-hidden="true">→</span>
+</a>

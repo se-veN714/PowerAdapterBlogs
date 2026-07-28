@@ -7,11 +7,13 @@ from unittest.mock import patch
 
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from accounts.models import MyUser
-from Blogs.models import Category, Post, PostWorkflowEvent
+from Blogs.models import Category, Post, PostWorkflowEvent, Tag
 from Blogs.revisions import create_revision
 from Blogs.services import (
     approve_post,
@@ -419,6 +421,112 @@ class Stage5RuntimePolicyTest(TestCase):
         with self.assertRaises(PermissionDenied):
             approve_post(post=own_review, user=self.reviewer)
         self.assertFalse(own_review.workflow_events.exists())
+
+    def test_review_workspace_exposes_only_valid_scoped_transitions(self):
+        draft = self.create_post("Author draft")
+        draft.status = Post.STATUS_DRAFT
+        draft.save(update_fields=["status"])
+        review = self.create_post("Awaiting review")
+        review.status = Post.STATUS_REVIEW
+        review.save(update_fields=["status"])
+        published = self.create_post("Published article")
+        url = reverse("blogs:review_workspace")
+
+        self.client.force_login(self.author)
+        author_page = self.client.get(url)
+        self.assertContains(author_page, draft.title)
+        self.assertNotContains(author_page, review.title)
+
+        self.client.force_login(self.reviewer)
+        reviewer_page = self.client.get(url)
+        self.assertNotContains(reviewer_page, draft.title)
+        self.assertContains(reviewer_page, review.title)
+        self.assertContains(reviewer_page, published.title)
+        self.assertContains(reviewer_page, "通过并发布")
+        self.assertContains(reviewer_page, "驳回为草稿")
+        self.assertContains(reviewer_page, "下架文章")
+
+        approved = self.client.post(
+            url,
+            {"post_id": review.pk, "workflow_action": "approve"},
+        )
+        self.assertRedirects(approved, url)
+        review.refresh_from_db()
+        self.assertEqual(review.status, Post.STATUS_NORMAL)
+
+        invalid = self.client.post(
+            url,
+            {"post_id": published.pk, "workflow_action": "reject"},
+            follow=True,
+        )
+        self.assertContains(invalid, "只有审核中的文章可以驳回为草稿")
+        published.refresh_from_db()
+        self.assertEqual(published.status, Post.STATUS_NORMAL)
+
+    def test_review_workspace_rejects_user_without_board_role(self):
+        self.client.force_login(self.outsider)
+        self.assertEqual(
+            self.client.get(reverse("blogs:review_workspace")).status_code,
+            403,
+        )
+
+    def test_published_workspace_filters_and_uses_cursor_lazy_loading(self):
+        tag = Tag.objects.create(name="Release", owner=self.author)
+        posts = [self.create_post(f"Published {index:02d}") for index in range(11)]
+        target = posts[-1]
+        target.title = "Published needle"
+        target.desc = "filter target"
+        target.save(update_fields=["title", "desc"])
+        target.tag.add(tag)
+        other_board_post = Post.objects.create(
+            title="Music published",
+            content="content",
+            status=Post.STATUS_NORMAL,
+            visibility=Post.VISIBILITY_PUBLIC,
+            category=self.other_category,
+            owner=self.author,
+        )
+        self.add_membership(
+            self.reviewer,
+            self.other_board,
+            BoardMembership.Role.REVIEWER,
+        )
+        url = reverse("blogs:review_workspace")
+        self.client.force_login(self.reviewer)
+
+        first_page = self.client.get(url)
+        self.assertContains(first_page, "按板块筛选")
+        self.assertContains(first_page, "加载更多")
+        self.assertContains(first_page, target.title)
+        self.assertNotContains(first_page, posts[0].title)
+        next_url = first_page.context["published_next_url"]
+
+        with CaptureQueriesContext(connection) as queries:
+            next_page = self.client.get(next_url, HTTP_HX_REQUEST="true")
+        self.assertEqual(next_page.status_code, 200)
+        self.assertNotContains(next_page, "MY DRAFTS")
+        self.assertContains(next_page, posts[0].title)
+        self.assertFalse(
+            any(
+                query["sql"].lstrip().upper().startswith("SELECT COUNT(")
+                for query in queries.captured_queries
+            )
+        )
+
+        filtered = self.client.get(
+            url,
+            {
+                "section": "published",
+                "board": self.board.slug,
+                "tag": tag.pk,
+                "author": self.author.pk,
+                "q": "needle",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertContains(filtered, target.title)
+        self.assertNotContains(filtered, other_board_post.title)
+        self.assertNotContains(filtered, posts[0].title)
 
     def test_reject_records_event_without_creating_content_revision(self):
         post = self.create_post("Rejected workflow")

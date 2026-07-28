@@ -5,9 +5,10 @@
     <div class="comment-body">
         <div>
             <strong class="comment-nickname">
-                {% if comment.nickname %}{{ comment.nickname }}{% else %}匿名{% endif %}
+                {{ comment.author_name }}
             </strong>
             <span class="comment-time">{{ comment.created_time }}</span>
+            {% if comment.status == 0 %}<span class="comment-pending">等待审核</span>{% endif %}
         </div>
         <p class="comment-content">{{ comment.content }}</p>
         {% if request.user.is_authenticated and comment.user_id == request.user.id or request.user.is_superuser %}

@@ -17,15 +17,6 @@ from comment.models import Comment
 
 
 class CommentForm(forms.ModelForm):
-    nickname = forms.CharField(
-        label='昵称',
-        max_length=50,
-        required=True,  # 不可匿名
-        widget=forms.TextInput(attrs={
-            'class': 'input',
-            'placeholder': '昵称（必填）'
-        })
-    )
     content = forms.CharField(
         label='内容',
         max_length=500,
@@ -44,4 +35,4 @@ class CommentForm(forms.ModelForm):
 
     class Meta:
         model = Comment
-        fields = ('nickname', 'content')
+        fields = ('content',)

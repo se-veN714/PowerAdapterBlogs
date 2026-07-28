@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}板块权限审核 | PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}{% include "pages/moderation/_styles.html" %}{% endblock %}
+{% block content %}
+<main class="moderation-shell">
+    <p class="moderation-kicker">REVIEW / BOARD ACCESS</p>
+    <h1 class="moderation-title">板块权限审核</h1>
+    <p class="moderation-lead">所有决定继续通过原子审批 Service 写入 Membership，并保留审计记录。</p>
+    <form class="moderation-filter" method="get"><select name="status">{% for value, label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button class="btn-ghost" type="submit">筛选</button></form>
+    <div class="moderation-list">
+        {% for item in access_requests %}
+        <article class="moderation-row">
+            <div class="moderation-row-head"><div><h2>{{ item.applicant.username }} → {{ item.board.name }}</h2><p class="moderation-meta">申请角色：{{ item.get_requested_role_display }} · {{ item.created_at|date:"Y-m-d H:i" }}</p></div><span class="moderation-state">{{ item.get_status_display }}</span></div>
+            {% if item.reason %}<p class="moderation-copy">{{ item.reason }}</p>{% endif %}
+            {% if item.status == 'pending' %}<form class="moderation-actions" method="post">{% csrf_token %}<input type="hidden" name="request_id" value="{{ item.pk }}"><input name="note" maxlength="500" placeholder="审核说明（可选）"><button class="btn-ghost" name="action" value="approve">批准</button><button class="btn-ghost" name="action" value="reject">驳回</button></form>{% endif %}
+        </article>
+        {% empty %}<p class="moderation-meta">当前没有待处理申请。</p>{% endfor %}
+    </div>
+    {% include "pages/moderation/pagination.html" %}
+</main>
+{% endblock %}

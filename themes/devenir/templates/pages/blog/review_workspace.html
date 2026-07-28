@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}稿件流程 | PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+
+{% block extra_css %}
+<style>
+    .review-shell { max-width: 1100px; margin: 0 auto; padding: 7rem 2rem 4rem; }
+    .review-kicker { color: var(--accent-soft); letter-spacing: .18em; font-size: .74rem; }
+    .review-title { color: var(--accent); font-size: clamp(2rem, 5vw, 3.5rem); margin: .45rem 0; }
+    .review-lead { color: var(--text-secondary); max-width: 760px; line-height: 1.8; }
+    .review-flow { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.5rem 0 2rem; color: var(--text-tertiary); font-size: .76rem; }
+    .review-flow span { border: 1px solid var(--fragment-border); padding: .5rem .7rem; background: var(--bg-elevated); }
+    .review-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    .review-panel { border: 1px solid var(--fragment-border); background: var(--bg-elevated); padding: 1rem; min-width: 0; }
+    .review-panel h2 { color: var(--accent-soft); font-size: .82rem; letter-spacing: .12em; margin-bottom: 1rem; }
+    .review-card { border-left: 2px solid var(--accent-deep); background: var(--bg-primary); padding: .85rem; margin-bottom: .75rem; }
+    .review-card:last-child { margin-bottom: 0; }
+    .review-card h3 { color: var(--text-primary); font-size: .95rem; overflow-wrap: anywhere; }
+    .review-meta { color: var(--text-tertiary); font-size: .7rem; margin: .35rem 0 .75rem; }
+    .review-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+    .review-actions button { padding: .45rem .65rem; }
+    .review-empty { color: var(--text-tertiary); font-size: .78rem; padding: .75rem 0; }
+    .review-danger { border-color: var(--error-accent) !important; color: var(--error-accent) !important; }
+    .review-preview { margin: .75rem 0; color: var(--text-secondary); }
+    .review-preview summary { cursor: pointer; color: var(--accent-soft); font-size: .75rem; }
+    .review-preview-body { max-height: 24rem; overflow: auto; margin-top: .65rem; padding: .75rem; border: 1px solid var(--fragment-border); white-space: pre-wrap; overflow-wrap: anywhere; font: .78rem/1.65 var(--font-mono); color: var(--text-secondary); }
+    .review-filters { display: grid; gap: .55rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--fragment-border); }
+    .review-filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; }
+    .review-filters input, .review-filters select { width: 100%; min-width: 0; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--fragment-border); padding: .55rem; font: .72rem var(--font-mono); }
+    .review-filters input:focus, .review-filters select:focus { outline: 1px solid var(--accent-soft); border-color: var(--accent-soft); }
+    .review-filter-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+    .review-filter-actions button, .review-filter-actions a { font-size: .72rem; }
+    .review-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin: -.25rem 0 .7rem; }
+    .review-tag { color: var(--accent-soft); font-size: .65rem; }
+    .review-load-more { display: flex; justify-content: center; padding-top: .5rem; }
+    .review-load-more a { width: 100%; text-align: center; }
+    .review-loading { display: none; color: var(--text-tertiary); font-size: .7rem; }
+    .htmx-request .review-loading { display: inline; }
+    @media (max-width: 900px) { .review-columns { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .review-shell { padding: 5.5rem 1.25rem 2rem; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="review-shell">
+    <p class="review-kicker">CONTENT / WORKFLOW</p>
+    <h1 class="review-title">稿件流程</h1>
+    <p class="review-lead">按钮只出现在当前状态允许的位置：作者把草稿提审；审核者对“审核中”文章通过或驳回；已发布文章只能执行下架，不能使用“驳回”。</p>
+    <div class="review-flow" aria-label="文章状态流">
+        <span>草稿 → 提交审核</span><span>审核中 → 通过并发布</span>
+        <span>审核中 → 驳回为草稿</span><span>已发布 → 下架</span>
+    </div>
+
+    <div class="review-columns">
+        <section class="review-panel" aria-labelledby="draft-heading">
+            <h2 id="draft-heading">MY DRAFTS / 可提审</h2>
+            {% for post in draft_posts %}
+                <article class="review-card">
+                    <h3>{{ post.title }}</h3>
+                    <p class="review-meta">{{ post.category.name }} · {{ post.update_time|date:"Y-m-d H:i" }}</p>
+                    <div class="review-actions">
+                        <a class="btn-ghost" href="{{ post.get_absolute_url }}">预览</a>
+                        <form method="post">{% csrf_token %}<input type="hidden" name="post_id" value="{{ post.pk }}"><input type="hidden" name="workflow_action" value="submit"><button class="btn-accent" type="submit">提交审核</button></form>
+                    </div>
+                </article>
+            {% empty %}<p class="review-empty">没有可提交的本人草稿。</p>{% endfor %}
+        </section>
+
+        <section class="review-panel" aria-labelledby="queue-heading">
+            <h2 id="queue-heading">REVIEW QUEUE / 待审核</h2>
+            {% for post in review_posts %}
+                <article class="review-card">
+                    <h3>{{ post.title }}</h3>
+                    <p class="review-meta">{{ post.category.name }} · 作者 {{ post.owner.username }}</p>
+                    <details class="review-preview"><summary>展开 Markdown 原文</summary><pre class="review-preview-body">{{ post.content }}</pre></details>
+                    <div class="review-actions">
+                        <form method="post">{% csrf_token %}<input type="hidden" name="post_id" value="{{ post.pk }}"><input type="hidden" name="workflow_action" value="approve"><button class="btn-accent" type="submit">通过并发布</button></form>
+                        <form method="post">{% csrf_token %}<input type="hidden" name="post_id" value="{{ post.pk }}"><input type="hidden" name="workflow_action" value="reject"><button class="btn-ghost review-danger" type="submit">驳回为草稿</button></form>
+                    </div>
+                </article>
+            {% empty %}<p class="review-empty">当前没有你可以审核的稿件。</p>{% endfor %}
+        </section>
+
+        <section class="review-panel" aria-labelledby="published-heading">
+            <h2 id="published-heading">PUBLISHED / 可下架</h2>
+            <form class="review-filters"
+                  method="get"
+                  action="{% url 'Blogs:review_workspace' %}"
+                  hx-get="{% url 'Blogs:review_workspace' %}"
+                  hx-target="#published-results"
+                  hx-swap="innerHTML"
+                  hx-push-url="true">
+                <input type="hidden" name="section" value="published">
+                <input type="search" name="q" value="{{ published_filters.q }}" maxlength="100" placeholder="搜索标题或摘要">
+                <div class="review-filter-grid">
+                    <select name="board" aria-label="按板块筛选">
+                        <option value="">全部板块</option>
+                        {% for board in published_filter_boards %}<option value="{{ board.slug }}"{% if published_filters.board == board.slug %} selected{% endif %}>{{ board.name }}</option>{% endfor %}
+                    </select>
+                    <select name="tag" aria-label="按标签筛选">
+                        <option value="">全部 Tag</option>
+                        {% for tag in published_filter_tags %}<option value="{{ tag.pk }}"{% if published_filters.tag == tag.pk|stringformat:"s" %} selected{% endif %}>{{ tag.name }}</option>{% endfor %}
+                    </select>
+                    <select name="author" aria-label="按作者筛选">
+                        <option value="">全部作者</option>
+                        {% for author in published_filter_authors %}<option value="{{ author.pk }}"{% if published_filters.author == author.pk|stringformat:"s" %} selected{% endif %}>{{ author.username }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="review-filter-actions">
+                    <button class="btn-accent" type="submit">筛选</button>
+                    <a class="btn-ghost" href="{% url 'Blogs:review_workspace' %}#published-heading">清空</a>
+                    <span class="review-loading" id="published-filter-loading">QUERYING...</span>
+                </div>
+            </form>
+            <div id="published-results" aria-live="polite">
+                {% include "pages/blog/_review_published_results.html" %}
+            </div>
+        </section>
+    </div>
+</main>
+{% endblock %}

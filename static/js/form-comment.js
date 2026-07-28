@@ -3,8 +3,8 @@ const commentForm = document.getElementById('comment-form');
 const submitButton = document.getElementById('submit-button');
 const buttonText = document.getElementById('button-text');
 
-// 监听表单提交事件
-commentForm.addEventListener('submit', async function (event) {
+// 监听表单提交事件。匿名页面不渲染表单，必须允许脚本安全退出。
+commentForm?.addEventListener('submit', async function (event) {
     // 1. 阻止表单默认的提交行为
     event.preventDefault();
 
@@ -36,7 +36,7 @@ commentForm.addEventListener('submit', async function (event) {
             this.reset()
             // 成功时的Toast提示
             Toastify({
-                text: "🎉 评论提交成功！",
+                text: data.message,
                 duration: 3000,
                 close: true,
                 gravity: "top",

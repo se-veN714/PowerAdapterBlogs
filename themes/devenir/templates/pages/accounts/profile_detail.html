@@ -47,6 +47,7 @@
                 {% if is_profile_owner %}
                     <div class="profile-actions">
                         <a class="btn-accent" href="{% url 'accounts:profile-update' %}">编辑资料</a>
+                        {% if can_create_board_post %}<a class="btn-ghost" href="{% url 'Blogs:post_create' %}">新文章</a>{% endif %}
                         <a class="btn-ghost" href="{% url 'accounts:password-email-verify' %}?restart=1">修改密码</a>
                         {% if mfa_settings_available %}
                         <a class="btn-ghost" href="{% url 'accounts:mfa-settings' %}">动态验证码</a>
@@ -59,7 +60,7 @@
             </div>
             <div class="profile-signal" aria-hidden="true">
                 <span>{{ page_obj.paginator.count|stringformat:"02d" }}</span>
-                <small>PUBLIC POSTS</small>
+                <small>{{ profile_post_count_label }}</small>
                 <div class="signal-bars"><i></i><i></i><i></i><i></i><i></i></div>
             </div>
         </div>
@@ -70,7 +71,7 @@
 {% block content %}
 <section class="container profile-posts">
     <div class="profile-section-heading">
-        <span>TRANSMISSIONS</span>
+        <span>{% if is_profile_owner %}MY TRANSMISSIONS{% else %}TRANSMISSIONS{% endif %}</span>
         <span>{{ page_obj.paginator.count }} records</span>
     </div>
     {% include 'pages/blog/_post_stream.html' %}

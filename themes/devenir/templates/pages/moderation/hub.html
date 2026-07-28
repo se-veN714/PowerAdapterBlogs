@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}审核中心 | PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}{% include "pages/moderation/_styles.html" %}{% endblock %}
+{% block content %}
+<main class="moderation-shell">
+    <p class="moderation-kicker">REVIEW / CONTROL PLANE</p>
+    <h1 class="moderation-title">审核中心</h1>
+    <p class="moderation-lead">审核在业务页面完成；这里不授予新权限，只汇总当前账号已有的账号、稿件和评论审核能力。</p>
+    <div class="moderation-grid">
+        {% if capabilities.boards %}
+        <section class="moderation-card">
+            <h2>BOARD / 板块权限</h2>
+            <p>Manager 只审批自己管理板块的 Contributor、Editor 与 Reviewer 申请；Manager 角色仍由超级用户处理。</p>
+            <p class="moderation-meta">待审核：{{ pending_board_requests|default:0 }}</p>
+            <div class="moderation-actions"><a class="btn-ghost" href="{% url 'moderation:boards' %}">进入板块审核</a></div>
+        </section>
+        {% endif %}
+        {% if capabilities.accounts %}
+        <section class="moderation-card">
+            <h2>ACCOUNT / 账号</h2>
+            <p>查看账号邀请与启停状态。未完成邮箱邀请的账号不能被人工绕过激活。</p>
+            <p class="moderation-meta">待完成邀请：{{ pending_accounts|default:0 }}</p>
+            <div class="moderation-actions"><a class="btn-ghost" href="{% url 'moderation:accounts' %}">进入账号审核</a></div>
+        </section>
+        {% endif %}
+        {% if capabilities.posts %}
+        <section class="moderation-card">
+            <h2>POST / 稿件</h2>
+            <p>作者提审、审核者通过或驳回，以及已发布内容下架，继续使用既有状态机。</p>
+            <div class="moderation-actions"><a class="btn-ghost" href="{% url 'Blogs:review_workspace' %}">进入稿件流程</a></div>
+        </section>
+        {% endif %}
+        {% if capabilities.comments %}
+        <section class="moderation-card">
+            <h2>COMMENT / 评论</h2>
+            <p>只显示当前审核者所辖板块的评论，不扩大跨板块权限。</p>
+            <p class="moderation-meta">待审核：{{ pending_comments|default:0 }}</p>
+            <div class="moderation-actions"><a class="btn-ghost" href="{% url 'moderation:comments' %}">进入评论审核</a></div>
+        </section>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

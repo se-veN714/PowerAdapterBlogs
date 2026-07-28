@@ -114,7 +114,7 @@ class GlobalRoleRuntimeBoundaryTest(TestCase):
         )
         request = self.request_for(manager, "/dashboard/accounts/myuser/")
 
-        self.assertTrue(custom_site.has_permission(request))
+        self.assertFalse(custom_site.has_permission(request))
         self.assertTrue(self.account_admin.has_module_permission(request))
         self.assertTrue(self.account_admin.has_change_permission(request, target))
         self.assertFalse(self.account_admin.has_view_permission(request, self.root))
@@ -135,7 +135,7 @@ class GlobalRoleRuntimeBoundaryTest(TestCase):
         operator = self.create_group_user("site-operator", "SiteOperators")
         request = self.request_for(operator, "/dashboard/security/securelogentry/")
 
-        self.assertTrue(custom_site.has_permission(request))
+        self.assertFalse(custom_site.has_permission(request))
         self.assertTrue(self.audit_admin.has_module_permission(request))
         self.assertTrue(self.audit_admin.has_view_permission(request))
         self.assertTrue(self.audit_admin.has_run_integrity_audit_permission(request))

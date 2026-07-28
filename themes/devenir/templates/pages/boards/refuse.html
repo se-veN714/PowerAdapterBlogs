@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Board — REFUSE 中央对话框（BOARD_CONTENT_VISIBILITY_GUIDE.md §3.3）。
+
+用途：用户直接访问受保护动作/工作区而权限不足时，由后端以 HTTP 403 渲染
+本页（响应须设 Cache-Control: private, no-store —— 后端责任，此处记录）。
+本页不接入 Board Index，也不从 Index 链接；仅供受保护动作复用。
+
+上下文契约（后端后续提供；缺失时安全默认）：
+    board                      当前 Board（可空；空则隐藏"返回板块首页"）
+    board_posts_url            第一出口：该 Board 对应 Category 的公开文章列表；
+                               缺失时回退 board.category 反解，再无则回退全站文章列表
+    board_participation_state  anonymous / eligible / pending / upgrade / suspended
+                               （缺失或未知 → 按无 Membership 处理，fail closed）
+    board_participation_url    第二出口 URL（可空，各分支有公开入口兜底）
+    board_participation_label  第二出口文案（可空，各分支文案兜底）
+
+分支矩阵（§3.3）：
+    anonymous  未登录            → 第二出口"登录"（后端应带安全站内 next）
+    eligible   已登录无 Membership → "申请板块权限"
+    upgrade    已有较低角色       → "申请更高角色"
+    pending    已有 pending 申请  → "查看申请进度"
+    suspended  Membership/账号停用 → 仅保留第一出口
+
+模板不使用 user.is_staff、Group 或角色字符串推导权限；分支仅由后端 state 驱动。
+{% endcomment %}
+
+{% block title %}403 · 权限不足 · PowerAdapter{% endblock %}
+{% block meta_description %}该动作需要板块权限。{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/board-common.css' %}">
+{% endblock %}
+
+{% block content %}
+{% url 'accounts:login' as bd_login_url %}
+{% url 'boards:access-requests' as bd_apply_url %}
+<section class="bd-refuse-wrap" aria-label="权限不足">
+    <div class="container">
+        {# --glitch-c 经内联样式注入（错误页不引入 JS） #}
+        <div class="bd-refuse" {% if board %}style="--glitch-c: {{ board.glitch_color }};"{% endif %} role="alert">
+            <p class="bd-refuse-kicker">REFUSE / 403</p>
+            <h1 class="bd-refuse-title">此动作需要板块权限</h1>
+
+            {% if board_participation_state == 'anonymous' %}
+            <p class="bd-refuse-reason">该动作需要登录后继续。登录后系统将重新判断你的访问资格。</p>
+            {% elif board_participation_state == 'pending' %}
+            <p class="bd-refuse-reason">你的板块权限申请正在审核中。审核通过前，投稿、审核与维护入口不可用。</p>
+            {% elif board_participation_state == 'upgrade' %}
+            <p class="bd-refuse-reason">你当前的角色权限不足以执行该动作。可申请更高角色，由管理员复核。</p>
+            {% elif board_participation_state == 'suspended' %}
+            <p class="bd-refuse-reason">你的成员资格或账号已停用。如有疑问，请联系站点管理员。</p>
+            {% else %}
+            {# eligible / 缺失 / 未知：无 Membership 的安全默认 #}
+            <p class="bd-refuse-reason">浏览公开内容无需权限，但你访问的动作需要该板块的有效成员身份。</p>
+            {% endif %}
+
+            <div class="bd-refuse-actions">
+                {# 第一出口（始终保留）：查看公开文章 #}
+                {% if board_posts_url %}
+                <a class="bd-btn bd-btn--primary" href="{{ board_posts_url }}">查看公开文章</a>
+                {% elif board.category %}
+                <a class="bd-btn bd-btn--primary" href="{% url 'Blogs:category_list' category_id=board.category.id %}">查看公开文章</a>
+                {% else %}
+                <a class="bd-btn bd-btn--primary" href="{% url 'Blogs:post_list' %}">查看公开文章</a>
+                {% endif %}
+
+                {# 第二出口：按 state 分支；suspended 无第二出口 #}
+                {% if board_participation_state == 'anonymous' %}
+                <a class="bd-btn bd-btn--ghost" href="{{ board_participation_url|default:bd_login_url }}">
+                    {{ board_participation_label|default:"登录" }}
+                </a>
+                {% elif board_participation_state == 'pending' %}
+                <a class="bd-btn bd-btn--ghost" href="{{ board_participation_url|default:bd_apply_url }}">
+                    {{ board_participation_label|default:"查看申请进度" }}
+                </a>
+                {% elif board_participation_state == 'upgrade' %}
+                <a class="bd-btn bd-btn--ghost" href="{{ board_participation_url|default:bd_apply_url }}">
+                    {{ board_participation_label|default:"申请更高角色" }}
+                </a>
+                {% elif board_participation_state == 'suspended' %}
+                {% else %}
+                <a class="bd-btn bd-btn--ghost" href="{{ board_participation_url|default:bd_apply_url }}">
+                    {{ board_participation_label|default:"申请板块权限" }}
+                </a>
+                {% endif %}
+            </div>
+
+            {% if board %}
+            <a class="bd-refuse-back" href="{% url 'boards:index' slug=board.slug %}">← 返回 {{ board.name }} 板块首页</a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

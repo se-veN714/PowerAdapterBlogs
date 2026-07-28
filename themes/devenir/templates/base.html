@@ -21,7 +21,7 @@
     {% block head_link %}
     <!-- Stylesheets -->
     <link rel="stylesheet" href="{% static 'css/typography.css' %}">
-    <link rel="stylesheet" href="{% static 'css/editorial.css' %}?v=20260719.4">
+    <link rel="stylesheet" href="{% static 'css/editorial.css' %}?v=20260729.1">
     {% endblock %}
 
     {% block mathjax %}
@@ -131,8 +131,50 @@
         .nav a:hover, .nav a.active { color: var(--text); }
         .nav a.active { color: var(--accent); }
 
-        /* Nav buttons */
+        /* Permission-aware action menu */
         .nav-buttons { display: flex; align-items: center; gap: 0.75rem; }
+        .nav-menu { position: relative; }
+        .nav-menu summary {
+            list-style: none; display: flex; align-items: center; gap: 0.55rem;
+        }
+        .nav-menu summary::-webkit-details-marker { display: none; }
+        .nav-menu summary::after { content: '+'; color: var(--accent-muted); }
+        .nav-menu[open] summary::after { content: '−'; }
+        .nav-menu-panel {
+            position: fixed; top: 64px; left: 0; right: 0;
+            width: 100vw; padding: 1.5rem max(2rem, calc((100vw - var(--max-width)) / 2));
+            border: 1px solid var(--fragment-border); background: var(--bg-secondary);
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+        }
+        .nav-menu-grid {
+            display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1.25rem; max-width: var(--max-width); margin: 0 auto;
+        }
+        .nav-menu-group {
+            min-height: 148px; padding: 0.8rem 1rem;
+            border-left: 1px solid var(--border);
+        }
+        .nav-menu-label {
+            padding: 0.35rem 0.55rem 0.75rem; color: var(--accent-soft);
+            font-size: 0.66rem; letter-spacing: 0.2em;
+        }
+        .nav-menu-panel a,
+        .nav-menu-panel button {
+            display: flex; width: 100%; padding: 0.55rem;
+            border: 0; background: transparent; color: var(--text-secondary);
+            font: 0.82rem var(--font-mono); text-align: left; cursor: pointer;
+        }
+        .nav-menu-panel a:hover,
+        .nav-menu-panel button:hover { background: var(--bg-elevated); color: var(--accent); }
+        .nav-account {
+            display: inline-flex !important; align-items: center; gap: 0.45rem;
+            max-width: 11rem; overflow: hidden; text-overflow: ellipsis;
+            color: var(--accent-soft) !important;
+        }
+        .nav-account-signal {
+            width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%;
+            background: var(--accent-primary); box-shadow: 0 0 6px var(--fragment-highlight);
+        }
         .btn-ghost {
             background: transparent; color: var(--text-muted);
             border: 1px solid var(--border); padding: 0.4rem 0.85rem;
@@ -181,13 +223,28 @@
             transition: all 0.2s;
         }
         .sidebar-close:hover { border-color: var(--accent); color: var(--accent); }
-        .sidebar-nav { display: flex; flex-direction: column; gap: 0; }
-        .sidebar-nav a {
+        .sidebar-nav { display: flex; flex-direction: column; gap: 0; overflow-y: auto; }
+        .sidebar-nav a,
+        .sidebar-nav button,
+        .sidebar-nav summary {
             display: block; padding: 1rem 0; color: var(--text-muted);
             text-decoration: none; font-size: 1rem; font-weight: 500;
-            border-bottom: 1px solid var(--border); transition: color 0.2s;
+            border: 0; border-bottom: 1px solid var(--border); transition: color 0.2s;
+            background: transparent; font-family: var(--font-mono); width: 100%;
+            text-align: left; cursor: pointer; list-style: none;
         }
-        .sidebar-nav a:hover, .sidebar-nav a.active { color: var(--accent); }
+        .sidebar-nav summary::-webkit-details-marker { display: none; }
+        .sidebar-nav summary::after { content: '+'; float: right; color: var(--accent-muted); }
+        .sidebar-nav details[open] > summary::after { content: '−'; }
+        .sidebar-submenu { padding: 0.25rem 0 0.6rem 1rem; border-bottom: 1px solid var(--border); }
+        .sidebar-submenu a,
+        .sidebar-submenu button { padding: 0.7rem 0; border-bottom: 0; font-size: 0.85rem; }
+        .sidebar-submenu-label {
+            display: block; padding: 0.65rem 0 0.15rem; color: var(--text-tertiary);
+            font-size: 0.6rem; letter-spacing: 0.18em;
+        }
+        .sidebar-nav a:hover, .sidebar-nav a.active,
+        .sidebar-nav button:hover, .sidebar-nav summary:hover { color: var(--accent); }
 
         /* ===== Page Header (subpage hero) ===== */
         .page-header {
@@ -264,9 +321,7 @@
         }
 
         /* ===== Responsive ===== */
-        /* Authenticated users can have four additional actions. Switch to the
-           drawer before flex shrinking turns their Chinese labels vertical. */
-        @media (max-width: 1180px) {
+        @media (max-width: 900px) {
             .nav { display: none; }
             .menu-toggle { display: flex; }
             .sidebar-overlay { display: block; }
@@ -296,26 +351,39 @@
             <a href="{% url 'about' %}" class="{% if request.path == '/about/' %}active{% endif %}">About</a>
             <a href="{% url 'links' %}" class="{% if '/links' in request.path %}active{% endif %}">Links</a>
             <div class="nav-buttons">
-                {% if user.is_active %}
-                    {% if can_access_dashboard %}
-                        <a href="{% url 'cus_admin:index' %}" class="btn-ghost">工作台</a>
-                    {% endif %}
-                {% endif %}
-                {% if user.is_superuser %}
-                    <a href="{% url 'admin:index' %}" class="btn-ghost">系统后台</a>
-                {% endif %}
-                {% if can_create_board_post %}
-                    <a href="{% url 'Blogs:post_create' %}" class="btn-accent">新文章</a>
-                {% endif %}
                 {% if user.is_authenticated %}
-                    {% if perms.boards.apply_board_access %}
-                        <a href="{% url 'boards:access-requests' %}" class="btn-ghost">板块权限</a>
-                    {% endif %}
-                    <form id="logout-form" action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn-ghost">登出</button>
-                    </form>
-                    <a href="{% url 'accounts:my-profile' %}" class="btn-ghost">{{ user.username }}</a>
+                    <details class="nav-menu">
+                        <summary class="btn-ghost">功能</summary>
+                        <div class="nav-menu-panel">
+                            <div class="nav-menu-grid">
+                            {% if can_create_board_post or can_access_moderation_center %}
+                            <section class="nav-menu-group">
+                                <p class="nav-menu-label">创作与审核</p>
+                                {% if can_create_board_post %}<a href="{% url 'Blogs:post_create' %}">新文章</a>{% endif %}
+                                {% if can_access_moderation_center %}<a href="{% url 'moderation:hub' %}">审核中心</a>{% endif %}
+                            </section>
+                            {% endif %}
+                            {% if can_access_dashboard or user.is_superuser or perms.boards.apply_board_access %}
+                            <section class="nav-menu-group">
+                                <p class="nav-menu-label">管理与权限</p>
+                                {% if can_access_dashboard %}<a href="{% url 'cus_admin:index' %}">工作台</a>{% endif %}
+                                {% if user.is_superuser %}<a href="{% url 'admin:index' %}">系统后台</a>{% endif %}
+                                {% if perms.boards.apply_board_access %}<a href="{% url 'boards:access-requests' %}">板块权限</a>{% endif %}
+                            </section>
+                            {% endif %}
+                            <section class="nav-menu-group">
+                                <p class="nav-menu-label">账户</p>
+                                <a href="{% url 'accounts:my-profile' %}">个人主页</a>
+                                <form action="{% url 'accounts:logout' %}" method="post">
+                                    {% csrf_token %}<button type="submit">登出</button>
+                                </form>
+                            </section>
+                            </div>
+                        </div>
+                    </details>
+                    <a href="{% url 'accounts:my-profile' %}" class="nav-account" aria-label="当前账号 {{ user.username }}">
+                        <span class="nav-account-signal" aria-hidden="true"></span>{{ user.username }}
+                    </a>
                 {% else %}
                     <a href="{% url 'accounts:login' %}" class="btn-ghost">登录</a>
                 {% endif %}
@@ -344,26 +412,35 @@
         <a href="{% url 'Blogs:post_archive' %}">Archive</a>
         <a href="{% url 'about' %}">About</a>
         <a href="{% url 'links' %}">Links</a>
-        {% if user.is_active %}
-            {% if can_access_dashboard %}
-                <a href="{% url 'cus_admin:index' %}">工作台</a>
-            {% endif %}
-        {% endif %}
-        {% if user.is_superuser %}
-            <a href="{% url 'admin:index' %}">系统后台</a>
-        {% endif %}
-        {% if can_create_board_post %}
-            <a href="{% url 'Blogs:post_create' %}">新文章</a>
-        {% endif %}
         {% if user.is_authenticated %}
-            {% if perms.boards.apply_board_access %}
-                <a href="{% url 'boards:access-requests' %}">板块权限</a>
+            {% if can_create_board_post or can_access_moderation_center %}
+            <details>
+                <summary>创作与审核</summary>
+                <div class="sidebar-submenu">
+                    {% if can_create_board_post %}<a href="{% url 'Blogs:post_create' %}">新文章</a>{% endif %}
+                    {% if can_access_moderation_center %}<a href="{% url 'moderation:hub' %}">审核中心</a>{% endif %}
+                </div>
+            </details>
             {% endif %}
-            <a href="{% url 'accounts:my-profile' %}">个人主页</a>
-            <a href="#" onclick="document.getElementById('logout-form-mobile').submit(); return false;">登出</a>
-            <form id="logout-form-mobile" action="{% url 'accounts:logout' %}" method="post" style="display:none;">
-                {% csrf_token %}
-            </form>
+            {% if can_access_dashboard or user.is_superuser or perms.boards.apply_board_access %}
+            <details>
+                <summary>管理与权限</summary>
+                <div class="sidebar-submenu">
+                    {% if can_access_dashboard %}<a href="{% url 'cus_admin:index' %}">工作台</a>{% endif %}
+                    {% if user.is_superuser %}<a href="{% url 'admin:index' %}">系统后台</a>{% endif %}
+                    {% if perms.boards.apply_board_access %}<a href="{% url 'boards:access-requests' %}">板块权限</a>{% endif %}
+                </div>
+            </details>
+            {% endif %}
+            <details>
+                <summary>账户</summary>
+                <div class="sidebar-submenu">
+                    <a href="{% url 'accounts:my-profile' %}">个人主页</a>
+                    <form action="{% url 'accounts:logout' %}" method="post">
+                        {% csrf_token %}<button type="submit">登出</button>
+                    </form>
+                </div>
+            </details>
         {% else %}
             <a href="{% url 'accounts:login' %}">登录</a>
         {% endif %}
@@ -428,7 +505,7 @@
 {% block extra_js %}{% endblock %}
 
 <!-- ===== Global JS ===== -->
-<script src="{% static 'js/main.js' %}?v=20260719.4"></script>
+<script src="{% static 'js/main.js' %}?v=20260729.1"></script>
 
 </body>
 </html>

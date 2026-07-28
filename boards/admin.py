@@ -241,9 +241,8 @@ class BoardAccessRequestAdminBase(admin.ModelAdmin):
         self._decide(request, queryset, approve=False)
 
 
-@admin.register(BoardAccessRequest, site=custom_site)
 class DashboardBoardAccessRequestAdmin(BoardAccessRequestAdminBase):
-    pass
+    """Legacy adapter retained for tests; reviews now live at /review/boards/."""
 
 
 @admin.register(BoardAccessRequest)

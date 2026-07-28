@@ -6,16 +6,26 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import ValidationError
+from django.db.models import F
 from django.http import Http404
-from django.shortcuts import get_object_or_404
-from django.urls import reverse_lazy
-from django.views.generic import FormView, TemplateView
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse, reverse_lazy
+from django.views.generic import FormView, ListView, TemplateView
 
 from PowerAdapterBlogs.base_admin import has_dashboard_access
-from boards.board_index import ASSEMBLERS, BOARD_TEMPLATES, _format_duration
+from accounts.services import (
+    EMAIL_PURPOSE_BOARD_ACCESS,
+    clear_email_verification,
+    email_verification_is_verified,
+    email_verification_remaining_seconds,
+)
+from boards.board_index import ASSEMBLERS, BOARD_TEMPLATES, prepare_skate_clips
 from boards.forms import BoardAccessRequestForm
 from boards.models import Board, BoardAccessRequest, SkateClip, SkateHomie
-from boards.policies import can_create_post_in_any_board
+from boards.policies import (
+    can_access_post_admin,
+    can_create_post_in_any_board,
+)
 from boards.services import submit_board_access_request
 
 
@@ -37,9 +47,32 @@ class BoardAccessRequestView(
         context["access_requests"] = BoardAccessRequest.objects.filter(
             applicant=self.request.user
         ).select_related("board", "reviewed_by")
+        context["show_submission_dialog"] = self.request.session.pop(
+            "board_access_request_submitted",
+            False,
+        )
+        context["email_verified"] = email_verification_is_verified(
+            self.request,
+            EMAIL_PURPOSE_BOARD_ACCESS,
+        )
+        context["email_verification_remaining"] = (
+            email_verification_remaining_seconds(
+                self.request,
+                EMAIL_PURPOSE_BOARD_ACCESS,
+            )
+        )
+        context["email_verification_url"] = reverse(
+            "accounts:board-access-email-verify"
+        )
         return context
 
     def form_valid(self, form):
+        if not email_verification_is_verified(
+            self.request,
+            EMAIL_PURPOSE_BOARD_ACCESS,
+        ):
+            messages.info(self.request, "提交板块申请前，请先完成账号邮箱验证。")
+            return redirect("accounts:board-access-email-verify")
         try:
             submit_board_access_request(
                 applicant=self.request.user,
@@ -50,7 +83,9 @@ class BoardAccessRequestView(
         except ValidationError as exc:
             form.add_error(None, exc)
             return self.form_invalid(form)
-        messages.success(self.request, "板块权限申请已提交，审核结果会显示在本页。")
+        clear_email_verification(self.request, EMAIL_PURPOSE_BOARD_ACCESS)
+        self.request.session["board_access_request_submitted"] = True
+        messages.success(self.request, "板块权限申请已提交。")
         return super().form_valid(form)
 
 
@@ -102,14 +137,36 @@ class HomieLineView(TemplateView):
                 "order", "pk"
             )
         )
-        for clip in self.clip_list:
-            clip.duration_display = _format_duration(clip.duration)
+        self.clip_groups = prepare_skate_clips(self.clip_list)
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["selected_homie"] = self.selected_homie
         context["clip_list"] = self.clip_list
+        context["clip_groups"] = self.clip_groups
+        return context
+
+
+class SkateClipListView(ListView):
+    """Public chronological archive of published skateboard clips."""
+
+    template_name = "pages/boards/skateboard/clip_list.html"
+    context_object_name = "clips"
+    paginate_by = 12
+
+    def get_queryset(self):
+        self.board = get_object_or_404(Board, slug="skateboard", is_active=True)
+        return (
+            SkateClip.objects.filter(homie__board=self.board, is_public=True)
+            .select_related("homie")
+            .order_by(F("filmed_at").desc(nulls_last=True), "-created_at", "-pk")
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["board"] = self.board
+        prepare_skate_clips(context["clips"])
         return context
 
 
@@ -124,8 +181,12 @@ def boards_context(request):
         .select_related("category")
         .order_by("sort_order")
     )
+    from moderation.policies import can_access_moderation_center
+
     return {
         "boards": boards,
         "can_create_board_post": can_create_post_in_any_board(request.user),
+        "can_access_review_workspace": can_access_post_admin(request.user),
         "can_access_dashboard": has_dashboard_access(request.user),
+        "can_access_moderation_center": can_access_moderation_center(request.user),
     }

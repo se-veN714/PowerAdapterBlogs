@@ -16,6 +16,7 @@ from django.contrib.auth.views import LogoutView
 from accounts.views import (
     AcceptAccountInvitationView,
     AccountPasswordChangeView,
+    BoardAccessEmailVerificationView,
     LoginView,
     MfaChallengeView,
     MfaConfirmEnrollmentView,
@@ -42,6 +43,11 @@ urlpatterns = [
         'password/change/verify/',
         PasswordEmailVerificationView.as_view(),
         name='password-email-verify',
+    ),
+    path(
+        'security/email/board-access/',
+        BoardAccessEmailVerificationView.as_view(),
+        name='board-access-email-verify',
     ),
     path(
         'password/change/',

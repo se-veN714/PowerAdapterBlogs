@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}评论审核 | PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}{% include "pages/moderation/_styles.html" %}{% endblock %}
+{% block content %}
+<main class="moderation-shell">
+    <p class="moderation-kicker">REVIEW / COMMENTS</p>
+    <h1 class="moderation-title">评论审核</h1>
+    <p class="moderation-lead">结果按板块 Membership 过滤；Reviewer 与 Manager 只能处理自己负责板块的评论。</p>
+    <form class="moderation-filter" method="get">
+        <input name="q" value="{{ request.GET.q }}" placeholder="搜索评论、文章或账号">
+        <select name="status">{% for value, label in status_choices %}<option value="{{ value }}" {% if selected_status == value|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <button class="btn-ghost" type="submit">筛选</button>
+    </form>
+    <div class="moderation-list">
+        {% for comment in comments %}
+        <article class="moderation-row">
+            <div class="moderation-row-head"><div><h2>{{ comment.author_name }} · {{ comment.post.title }}</h2><p class="moderation-meta">{{ comment.created_time|date:"Y-m-d H:i" }} · {{ comment.post.category }}</p></div><span class="moderation-state">{{ comment.get_status_display }}</span></div>
+            <p class="moderation-copy">{{ comment.content }}</p>
+            <div class="moderation-actions"><form method="post">{% csrf_token %}<input type="hidden" name="comment_id" value="{{ comment.pk }}"><button class="btn-ghost" name="action" value="approve">通过</button><button class="btn-ghost" name="action" value="reject">驳回</button><button class="btn-ghost" name="action" value="delete">删除</button></form></div>
+        </article>
+        {% empty %}<p class="moderation-meta">当前筛选条件下没有评论。</p>{% endfor %}
+    </div>
+    {% include "pages/moderation/pagination.html" %}
+</main>
+{% endblock %}

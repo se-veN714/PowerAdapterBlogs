@@ -6,13 +6,11 @@
     <div class="avatar-col">
         <img src="{% static 'img/avatar.jpg' %}" alt="头像">
     </div>
+    {% if request.user.is_authenticated %}
     <form class="form-col" id="comment-form" action="{% url 'Blogs:post_comment' slug=target.slug %}" method="post">
         {% csrf_token %}
-        <div class="form-row">
-            <label for="nickname" style="display:none;">昵称</label>
-            {{ comment_form.nickname }}
-        </div>
-        <label for="id_content_comment" style="display:none;">内容</label>
+        <p class="comment-identity">以 <strong>{{ author_name }}</strong> 的账号身份评论</p>
+        <label for="{{ comment_form.content.id_for_label }}" style="display:none;">内容</label>
         {{ comment_form.content }}
         {% if comment_form.content.errors %}
             <p style="color:var(--error-accent);font-size:0.75rem;">{{ comment_form.content.errors.0 }}</p>
@@ -21,9 +19,15 @@
             <span id="button-text">写好了！</span>
         </button>
     </form>
+    {% else %}
+    <div class="form-col comment-login-required">
+        <p>评论仅对已登录账号开放，不再接受匿名昵称。</p>
+        <a class="btn-comment" href="{% url 'accounts:login' %}?next={{ request.path|urlencode }}">登录后评论</a>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_script %}
-<script src="{% static 'js/form-comment.js' %}"></script>
+{% if request.user.is_authenticated %}<script src="{% static 'js/form-comment.js' %}"></script>{% endif %}
 {% endblock %}

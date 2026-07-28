@@ -21,8 +21,10 @@ from rest_framework.routers import DefaultRouter
 from Blogs.apis import PostViewSet, CategoryViewSet
 from Blogs.views import (
     CategoryView, TagView, PostDetailView,
-    PostArchiveView, PostListView, SearchView, PostCreateView, PostEditView,
+    PostArchiveView, PostListView, PostReviewWorkspaceView, SearchView,
+    PostCreateView, PostEditView,
     revision_body, revision_diff,
+    submit_own_post_for_review,
 )
 from Blogs.views import post_img_upload
 from comment.views import CommentDeleteView, CommentView
@@ -46,6 +48,7 @@ urlpatterns = [
     # PostList
     path("post/", PostListView.as_view(), name="post_list"),
     path("archive/", PostArchiveView.as_view(), name="post_archive"),
+    path("review/", PostReviewWorkspaceView.as_view(), name="review_workspace"),
     # Post Detail
     path("post/<slug:slug>", PostDetailView.as_view(), name="post_detail"),
     # Search
@@ -57,6 +60,11 @@ urlpatterns = [
     path("post/new/", PostCreateView.as_view(), name="post_create"),
     # post_edit
     path("post/<slug:slug>/edit/",PostEditView.as_view(), name="post_edit"),
+    path(
+        "post/<slug:slug>/submit/",
+        submit_own_post_for_review,
+        name="post_submit_review",
+    ),
     # img_upload
     path("img_upload/", post_img_upload, name="post_img_upload"),
 

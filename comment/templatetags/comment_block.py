@@ -19,11 +19,20 @@ from comment.models import Comment
 register = template.Library()
 
 
-@register.inclusion_tag('pages/comment/form.html')
-def form_block(target):
+@register.inclusion_tag('pages/comment/form.html', takes_context=True)
+def form_block(context, target):
+    request = context["request"]
+    profile = getattr(request.user, "profile", None)
+    author_name = None
+    if request.user.is_authenticated:
+        author_name = (
+            profile.public_name if profile is not None else request.user.username
+        )
     return {
         'target': target,
         'comment_form': CommentForm(),
+        'request': request,
+        'author_name': author_name,
     }
 
 

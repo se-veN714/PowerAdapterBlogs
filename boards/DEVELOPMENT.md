@@ -5,7 +5,7 @@
 > **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及板块申请审批
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-07-28 — Board Index 合并前数据迁移与模型不变量加固
+> **最后更新**: 2026-07-29 — 申请成功确认层与 Board-scoped 稿件流程工作区
 
 ---
 
@@ -13,6 +13,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-29 | v2.5 | 重新冻结 Board 展示/参与边界：Index 与纯展示 htmx 片段保持公开，Membership 只保护投稿、审核、管理等动作；新增本地 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md` 作为 K3 前端与后续后端接线契约 |
+| 2026-07-29 | v2.4 | BoardAccessRequest 成功后一次性显示 Devenir 中央确认层；提交前强制 accounts purpose 隔离的 10 分钟邮箱验证且成功即消费；新增 `/Blogs/review/` 稿件状态工作区及 Board-scoped 发布文章 QuerySet 筛选 |
 | 2026-07-28 | v2.3 | 合并前加固：音乐旧数据双向搬运与往返迁移测试；固定 Board 归属改为 Model 层强制校验；首页过滤无 Index 的 Board；Admin 颜色预览适配 Django 5.2；全项目 215 项测试通过、16 项未来 MFA 契约按设计跳过 |
 | 2026-07-27 | v2.1 | Stage 6b：BoardAccessRequest、用户入口、分级审批、事务写入与审计完成；完整测试 179 个 |
 | 2026-07-28 | v2.2 | Board Index 后端落地（codex/board-back）：content 模型合并入单一 `models.py`；board 由模型类型固定（auto-default + Admin 隐藏）；`board_index.py` 分派、`BoardIndexView`+`HomieLineView` 路由、Admin 注册完成；board-index 测试 15 项全绿 |
@@ -294,12 +296,13 @@ index.html
 
 - **模型**：`boards/models.py` 单文件承载全部内容模型（见 §2 Board Index 内容模型）。
 - **分派**：`boards/board_index.py` 的 `ASSEMBLERS`（`{"skateboard": assemble_skateboard, ...}`）+ 三板 `assemble_*` 函数组装上下文；`BOARD_TEMPLATES` 给出每板模板。
-- **路由/视图**：`boards/views.py` 的 `BoardIndexView`（`/boards/<slug>/`，按 slug 分派 + 404 未知/下线板块）与 `HomieLineView`（htmx 端点 `/boards/<slug>/homie/<node_index>/`，返回 `_selected_line.html` 片段）。`boards/urls.py` 已注册。
+- **路由/视图**：`boards/views.py` 的 `BoardIndexView`（`/boards/<slug>/`，按 slug 分派 + 404 未知/下线板块）与 `HomieLineView`（htmx 端点 `/boards/<slug>/homie/<node_index>/`，返回 `_selected_line.html` 片段）。两者属于公开展示面，不要求 BoardMembership；QuerySet 仍必须过滤非公开内容，例如 `SkateClip.is_public=False`。
+- **展示/参与边界**：Membership 不控制 Index 的浏览资格，只控制投稿、编辑、审核、评论管理、成员管理和专属内容维护。公开文章入口、参与 CTA、未来受保护动作的 REFUSE 行为及 K3/Codex 边界以本地 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md` 为准。
 - **Admin**：`SuperuserBoardContentAdmin` 注册 7 个内容模型于 `admin.site`（= `SuperuserAdminSite`，`/super_admin/`），仅 superuser 可维护；`BoardAdmin` 亦仅 superuser；`board` 字段已从表单隐藏（见 §2）。dashboard（`/dashboard/`）不再暴露任何板块内容管理入口。
 - **迁移**：`boards/migrations/0005_board_index_content.py`（10 个 CreateModel + 唯一约束 `unique_homie_node_per_board`）。
 - **测试**：`boards/tests/test_board_index_models.py`（7）+ `test_board_index_views.py`（8）= 15 项全绿；`manage.py test boards` 全量 89 项通过。
 
-详细设计、决策记录与边界见 `boards/guide/`：
+当前公开展示与参与边界见本地、git-ignored 的 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（84）。早期后端详细设计、决策记录与模型背景见本地 `boards/guide/`：
 
 - `BOARD_INDEX_BACKEND_GUIDE.md`（82）：单 app 架构、`Board.slug` 判别、单一 `models.py`、分派视图、路由与 htmx 端点、与 `Board`/`BoardMembership`/Policy 边界、决策记录。
 - `SKATEBOARD_BACKEND_GUIDE.md`（80）：`SkateHomie` + `SkateClip`。
@@ -317,9 +320,11 @@ index.html
 5. **Music 叙事区数据建模（绿色）**：Yearly 大数字 / Monthly bars / Companion / Gravity / Cross-Scale 仍静态 mock，仅 archive 与 hero 日期已数据驱动；若需全量数据驱动需更丰富快照建模。
 6. **mock 降级清理决策（绿色）**：后端已接线，决定是否保留模板 `{% empty %}` mock 分支。
 
-7. **板块申请复用 accounts 短时邮箱验证（🔴 高）**：邀请激活加入 `VerifiedUsers` 只证明邮箱曾验证；提交 `BoardAccessRequest` 前还应复用 accounts 现有 10 分钟验证码、60 秒冷却、每小时发送上限、失败次数锁定和 Session grant。应把当前 password 专用实现泛化为带 `purpose` 与安全站内返回地址的账号邮箱挑战，不复制 Board 专用验证码，也不得接受外部 open redirect。
-8. **Board Index 接入文章入口与文章流（🟡 中）**：三个 Index 当前只组装各自专属模型，没有按 `Board.category` 取得用户可见 `Post`，模板也没有“查看本板块文章/投稿”入口。后续统一复用 Blogs 的可见文章 QuerySet 与 `boards.policies`，明确公开、作者草稿和 Reviewer/Manager 内部内容的隔离，禁止在 Index 复制文章授权。
-9. **Skateboard Clip 固定展示编排（🟡 中）**：每组展示固定为 1 个竖屏 `9:16` + 3 个横屏 `16:9`。先在模型/表单定义受控版式或方向字段，并校验每组数量与比例契约；前端使用稳定的 `aspect-ratio`，不能仅按循环序号猜测上传视频方向。需明确不足 4 条、超过 4 条和移动端的降级方式。
+7. **板块申请复用 accounts 短时邮箱验证（✅ 已完成）**：`/accounts/security/email/board-access/` 复用 accounts 通用邮箱挑战；验证码按 purpose + 用户 + Session 隔离，60 秒冷却和每小时发送上限按账号共享，错误次数受限。验证成功签发 10 分钟 Board 专用 Session grant，申请成功立即消费；密码修改 grant/code 不可复用，目标路由由服务端固定，不接收外部 `next`。
+8. **Board Index 接入文章入口与文章流（🟡 中）**：三个 Index 当前只组装各自专属模型，没有按 `Board.category` 取得公开 `Post`，模板也没有“查看本板块文章/参与板块”入口。已确定先由 K3 按本地 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md` 完成纯前端和 empty state，且不得修改后端；完成后由 Codex 统一复用 Blogs 的公开文章 QuerySet，提供参与状态上下文、申请预选与受保护动作 REFUSE，禁止在 Index 复制授权规则。
+9. **Skateboard Clip 固定展示编排（🟡 部分完成）**：公开 Index 当前由后端生成 `clip_groups`，每 5 条按 2 个 `9:16` + 3 个 `16:9` 展示。两条竖屏共用一个 box，中央信息区宽于两侧媒体，并分为左上/右下两层分别展示两条 Clip 的完整信息；不足 5 条时按现有条数安全降级，移动端转为单列。`/boards/skateboard/clips/` 是按拍摄时间倒序、仅含公开内容的分页浏览入口，不是管理页。后续仍需增加受控方向/比例字段与上传校验，不能永久用展示位置代替媒体元数据。
 10. **各 Board 的内容管理工作区（🟡 中）**：当前 7 个专属内容模型仅在 `/super_admin/` 对 superuser 开放，Board Manager 无法维护自己的文章、Skate Clip、Music 记录或 Coding 内容。后续在 `/dashboard/` 提供按 Membership/Policy 限定的板块工作区；每种模型先冻结 Manager/Editor 的 queryset、字段、创建/修改/删除边界和审计要求，Board 创建及前端代码绑定仍为 superuser-only。
+    - Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`/Policy 判定的板块成员工作区进入；公开 Clip List 不展示排序控件，也不能复用为管理入口。
+11. **Skate Spot 结构化位置与 PostGIS（🟢 低）**：当前 `SkateClip.spot` 文本足够用于地点展示，不为此新增 MongoDB 业务集合。只有地图视口、附近 Spot、距离排序等需求真实出现后，才评估独立 `SkateSpot`（名称、城市、可空坐标、`exact/approximate/city_only/hidden` 精度与公开状态）并在现有 PostgreSQL 上启用 PostGIS/GeoDjango；精确坐标默认不公开，国内地图供应商坐标不得未经统一转换混存。
 
 > 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。

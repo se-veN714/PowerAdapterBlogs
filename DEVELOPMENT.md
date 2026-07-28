@@ -73,7 +73,8 @@ DjangoProject/                 # 项目根目录
 | URL | 后台 | 权限要求 |
 |-----|------|---------|
 | `/super_admin/` | Django 原生 Admin | active superuser；开启 H2/H3 后还需受信客户端证书与短时 TOTP privileged Session |
-| `/dashboard/` | 自定义 AdminSite | `is_dashboard_user = True` |
+| `/dashboard/` | 日常运维 AdminSite | active `is_dashboard_user` 或 superuser；启用强制开关后要求 MFA |
+| `/review/` | 统一审核中心 | 按账号 Permission 与 Board Membership 分别显示账号、板块权限、稿件、评论审核入口 |
 > **反向解析**：AdminSite 的 URL 必须通过 `namespace:name` 形式反向解析，如 `reverse("cus_admin:index")` → `/dashboard/`。`custom_site.name = 'cus_admin'`。
 
 ### 2.3 账号路由
@@ -182,11 +183,13 @@ Agent HANDOFF、线程上下文和一次性 worktree 任务快照不属于本索
 | `docs/guides/DJANGO_LTS_UPGRADE.md`（本地，git-ignored） | Django 5.2 LTS 版本、兼容边界与升级验证 |
 | `docs/guides/BLOG_FOUNDATION_GUIDE.md`（本地，git-ignored） | Profile、账号设置、About、隐私、归档、Feed 与公开站点元数据路线 |
 | `docs/guides/DEPLOYMENT_CHECKLIST.md`（本地，git-ignored） | 生产环境变量、部署、冒烟、安全、审计与回滚执行清单 |
+| `docs/guides/GIT_AGENT_WORKFLOW_GUIDE.md`（本地，git-ignored） | Git 分支、worktree、多 Agent 交接、ref 快照与事故恢复流程 |
 | `DOCUMENTATION_GUIDE.md` | 文档权重、Agent 阅读顺序与冲突处理总则 |
 | `docs/guides/LOGGUIDE.md`（本地，git-ignored） | 全项目日志主规范 |
 | `requirements.txt` | 依赖清单 |
 | `accounts/DEVELOPMENT.md` | 用户模块详细架构 |
 | `accounts/SECURITY_ROADMAP.md` | 特权认证、TOTP、TLS 1.3 mTLS 与密钥生命周期路线 |
+| `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（本地，git-ignored） | Board Index 公开展示、权限申请触发点及 K3/Codex 前后端协作契约 |
 | `deploy/mtls/README.md` | OpenSSL 4.0.x Client CA、CRL、轮换、恢复与上线验收契约 |
 | `security/DEVELOPMENT.md` | 日志完整性详细架构 |
 | `themes/devenir/DEVELOPMENT.md` | 当前 Devenir 主题架构、模板与静态资源说明 |

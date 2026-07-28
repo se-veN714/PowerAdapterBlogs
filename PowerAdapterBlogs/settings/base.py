@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "comment",
     "accounts",
     "boards.apps.BoardsConfig",
+    "moderation.apps.ModerationConfig",
 ]
 
 MIDDLEWARE = [

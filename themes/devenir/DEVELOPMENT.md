@@ -6,7 +6,7 @@
 > **设计风格**: 暗色 CRT 扫描线 + 绿色调 + 社刊 Editorial 排版
 > **前身**: `themes/bulma/`（Bulma CSS 框架，已弃用）
 > **创建**: 2026-06-22
-> **最后更新**: 2026-07-27 — v1.14 公开元数据与生产错误页
+> **最后更新**: 2026-07-29 — 权限感知导航与 Skate Clip 公开展示修正
 
 ---
 
@@ -14,6 +14,11 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-29 | v1.19 | Skate Index 的两条 9:16 Clip 改为共用外框：两侧媒体、中央宽信息区，上层左对齐与下层右对齐形成对角关系 |
+| 2026-07-29 | v1.18 | 桌面“功能”升级为全宽 Mega Menu；移动端继续使用二级汉堡；恢复主页板块每次加载时的扫描线入场，文字扰动仍按 Session 去重 |
+| 2026-07-29 | v1.17 | 桌面导航收纳为按权限显示的功能分组；移动汉堡增加二级分类；Skate Index 改为 2 竖 3 横完整信息节奏，“查看更多”接入公开时间列表 |
+| 2026-07-29 | v1.16 | 稿件流程“可下架”栏新增 Board/Tag/作者/搜索组合筛选及 htmx“加载更多”；无 JavaScript 时保留普通 GET/下一批链接语义 |
+| 2026-07-29 | v1.15 | 邮箱验证页改为 purpose 驱动的共享 Devenir 模板；Board 申请页增加未验证门禁、10 分钟 grant 倒计时与一次性申请成功确认层 |
 | 2026-07-27 | v1.14 | base 增加 canonical、description、Open Graph 与 Feed 自动发现 block；文章详情输出 Article 元数据；Devenir 错误页接入生产 404/500 |
 | 2026-07-27 | v1.13 | 新增年月索引式公开归档页，复用 Post Stream 卡片；Header、移动导航与 Footer 接入 Archive/RSS/Atom |
 | 2026-07-26 | v1.12 | 修改密码页升级为 Credential Rotation Console：四阶段状态轨、邮箱授权倒计时、密码熵信号柱、规则/匹配反馈和提交扫描动画；支持 reduced-motion |
@@ -143,7 +148,7 @@ flowchart TD
 | `pages/accounts/profile_detail.html` | base.html | 作者公开 Profile | ID rail + 头像 glitch + 身份坐标轨 + signal bars + Post Stream |
 | `pages/accounts/profile_form.html` | base.html | 本人编辑资料 | term-bar + 头像预览 + is_public 终端开关 |
 | `pages/accounts/password_change.html` | base.html | 修改密码 | 四阶段 Credential Console + 服务端错误渲染 |
-| `pages/accounts/password_email_verification.html` | base.html | 改密邮箱验证 | 掩码邮箱 + TTL/RETRY/RESEND 数据轨 + 6 位验证码 |
+| `pages/accounts/password_email_verification.html` | base.html | purpose 驱动的通用邮箱验证 | 改密/Board 动态文案、掩码邮箱、TTL/RETRY/RESEND 数据轨 + 6 位验证码 |
 | `pages/site/about.html` | base.html | About | 站点定位、内容、Board、技术与许可说明 |
 | `pages/site/privacy.html` | base.html | 隐私说明 | 数据用途、保留方式与联系渠道 |
 | `pages/links.html` | base.html | 友链 | Hero+图片+进度条+卡片网格 |

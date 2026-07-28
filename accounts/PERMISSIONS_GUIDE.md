@@ -6,6 +6,8 @@
 > **文档职责**：治理整个授权架构；BoardMembership、申请审批与 Policy 的实现归 `boards` App
 > **状态**：`accounts_linear` 阶段 0–6b 已完成；Stage 7 已于 2026-07-29 开始零授权读取观察，Stage 8 删除字段尚未开始
 > **日期**：2026-07-29（Stage 7 零授权读取观察开始）
+
+> **Stage 7 入口收敛（当前规则，优先于下方历史阶段记录）**：`/review/` 是账号、板块权限、稿件、评论审核的统一业务入口；`UserManagers`、`SiteOperators`、Board Reviewer/Manager 均不因 Group 或 Membership 自动获得 `/dashboard/`。`/dashboard/` 只接受 active `is_dashboard_user` 或 active superuser，并在启用强制开关后要求 MFA；`/super_admin/` 继续作为低频最高权限入口。UserManager 只能在审核中心启停非 staff、非 dashboard、非 superuser 的普通账号，且不能绕过未完成的邮箱邀请；Board Manager 只审批自己板块内可授予的角色。
 > **目标**：以后续功能围绕 Board 展开，在不引入第三方对象权限库的前提下实现最小权限、职责分离和可测试的板块级授权。
 
 ## 1. 当前问题
@@ -119,6 +121,8 @@ class BoardMembership(models.Model):
 | 查看/运行全站审计 | — | — | — | — | — | ✅ | ✅ |
 | 创建/删除 Board | — | — | — | — | ❌ | ❌ | ✅ |
 
+“查看公开板块/文章”明确包含 Board Index、Index 的纯展示 htmx 片段、已公开的 Board 专属展示内容和对应 Category 的已发布文章，匿名访问也不要求 Membership。BoardMembership 授予的是参与和治理能力，不是观看资格；不得把 Index 路由本身作为权限申请门槛。
+
 建议默认不允许 Editor 修改他人正文；需要协作编辑时再单独开放，并保留修订记录。Reviewer 只负责审核，不能直接改正文。
 
 ## 5. 建议 Permission 划分
@@ -226,10 +230,12 @@ Django 的 `user.has_perm()` 默认只判断全局权限。即使 Permission 的
 | Group | 用途 |
 |---|---|
 | `SiteOperators` | 查看并运行审计，不具备文章或成员管理权 |
-| `UserManagers` | 激活账号、分配板块成员；不能授予 superuser/staff |
+| `UserManagers` | 在 `/review/accounts/` 启停普通账号；不能分配 Board 角色或操作特权账号 |
 | `VerifiedUsers` | 邮箱验证后的基础组，可提交 Board 权限申请；不直接获得任何 Board 操作权 |
 
 Contributor、Editor、Reviewer、Manager 属于板块内角色，应放在 `BoardMembership.role`，否则用户加入 `Editors` Group 后会自动获得所有板块的编辑能力，违反最小权限原则。
+
+> **后台识别提示**：Django 用户编辑页的“组”选择框只显示上述全局 Group，因此不会出现 `Board Manager`。板块角色必须在 `BoardMembership` 或 `/review/boards/` 审批流程中查看；缺少 `Board Manager` Group 是正确状态，不是遗漏迁移。
 
 ### 7.2 权限配置的实际交互
 
@@ -380,8 +386,8 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 | ✅ | View/API 权限判断分散 | Admin、普通 View、上传、修订端点和只读 API 均已收敛到 `boards.policies` |
 | ✅ | BoardMembership 自动审批 | Stage 6b 已用 BoardAccessRequest/审批 Service 自动创建、变更或恢复 Membership |
 | ✅ | 角色矩阵、ORM Policy 与跨入口拒绝路径已有测试 | Stage 4–5 新增 17 个测试；加入手测账号/导航契约后完整测试集 70 个通过 |
-| 🔴 高 | Board 权限申请只检查长期 `VerifiedUsers`，未要求本次敏感操作的短时邮箱确认 | 复用 accounts 现有 10 分钟邮箱验证码、冷却、发送次数与失败次数限制；泛化验证目的和安全返回地址，不复制 Board 专用验证码实现 |
-| 🟡 中 | Board Manager 缺少所属板块文章与专属内容的统一管理入口 | 先冻结不同角色可管理的内容模型和字段，再由 dashboard 使用 Board Policy 限定 queryset、对象和写入范围 |
+| ✅ | Board 权限申请只检查长期 `VerifiedUsers`，未要求本次敏感操作的短时邮箱确认 | 已复用 accounts 通用邮箱挑战：purpose/用户/Session 隔离，10 分钟授权、共享发送限流、失败锁定；成功提交后立即消费 Board grant，改密 grant 不可互用 |
+| 🟡 中 | Board Manager 缺少所属板块文章与专属内容的统一管理入口 | 在业务路由建立 Board-scoped 管理页并复用 Policy；不得为此重新开放 dashboard |
 
 ## 12. accounts_linear
 
@@ -488,9 +494,9 @@ Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。�
 - 模型声明并迁移 `boards.apply_board_access`、`accounts.manage_user_accounts`、`security.view_audit_log` 和 `security.run_integrity_audit`。
 - 数据迁移幂等创建 `VerifiedUsers`、`UserManagers`、`SiteOperators`，并使用 `Group.permissions.set()` 固定每组的精确权限集合。
 - active 旧账号迁入 `VerifiedUsers`；active 非 superuser staff 收敛到 `UserManagers`；不把遗留 `is_reviewer` 猜测为 `SiteOperators`。
-- `UserManagers` 可进入工作台并启停非 superuser 账号，但不能新增、删除、重发邀请、操作 superuser 或修改 Group/Permission。
+- `UserManagers` 通过 `/review/accounts/` 启停普通账号，但不能进入 `/dashboard/`，不能新增、删除、重发邀请、操作 staff/dashboard/superuser 或修改 Group/Permission。
 - `SiteOperators` 可进入工作台查看和运行 HMAC 完整性审计，但不能获得账号、Board 或文章权限。
-- Group Permission 可授予工作台外壳入口；`VerifiedUsers` 不获得工作台入口，任何 Group 都不能替代 BoardMembership。
+- Group Permission 只授予对应业务路由能力；任何 Group 都不能授予 `/dashboard/` 外壳或替代 BoardMembership。
 
 ### 12.7 阶段 6b 实现结果
 
@@ -498,7 +504,7 @@ Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。�
 - `/boards/access/` 是 `VerifiedUsers` 的服务端表单入口，只展示当前用户自己的申请历史；提交申请本身不会获得任何 Board CRUD。
 - `boards.services` 在数据库事务与行锁内处理审批。通过后创建或更新唯一的 `BoardMembership`，驳回不修改 Membership，重复审批被拒绝；事务提交后以 MongoDB HMAC 日志记录操作者、申请人、Board、原角色、目标角色与结果。
 - 本 Board Manager 只能审批 Contributor、Editor、Reviewer，不能自审、跨 Board 审批、授予 Manager、恢复停用 Membership 或变更已有 Manager；后两类操作与 Manager 申请只允许 superuser。
-- Manager Membership 可获得 `/dashboard/` 外壳入口并只看到自己 Board 的申请；不会因此获得 `accounts.manage_user_accounts`、安全审计或全局 Group 管理权限。
+- Manager Membership 只获得所属 Board 的 Policy 权限与审核中心相应入口，不获得 `/dashboard/` 外壳，也不会因此获得账号管理、安全审计或全局 Group 管理权限。
 - `/super_admin/` 与 `/dashboard/` 的申请记录均为只读详情，只能通过调用同一审批 Service 的批量 action 改变状态，避免 Admin 表单直接写 Membership。
 - Stage 6b 新增 16 个申请、越权、幂等、回滚和 queryset 隔离测试；完整测试集 179 项通过，Django system check 为 0。
 

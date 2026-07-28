@@ -1,11 +1,17 @@
 {% extends 'base.html' %}
 {% load static %}
 {% comment %}
-Skateboard Board — 独立 Index（首轮：静态视觉 + mock 数据 + 空态）。
+Skateboard Board — 独立 Index（数据驱动 + 空态）。
 
 契约（BOARD_INDEX_HANDOFF.md §6.12，已由 board-back 后端 assemble_skateboard 提供）：
-    homies / selected_homie / clip_list / homie_line_url / open_node_url
-后端上下文接入后模板走数据分支；空列表落入安全空态（CREW OFFLINE / NO CLIPS）。
+    homies / selected_homie / clip_list / clip_groups / homie_line_url / open_node_url
+clips 版式：每组前 2 条为完整信息的 9:16 卡片，后 3 条为 16:9 横屏；
+末尾"查看更多"跳转按拍摄时间排列的公开列表（boards:skate-clip-list）。
+
+Guide §5.1/§5.2 契约（后端后续提供，缺失走安全默认）：
+    board_posts / board_posts_url（_board_posts.html）
+    board_participation_state|url|label（_board_cta.html）
+
 board.glitch_color 由后端 Board 模型提供（skateboard 种子值 #ff4d5e，红色），通过 data-glitch-color 注入 --glitch-c。
 {% endcomment %}
 
@@ -15,6 +21,7 @@ board.glitch_color 由后端 Board 模型提供（skateboard 种子值 #ff4d5e�
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/boards/skateboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/boards/board-common.css' %}">
 {% endblock %}
 
 {% block hero %}
@@ -121,6 +128,10 @@ board.glitch_color 由后端 Board 模型提供（skateboard 种子值 #ff4d5e�
         </div>
     </div>
 </section>
+
+{# Guide §5.1：公开文章区 + 参与 CTA（契约组件；board_posts / board_participation_* 未接入时走安全默认） #}
+{% include 'pages/boards/_board_posts.html' %}
+{% include 'pages/boards/_board_cta.html' %}
 {% endblock %}
 
 {% block extra_js %}

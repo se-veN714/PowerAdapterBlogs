@@ -40,6 +40,12 @@ package-lock.json
 **/*HANDOFF*.md
 **/*handoff*.md
 /.agents/
+/.workbuddy/
 /docs/
 /themes/devenir/MUSIC_PAGE_GUIDE.md
 /boards/guide/
+
+# ====== Local command artifacts ======
+/boards_*_out.txt
+/commit_msg.tmp
+/themes/devenir/static/js/music/music-mock-data.js

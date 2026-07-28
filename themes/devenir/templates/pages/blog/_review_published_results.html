@@ -1,0 +1,34 @@
+{% for post in published_posts %}
+<article class="review-card">
+    <h3>{{ post.title }}</h3>
+    <p class="review-meta">{{ post.category.name }} · 作者 {{ post.owner.username }} · {{ post.created_time|date:"Y-m-d" }}</p>
+    {% with post_tags=post.tag.all %}
+        {% if post_tags %}<div class="review-tags">{% for tag in post_tags %}<span class="review-tag">#{{ tag.name }}</span>{% endfor %}</div>{% endif %}
+    {% endwith %}
+    <div class="review-actions">
+        <a class="btn-ghost" href="{{ post.get_absolute_url }}">查看</a>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="post_id" value="{{ post.pk }}">
+            <input type="hidden" name="workflow_action" value="unpublish">
+            {% for name, value in published_filters.items %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+            <button class="btn-ghost review-danger" type="submit">下架文章</button>
+        </form>
+    </div>
+</article>
+{% empty %}
+<p class="review-empty">当前筛选条件下没有你可以下架的文章。</p>
+{% endfor %}
+
+{% if published_next_url %}
+<div class="review-load-more" id="published-load-more">
+    <a class="btn-ghost"
+       href="{{ published_next_url }}"
+       hx-get="{{ published_next_url }}"
+       hx-target="#published-load-more"
+       hx-swap="outerHTML">
+        加载更多
+        <span class="review-loading">LOADING...</span>
+    </a>
+</div>
+{% endif %}

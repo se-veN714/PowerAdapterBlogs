@@ -94,13 +94,19 @@ class CommentView(LoginRequiredMixin, TemplateView):
         try:
             instance = form.save(commit=False)
             instance.post = post
-            instance.user = request.user  # 记录评论者
+            instance.user = request.user
+            profile = getattr(request.user, "profile", None)
+            instance.nickname = (
+                profile.public_name if profile is not None else request.user.username
+            )
             instance.save()
 
-            logger.info(f"Comment 提交: comment_id={instance.id} "
-                        f"post_slug={post_slug} "
-                        f"user={request.user.id if request.user.is_authenticated else 'anon'} "
-                        f"nickname={form.cleaned_data.get('nickname', '')[:20]}")
+            logger.info(
+                "Comment 提交: comment_id=%s post_slug=%s user=%s",
+                instance.id,
+                post_slug,
+                request.user.id,
+            )
         except Exception as e:
             logger.exception(f"Comment 保存异常: post_slug={post_slug} "
                            f"user={request.user.id if request.user.is_authenticated else 'anon'} "
@@ -115,7 +121,7 @@ class CommentView(LoginRequiredMixin, TemplateView):
             'html': render_to_string(
                 'pages/comment/item.html', {'comment': instance}, request=request
             ),
-            'message': '评论提交成功!',
+            'message': '评论已提交，审核通过后会公开显示。',
         })
 
 

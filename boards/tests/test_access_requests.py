@@ -1,13 +1,20 @@
+import re
 from unittest.mock import patch
 
+from django.core import mail
+from django.core.cache import cache
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import Permission
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from PowerAdapterBlogs.base_admin import has_dashboard_access
 from accounts.models import MyUser
+from accounts.services import (
+    EMAIL_PURPOSE_BOARD_ACCESS,
+    mark_email_verification_verified,
+)
 from boards.admin import DashboardBoardAccessRequestAdmin
 from boards.models import Board, BoardAccessRequest, BoardMembership
 from boards.services import (
@@ -21,6 +28,7 @@ class BoardAccessRequestTest(TestCase):
     password = "test-password-2026"
 
     def setUp(self):
+        cache.clear()
         self.applicant = self.create_user("applicant")
         self.other_applicant = self.create_user("other-applicant")
         self.manager = self.create_user("manager")
@@ -64,6 +72,13 @@ class BoardAccessRequestTest(TestCase):
             requested_role=role or BoardMembership.Role.CONTRIBUTOR,
             reason="I can help.",
         )
+
+    def grant_board_email_verification(self):
+        request = RequestFactory().get("/boards/access/")
+        request.user = self.applicant
+        request.session = self.client.session
+        mark_email_verification_verified(request, EMAIL_PURPOSE_BOARD_ACCESS)
+        request.session.save()
 
     def test_verified_user_can_submit_but_receives_no_membership(self):
         access_request = self.submit()
@@ -263,8 +278,8 @@ class BoardAccessRequestTest(TestCase):
         self.assertEqual(access_request.status, BoardAccessRequest.Status.PENDING)
         self.assertIsNone(access_request.reviewed_by)
 
-    def test_manager_membership_grants_dashboard_shell_not_global_permissions(self):
-        self.assertTrue(has_dashboard_access(self.manager))
+    def test_manager_membership_does_not_grant_dashboard_shell_or_global_permissions(self):
+        self.assertFalse(has_dashboard_access(self.manager))
         self.assertFalse(self.manager.has_perm("accounts.manage_user_accounts"))
         self.assertFalse(self.manager.has_perm("security.view_audit_log"))
 
@@ -279,6 +294,7 @@ class BoardAccessRequestTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertQuerySetEqual(response.context["access_requests"], [own_request])
 
+        self.grant_board_email_verification()
         submitted = self.client.post(
             url,
             {
@@ -300,6 +316,133 @@ class BoardAccessRequestTest(TestCase):
         self.client.force_login(self.manager)
         denied = self.client.get(url)
         self.assertEqual(denied.status_code, 403)
+
+    def test_successful_application_shows_one_time_devenir_dialog(self):
+        url = reverse("boards:access-requests")
+        self.client.force_login(self.applicant)
+        self.grant_board_email_verification()
+
+        response = self.client.post(
+            url,
+            {
+                "board": self.board.pk,
+                "requested_role": BoardMembership.Role.CONTRIBUTOR,
+                "reason": "I can help.",
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, "申请已提交")
+        self.assertContains(response, "主动联系管理员")
+        self.assertContains(response, "access-success-dialog")
+        refreshed = self.client.get(url)
+        self.assertNotContains(refreshed, "access-success-dialog")
+        self.assertContains(refreshed, "需要短时邮箱确认")
+
+    def test_direct_application_post_requires_email_verification(self):
+        url = reverse("boards:access-requests")
+        self.client.force_login(self.applicant)
+
+        response = self.client.post(
+            url,
+            {
+                "board": self.board.pk,
+                "requested_role": BoardMembership.Role.CONTRIBUTOR,
+                "reason": "I can help.",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:board-access-email-verify"),
+        )
+        self.assertFalse(
+            BoardAccessRequest.objects.filter(applicant=self.applicant).exists()
+        )
+
+    def test_board_email_challenge_requires_application_permission(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(reverse("accounts:board-access-email-verify"))
+
+        self.assertEqual(response.status_code, 403)
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        PASSWORD_EMAIL_SEND_COOLDOWN_SECONDS=0,
+    )
+    def test_board_email_challenge_grants_one_application(self):
+        access_url = reverse("boards:access-requests")
+        verify_url = reverse("accounts:board-access-email-verify")
+        self.client.force_login(self.applicant)
+
+        gated = self.client.get(access_url)
+        self.assertContains(gated, "需要短时邮箱确认")
+        self.client.post(verify_url, {"action": "send"})
+        self.assertEqual(mail.outbox[-1].subject, "PowerAdapter 板块权限申请验证码")
+        code_match = re.search(r"(?<!\d)(\d{6})(?!\d)", mail.outbox[-1].body)
+        self.assertIsNotNone(code_match)
+
+        verified = self.client.post(verify_url, {"code": code_match.group(1)})
+        self.assertRedirects(verified, access_url)
+        self.assertContains(self.client.get(access_url), "MAIL VERIFIED")
+
+        submitted = self.client.post(
+            access_url,
+            {
+                "board": self.board.pk,
+                "requested_role": BoardMembership.Role.CONTRIBUTOR,
+                "reason": "I can help.",
+            },
+            follow=True,
+        )
+        self.assertContains(submitted, "申请已提交")
+        self.assertContains(submitted, "需要短时邮箱确认")
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        PASSWORD_EMAIL_SEND_COOLDOWN_SECONDS=0,
+    )
+    def test_password_code_cannot_authorize_board_application(self):
+        self.client.force_login(self.applicant)
+        self.client.post(
+            reverse("accounts:password-email-verify"),
+            {"action": "send"},
+        )
+        code_match = re.search(r"(?<!\d)(\d{6})(?!\d)", mail.outbox[-1].body)
+        self.assertIsNotNone(code_match)
+
+        response = self.client.post(
+            reverse("accounts:board-access-email-verify"),
+            {"code": code_match.group(1)},
+        )
+
+        self.assertContains(response, "验证码不存在或已过期")
+        self.assertContains(
+            self.client.get(reverse("boards:access-requests")),
+            "需要短时邮箱确认",
+        )
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        PASSWORD_EMAIL_SEND_COOLDOWN_SECONDS=0,
+        PASSWORD_EMAIL_MAX_SENDS=1,
+    )
+    def test_email_send_limit_is_shared_across_purposes(self):
+        self.client.force_login(self.applicant)
+        self.client.post(
+            reverse("accounts:password-email-verify"),
+            {"action": "send"},
+        )
+
+        response = self.client.post(
+            reverse("accounts:board-access-email-verify"),
+            {"action": "send"},
+            follow=True,
+        )
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertContains(response, "本小时发送次数已用完")
 
     def test_dashboard_review_queryset_is_scoped_to_managers_board(self):
         own_request = self.submit()

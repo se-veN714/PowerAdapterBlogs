@@ -5,7 +5,7 @@
 > **职责**: 博客评论的提交、审核、展示，以及客户端元数据中间件  
 > **依赖**: `Blogs.models.Post`, `gmssl.sm3`, `accounts.MyUser`  
 > **创建**: 2026-06-22  
-> **更新**: 2026-07-19 — Stage 5 Dashboard 评论 action 接入 Board Policy 与 HMAC 审计
+> **更新**: 2026-07-29 — 评论表单改为登录账号身份，移除客户端匿名昵称
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v2.6 | 2026-07-29 | 前台仅向登录账号展示评论表单，作者名读取 Profile 公共名称并回退 username；客户端不再提交 nickname，服务端忽略伪造昵称并保留账号归属 |
 | v2.5 | 2026-07-19 | Stage 5：Reviewer/Manager 恢复所属 Board 评论 action，逐对象 Policy 校验并保留 MongoDB HMAC 审计 |
 | v2.4 | 2026-07-19 | Stage 4：新增 `/dashboard/` Board-scoped 只读评论队列，Reviewer/Manager 仅见所属 Board 评论 |
 | v2.3 | 2026-07-19 | 修正 `0003_comment_user` 数据迁移：删除无归属旧评论后增加非空 `user_id`，修复开发库前端查询 500 |
@@ -39,7 +40,7 @@ flowchart TD
     end
 
     subgraph models["数据模型"]
-        CM["Comment<br/>content/nickname/email/status"]
+        CM["Comment<br/>user/content/status<br/>legacy nickname snapshot"]
     end
 
     subgraph admin["管理层"]
@@ -76,7 +77,7 @@ flowchart TD
 |------|---------|------|
 | `models.py` | `Comment` | 评论模型（含状态枚举、`get_by_target`） |
 | `views.py` | `CommentView` | 评论提交端点（LoginRequired + JSON 响应） |
-| `form.py` | `CommentForm` | 表单验证（昵称必填、内容≥10字符） |
+| `form.py` | `CommentForm` | 表单只接收正文并验证内容≥10字符；作者身份不接受客户端输入 |
 | `admin.py` | `CommentAdmin` | Admin 审核操作（approve/reject/mark_spam） |
 | `middleware.py` | `ClientMetaMiddleware` | 提取客户端 IP/UA/指纹（每个请求） |
 | `middleware.py` | `get_client_ip()` | IP 提取（X-Forwarded-For 反伪造 + 兜底） |
@@ -90,18 +91,22 @@ flowchart TD
 erDiagram
     Comment ||--o{ Comment : "父评论（自引用）"
     Post ||--o{ Comment : "关联文章"
+    MyUser ||--o{ Comment : "登录账号归属"
 
     Comment {
         int id PK
         int post_id FK
         int parent_id FK "nullable"
         string content "max 2000"
-        string nickname "max 50"
-        string email "nullable"
+        int user_id FK "required"
+        string nickname "legacy display snapshot"
+        string email "legacy nullable"
         int status "PENDING/PUBLISHED/REJECTED/DELETED"
         datetime created_time
     }
 ```
+
+`nickname` 与 `email` 暂留为历史兼容列，不再出现在公开评论表单中，也不作为授权或当前显示身份来源。展示名称由 `Comment.author_name` 从关联账号的公开 Profile 名称读取，并回退到 username；服务端会覆盖客户端伪造的同名字段。
 
 ### 状态机
 
@@ -137,7 +142,7 @@ sequenceDiagram
     participant Form as CommentForm
     participant DB as PostgreSQL
 
-    User->>MW: POST /post/{slug}/ <br/> (昵称 + 评论内容)
+    User->>MW: POST /post/{slug}/ <br/> (登录账号 + 评论内容)
     MW->>MW: 提取 client_ip/UA/fingerprint
     MW->>View: request 带元数据
     View->>View: 检查登录状态
@@ -180,7 +185,7 @@ sequenceDiagram
 
 | 端点 | 方法 | 格式 | 说明 |
 |------|------|------|------|
-| `/post/{slug}/` | POST | JSON | 提交评论（`nickname` + `content`，需登录） |
+| `/post/{slug}/` | POST | JSON | 提交评论（仅 `content`，需登录；作者身份由服务端账号确定） |
 
 > 评论列表在文章详情页中通过模板标签 `comment_block` 渲染，无独立 API 端点。
 

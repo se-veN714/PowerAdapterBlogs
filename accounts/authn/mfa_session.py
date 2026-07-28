@@ -35,6 +35,8 @@ def mfa_required_for_user(user) -> bool:
         return False
     if user.is_superuser:
         return True
+    if user.is_dashboard_user:
+        return True
     return BoardMembership.objects.filter(
         user=user,
         role=BoardMembership.Role.MANAGER,

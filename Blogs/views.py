@@ -8,8 +8,10 @@ from urllib.parse import urlencode
 from django import VERSION as DJANGO_VERSION
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
+from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.cache import cache
 from django.core.files.storage import default_storage
@@ -20,8 +22,10 @@ from django.shortcuts import get_object_or_404, render
 from django.templatetags.static import static
 from django.urls.base import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_POST
-from django.views.decorators.cache import cache_page
+from django.views.decorators.cache import cache_page, never_cache
 from django.views.decorators.vary import vary_on_headers
 from django.views.generic import DetailView, ListView
 from django.views.generic.base import TemplateView
@@ -30,18 +34,31 @@ from django.views.generic.edit import CreateView, UpdateView
 from Blogs.forms import PostForm
 from Blogs.image_validation import validate_uploaded_image
 from Blogs.models import Post, PostVisit, Tag, Category
-from Blogs.services import RevisionConflict, commit_post_form
+from Blogs.services import (
+    RevisionConflict,
+    approve_post,
+    commit_post_form,
+    reject_post,
+    submit_post_for_review,
+    unpublish_post,
+)
 from boards.policies import (
     board_for_post,
+    can_access_post_admin,
     can_create_post,
     can_create_post_in_any_board,
     can_edit_post,
+    can_publish_post,
+    can_review_post,
+    can_submit_post,
     can_view_post_detail,
     posts_editable_by,
+    posts_publishable_by,
     posts_visible_to,
     published_posts_visible_to,
 )
 from config.models import SideBar
+from boards.models import Board
 from PowerAdapterBlogs.public_urls import public_absolute_url
 
 
@@ -68,8 +85,237 @@ class CommonViewMixin(SideBarMixin, CategoryNavMixin):
 
 logger = logging.getLogger(__name__)
 
+WORKFLOW_ACTIONS = {
+    "submit": (submit_post_for_review, "草稿已提交审核。"),
+    "approve": (approve_post, "文章已审核通过并发布。"),
+    "reject": (reject_post, "文章已驳回并退回草稿。"),
+    "unpublish": (unpublish_post, "文章已下架。"),
+}
+
 class IndexView(CommonViewMixin, TemplateView):
     template_name = 'pages/index.html'
+
+
+@method_decorator(never_cache, name="dispatch")
+class PostReviewWorkspaceView(LoginRequiredMixin, TemplateView):
+    """A focused, Board-scoped UI for valid post workflow transitions."""
+
+    template_name = "pages/blog/review_workspace.html"
+    published_fragment_template_name = "pages/blog/_review_published_results.html"
+    published_page_size = 8
+    published_cursor_salt = "blogs.review-workspace.published"
+    published_filter_names = ("board", "tag", "author", "q")
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and not can_access_post_admin(request.user):
+            raise PermissionDenied("当前账号没有稿件流程权限。")
+        return super().dispatch(request, *args, **kwargs)
+
+    def _scoped_posts(self):
+        queryset = Post.objects.select_related("category", "owner")
+        return posts_visible_to(self.request.user, queryset)
+
+    def _published_filters(self, source=None):
+        source = source or self.request.GET
+        limits = {"board": 64, "tag": 20, "author": 20, "q": 100}
+        return {
+            name: str(source.get(name, "")).strip()[: limits[name]]
+            for name in self.published_filter_names
+            if str(source.get(name, "")).strip()
+        }
+
+    def _published_base_queryset(self):
+        queryset = Post.objects.filter(status=Post.STATUS_NORMAL).select_related(
+            "category",
+            "owner",
+        )
+        return posts_publishable_by(self.request.user, queryset)
+
+    @staticmethod
+    def _positive_int(value):
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            return None
+        return number if number > 0 else None
+
+    def _filter_published_queryset(self, queryset, filters):
+        if board_slug := filters.get("board"):
+            category_ids = Board.objects.filter(
+                slug=board_slug,
+                is_active=True,
+                category_id__isnull=False,
+            ).values("category_id")
+            queryset = queryset.filter(category_id__in=category_ids)
+        if tag_value := filters.get("tag"):
+            tag_id = self._positive_int(tag_value)
+            queryset = queryset.filter(tag__pk=tag_id) if tag_id else queryset.none()
+        if author_value := filters.get("author"):
+            author_id = self._positive_int(author_value)
+            queryset = (
+                queryset.filter(owner_id=author_id) if author_id else queryset.none()
+            )
+        if query := filters.get("q"):
+            queryset = queryset.filter(
+                Q(title__icontains=query) | Q(desc__icontains=query)
+            )
+        return queryset.distinct()
+
+    def _decode_published_cursor(self, token, filters):
+        if not token:
+            return None
+        try:
+            payload = signing.loads(
+                token,
+                salt=self.published_cursor_salt,
+                max_age=60 * 60,
+            )
+            created_time = parse_datetime(payload["created_time"])
+            pk = int(payload["pk"])
+        except (signing.BadSignature, KeyError, TypeError, ValueError):
+            return None
+        if payload.get("filters") != filters or created_time is None or pk <= 0:
+            return None
+        return created_time, pk
+
+    def _encode_published_cursor(self, post, filters):
+        return signing.dumps(
+            {
+                "created_time": post.created_time.isoformat(),
+                "pk": post.pk,
+                "filters": filters,
+            },
+            salt=self.published_cursor_salt,
+            compress=True,
+        )
+
+    def _published_url(self, filters, *, cursor=None):
+        query = {**filters, "section": "published"}
+        if cursor:
+            query["published_cursor"] = cursor
+        return f'{reverse("blogs:review_workspace")}?{urlencode(query)}'
+
+    def _published_context(self, *, include_filters=False):
+        filters = self._published_filters()
+        base_queryset = self._published_base_queryset()
+        queryset = self._filter_published_queryset(base_queryset, filters)
+        cursor = self._decode_published_cursor(
+            self.request.GET.get("published_cursor", ""),
+            filters,
+        )
+        if cursor:
+            created_time, pk = cursor
+            queryset = queryset.filter(
+                Q(created_time__lt=created_time)
+                | Q(created_time=created_time, pk__lt=pk)
+            )
+
+        rows = list(
+            queryset.order_by("-created_time", "-pk").prefetch_related("tag")[
+                : self.published_page_size + 1
+            ]
+        )
+        published_posts = rows[: self.published_page_size]
+        next_cursor = None
+        if len(rows) > self.published_page_size:
+            next_cursor = self._encode_published_cursor(published_posts[-1], filters)
+
+        context = {
+            "published_posts": published_posts,
+            "published_filters": filters,
+            "published_next_url": (
+                self._published_url(filters, cursor=next_cursor)
+                if next_cursor
+                else None
+            ),
+            "published_is_append": bool(cursor),
+        }
+        if include_filters:
+            visible_category_ids = base_queryset.order_by().values("category_id")
+            context["published_filter_boards"] = Board.objects.filter(
+                is_active=True,
+                category_id__in=visible_category_ids,
+            ).order_by("sort_order", "pk")
+            context["published_filter_tags"] = Tag.objects.filter(
+                posts__in=base_queryset
+            ).distinct().order_by("name", "pk")
+            context["published_filter_authors"] = get_user_model().objects.filter(
+                pk__in=base_queryset.order_by().values("owner_id")
+            ).order_by("username", "pk")
+        return context
+
+    def get(self, request, *args, **kwargs):
+        is_fragment = (
+            request.headers.get("HX-Request", "").lower() == "true"
+            and request.GET.get("section") == "published"
+        )
+        if is_fragment:
+            return render(
+                request,
+                self.published_fragment_template_name,
+                self._published_context(),
+            )
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        scoped_posts = self._scoped_posts()
+        context["draft_posts"] = [
+            post
+            for post in scoped_posts.filter(status=Post.STATUS_DRAFT)
+            if can_submit_post(self.request.user, post)
+        ]
+        context["review_posts"] = [
+            post
+            for post in scoped_posts.filter(status=Post.STATUS_REVIEW)
+            if can_review_post(self.request.user, post)
+            and can_publish_post(self.request.user, post)
+        ]
+        context.update(self._published_context(include_filters=True))
+        return context
+
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get("workflow_action", "")
+        workflow = WORKFLOW_ACTIONS.get(action)
+        if workflow is None:
+            messages.error(request, "未知的稿件操作。")
+            return HttpResponseRedirect(reverse("blogs:review_workspace"))
+
+        post = get_object_or_404(self._scoped_posts(), pk=request.POST.get("post_id"))
+        service, success_message = workflow
+        try:
+            service(post=post, user=request.user)
+        except PermissionDenied:
+            messages.error(request, "当前账号没有执行此操作的权限。")
+        except ValidationError as exc:
+            messages.warning(request, exc.messages[0])
+        else:
+            messages.success(request, success_message)
+        filters = self._published_filters(request.POST)
+        target = reverse("blogs:review_workspace")
+        if filters:
+            target = f"{target}?{urlencode(filters)}"
+        return HttpResponseRedirect(target)
+
+
+@login_required
+@require_POST
+def submit_own_post_for_review(request, slug):
+    """Submit one owned draft and return to the author's management surface."""
+    post = get_object_or_404(
+        Post.objects.select_related("category", "owner"),
+        slug=slug,
+        owner=request.user,
+    )
+    try:
+        submit_post_for_review(post=post, user=request.user)
+    except PermissionDenied:
+        messages.error(request, "当前账号没有提交这篇草稿的权限。")
+    except ValidationError as exc:
+        messages.warning(request, exc.messages[0])
+    else:
+        messages.success(request, "草稿已提交审核。")
+    return HttpResponseRedirect(reverse("accounts:my-profile"))
 
 
 class PostDetailView(CommonViewMixin, DetailView):

@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}All Clips · Skateboard{% endblock %}
+{% block meta_description %}按拍摄时间浏览 Skateboard Board 的公开片段。{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/skateboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="sk-archive" style="--glitch-c: {{ board.glitch_color }};">
+    <div class="container">
+        <header class="sk-archive-head reveal">
+            <p class="sk-selected-kicker">SKATEBOARD / PUBLIC ARCHIVE</p>
+            <h1>ALL CLIPS</h1>
+            <p>公开片段按拍摄时间从新到旧排列；这里是浏览入口，不承担排序管理。</p>
+            <a href="{% url 'boards:index' slug='skateboard' %}">← 返回 Skateboard</a>
+        </header>
+
+        <div class="sk-archive-grid">
+            {% for clip in clips %}
+            <article class="sk-archive-card reveal">
+                <div class="sk-archive-media">
+                    {% if clip.thumbnail_url %}
+                    <img src="{{ clip.thumbnail_url }}" alt="{{ clip.title }} 封面" loading="lazy">
+                    {% elif clip.video_url %}
+                    <video muted playsinline preload="metadata" controls aria-label="{{ clip.title }}">
+                        <source src="{{ clip.video_url }}">
+                    </video>
+                    {% else %}
+                    <div class="sk-clip-placeholder" role="img" aria-label="{{ clip.title }} 暂无媒体"></div>
+                    {% endif %}
+                </div>
+                <div class="sk-archive-info">
+                    <p class="sk-clip-index">{{ clip.filmed_at|date:"Y.m.d"|default:"DATE UNKNOWN" }}</p>
+                    <h2>{{ clip.title|upper }}</h2>
+                    <p class="sk-clip-category">/ {{ clip.category|upper|default:"UNCATEGORIZED" }}</p>
+                    <dl class="sk-clip-meta">
+                        <div><dt>HOMIE</dt><dd>{{ clip.homie.name }}</dd></div>
+                        {% if clip.spot %}<div><dt>SPOT</dt><dd>{{ clip.spot }}</dd></div>{% endif %}
+                        {% if clip.duration_display %}<div><dt>DURATION</dt><dd>{{ clip.duration_display }}</dd></div>{% endif %}
+                        <div><dt>STATUS</dt><dd class="sk-status--{{ clip.status|lower }}">{{ clip.status }}</dd></div>
+                    </dl>
+                </div>
+            </article>
+            {% empty %}
+            <div class="sk-empty"><strong>NO PUBLIC CLIPS</strong><p>暂时没有公开片段。</p></div>
+            {% endfor %}
+        </div>
+
+        {% if is_paginated %}
+        <nav class="sk-archive-pagination" aria-label="Clip 分页">
+            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">← NEWER</a>{% endif %}
+            <span>{{ page_obj.number|stringformat:"02d" }} / {{ paginator.num_pages|stringformat:"02d" }}</span>
+            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">OLDER →</a>{% endif %}
+        </nav>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

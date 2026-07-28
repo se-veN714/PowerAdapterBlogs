@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}账号审核 | PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}{% include "pages/moderation/_styles.html" %}{% endblock %}
+{% block content %}
+<main class="moderation-shell">
+    <p class="moderation-kicker">REVIEW / ACCOUNTS</p>
+    <h1 class="moderation-title">账号审核</h1>
+    <p class="moderation-lead">UserManager 只在此处理普通账号启停，不再因此获得 Django Dashboard 入口。</p>
+    <form class="moderation-filter" method="get">
+        <input name="q" value="{{ request.GET.q }}" placeholder="搜索用户名或邮箱">
+        <select name="state"><option value="">全部状态</option><option value="active" {% if request.GET.state == 'active' %}selected{% endif %}>已启用</option><option value="inactive" {% if request.GET.state == 'inactive' %}selected{% endif %}>未启用</option></select>
+        <button class="btn-ghost" type="submit">筛选</button>
+    </form>
+    <div class="moderation-list">
+        {% for account in accounts %}
+        <article class="moderation-row">
+            <div class="moderation-row-head"><div><h2>{{ account.username }}</h2><p class="moderation-meta">{{ account.email }} · {{ account.date_joined|date:"Y-m-d H:i" }}</p></div><span class="moderation-state">{% if account.is_active %}ACTIVE{% elif account.account_invitation and not account.account_invitation.accepted_at %}INVITED{% else %}DISABLED{% endif %}</span></div>
+            {% if account.pk != request.user.pk %}
+            <div class="moderation-actions"><form method="post">{% csrf_token %}<input type="hidden" name="user_id" value="{{ account.pk }}">{% if account.is_active %}<button class="btn-ghost" name="action" value="deactivate">停用账号</button>{% elif not account.account_invitation or account.account_invitation.accepted_at %}<button class="btn-ghost" name="action" value="activate">重新启用</button>{% endif %}</form></div>
+            {% endif %}
+        </article>
+        {% empty %}<p class="moderation-meta">没有符合条件的账号。</p>{% endfor %}
+    </div>
+    {% include "pages/moderation/pagination.html" %}
+</main>
+{% endblock %}

@@ -1,0 +1,305 @@
+/* ============================================================
+   Devenir — Board 公共组件（公开文章区 / 参与 CTA / REFUSE）
+   契约：boards/BOARD_CONTENT_VISIBILITY_GUIDE.md §5
+   颜色全部引用 base.html 内联 Devenir 变量；
+   --glitch-c 由 data-glitch-color（各板 JS 注入）或内联样式提供，
+   无注入时兜底 --accent-primary。本文件不重新定义任何色值。
+   ============================================================ */
+
+.bd-posts,
+.bd-cta,
+.bd-refuse { --glitch-c: var(--accent-primary); }
+
+/* ---------- 公开文章区 ---------- */
+
+.bd-posts { padding: 2rem 0 3.5rem; }
+
+.bd-posts-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--fragment-border);
+}
+.bd-posts-title {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.22em;
+    color: var(--glitch-c);
+}
+.bd-posts-hint {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.14em;
+    color: var(--text-tertiary);
+}
+
+.bd-post-list {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--fragment-border);
+}
+.bd-post {
+    display: grid;
+    grid-template-columns: 3em minmax(0, 1fr) auto 1.5em;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 1.05rem 0.25rem;
+    border-bottom: 1px solid var(--fragment-border);
+    text-decoration: none;
+    transition: background 0.2s ease, padding-left 0.2s ease;
+}
+.bd-post:hover { background: color-mix(in srgb, var(--glitch-c) 4%, transparent); padding-left: 0.6rem; }
+.bd-post:focus-visible { outline: 1.5px solid var(--glitch-c); outline-offset: -2px; }
+.bd-post-idx {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    color: var(--glitch-c);
+}
+.bd-post-main { min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.bd-post-title {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+    color: var(--text-primary);
+    overflow-wrap: break-word;
+}
+.bd-post-desc {
+    font-size: 0.76rem;
+    line-height: 1.6;
+    color: var(--text-tertiary);
+}
+.bd-post-meta {
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.12em;
+    color: var(--accent-muted);
+}
+.bd-post-arrow {
+    font-family: var(--font-mono);
+    color: var(--glitch-c);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.bd-post:hover .bd-post-arrow,
+.bd-post:focus-visible .bd-post-arrow { opacity: 1; transform: translateX(2px); }
+
+.bd-empty {
+    border: 1px dashed var(--fragment-border);
+    padding: 2.5rem 2rem;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+}
+.bd-empty strong {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    color: var(--accent-muted);
+}
+
+.bd-posts-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 1.25rem;
+    min-height: 44px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--glitch-c);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--accent-muted);
+    padding-bottom: 2px;
+    transition: border-color 0.2s ease;
+}
+.bd-posts-more:hover { border-color: var(--glitch-c); }
+.bd-posts-more:focus-visible { outline: 1.5px solid var(--glitch-c); outline-offset: 3px; }
+.bd-posts-more-arrow { transition: transform 0.2s ease; }
+.bd-posts-more:hover .bd-posts-more-arrow { transform: translateX(3px); }
+
+/* ---------- 参与板块 CTA ---------- */
+
+.bd-cta { padding: 1rem 0 4.5rem; }
+
+.bd-cta-band {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    border: 1px solid var(--fragment-border);
+    border-left: 2px solid var(--glitch-c);
+    background: var(--bg-secondary);
+    padding: clamp(1.5rem, 3vw, 2.25rem);
+}
+.bd-cta-text { min-width: 0; }
+.bd-cta-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.24em;
+    color: var(--glitch-c);
+}
+.bd-cta-copy {
+    margin-top: 0.6rem;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+}
+
+.bd-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 44px;
+    padding: 0.75rem 1.5rem;
+    background: none;
+    border: 1px solid var(--glitch-c);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    color: var(--glitch-c);
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+.bd-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--glitch-c) 10%, transparent);
+}
+.bd-btn:disabled {
+    border-color: var(--text-tertiary);
+    color: var(--text-tertiary);
+    opacity: 0.5;
+    cursor: default;
+}
+.bd-btn:focus-visible { outline: 1.5px solid var(--glitch-c); outline-offset: 3px; }
+.bd-btn-arrow { transition: transform 0.2s ease; }
+.bd-btn:hover:not(:disabled) .bd-btn-arrow { transform: translateX(3px); }
+
+/* ---------- REFUSE 中央对话框（403；不接入 Board Index） ---------- */
+
+.bd-refuse-wrap {
+    padding: 8rem 0 6rem;
+    display: flex;
+    justify-content: center;
+}
+.bd-refuse {
+    position: relative;
+    width: min(100%, 560px);
+    border: 1px solid var(--fragment-border);
+    background: var(--bg-secondary);
+    padding: clamp(2rem, 5vw, 3rem);
+    text-align: center;
+}
+/* 四角定位标记（与 Board 视觉语言一致的 HUD 角） */
+.bd-refuse::before,
+.bd-refuse::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+}
+.bd-refuse::before {
+    top: -1px;
+    left: -1px;
+    border-top: 2px solid var(--glitch-c);
+    border-left: 2px solid var(--glitch-c);
+}
+.bd-refuse::after {
+    right: -1px;
+    bottom: -1px;
+    border-right: 2px solid var(--glitch-c);
+    border-bottom: 2px solid var(--glitch-c);
+}
+.bd-refuse-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.3em;
+    color: var(--glitch-c);
+}
+.bd-refuse-title {
+    margin-top: 0.9rem;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    letter-spacing: 0.01em;
+    color: var(--text-primary);
+}
+.bd-refuse-reason {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    line-height: 1.9;
+    color: var(--text-secondary);
+}
+.bd-refuse-actions {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.bd-btn--primary {
+    background: color-mix(in srgb, var(--glitch-c) 12%, transparent);
+}
+.bd-btn--ghost {
+    border-color: var(--fragment-border);
+    color: var(--text-secondary);
+}
+.bd-btn--ghost:hover:not(:disabled) {
+    border-color: var(--glitch-c);
+    color: var(--glitch-c);
+    background: none;
+}
+.bd-refuse-back {
+    display: inline-block;
+    margin-top: 1.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.16em;
+    color: var(--accent-muted);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--accent-muted);
+    padding-bottom: 2px;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+.bd-refuse-back:hover { color: var(--glitch-c); border-color: var(--glitch-c); }
+.bd-refuse-back:focus-visible { outline: 1.5px solid var(--glitch-c); outline-offset: 3px; }
+
+/* ---------- 响应式 ---------- */
+
+@media (max-width: 767px) {
+    .bd-posts { padding: 1.5rem 0 2.5rem; }
+    .bd-post { grid-template-columns: 2.6em minmax(0, 1fr) 1.2em; }
+    .bd-post-meta { display: none; } /* 移动端隐藏日期列，保留序号/标题/箭头 */
+    .bd-post-arrow { opacity: 0.6; }
+
+    .bd-cta { padding: 0.5rem 0 3rem; }
+    .bd-cta-band { flex-direction: column; align-items: stretch; }
+    .bd-btn { justify-content: center; width: 100%; white-space: normal; text-align: center; }
+
+    .bd-refuse-wrap { padding: 6rem 0 4rem; }
+    .bd-refuse-actions { flex-direction: column; }
+}
+
+/* ---------- Reduced Motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .bd-post,
+    .bd-post-arrow,
+    .bd-posts-more,
+    .bd-posts-more-arrow,
+    .bd-btn,
+    .bd-btn-arrow,
+    .bd-refuse-back { transition: none !important; }
+    .bd-post:hover { padding-left: 0.25rem; }
+    .bd-post:hover .bd-post-arrow,
+    .bd-posts-more:hover .bd-posts-more-arrow,
+    .bd-btn:hover:not(:disabled) .bd-btn-arrow { transform: none; }
+}

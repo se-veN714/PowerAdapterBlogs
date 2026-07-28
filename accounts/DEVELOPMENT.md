@@ -1,11 +1,13 @@
 # Accounts 模块 — 开发文档
 
 > **文档权重**：85（accounts 当前实现与模块 TODO）
+
+> **2026-07-29 Stage 7 入口边界**：账号、板块权限、稿件、评论审核统一从 `/review/` 进入；UserManager 与 Board Manager 不再因此进入 Django Dashboard。`/dashboard/` 仅供 active `is_dashboard_user`/superuser 日常运维，启用 `MFA_ENFORCEMENT_ENABLED` 后 `dashboard_user` 也必须完成 TOTP；`/super_admin/` 为低频最高权限入口。
 > **模块**: `accounts/`  
 > **职责**: 自定义用户模型、认证、账号状态、全局 Group 编排与用户安全；不拥有 Board Policy
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-29 — H3 生产路线固定为 TLS 1.3 mTLS，并整理认证域目录
+> **最后更新**: 2026-07-29 — purpose 隔离的通用邮箱挑战接入 Board 权限申请
 
 ---
 
@@ -13,6 +15,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-29 | v3.25 | 将改密验证码泛化为 purpose + 用户 + Session 隔离的账号邮箱挑战；密码修改与 Board 申请授权互不复用，账号级发送冷却/小时上限共享；Board 授权提交成功即消费 |
 | 2026-07-29 | v3.24 | H3 安全检查点提交前验证：Ruff、迁移一致性与全项目 250 项测试通过；生产强制开关仍保持关闭 |
 | 2026-07-29 | v3.23 | OpenSSL 4.0.1 开发 CA 实测通过：clientAuth 叶证书、链验证、PKCS#12、撤销、CRL 重发及 error 23 拒绝；Nginx/浏览器仍待验收 |
 | 2026-07-29 | v3.22 | H3 边界选择 OpenSSL 4.0.x 最新补丁版（初始 4.0.1）；新增 Nginx/CA CLI 版本证据脚本和 readiness 确认项 |
@@ -156,9 +159,9 @@ flowchart TD
 | 文件 | 核心类/函数 | 职责 |
 |------|------------|------|
 | `models.py` | `MyUser`, `AccountInvitation`, `MfaTotpDevice`, `MfaRecoveryCode`, `ClientCertificateBinding`, `UserManager`, `SENSITIVE_FIELDS` | 自定义用户、邀请状态、MFA/客户端证书持久化边界、创建工厂与模型层防御 |
-| `services.py` | invitation 与 password email helpers | 邀请激活；改密验证码摘要、发送/错误限流及 Session 验证授权 |
+| `services.py` | invitation 与 purpose email helpers | 邀请激活；改密/Board 验证码摘要、共享发送限流、用途隔离及 Session 验证授权 |
 | `admin.py` | `MyUserAdmin`, `CusMyUserAdmin`, `AccountInvitationAdmin` | 双 Admin 注册、邀请发放/重发、字段权限与 M2M 拦截 |
-| `views.py` | 登录、邀请、Profile、邮箱验证、密码修改与 MFA Views | 账号前台流程、密码后置 challenge 与所有者边界 |
+| `views.py` | 登录、邀请、Profile、通用邮箱验证、密码修改与 MFA Views | 账号前台流程、固定目标的敏感操作邮箱 challenge、密码后置 challenge 与所有者边界 |
 | `forms.py` | 登录、邀请、Profile、密码、邮箱验证码与 MFA Forms | 输入校验与可编辑字段白名单 |
 | `authn/mfa_crypto.py` / `authn/mfa_services.py` | seed 加密、绑定、验证、恢复与撤销服务 | encrypted-only TOTP 生命周期、原子防重放和 HMAC 审计 |
 | `authn/mfa_session.py` | pending / privileged / restricted recovery Session helpers | 登录状态机、共享失败计数与安全回跳 |
@@ -199,9 +202,9 @@ flowchart TD
 
 ## 3. 五旗权限模型
 
-`is_dashboard_user` 只控制自定义 `/dashboard/` 工作台外壳入口，不等于账号管理、Board CRUD
+`is_dashboard_user` 只控制自定义 `/dashboard/` 运维外壳入口，不等于账号审核、Board CRUD
 或跨 App 对象权限。Board 角色测试账号需要该入口旗标才能使用工作台，但具体模块和对象继续执行
-各自的 Policy。`accounts.MyUser` 属于全局身份域；`UserManagers` 可在工作台启停非 superuser
+各自的 Policy。`accounts.MyUser` 属于全局身份域；`UserManagers` 仅可在 `/review/accounts/` 启停非特权普通账号
 账号，但不能创建、删除、重发邀请、修改权限关系或接触 superuser。
 
 `/dashboard/login/` 使用 `DashboardAuthenticationForm`，登录条件为账号激活且具有

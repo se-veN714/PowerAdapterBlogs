@@ -14,9 +14,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var constellation = document.querySelector('.sk-constellation');
     var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-    /* ---------- 0. glitch 颜色注入（与 main.js editorial-visual 同一模式） ---------- */
-
-    document.querySelectorAll('.sk-hero[data-glitch-color], .sk-constellation-section[data-glitch-color], .sk-selected[data-glitch-color]').forEach(function (el) {
+    /* ---------- 0. glitch 颜色注入（与 main.js editorial-visual 同一模式） ----------
+       覆盖本页所有带 data-glitch-color 的区块（hero / 星图 / clips /
+       公开文章区 .bd-posts / 参与 CTA .bd-cta） */
+    document.querySelectorAll('[data-glitch-color]').forEach(function (el) {
         el.style.setProperty('--glitch-c', el.dataset.glitchColor);
     });
 

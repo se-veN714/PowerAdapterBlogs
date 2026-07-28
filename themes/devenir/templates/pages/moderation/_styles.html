@@ -1,0 +1,22 @@
+<style>
+    .moderation-shell { max-width: 1120px; margin: 0 auto; padding: 7rem 2rem 4rem; }
+    .moderation-kicker { color: var(--accent-soft); letter-spacing: .2em; font-size: .72rem; }
+    .moderation-title { color: var(--accent); font-size: clamp(2rem, 5vw, 3.6rem); margin: .45rem 0; }
+    .moderation-lead { max-width: 760px; color: var(--text-secondary); line-height: 1.8; }
+    .moderation-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .moderation-card { border: 1px solid var(--fragment-border); background: var(--bg-elevated); padding: 1.2rem; }
+    .moderation-card h2 { color: var(--accent-soft); font-size: 1rem; margin-bottom: .65rem; }
+    .moderation-card p, .moderation-meta { color: var(--text-tertiary); font-size: .76rem; line-height: 1.65; }
+    .moderation-actions { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: 1rem; }
+    .moderation-filter { display: flex; flex-wrap: wrap; gap: .55rem; margin: 1.5rem 0; }
+    .moderation-filter input, .moderation-filter select { min-width: 12rem; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--fragment-border); padding: .65rem; font: .75rem var(--font-mono); }
+    .moderation-list { display: grid; gap: .75rem; }
+    .moderation-row { border-left: 2px solid var(--accent-deep); background: var(--bg-elevated); padding: 1rem; }
+    .moderation-row-head { display: flex; justify-content: space-between; align-items: start; gap: 1rem; }
+    .moderation-row h2 { color: var(--text-primary); font-size: .95rem; }
+    .moderation-copy { margin-top: .65rem; color: var(--text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .moderation-state { color: var(--accent-soft); font-size: .68rem; letter-spacing: .1em; }
+    .moderation-pagination { display: flex; gap: .75rem; justify-content: center; margin-top: 1.5rem; }
+    @media (max-width: 800px) { .moderation-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .moderation-shell { padding: 5.5rem 1.25rem 2rem; } .moderation-row-head { display: block; } }
+</style>

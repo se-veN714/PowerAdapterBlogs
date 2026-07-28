@@ -1,0 +1,58 @@
+{% comment %}
+Board — 参与板块 CTA（BOARD_CONTENT_VISIBILITY_GUIDE.md §5.1/§5.2 契约组件）。
+
+上下文契约（后端后续提供）：
+    board                      当前 Board（必需）
+    board_participation_state  anonymous / eligible / pending / member
+    board_participation_url    登录、申请、申请进度或工作台入口（可空）
+    board_participation_label  后端决定的 CTA 文案（可空，模板文案兜底）
+
+安全默认：state 缺失或未知一律按 anonymous（最保守分支）渲染；
+各分支 URL 缺失时回退到公开入口（登录页 / 申请页）；member 无 URL → 禁用按钮。
+模板不使用 user.is_staff、Group 或角色字符串推导权限；分支仅由后端 state 驱动。
+{% endcomment %}
+{% url 'accounts:login' as bd_login_url %}
+{% url 'boards:access-requests' as bd_apply_url %}
+<section class="bd-cta" data-glitch-color="{{ board.glitch_color }}" aria-label="参与板块">
+    <div class="container">
+        <div class="bd-cta-band reveal">
+            <div class="bd-cta-text">
+                <p class="bd-cta-kicker">JOIN {{ board.name|upper }}</p>
+                {% if board_participation_state == 'eligible' %}
+                <p class="bd-cta-copy">浏览无需权限。你已具备申请条件——提交板块权限申请，通过审核后即可参与投稿与协作。</p>
+                {% elif board_participation_state == 'pending' %}
+                <p class="bd-cta-copy">你的板块权限申请正在审核中。审核通过后，投稿、审核与维护入口将对你开放。</p>
+                {% elif board_participation_state == 'member' %}
+                <p class="bd-cta-copy">你已是该板块成员。进入工作台管理你的稿件与板块专属内容。</p>
+                {% else %}
+                <p class="bd-cta-copy">浏览无需权限。投稿、审核与维护专属内容需要板块成员身份——登录后即可申请。</p>
+                {% endif %}
+            </div>
+            <div class="bd-cta-action">
+                {% if board_participation_state == 'eligible' %}
+                <a class="bd-btn" href="{{ board_participation_url|default:bd_apply_url }}">
+                    {{ board_participation_label|default:"申请板块权限" }}<span class="bd-btn-arrow" aria-hidden="true">→</span>
+                </a>
+                {% elif board_participation_state == 'pending' %}
+                <a class="bd-btn" href="{{ board_participation_url|default:bd_apply_url }}">
+                    {{ board_participation_label|default:"查看申请进度" }}<span class="bd-btn-arrow" aria-hidden="true">→</span>
+                </a>
+                {% elif board_participation_state == 'member' %}
+                    {% if board_participation_url %}
+                <a class="bd-btn" href="{{ board_participation_url }}">
+                    {{ board_participation_label|default:"进入投稿/工作台" }}<span class="bd-btn-arrow" aria-hidden="true">→</span>
+                </a>
+                    {% else %}
+                <button type="button" class="bd-btn" disabled title="工作台入口将在后端集成阶段开放">
+                    {{ board_participation_label|default:"进入投稿/工作台" }}
+                </button>
+                    {% endif %}
+                {% else %}
+                <a class="bd-btn" href="{{ board_participation_url|default:bd_login_url }}">
+                    {{ board_participation_label|default:"登录后申请" }}<span class="bd-btn-arrow" aria-hidden="true">→</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>

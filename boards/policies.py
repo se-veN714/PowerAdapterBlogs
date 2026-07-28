@@ -295,6 +295,20 @@ def posts_editable_by(user, queryset):
     ).distinct()
 
 
+def posts_publishable_by(user, queryset):
+    """Return posts the user may publish or unpublish without per-row queries."""
+    if _is_active_superuser(user):
+        return queryset
+    if not _is_active_authenticated(user):
+        return queryset.none()
+
+    category_ids = _membership_category_ids(
+        user,
+        (BoardMembership.Role.REVIEWER, BoardMembership.Role.MANAGER),
+    )
+    return queryset.filter(category_id__in=category_ids).exclude(owner=user).distinct()
+
+
 def published_posts_visible_to(user, queryset):
     """Return published public posts plus permitted Board-scoped internal posts."""
     published = queryset.filter(status=queryset.model.STATUS_NORMAL)

@@ -34,12 +34,30 @@ class CommentSafetyTest(TestCase):
 
     def test_comment_submission_is_rate_limited(self):
         self.client.force_login(self.owner)
-        payload = {'nickname': 'Owner', 'content': '这是足够长的评论内容'}
+        payload = {'content': '这是足够长的评论内容'}
         self.assertEqual(self.client.post(self.submit_url, payload).status_code, 200)
         self.assertEqual(self.client.post(self.submit_url, payload).status_code, 200)
         response = self.client.post(self.submit_url, payload)
         self.assertEqual(response.status_code, 429)
         self.assertEqual(response['Retry-After'], '60')
+
+    def test_comment_identity_comes_from_authenticated_account(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            self.submit_url,
+            {
+                'nickname': 'forged-anonymous-name',
+                'content': '这是由登录账号提交的评论内容',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        comment = Comment.objects.get(post=self.post)
+        self.assertEqual(comment.user, self.owner)
+        self.assertEqual(comment.nickname, self.owner.username)
+        self.assertContains(response, self.owner.username)
+        self.assertNotContains(response, 'forged-anonymous-name')
 
     def test_only_owner_can_soft_delete_comment(self):
         comment = Comment.objects.create(

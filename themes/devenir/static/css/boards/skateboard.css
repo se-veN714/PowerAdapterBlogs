@@ -348,6 +348,67 @@
     gap: clamp(2.5rem, 4.5vw, 4rem);
 }
 
+.sk-clip-pair {
+    display: grid;
+    grid-template-columns: auto minmax(340px, 1fr) auto;
+    width: 100%;
+    height: clamp(380px, 40vw, 540px);
+    overflow: hidden;
+    border: 1px solid var(--fragment-border);
+    background: var(--bg-secondary);
+    transition: border-color 0.3s ease;
+}
+.sk-clip-pair:hover {
+    border-color: color-mix(in srgb, var(--glitch-c) 42%, var(--fragment-highlight));
+}
+.sk-clip-pair > .sk-clip-media {
+    width: auto;
+    height: 100%;
+    aspect-ratio: 9 / 16;
+}
+.sk-pair-info {
+    display: grid;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    min-width: 0;
+    border-inline: 1px solid var(--fragment-border);
+}
+.sk-pair-detail {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: clamp(1rem, 1.8vw, 1.45rem);
+}
+.sk-pair-detail--left {
+    align-items: flex-start;
+    text-align: left;
+    border-bottom: 1px solid var(--fragment-border);
+}
+.sk-pair-detail--right {
+    align-items: flex-end;
+    text-align: right;
+}
+.sk-pair-detail .sk-clip-name {
+    margin-top: 0.25rem;
+    font-size: clamp(1.2rem, 1.8vw, 1.65rem);
+}
+.sk-pair-detail .sk-clip-meta {
+    margin-top: 0.65rem;
+    gap: 0.2rem;
+    width: min(100%, 22rem);
+}
+.sk-pair-detail .sk-clip-meta > div { font-size: 0.6rem; }
+.sk-pair-detail--right .sk-clip-meta > div {
+    grid-template-columns: minmax(0, 1fr) 5.2em;
+}
+.sk-pair-detail--right .sk-clip-meta dt { order: 2; }
+.sk-pair-detail--right .sk-clip-meta dd { order: 1; }
+.sk-pair-detail .sk-watch {
+    margin-top: auto;
+    padding-top: 0.45rem;
+    font-size: 0.62rem;
+}
+.sk-pair-detail--right .sk-watch { align-self: flex-end; }
+
 .sk-clip {
     display: grid;
     grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
@@ -360,7 +421,13 @@
 .sk-clip:nth-child(4n+2) { width: 88%; }
 .sk-clip:nth-child(4n+3) { width: 94%; }
 .sk-clip:nth-child(4n+4) { width: 86%; }
-.sk-clip:hover { border-color: var(--fragment-highlight); }
+.sk-clip:hover {
+    border-color: color-mix(in srgb, var(--glitch-c) 42%, var(--fragment-highlight));
+}
+.sk-clip:hover .sk-clip-placeholder {
+    filter: grayscale(1) brightness(0.88) contrast(1.1);
+}
+.sk-clip-placeholder { transition: filter 0.3s ease; }
 
 .sk-clip--flip {
     grid-template-columns: minmax(0, 3fr) minmax(0, 7fr);
@@ -368,6 +435,26 @@
 }
 .sk-clip--flip .sk-clip-media { order: 2; }
 .sk-clip--flip .sk-clip-info { order: 1; }
+
+/* ---------- 竖屏展示位（9:16，每组前两条；版式驱动，待后端 orientation 字段） ----------
+   注意：必须位于 .sk-clip / .sk-clip--flip 基础规则之后，同优先级时以后者为准。 */
+.sk-clip.sk-clip--vertical {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    height: auto;
+}
+.sk-clip--vertical .sk-clip-media {
+    height: auto;
+    width: min(100%, 360px);
+    aspect-ratio: 9 / 16;
+    justify-self: center;
+}
+.sk-clip--vertical .sk-clip-info {
+    justify-content: flex-start;
+    border-left: 0;
+    border-top: 1px solid var(--fragment-border);
+}
+.sk-clip--vertical .sk-clip-name { font-size: clamp(1.5rem, 2.4vw, 2.1rem); }
 
 /* 媒体区 */
 .sk-clip-media {
@@ -553,6 +640,71 @@
 .sk-watch:disabled { color: var(--text-tertiary); cursor: default; }
 .sk-watch:focus-visible { outline: 1.5px solid var(--glitch-c); outline-offset: 3px; }
 
+/* ---------- 竖屏槽位格式角标（slot 变体右下角） ---------- */
+.sk-hud-format {
+    position: absolute;
+    z-index: 2;
+    right: 12px;
+    bottom: 12px;
+    padding: 2px 6px;
+    border: 1px solid var(--glitch-c);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    color: var(--glitch-c);
+    opacity: 0.85;
+    pointer-events: none;
+}
+
+/* ---------- 查看更多（公开时间线入口，与 clips 容器等宽） ---------- */
+
+.sk-more {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    margin-top: clamp(2.5rem, 4.5vw, 4rem);
+    padding: 1.35rem 1.5rem;
+    border: 1px dashed var(--fragment-border);
+    background: none;
+    font-family: var(--font-mono);
+    text-decoration: none;
+    color: var(--text-secondary);
+    transition: border-color 0.25s ease, color 0.25s ease,
+        background 0.25s ease;
+}
+.sk-more-plus {
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--glitch-c);
+}
+.sk-more-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+}
+.sk-more-label-en {
+    font-size: 0.6rem;
+    letter-spacing: 0.22em;
+    color: var(--text-tertiary);
+    transition: color 0.25s ease;
+}
+.sk-more-arrow {
+    margin-left: auto;
+    color: var(--glitch-c);
+    transition: transform 0.2s ease;
+}
+.sk-more:hover {
+    border-color: var(--glitch-c);
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--glitch-c) 5%, transparent);
+}
+.sk-more:hover .sk-more-label-en { color: var(--text-secondary); }
+.sk-more:hover .sk-more-arrow { transform: translateX(4px); }
+.sk-more:focus-visible { outline: 1.5px solid var(--glitch-c); outline-offset: 3px; }
+
 /* ---------- 空态 ---------- */
 
 .sk-empty {
@@ -624,24 +776,58 @@
     }
     .sk-node:hover .sk-node-frame { transform: none; }
 
-    /* 动作行降级为 Video 上 Info 下单列 */
-    .sk-clip,
-    .sk-clip--flip {
+    /* 动作行降级为 Video 上 Info 下单列
+       （.sk-clips > … 提升优先级，覆盖桌面 nth-child 的 86–94% 宽度） */
+    .sk-clip-pair {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+        overflow: visible;
+    }
+    .sk-clip-pair > .sk-clip-media {
+        position: relative;
+        width: min(100%, 360px);
+        height: auto;
+        justify-self: center;
+        aspect-ratio: 9 / 16;
+    }
+    .sk-clip-pair > .sk-clip-media:first-child { order: 1; }
+    .sk-clip-pair > .sk-clip-media:last-child { order: 3; }
+    .sk-pair-info { display: contents; }
+    .sk-pair-detail--left { order: 2; }
+    .sk-pair-detail--right { order: 4; border-top: 1px solid var(--fragment-border); }
+    .sk-clips > .sk-clip,
+    .sk-clips > .sk-clip--flip,
+    .sk-clips > .sk-clip--vertical {
         grid-template-columns: minmax(0, 1fr);
         width: 100%;
         height: auto;
     }
     .sk-clip .sk-clip-media,
     .sk-clip--flip .sk-clip-media { order: 1; aspect-ratio: 16 / 9; position: relative; }
+    .sk-clip-media video,
+    .sk-clip-placeholder { position: absolute; }
+
+    /* 竖屏展示位降级：媒体居中、限高，信息在下 */
+    .sk-clips > .sk-clip--vertical .sk-clip-media,
+    .sk-clips > .sk-clip--vertical.sk-clip--flip .sk-clip-media {
+        order: 1;
+        position: relative;
+        height: min(62vh, 600px);
+        width: auto;
+        max-width: 100%;
+        aspect-ratio: 9 / 16;
+        justify-self: center;
+    }
+
+    .sk-more { padding: 1.1rem 1.2rem; }
     .sk-clip .sk-clip-info,
-    .sk-clip--flip .sk-clip-info {
+    .sk-clip--flip .sk-clip-info,
+    .sk-clip--vertical .sk-clip-info {
         order: 2;
         border-left: none;
         border-right: none;
         border-top: 1px solid var(--fragment-border);
     }
-    .sk-clip-media video,
-    .sk-clip-placeholder { position: absolute; }
     .sk-hud-metric--measure { writing-mode: horizontal-tb; top: auto; bottom: 12px; right: 14px; }
 
     .sk-selected-id { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
@@ -659,6 +845,26 @@
 
 /* ---------- Reduced Motion ---------- */
 
+.sk-archive { padding: 7rem 0 5rem; }
+.sk-archive-head { max-width: 760px; margin-bottom: 2.5rem; }
+.sk-archive-head h1 { margin: 0.55rem 0 0.8rem; color: var(--text-primary); }
+.sk-archive-head > p:not(.sk-selected-kicker) { color: var(--text-secondary); }
+.sk-archive-head > a { display: inline-block; margin-top: 1.25rem; color: var(--glitch-c); text-decoration: none; }
+.sk-archive-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.sk-archive-card { border: 1px solid var(--fragment-border); background: var(--bg-secondary); }
+.sk-archive-media { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: var(--bg-primary); }
+.sk-archive-media img,
+.sk-archive-media video,
+.sk-archive-media .sk-clip-placeholder { width: 100%; height: 100%; object-fit: cover; }
+.sk-archive-info { padding: 1.25rem; }
+.sk-archive-info h2 { margin-top: 0.4rem; font-size: clamp(1.2rem, 2vw, 1.7rem); }
+.sk-archive-pagination { display: flex; justify-content: center; gap: 2rem; margin-top: 2.5rem; color: var(--text-tertiary); }
+.sk-archive-pagination a { color: var(--glitch-c); text-decoration: none; }
+
+@media (max-width: 767px) {
+    .sk-archive-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .sk-node-frame,
@@ -666,8 +872,13 @@
     .sk-node-name,
     .sk-node--open .sk-node-frame,
     .sk-clip,
-    .sk-watch { transition: none !important; }
+    .sk-clip-placeholder,
+    .sk-watch,
+    .sk-more,
+    .sk-more-label-en,
+    .sk-more-arrow { transition: none !important; }
     .sk-node.is-active .sk-node-frame::before { transform: none; }
     .sk-watch:not(:disabled):hover { transform: none; }
+    .sk-more:hover .sk-more-arrow { transform: none; }
     .sk-links--live line { transition: none; }
 }

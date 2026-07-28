@@ -11,6 +11,7 @@ import qrcode
 from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
@@ -26,6 +27,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 
 from Blogs.models import Post
+from boards.policies import can_edit_post, can_submit_post
 
 from .forms import (
     AcceptAccountInvitationForm,
@@ -68,17 +70,21 @@ from .services import (
     PASSWORD_CODE_SEND_LIMIT,
     PASSWORD_CODE_SENT,
     PASSWORD_CODE_VERIFIED,
+    EMAIL_PURPOSE_BOARD_ACCESS,
+    EMAIL_PURPOSE_PASSWORD_CHANGE,
     accept_account_invitation,
+    clear_email_verification,
     clear_password_email_verification,
+    email_verification_code_pending,
+    email_verification_code_remaining_seconds,
+    email_verification_is_verified,
+    email_verification_resend_remaining_seconds,
     invitation_token_digest,
-    issue_password_change_email_code,
-    mark_password_email_verified,
-    password_change_code_pending,
-    password_change_code_remaining_seconds,
-    password_change_resend_remaining_seconds,
+    issue_email_verification_code,
+    mark_email_verification_verified,
     password_email_is_verified,
     password_email_verification_remaining_seconds,
-    verify_password_change_email_code,
+    verify_email_verification_code,
 )
 
 logger = logging.getLogger(__name__)
@@ -289,7 +295,7 @@ class MyProfileRedirectView(LoginRequiredMixin, RedirectView):
 
 
 class ProfileDetailView(ListView):
-    """展示作者明确公开的资料及其公开已发布文章。"""
+    """Public author page plus an owner-only post management projection."""
 
     template_name = "pages/accounts/profile_detail.html"
     context_object_name = "post_list"
@@ -323,12 +329,19 @@ class ProfileDetailView(ListView):
 
     def get_queryset(self):
         self.profile_user = self._resolve_profile_user()
-        return (
-            Post.publicly_visible_posts()
-            .filter(owner=self.profile_user)
-            .select_related("owner", "owner__profile", "category")
-            .order_by("-created_time")
+        is_owner = (
+            self.request.user.is_authenticated
+            and self.request.user.pk == self.profile_user.pk
         )
+        if is_owner:
+            queryset = Post.objects.filter(owner=self.profile_user).exclude(
+                status=Post.STATUS_DELETE
+            )
+        else:
+            queryset = Post.publicly_visible_posts().filter(owner=self.profile_user)
+        return queryset.select_related(
+            "owner", "owner__profile", "category"
+        ).order_by("-created_time")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -341,6 +354,17 @@ class ProfileDetailView(ListView):
         context["mfa_settings_available"] = context[
             "is_profile_owner"
         ] and mfa_required_for_user(self.profile_user)
+        context["show_profile_post_management"] = context["is_profile_owner"]
+        context["profile_post_count_label"] = (
+            "MY POSTS" if context["is_profile_owner"] else "PUBLIC POSTS"
+        )
+        if context["is_profile_owner"]:
+            for post in context["post_list"]:
+                post.can_edit = can_edit_post(self.request.user, post)
+                post.can_submit = (
+                    post.status == Post.STATUS_DRAFT
+                    and can_submit_post(self.request.user, post)
+                )
         return context
 
 
@@ -361,30 +385,57 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
         return response
 
 
-class PasswordEmailVerificationView(LoginRequiredMixin, FormView):
-    """修改密码前，以短时邮件验证码确认当前账号控制权。"""
+@method_decorator(never_cache, name="dispatch")
+@method_decorator(sensitive_post_parameters("code"), name="dispatch")
+class AccountEmailVerificationView(LoginRequiredMixin, FormView):
+    """Purpose-isolated mailbox challenge shared by sensitive account actions."""
 
     form_class = PasswordEmailVerificationForm
     template_name = "pages/accounts/password_email_verification.html"
+    purpose = None
+    verification_url_name = None
+    success_url_name = None
+    cancel_url_name = "accounts:my-profile"
+    challenge_kicker = "SECURITY / EMAIL CHALLENGE"
+    challenge_title = "验证账号邮箱"
+    challenge_intro = "完成邮箱验证后才能继续当前操作。"
+    terminal_command = "verify mailbox"
+    required_permission = None
+
+    def _purpose(self):
+        if self.purpose not in {
+            EMAIL_PURPOSE_PASSWORD_CHANGE,
+            EMAIL_PURPOSE_BOARD_ACCESS,
+        }:
+            raise Http404("未知的邮箱验证用途")
+        return self.purpose
 
     def _session_key(self):
         if not self.request.session.session_key:
             self.request.session.create()
         return self.request.session.session_key
 
+    def _verification_url(self):
+        return reverse(self.verification_url_name)
+
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
+            if self.required_permission and not request.user.has_perm(
+                self.required_permission
+            ):
+                raise PermissionDenied("当前账号不能发起此邮箱验证。")
             if request.GET.get("restart") == "1":
-                clear_password_email_verification(request)
-            elif password_email_is_verified(request):
-                return redirect("accounts:password-change")
+                clear_email_verification(request, self._purpose())
+            elif email_verification_is_verified(request, self._purpose()):
+                return redirect(self.success_url_name)
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         if request.POST.get("action") == "send":
-            result = issue_password_change_email_code(
+            result = issue_email_verification_code(
                 request.user,
                 self._session_key(),
+                self._purpose(),
             )
             message_map = {
                 PASSWORD_CODE_SENT: (
@@ -406,19 +457,24 @@ class PasswordEmailVerificationView(LoginRequiredMixin, FormView):
             }
             handler, text = message_map[result]
             handler(request, text)
-            return redirect("accounts:password-email-verify")
+            return redirect(self.verification_url_name)
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
-        result = verify_password_change_email_code(
+        result = verify_email_verification_code(
             self.request.user,
             self._session_key(),
+            self._purpose(),
             form.cleaned_data["code"],
         )
         if result == PASSWORD_CODE_VERIFIED:
-            mark_password_email_verified(self.request)
-            logger.info("修改密码邮箱验证通过: user_id=%s", self.request.user.pk)
-            return redirect("accounts:password-change")
+            mark_email_verification_verified(self.request, self._purpose())
+            logger.info(
+                "账号邮箱验证通过: user_id=%s purpose=%s",
+                self.request.user.pk,
+                self._purpose(),
+            )
+            return redirect(self.success_url_name)
         error_map = {
             PASSWORD_CODE_INVALID: "验证码不正确，请重新输入。",
             PASSWORD_CODE_EXPIRED: "验证码不存在或已过期，请重新发送。",
@@ -433,20 +489,50 @@ class PasswordEmailVerificationView(LoginRequiredMixin, FormView):
         local, _, domain = email.partition("@")
         visible = local[:2]
         context["masked_email"] = f"{visible}{'*' * max(2, len(local) - 2)}@{domain}"
-        context["code_sent"] = password_change_code_pending(
+        context["code_sent"] = email_verification_code_pending(
             self.request.user.pk,
             self._session_key(),
+            self._purpose(),
         )
-        context["code_remaining"] = password_change_code_remaining_seconds(
+        context["code_remaining"] = email_verification_code_remaining_seconds(
             self.request.user.pk,
             self._session_key(),
+            self._purpose(),
         )
-        context["resend_remaining"] = password_change_resend_remaining_seconds(
+        context["resend_remaining"] = email_verification_resend_remaining_seconds(
             self.request.user.pk,
         )
         context["code_ttl_minutes"] = settings.PASSWORD_EMAIL_CODE_TTL_SECONDS // 60
         context["max_attempts"] = settings.PASSWORD_EMAIL_MAX_ATTEMPTS
+        context["challenge_kicker"] = self.challenge_kicker
+        context["challenge_title"] = self.challenge_title
+        context["challenge_intro"] = self.challenge_intro
+        context["terminal_command"] = self.terminal_command
+        context["cancel_url"] = reverse(self.cancel_url_name)
         return context
+
+
+class PasswordEmailVerificationView(AccountEmailVerificationView):
+    """修改密码前，以短时邮件验证码确认当前账号控制权。"""
+
+    purpose = EMAIL_PURPOSE_PASSWORD_CHANGE
+    verification_url_name = "accounts:password-email-verify"
+    success_url_name = "accounts:password-change"
+    challenge_intro = "验证通过后，仍需输入当前密码才能修改。"
+    terminal_command = "verify mailbox --purpose credential-rotation"
+
+
+class BoardAccessEmailVerificationView(AccountEmailVerificationView):
+    """提交 BoardAccessRequest 前确认当前邮箱控制权。"""
+
+    purpose = EMAIL_PURPOSE_BOARD_ACCESS
+    verification_url_name = "accounts:board-access-email-verify"
+    success_url_name = "boards:access-requests"
+    cancel_url_name = "boards:access-requests"
+    challenge_title = "确认板块申请"
+    challenge_intro = "验证通过后可在 10 分钟内提交一次板块权限申请。"
+    terminal_command = "verify mailbox --purpose board-access"
+    required_permission = "boards.apply_board_access"
 
 
 class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):

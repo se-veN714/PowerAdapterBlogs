@@ -18,22 +18,7 @@ def has_dashboard_access(user):
     """Return whether a user may enter the custom dashboard shell."""
     if not getattr(user, "is_authenticated", False) or not user.is_active:
         return False
-    memberships = getattr(user, "board_memberships", None)
-    manages_board = bool(
-        memberships
-        and memberships.filter(
-            role="manager",
-            is_active=True,
-            board__is_active=True,
-        ).exists()
-    )
-    return (
-        user.is_dashboard_user
-        or user.is_superuser
-        or user.has_perm("accounts.manage_user_accounts")
-        or user.has_perm("security.view_audit_log")
-        or manages_board
-    )
+    return bool(user.is_dashboard_user or user.is_superuser)
 
 
 class BaseOwnerAdmin(admin.ModelAdmin):

@@ -3,7 +3,7 @@
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
 > **更新**: 2026-07-29
-> **状态**: Board Scope Stage 0–6b 已完成，Stage 7 已进入遗留 `is_reviewer` 零授权读取验收期（自动回归通过，待用户本地角色流程手测）；邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0–H3 应用代码已完成；MFA/mTLS 生产开关默认关闭，待真实设备、Client CA、独立管理 vhost 与 break-glass 演练
+> **状态**: Board Scope Stage 0–6b 已完成，Stage 7 正在进行入口收敛与遗留 `is_reviewer` 零授权读取验收；`/review/` 已成为账号、板块权限、稿件、评论审核的统一业务入口，`/dashboard/` 仅供显式 `dashboard_user` 与 superuser 日常运维；MFA/mTLS 生产开关默认关闭，待真实设备、Client CA、独立管理 vhost 与 break-glass 演练
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -74,9 +74,15 @@ sequenceDiagram
 
 生产运维入口采用 Tailscale：管理员或 Agent 先进入受控 Tailnet，再以专用非 root 账号通过 SSH key 登录并按需 `sudo`。公网安全组不得为临时 Agent 出口长期开放 SSH，也不得通过放宽云主机安全地区/IP 白名单消除告警；云控制台仅作为 break-glass。Tailscale 负责运维网络入口，不能替代 `/super_admin/` 的 TLS 1.3 mTLS、Django 密码和 TOTP 身份验证。
 
-Board 后续缺口按风险排队：🔴 BoardAccessRequest 提交前复用 accounts 短时邮箱验证；🟡 三个 Board Index 接入按 Policy 过滤的文章入口/文章流；🟡 Skateboard Clip 固定为每组 1 个 `9:16` 竖屏与 3 个 `16:9` 横屏并在模型/表单验证版式；🟡 `/dashboard/` 为各 Board 提供仅管理所属文章和专属内容的工作区。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`，这些 TODO 尚未实现。
+BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。剩余缺口按风险排队：🟡 三个 Board Index 接入按 Policy 过滤的文章入口/文章流；🟡 Skateboard Clip 固定为每组 1 个 `9:16` 竖屏与 3 个 `16:9` 横屏并在模型/表单验证版式；🟡 `/dashboard/` 为各 Board 提供仅管理所属文章和专属内容的工作区。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
 
-后台加固主线不被 Stage 7 清债阻塞：H2a 已完成 AES-256-GCM encrypted-only 设备、10 分钟绑定页、Microsoft Authenticator QR、一次性恢复码、原子消费、撤销/密钥擦除和 HMAC 审计；敏感页面均 `no-store`。H2b 已完成密码后置 pending challenge、新时间步防重放、账号与账号+IP 双维共享限流、恢复受限重绑状态、15 分钟 privileged Session，以及 `/dashboard/`、`/super_admin/` 双入口保护。首期强制范围仅 active superuser 与 active Board Manager；`is_dashboard_user` 单独存在不触发 MFA。代码默认 `MFA_ENFORCEMENT_ENABLED=false`，不得在未执行 readiness 与人工恢复演练前开启。
+Board Index 的访问边界已重新冻结：`/boards/<slug>/` 及其纯展示 htmx 片段是个人站的公开陈列面，不要求 BoardMembership；Membership 只保护投稿、编辑、审核、评论管理、成员管理和专属内容维护等动作。Index 后续先由 K3 补齐对应 Category 的公开文章入口与参与 CTA，且不得修改后端；前端完成后再由后端接入公开文章 QuerySet、申请预选及受保护动作的 403/REFUSE 流程。详细矩阵和前后端契约见 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（本地，git-ignored）。
+
+2026-07-29 的体验补丁已补齐 Board 申请提交后的 Devenir 中央确认层（一次性显示，明确“等待审核或联系管理员”），并新增 `/Blogs/review/` Board-scoped 稿件流程工作区。工作区只列出当前账号、当前 Board、当前状态真正允许执行的转换，将“草稿→提审”“审核中→通过/驳回”“已发布→下架”拆开；“可下架”栏支持 Board、Tag、作者和标题/摘要组合筛选，并以每批 8 篇的签名游标通过 htmx 懒加载，不执行传统分页总数 COUNT。它不替代后续按 Board 管理全部专属内容的完整工作区。
+
+后台加固主线不被 Stage 7 清债阻塞：H2a 已完成 AES-256-GCM encrypted-only 设备、10 分钟绑定页、Microsoft Authenticator QR、一次性恢复码、原子消费、撤销/密钥擦除和 HMAC 审计；敏感页面均 `no-store`。H2b 已完成密码后置 pending challenge、新时间步防重放、账号与账号+IP 双维共享限流、恢复受限重绑状态、15 分钟 privileged Session，以及 `/dashboard/`、`/super_admin/` 双入口保护。强制对象为 active superuser、显式 `dashboard_user` 与 active Board Manager；其中 Board Manager 不再仅因 Membership 获得 `/dashboard/` 入口。代码默认 `MFA_ENFORCEMENT_ENABLED=false`，不得在未执行 readiness 与人工恢复演练前开启。
+
+Stage 7 的管理入口采用两维模型：Django Group 仅包含 `VerifiedUsers`、`UserManagers`、`SiteOperators` 等全站职责；Contributor、Editor、Reviewer、Manager 只存在于带 Board 外键的 `BoardMembership.role`。因此 Django 用户编辑页不出现 `Board Manager` Group 是预期行为，不能通过新增全局 Group“补齐”。
 
 #### 邀请制账号决策（2026-07-26）
 
@@ -99,6 +105,22 @@ Board 后续缺口按风险排队：🔴 BoardAccessRequest 提交前复用 acco
 | `codex/board-index-k3` | Kimi K3 | 各 Board 独立 Index 的 Devenir 模板、CSS、展示脚本与空态 | 不修改 Python、Migration、Policy、URLConf、Admin、API 或权限测试 |
 
 三个分支必须使用独立 worktree。后台先冻结只读上下文契约，K3 只消费契约；最终先合并后台数据/权限边界（`board-back`），再合并前端模板（`board-index-k3`），导航与路由由集成方最后接线。具体 HANDOFF 属于本地 Agent 交接材料，不纳入 Git；长期有效边界必须回写本指南或对应 App 文档。
+
+#### Git 分支与多 Agent 交接强制规范（2026-07-29）
+
+将工作交给其他 Agent 前，当前主 Agent **必须先询问用户**，并一次说明目标 Agent、任务范围、基线分支及 commit SHA、拟创建的新分支名、worktree 路径和禁止修改范围。只有用户明确同意后，主 Agent 才能创建新分支；未获确认时不得创建、复用、重建或删除任何分支/ref，也不得让接收任务的 Agent 自行处理 Git 分支。
+
+强制执行以下边界：
+
+1. 每次跨 Agent 交接使用新的 `codex/<task>` 分支和独立 `.local/worktrees/<task>/`；不得为了省事复用陈旧分支，也不得让两个 worktree 检出同一分支。
+2. 分支只能从用户已确认的**已提交**基线 SHA 派生。工作区未提交修改不会进入新分支；若任务依赖这些修改，必须先向用户说明并确认是提交、延后交接，还是只让对方读取主工作区的本地 Guide。
+3. 同一时刻只允许一个 Agent 写 `.git` 元数据。创建者先保存 refs/worktree 快照，再分两步执行“创建 branch ref → 核验所有既有 refs 未变化 → 挂载 worktree”；禁止用 `git worktree add -b` 把两个动作合并。
+4. 接收任务的 Agent 只能在获分配的 worktree 和允许目录内修改文件；不得运行 `git branch`、`git switch -c`、`git worktree add/remove/prune`、`git update-ref`、`git pack-refs`、`git gc/prune`，不得直接写 `.git/`。
+5. 若出现 ref 不落盘、HEAD 为 `0000000`、分支突然 `[gone]` 或 Git 把全仓库显示为新增，立即停止所有 Git 写操作并报告；禁止通过反复重建、`reset`、`checkout`、`clean` 或手写 ref 试错。
+6. 创建完成后必须核验主工作区 HEAD/状态、全部 `refs/heads/codex/*` SHA 和 `git worktree list --porcelain`；发现非目标 ref 变化时，本轮交接失败，不得继续编码。
+7. 提交消息使用英文，并按项目提交 skill 检查范围、文档、测试和敏感文件；提交、推送、合并和分支删除仍分别服从用户授权，不因“已允许创建分支”而自动扩大权限。
+
+2026-07-29 曾发生 `.git/refs/heads/codex/` 整个命名空间丢失：commit 对象和工作区文件仍完整，最终通过 reflog 核验后用 `git update-ref` 恢复。删除来源未被证明，不能把 Agent 沙箱中“写入未持久化”直接归因于 IDE、杀软或外部进程。详细预检、快照、恢复和验收命令见 `docs/guides/GIT_AGENT_WORKFLOW_GUIDE.md`（89，本地、git-ignored）。
 
 > **Board 分支历史基线（2026-07-28）**：`codex/board-back` 的 Board Index 后端已落地（内容模型合并入单一 `boards/models.py`、固定 Board 归属由 Model 层强制、分派视图与路由、数据保留型音乐扁平化迁移）。内容种子数据（`seed_board_index`，Faker 驱动，幂等+`--reset`）已补齐；Music 叙事区（Yearly 大数字 / Monthly bars / Cross-Scale / Companion / Gravity）已全量数据驱动，模板硬编码 mock 与 `{% empty %}` 假数据分支已清除，死脚本 `music-mock-data.js` 已删除。该分支当时通过 system check、迁移漂移检查、100 项 Board/全局角色回归及 215 项全项目测试；其中当时跳过的 16 项 MFA 契约骨架现已由 H2 可执行测试取代，不能作为当前 MFA 状态依据。
 
@@ -827,7 +849,7 @@ PowerGlitch.glitch('.article-cover', {
 | 入口 | 需要 | 反向解析 |
 |------|------|---------|
 | `/super_admin/` | active superuser；启用 H2 强制时还需有效 privileged Session | `reverse("admin:index")` |
-| `/dashboard/` | `CustomSite.has_permission()` 认可的 active 工作台身份；active superuser / Board Manager 在 H2 首期范围内还需有效 privileged Session | `reverse("cus_admin:index")` |
+| `/dashboard/` | 仅 active `is_dashboard_user` 或 active superuser；启用 MFA 强制后必须持有有效 privileged Session | `reverse("cus_admin:index")` |
 
 **关键修复**：
 - `CustomSite.has_permission()` 不再继承 Django 的 `is_staff` 单点判断，而是复用工作台访问判定；Board 对象权限仍由 Membership + Policy 裁决

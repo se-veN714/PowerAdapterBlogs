@@ -39,7 +39,13 @@ class Comment(models.Model):
         ordering = ['created_time']
 
     def __str__(self):
-        return f"{self.nickname}: {self.content[:20]}"
+        return f"{self.author_name}: {self.content[:20]}"
+
+    @property
+    def author_name(self):
+        """Return the authenticated account's current public display name."""
+        profile = getattr(self.user, "profile", None)
+        return profile.public_name if profile is not None else self.user.username
 
     @classmethod
     def get_by_target(cls, post):
@@ -52,4 +58,4 @@ class Comment(models.Model):
             post=post,
             parent__isnull=True,
             status=cls.Status.PUBLISHED,
-        ).order_by('-created_time')
+        ).select_related("user", "user__profile").order_by('-created_time')

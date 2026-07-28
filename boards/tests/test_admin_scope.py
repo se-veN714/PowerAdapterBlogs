@@ -3,12 +3,18 @@
 from unittest.mock import patch
 
 from django.contrib.admin.sites import AdminSite
+from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from accounts.models import MyUser
-from Blogs.admin import PostAdmin, PostRevisionAdmin, PostWorkflowEventAdmin
+from Blogs.admin import (
+    PostAdmin,
+    PostRevisionAdmin,
+    PostWorkflowEventAdmin,
+    approve_review_action,
+)
 from Blogs.models import Category, Post, PostRevision, PostWorkflowEvent
 from boards.admin import BoardAdmin
 from boards.models import Board, BoardMembership
@@ -217,6 +223,24 @@ class BoardScopedAdminTest(TestCase):
         self.assertNotIn("submit_for_review_action", reviewer_actions)
         self.assertIn("approve_review_action", reviewer_actions)
         self.assertIn("reject_review_action", reviewer_actions)
+
+    def test_admin_action_explains_state_mismatch_separately(self):
+        self.add_membership(BoardMembership.Role.REVIEWER)
+        request = self.request_for(self.member)
+        request.session = {}
+        request._messages = FallbackStorage(request)
+
+        approve_review_action(
+            self.post_admin,
+            request,
+            Post.objects.filter(pk=self.same_board_post.pk),
+        )
+
+        message_text = " ".join(str(message) for message in get_messages(request))
+        self.assertIn(
+            "未处理 1 篇：文章当前状态不适用于该操作",
+            message_text,
+        )
 
     @patch("security.services.MongoLogger")
     def test_comment_action_moderates_only_the_reviewers_board(self, mongo_logger):

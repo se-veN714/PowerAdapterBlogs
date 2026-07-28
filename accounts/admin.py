@@ -6,7 +6,6 @@ from .forms import AccountInvitationCreationForm
 from .models import AccountInvitation, ClientCertificateBinding, MyUser, UserProfile
 from .services import issue_account_invitation
 
-from PowerAdapterBlogs.cus_site import custom_site
 from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 
 
@@ -161,9 +160,8 @@ class ClientCertificateBindingAdmin(admin.ModelAdmin):
 
 
 # === 注册到 custom_site（/dashboard/，dashboard 用户仅审核 is_active） ===
-@admin.register(MyUser, site=custom_site)
 class CusMyUserAdmin(DashboardAdminMixin, MyUserAdmin):
-    """Account management for superusers and the ``UserManagers`` group."""
+    """Legacy adapter retained for tests; account review now lives at /review/."""
 
     @staticmethod
     def _can_manage_accounts(request):

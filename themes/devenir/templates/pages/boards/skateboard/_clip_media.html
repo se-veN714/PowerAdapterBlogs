@@ -1,0 +1,60 @@
+{% comment %}
+Skateboard Board — 媒体区共享组件（视频/占位 + HUD 装饰）。
+
+with 参数：
+    name        动作名（aria-label 用）
+    video_url   可空：真实视频；为空时渲染占位视觉
+    poster_url  可空：视频封面
+    hud         可空：arc / speed / measure / ring
+    hud_label   可空：HUD 指标文案
+    timecode    可空：静态装饰时间码
+    bars        真值时显示柱状图装饰
+    vertical    真值时显示 9:16 格式角标
+{% endcomment %}
+<div class="sk-clip-media"{% if hud %} data-hud="{{ hud }}"{% endif %}>
+    {% if video_url %}
+    <video muted playsinline preload="metadata" loop
+           {% if poster_url %}poster="{{ poster_url }}"{% endif %}
+           aria-label="{{ name }}">
+        <source src="{{ video_url }}">
+    </video>
+    {% else %}
+    <div class="sk-clip-placeholder" role="img"
+         aria-label="{{ name }} 片段占位视觉（素材待接入）"></div>
+    {% endif %}
+
+    <span class="sk-corner sk-corner--tl" aria-hidden="true"></span>
+    <span class="sk-corner sk-corner--br" aria-hidden="true"></span>
+    {% if vertical %}<span class="sk-hud-format" aria-hidden="true">9:16</span>{% endif %}
+    {% if timecode %}<span class="sk-hud-tc" aria-hidden="true">{{ timecode }}</span>{% endif %}
+
+    {% if hud == 'arc' %}
+    <svg class="sk-hud-svg" viewBox="0 0 400 300" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M42,252 L332,252" stroke="var(--fragment-highlight)" stroke-width="1" stroke-dasharray="3 5" fill="none"/>
+        <path d="M42,252 Q150,52 318,118" fill="none" stroke="var(--glitch-c)" stroke-width="1.4" opacity=".85"/>
+        <circle cx="318" cy="118" r="4.5" fill="none" stroke="var(--glitch-c)" stroke-width="1.2"/>
+    </svg>
+    {% elif hud == 'measure' %}
+    <svg class="sk-hud-svg" viewBox="0 0 400 300" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="252" y1="58" x2="312" y2="58" stroke="var(--fragment-highlight)" stroke-width="1" stroke-dasharray="3 5"/>
+        <line x1="252" y1="252" x2="312" y2="252" stroke="var(--fragment-highlight)" stroke-width="1" stroke-dasharray="3 5"/>
+        <line x1="300" y1="62" x2="300" y2="248" stroke="var(--glitch-c)" stroke-width="1.2"/>
+        <path d="M294,70 L300,58 L306,70" fill="none" stroke="var(--glitch-c)" stroke-width="1.2"/>
+        <path d="M294,240 L300,252 L306,240" fill="none" stroke="var(--glitch-c)" stroke-width="1.2"/>
+    </svg>
+    {% elif hud == 'ring' %}
+    <svg class="sk-hud-svg" viewBox="0 0 400 300" preserveAspectRatio="none" aria-hidden="true">
+        <circle cx="292" cy="150" r="72" fill="none" stroke="var(--glitch-c)" stroke-width="1.3"
+                stroke-dasharray="300 460" stroke-linecap="round" transform="rotate(-64 292 150)"/>
+        <circle cx="292" cy="150" r="52" fill="none" stroke="var(--glitch-c)" stroke-width="1"
+                stroke-dasharray="120 420" opacity=".45" transform="rotate(30 292 150)"/>
+    </svg>
+    {% endif %}
+
+    {% if hud_label %}
+    <span class="sk-hud-metric sk-hud-metric--{{ hud }}" aria-hidden="true">{{ hud_label }}</span>
+    {% endif %}
+    {% if bars %}
+    <span class="sk-hud-bars" aria-hidden="true"><i style="height:35%"></i><i style="height:62%"></i><i style="height:44%"></i><i style="height:82%"></i><i style="height:56%"></i><i style="height:70%"></i><i style="height:38%"></i></span>
+    {% endif %}
+</div>

@@ -2,7 +2,7 @@
 
 > **文档权重**：88（v2.5+ 安全规划；状态为规划时不得视为已实现）
 > **模块**：`accounts/`、`security/`
-> **状态**：H0、H1/Stage 6a–6b 已完成；H2 契约已冻结，下一步从 H2a 绑定与恢复能力开始实现
+> **状态**：H0、H1/Stage 6a–6b 已完成；H2 契约与 H2a-0–1 已完成，下一步实现 H2a-2 绑定确认
 > **日期**：2026-07-27
 > **版本原则**：复杂安全能力默认进入 v2.5+；若前置测试、运维方案和回滚路径提前成熟，可以前移，但不以赶版本为目标。
 
@@ -47,6 +47,17 @@ H2a 上线后先保留“可绑定但不强制”的观察窗口。确认至少�
 
 H2 首期明确强制 active superuser 与任意 active Board Manager。`UserManagers`、`SiteOperators` 同样属于敏感全局职责，是否随 H2b 一并强制是进入 H2b 前的显式决策；旧 `is_dashboard_user` 旗标本身不构成 MFA 身份。推荐最终把两个全局敏感 Group 纳入，但不得在未确认时静默扩大上线范围。
 
+#### H2a 实施切片
+
+| 切片 | 状态 | 交付 |
+|---|---|---|
+| H2a-0 | ✅ | 固定 `PyOTP==2.10.0` 与 `cryptography==49.0.0`；实现无持久化的 AES-256-GCM seed 加密边界和 5 个可执行测试 |
+| H2a-1 | ✅ | `MfaTotpDevice` 单用户单设备模型、状态/时间戳/版本/时间步约束、迁移与 encrypted-only ORM 测试；未开放页面 |
+| H2a-2 | 下一步 | pending 绑定、首次 TOTP 确认、二维码的一次性展示与过期清理 |
+| H2a-3 | 待办 | 恢复码 hash、原子消费、重置/撤销和 HMAC 审计；完成后进入观察窗口 |
+
+H2a-0 的 `accounts.mfa_crypto` 不读取数据库或环境，不生成业务 seed，也不被登录/视图调用。调用者必须提供版本化 keyring、active key ID 与 AAD；未知 key、错误长度、非法 key ID、密文或 AAD 篡改均使用不含敏感值的统一异常失败。H2a-1 的 `MfaTotpDevice` 只保存密文、96-bit nonce、key ID 与生命周期元数据，密文 AAD 固定绑定 user ID 和预生成的 device UUID；模型未注册到 Django Admin。KEK 到 Django settings 的加载和启动期生产配置校验留到 H2a-2，在第一次生成业务 seed 前完成。
+
 | 版本 | 目标 | 是否修改运行时 | 进入条件 |
 |---|---|:---:|---|
 | v2.4 | `accounts_linear`：Group + Permission + BoardMembership + Policy | ✅ | 权限矩阵和拒绝路径测试先完成 |
@@ -90,7 +101,7 @@ MfaRecoveryCode
 - 首期生成 10 枚高熵恢复码，只保存 password hash；页面只展示一次，单枚成功后立即原子写入 `used_at`。不得提供“重新显示旧恢复码”。
 - 撤销或重置递增 `auth_version`、清除可用恢复码并使相关 privileged Session 失效；历史审计只保留 device ID、actor、原因码和时间。
 
-本契约不固定 Python 库。H2a 开工前需要比较维护状态良好的 TOTP 与 AEAD 实现，并固定依赖版本；禁止自行实现 OTP、Base32 或加密算法。
+H2a-0 已根据官方文档固定 `PyOTP==2.10.0` 与 `cryptography==49.0.0`，分别使用标准 TOTP API 与 `AESGCM`；项目不自行实现 OTP、Base32 或加密算法。AES-GCM 使用 256-bit key、每次随机 96-bit nonce，并要求调用者提供绑定用户/设备身份的 AAD。
 
 ### 3.0.1 登录与 Session 状态机（H2b）
 

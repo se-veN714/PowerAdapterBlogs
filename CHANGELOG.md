@@ -4,6 +4,17 @@
 
 ## [2026-07-27]
 
+### 后台加固 H2a-1 设备模型
+- 新增 encrypted-only `MfaTotpDevice` 与迁移：单用户只允许一个逻辑设备，不保存 seed 明文或 `otpauth://` URI，也不注册到 Django Admin
+- 密文通过 AAD 绑定 user ID 与预生成 device UUID；数据库约束 `pending/active/revoked` 时间戳、`auth_version >= 1` 和非负防重放时间步
+- 新增 7 个 ORM/数据库测试；当前仍未开放绑定页面、生成业务 seed 或修改登录链路
+
+### 后台加固 H2a-0 加密边界
+- 固定 `PyOTP==2.10.0` 与 `cryptography==49.0.0`，不自行实现 TOTP、Base32 或密码算法
+- 新增无持久化的 AES-256-GCM seed 加密边界，使用版本化 key ID、每次随机 96-bit nonce 与调用者提供的设备 AAD
+- 非法 keyring、未知 key、密文或 AAD 篡改均默认拒绝，错误消息不包含 key、seed、nonce 或密文
+- 新增 5 个可执行加密测试；设备/恢复与登录的 16 个契约测试继续跳过，未创建模型、迁移或业务 seed
+
 ### 后台加固 H2 设计冻结
 - 将 TOTP 拆分为 H2a 绑定/恢复与 H2b 登录强制，禁止首次引入密钥模型时同步改造登录链路
 - 冻结加密 seed、版本化 KEK、恢复码 hash、防重放时间步、`auth_version` 与 15 分钟特权 Session 契约

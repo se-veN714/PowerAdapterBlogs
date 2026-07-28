@@ -13,6 +13,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-27 | v3.16 | H2a-1：新增 encrypted-only `MfaTotpDevice`、单用户单设备及生命周期/防重放约束、迁移与 7 个 ORM 测试；未开放页面或修改登录 |
+| 2026-07-27 | v3.15 | H2a-0：固定 PyOTP/cryptography，新增无持久化 AES-256-GCM seed 加密边界及 5 个执行测试；登录与模型未改 |
 | 2026-07-27 | v3.14 | H2 契约冻结：先 H2a 绑定/恢复、后 H2b 登录强制；仅加入跳过的安全测试骨架，未生成密钥或修改登录 |
 | 2026-07-27 | v3.13 | Stage 6a：固定 VerifiedUsers/UserManagers/SiteOperators Permission；接通受限账号管理、审计入口和历史身份迁移 |
 | 2026-07-27 | v3.12 | 后台加固 H0：默认 AdminSite 与登录表单改为 active-superuser-only，补齐匿名、staff-only、dashboard、superuser 和停用账号拒绝路径 |
@@ -156,7 +158,7 @@ flowchart TD
 | `apps.py` | `AccountsConfig` | AppConfig |
 | `LOGGUIDE.md` | — | 日志规范（含安全红线） |
 | `PERMISSIONS_GUIDE.md` | — | Group + Permission + BoardMembership + Policy 授权设计与线性实施路线 |
-| `SECURITY_ROADMAP.md` | — | H0–H1 已实现；H2a/H2b TOTP 契约已冻结但运行时未实现；证书、mTLS 与密钥全生命周期仍为规划 |
+| `SECURITY_ROADMAP.md` | — | H0–H1 与 H2a-0–1 加密边界/设备模型已实现；H2a 绑定/恢复和 H2b 登录仍未实现；证书、mTLS 与密钥全生命周期仍为规划 |
 
 ### 2.1 协同模块（审核工作流）
 

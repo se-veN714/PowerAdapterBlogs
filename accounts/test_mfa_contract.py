@@ -10,7 +10,7 @@ from unittest import skip
 from django.test import SimpleTestCase
 
 
-@skip("H2a is design-only: no TOTP device, secret, or recovery code exists yet")
+@skip("H2a-2/3 services are not implemented; the H2a-1 device model is isolated")
 class H2aMfaEnrollmentContractTest(SimpleTestCase):
     def test_seed_is_encrypted_before_any_database_write(self):
         self.fail("Implement with the H2a encrypted-device model")

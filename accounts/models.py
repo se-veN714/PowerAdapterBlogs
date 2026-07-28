@@ -2,7 +2,12 @@ from pathlib import Path
 import uuid
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
+)
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
 import logging
@@ -14,7 +19,7 @@ from .thread_local import get_current_user
 logger = logging.getLogger(__name__)
 
 # 敏感权限字段：非 superuser 禁止修改
-SENSITIVE_FIELDS = {'is_superuser', 'is_staff', 'is_dashboard_user', 'is_reviewer'}
+SENSITIVE_FIELDS = {"is_superuser", "is_staff", "is_dashboard_user", "is_reviewer"}
 
 
 def profile_avatar_upload_to(_instance, filename):
@@ -61,8 +66,8 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
 
     objects = UserManager()
 
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['email']
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = ["email"]
 
     class Meta:
         permissions = [
@@ -179,7 +184,117 @@ class UserProfile(models.Model):
         return self.display_name.strip() or self.user.username
 
     def get_absolute_url(self):
-        return reverse("accounts:profile-detail", kwargs={"username": self.user.username})
+        return reverse(
+            "accounts:profile-detail", kwargs={"username": self.user.username}
+        )
 
     def __str__(self):
         return f"{self.user.username} 的资料"
+
+
+class MfaTotpDevice(models.Model):
+    """A user's encrypted TOTP seed and its lifecycle metadata.
+
+    The plaintext seed and provisioning URI must never be persisted here.
+    Encryption and decryption stay behind ``accounts.mfa_crypto``.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "待确认"
+        ACTIVE = "active", "已启用"
+        REVOKED = "revoked", "已撤销"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="mfa_totp_device",
+        verbose_name="用户",
+    )
+    status = models.CharField(
+        max_length=8,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name="状态",
+    )
+    secret_ciphertext = models.BinaryField(editable=False, verbose_name="种子密文")
+    secret_nonce = models.BinaryField(editable=False, verbose_name="加密随机数")
+    key_id = models.CharField(max_length=32, editable=False, verbose_name="密钥版本")
+    binding_expires_at = models.DateTimeField(verbose_name="绑定过期时间")
+    confirmed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="确认时间",
+    )
+    revoked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="撤销时间",
+    )
+    last_accepted_step = models.BigIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="最后接受的时间步",
+    )
+    auth_version = models.PositiveIntegerField(
+        default=1,
+        editable=False,
+        verbose_name="认证版本",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        verbose_name = "TOTP 设备"
+        verbose_name_plural = "TOTP 设备"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        status="pending",
+                        confirmed_at__isnull=True,
+                        revoked_at__isnull=True,
+                    )
+                    | models.Q(
+                        status="active",
+                        confirmed_at__isnull=False,
+                        revoked_at__isnull=True,
+                    )
+                    | models.Q(status="revoked", revoked_at__isnull=False)
+                ),
+                name="accounts_mfa_totp_status_dates_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(auth_version__gte=1),
+                name="accounts_mfa_totp_auth_version_gte_1",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(last_accepted_step__isnull=True)
+                    | models.Q(last_accepted_step__gte=0)
+                ),
+                name="accounts_mfa_totp_step_nonnegative",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        nonce = bytes(self.secret_nonce or b"")
+        ciphertext = bytes(self.secret_ciphertext or b"")
+        if len(nonce) != 12:
+            errors["secret_nonce"] = "TOTP 加密随机数必须为 12 字节。"
+        # AES-GCM appends a 16-byte authentication tag to a non-empty seed.
+        if len(ciphertext) < 17:
+            errors["secret_ciphertext"] = "TOTP 种子密文格式无效。"
+        if not self.key_id or not all(
+            character.isascii() and (character.isalnum() or character in "._-")
+            for character in self.key_id
+        ):
+            errors["key_id"] = "TOTP 密钥版本标识无效。"
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.user.username} / {self.status} / {self.pk}"

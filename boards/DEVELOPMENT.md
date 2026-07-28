@@ -5,7 +5,7 @@
 > **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及板块申请审批
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-07-28 — Board Index 后端落地（codex/board-back）+ 文档与代码同步
+> **最后更新**: 2026-07-28 — Board Index 合并前数据迁移与模型不变量加固
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-28 | v2.3 | 合并前加固：音乐旧数据双向搬运与往返迁移测试；固定 Board 归属改为 Model 层强制校验；首页过滤无 Index 的 Board；Admin 颜色预览适配 Django 5.2；全项目 215 项测试通过、16 项未来 MFA 契约按设计跳过 |
 | 2026-07-27 | v2.1 | Stage 6b：BoardAccessRequest、用户入口、分级审批、事务写入与审计完成；完整测试 179 个 |
 | 2026-07-28 | v2.2 | Board Index 后端落地（codex/board-back）：content 模型合并入单一 `models.py`；board 由模型类型固定（auto-default + Admin 隐藏）；`board_index.py` 分派、`BoardIndexView`+`HomieLineView` 路由、Admin 注册完成；board-index 测试 15 项全绿 |
 | 2026-07-19 | v2.0 | 增加仅限 DEBUG 的幂等测试账号命令，覆盖四种 Board 角色和无 Membership 拒绝样本 |
@@ -136,7 +137,7 @@ Board Index 三页（skateboard / music / coding）的内容模型也位于 `boa
 | Music | `MusicRecordBase`（抽象）+ `SpotifyRecord` / `AppleRecord`（平铺，按 (year, month) 分组重建快照视图） | music |
 | Coding | `CodingProject`、`CodingPrinciple`、`CodingExperiment` | coding |
 
-**关键约束（2026-07-28 用户决策）**：内容模型的 `board` 外键**不由人工选择**，而是由模型类型固定——每个内容模型声明 `BOARD_SLUG` 类属性，`board` 字段的 `default` 通过 `_board_default(slug)` → `_board_for_slug(slug)` 按 slug 自动解析对应 `Board`；Admin 中 `SuperuserBoardContentAdmin.exclude = ("board",)` 统一隐藏该字段。任何内容记录创建时都被强制归属到正确板块，不存在“任选板块”的可能。
+**关键约束（2026-07-28 用户决策）**：内容模型的 `board` 外键**不由人工选择**，而是由模型类型固定——每个内容模型声明 `BOARD_SLUG` 类属性，`board` 字段的 `default` 通过 `_board_default(slug)` → `_board_for_slug(slug)` 按 slug 自动解析对应 `Board`；`FixedBoardContentModel` 同时在 `clean()` 与 `save()` 层拒绝错误 slug 的 Board，Admin 中 `SuperuserBoardContentAdmin.exclude = ("board",)` 统一隐藏该字段。普通 ORM/脚本写入无法再绕过该归属约束；`bulk_create()` 等绕过 Model `save()` 的批量入口仍不得用于这些内容模型。
 
 - `SkateHomie.memberships` 为 M2M → `BoardMembership`，仅作展示/归属标注，**绝不作为授权依据**（决策 3）。
 - `SkateClip.is_public` 过滤在查询层完成（`boards/board_index.py` 的 `assemble_skateboard`），不泄露非公开内容。

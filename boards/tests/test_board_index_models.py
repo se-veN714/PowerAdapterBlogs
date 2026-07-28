@@ -5,6 +5,7 @@
 """
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 
@@ -34,13 +35,73 @@ class BoardIndexModelStructureTests(TestCase):
     def test_music_related_name_expands_per_class(self):
         board = Board.objects.create(slug="music", name="Music")
         spotify = SpotifyRecord.objects.create(
-            board=board, title="2025", year=2025, label="X", value="1")
+            board=board, title="2025", year=2025, label="X", value="1"
+        )
         apple = AppleRecord.objects.create(
-            board=board, title="2026-06", year=2026, month=6,
-            scope=MusicScope.MONTHLY, label="Y", value="2"
+            board=board,
+            title="2026-06",
+            year=2026,
+            month=6,
+            scope=MusicScope.MONTHLY,
+            label="Y",
+            value="2",
         )
         self.assertIn(spotify, board.spotifyrecords.all())
         self.assertIn(apple, board.applerecords.all())
+
+    def test_content_models_reject_a_board_with_the_wrong_slug(self):
+        music = Board.objects.create(slug="music", name="Music")
+        coding = Board.objects.create(slug="coding", name="Coding")
+        skateboard = Board.objects.create(slug="skateboard", name="Skateboard")
+        cases = (
+            (
+                SkateHomie,
+                music,
+                {"node_index": 1, "name": "Wrong", "joined_at": "2026-07-28"},
+            ),
+            (
+                SpotifyRecord,
+                coding,
+                {"title": "Wrong", "year": 2026, "label": "X", "value": "1"},
+            ),
+            (
+                AppleRecord,
+                skateboard,
+                {"title": "Wrong", "year": 2026, "label": "X", "value": "1"},
+            ),
+            (
+                CodingProject,
+                music,
+                {"index": 1, "name": "Wrong"},
+            ),
+            (
+                CodingPrinciple,
+                skateboard,
+                {"index": 1, "title": "Wrong"},
+            ),
+            (
+                CodingExperiment,
+                music,
+                {"date": "2026-07-28", "title": "Wrong"},
+            ),
+        )
+
+        for model, wrong_board, fields in cases:
+            with self.subTest(model=model.__name__):
+                with self.assertRaises(ValidationError):
+                    model.objects.create(board=wrong_board, **fields)
+
+    def test_content_model_default_resolves_the_expected_board(self):
+        music = Board.objects.create(slug="music", name="Music")
+
+        record = SpotifyRecord.objects.create(
+            title="Default",
+            year=2026,
+            label="X",
+            value="1",
+        )
+
+        self.assertEqual(record.board, music)
 
 
 class SkateboardModelTests(TestCase):
@@ -79,10 +140,18 @@ class SkateboardModelTests(TestCase):
             joined_at="2024-01-01",
         )
         SkateClip.objects.create(
-            homie=homie, order=1, title="PUBLIC", is_public=True, status=ClipStatus.LANDED
+            homie=homie,
+            order=1,
+            title="PUBLIC",
+            is_public=True,
+            status=ClipStatus.LANDED,
         )
         SkateClip.objects.create(
-            homie=homie, order=2, title="HIDDEN", is_public=False, status=ClipStatus.LANDED
+            homie=homie,
+            order=2,
+            title="HIDDEN",
+            is_public=False,
+            status=ClipStatus.LANDED,
         )
         public = homie.clips.filter(is_public=True)
         self.assertEqual(public.count(), 1)
@@ -95,11 +164,21 @@ class MusicModelTests(TestCase):
 
     def test_spotify_record_ordering(self):
         SpotifyRecord.objects.create(
-            board=self.board, title="2025", year=2025,
-            label="TOP TRACK", value="X", display_order=2)
+            board=self.board,
+            title="2025",
+            year=2025,
+            label="TOP TRACK",
+            value="X",
+            display_order=2,
+        )
         SpotifyRecord.objects.create(
-            board=self.board, title="2025", year=2025,
-            label="HEIGHT", value="1.8", display_order=1)
+            board=self.board,
+            title="2025",
+            year=2025,
+            label="HEIGHT",
+            value="1.8",
+            display_order=1,
+        )
         labels = list(
             SpotifyRecord.objects.filter(board=self.board)
             .order_by("display_order")
@@ -114,7 +193,12 @@ class CodingModelTests(TestCase):
 
     def test_coding_models_create_and_ordering(self):
         CodingProject.objects.create(
-            board=self.board, index=1, name="MONITOR", year=2026, status="IN USE", is_active=True
+            board=self.board,
+            index=1,
+            name="MONITOR",
+            year=2026,
+            status="IN USE",
+            is_active=True,
         )
         CodingPrinciple.objects.create(
             board=self.board, index=1, title="NEED BEFORE FRAMEWORK"

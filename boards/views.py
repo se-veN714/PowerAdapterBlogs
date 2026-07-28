@@ -98,7 +98,9 @@ class HomieLineView(TemplateView):
         )
         self.selected_homie = homie
         self.clip_list = list(
-            SkateClip.objects.filter(homie=homie, is_public=True).order_by("order", "pk")
+            SkateClip.objects.filter(homie=homie, is_public=True).order_by(
+                "order", "pk"
+            )
         )
         for clip in self.clip_list:
             clip.duration_display = _format_duration(clip.duration)
@@ -118,7 +120,7 @@ def boards_context(request):
     返回 board 对象，模板可通过 board.glitch_color 等属性使用。
     """
     boards = (
-        Board.objects.filter(is_active=True)
+        Board.objects.filter(is_active=True, slug__in=BOARD_TEMPLATES)
         .select_related("category")
         .order_by("sort_order")
     )

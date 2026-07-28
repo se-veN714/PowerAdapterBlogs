@@ -2,6 +2,15 @@
 
 > **文档权重**：60（历史变更记录；不覆盖当前架构文档）
 
+## [2026-07-28]
+
+### Board Index 合并前加固
+- 修复音乐 Snapshot/Entry 扁平化迁移：在删除旧表前双向搬运 Apple/Spotify 全字段与时间元数据，并新增 `0007 → 0008 → 0007` 往返迁移测试
+- 通过抽象模型基类在 `clean()` 与 `save()` 层强制 Skateboard、Music、Coding 内容归属固定 Board，拒绝 ORM/脚本写入错误板块
+- 首页只展示已有独立 Index 模板的 active Board，避免新增板块入口指向 404；Admin Glitch 颜色预览改用 Django 5.2 `format_html()`
+- 移除 PyPI 不存在且代码未使用的 `self==2020.12.3`，恢复 Python 3.13.5 + Django 5.2.16 的全量依赖安装
+- Django system check、迁移漂移检查、Ruff、20 项聚焦测试、100 项 Board/全局角色回归与 215 项全项目测试通过（16 项未来 MFA 契约按设计跳过）
+
 ## [2026-07-27]
 
 ### 后台加固 H2 设计冻结

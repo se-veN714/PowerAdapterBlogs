@@ -196,7 +196,7 @@ class MfaTotpDevice(models.Model):
     """A user's encrypted TOTP seed and its lifecycle metadata.
 
     The plaintext seed and provisioning URI must never be persisted here.
-    Encryption and decryption stay behind ``accounts.mfa_crypto``.
+    Encryption and decryption stay behind ``accounts.authn.mfa_crypto``.
     """
 
     class Status(models.TextChoices):
@@ -324,3 +324,86 @@ class MfaRecoveryCode(models.Model):
     def __str__(self):
         state = "used" if self.used_at else "unused"
         return f"{self.device_id} / {state} / {self.pk}"
+
+
+class ClientCertificateBinding(models.Model):
+    """Minimal server-side identity for one mTLS client certificate.
+
+    Certificate PEM and private keys are deliberately outside Django. The
+    issuer digest plus serial number identifies the certificate presented by
+    the trusted reverse proxy, while the stored subject provides an additional
+    exact-match check.
+    """
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "已启用"
+        REVOKED = "revoked", "已撤销"
+
+    class Profile(models.TextChoices):
+        STANDARD_TLS = "standard-tls", "标准 TLS"
+        SM2_TLCP = "sm2-tlcp", "SM2 / TLCP"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="client_certificate_bindings",
+        editable=False,
+        verbose_name="超级管理员",
+    )
+    serial_number = models.CharField(
+        max_length=128, editable=False, verbose_name="证书序列号"
+    )
+    issuer_dn = models.TextField(editable=False, verbose_name="签发者 DN")
+    issuer_dn_sm3 = models.CharField(
+        max_length=64, editable=False, verbose_name="签发者 SM3 摘要"
+    )
+    subject_dn = models.TextField(editable=False, verbose_name="Subject DN")
+    certificate_profile = models.CharField(
+        max_length=16,
+        choices=Profile.choices,
+        editable=False,
+        verbose_name="证书协议档案",
+    )
+    status = models.CharField(
+        max_length=8,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        editable=False,
+        verbose_name="状态",
+    )
+    auth_version = models.PositiveIntegerField(
+        default=1, editable=False, verbose_name="认证版本"
+    )
+    expires_at = models.DateTimeField(editable=False, verbose_name="证书到期时间")
+    verified_at = models.DateTimeField(editable=False, verbose_name="绑定时间")
+    revoked_at = models.DateTimeField(
+        null=True, blank=True, editable=False, verbose_name="撤销时间"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        verbose_name = "客户端证书绑定"
+        verbose_name_plural = "客户端证书绑定"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("issuer_dn_sm3", "serial_number"),
+                name="accounts_cert_issuer_serial_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(auth_version__gte=1),
+                name="accounts_cert_auth_version_gte_1",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(status="active", revoked_at__isnull=True)
+                    | models.Q(status="revoked", revoked_at__isnull=False)
+                ),
+                name="accounts_cert_status_date_valid",
+            ),
+        ]
+        indexes = [models.Index(fields=("user", "status", "expires_at"))]
+
+    def __str__(self):
+        return f"{self.user_id} / {self.serial_number} / {self.status}"

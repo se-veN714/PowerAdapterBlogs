@@ -4,7 +4,7 @@
 > **项目**: 基于 Django 5.2 的个人博客系统  
 > **作者**: seveN1foR / PowerAdapter  
 > **许可证**: MIT  
-> **最后更新**: 2026-07-27 — 完成 Board Scope Stage 6b 权限申请与自动审批
+> **最后更新**: 2026-07-29 — H3 TLS 1.3 mTLS 应用与 OpenSSL 4.0.1 运维骨架
 
 ---
 
@@ -22,6 +22,7 @@ DjangoProject/                 # 项目根目录
 ├── comment/                   # 评论模块
 ├── config/                    # 站点配置（友链/侧边栏）
 ├── security/                  # 日志完整性（HMAC + MongoDB 审计）
+├── deploy/                    # Nginx mTLS 与仓库外 Client CA 运维模板
 ├── themes/                    # 前端模板（bulma 主题）
 ├── static/                    # 静态资源
 ├── requirements.txt           # 依赖清单
@@ -71,7 +72,7 @@ DjangoProject/                 # 项目根目录
 
 | URL | 后台 | 权限要求 |
 |-----|------|---------|
-| `/super_admin/` | Django 原生 Admin | `is_staff = True` |
+| `/super_admin/` | Django 原生 Admin | active superuser；开启 H2/H3 后还需受信客户端证书与短时 TOTP privileged Session |
 | `/dashboard/` | 自定义 AdminSite | `is_dashboard_user = True` |
 > **反向解析**：AdminSite 的 URL 必须通过 `namespace:name` 形式反向解析，如 `reverse("cus_admin:index")` → `/dashboard/`。`custom_site.name = 'cus_admin'`。
 
@@ -185,6 +186,8 @@ Agent HANDOFF、线程上下文和一次性 worktree 任务快照不属于本索
 | `docs/guides/LOGGUIDE.md`（本地，git-ignored） | 全项目日志主规范 |
 | `requirements.txt` | 依赖清单 |
 | `accounts/DEVELOPMENT.md` | 用户模块详细架构 |
+| `accounts/SECURITY_ROADMAP.md` | 特权认证、TOTP、TLS 1.3 mTLS 与密钥生命周期路线 |
+| `deploy/mtls/README.md` | OpenSSL 4.0.x Client CA、CRL、轮换、恢复与上线验收契约 |
 | `security/DEVELOPMENT.md` | 日志完整性详细架构 |
 | `themes/devenir/DEVELOPMENT.md` | 当前 Devenir 主题架构、模板与静态资源说明 |
 | `accounts/LOGGUIDE.md` | accounts 日志规范 |

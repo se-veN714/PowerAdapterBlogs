@@ -3,7 +3,7 @@
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
 > **更新**: 2026-07-28
-> **状态**: Board Scope Stage 0–6b、邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0–H2 已完成；H2 生产强制默认关闭，待人工绑定与 break-glass 演练后启用
+> **状态**: Board Scope Stage 0–6b、邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0–H3 应用代码已完成；MFA/mTLS 生产开关默认关闭，待真实设备、Client CA、独立管理 vhost 与 break-glass 演练
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -33,9 +33,11 @@
 
 复杂功能可以后移；只有在前置测试、恢复方案和回滚路径提前成熟时才允许前移。v2.1 内容模型对接仍由另一项目完成后再推进，不与本路线强绑定。
 
-#### v2.5 特权账户强认证边界（TOTP 已实现；证书与 mTLS 仍在规划）
+#### v2.5 特权账户强认证边界（TOTP 与 mTLS 应用侧已实现；真实 CA/网关仍待验收）
 
 superuser 的目标链路为“受信客户端证书 + TOTP 动态验证码”；首轮实现默认仍保留密码校验，形成 mTLS、应用身份和 TOTP 三道独立闸门。只有完成威胁模型、恢复流程和兼容性测试后，才单独评估是否允许证书 + TOTP 的无密码登录。Board Manager 首期只强制 TOTP，不强制客户端证书，避免把板块协作入口和站点最高权限入口混成同一门槛。
+
+证书与 TOTP 明确分离：管理域名的服务器证书继续使用 Let’s Encrypt；superuser 客户端证书由离线私有 Client CA 签发，不复用公网服务器证书。H3 生产链正式固定为 Nginx + OpenSSL 4.0.x 最新补丁版终止 TLS 1.3 mTLS，再由 Django 完成证书映射、密码和 TOTP；初始部署基线为 OpenSSL 4.0.1，并接受其非 LTS、需持续跟进补丁和在 EOL 前迁移的维护成本。主流浏览器可直接使用系统证书容器，不依赖国密浏览器。审计事件继续使用现有 SM3-HMAC 完整性链。SM2/TLCP 降为不接生产、不计入 H3 验收的隔离实验，TOTP 保持 RFC 6238 与 Microsoft Authenticator 兼容。
 
 `/super_admin/` 的 mTLS 推荐使用独立管理域名 / Nginx `server`，例如 `admin.poweradapter.xyz`；公网站点不再直接暴露该路径。原因是 Nginx 的 `ssl_verify_client` 作用域为 `http` / `server`，直接在现有站点打开会影响整站 TLS 握手。若暂时只能复用同一域名，必须采用 `ssl_verify_client optional` + location 强制校验，并先验证普通博客访问不会持续弹出客户端证书选择框。
 

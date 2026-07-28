@@ -2,7 +2,7 @@
 
 > **文档权重**：88（v2.5+ 安全规划；状态为规划时不得视为已实现）
 > **模块**：`accounts/`、`security/`
-> **状态**：H0–H2 代码与自动化验收已完成；生产强制默认关闭，待真实设备绑定、离线恢复材料和 break-glass 人工演练
+> **状态**：H0–H3 应用代码与自动化验收已完成；MFA/mTLS 生产强制均默认关闭，待真实设备、独立管理 vhost、客户端 CA 和 break-glass 人工演练
 > **日期**：2026-07-28
 > **版本原则**：复杂安全能力默认进入 v2.5+；若前置测试、运维方案和回滚路径提前成熟，可以前移，但不以赶版本为目标。
 
@@ -58,7 +58,19 @@ H2 首期明确强制 active superuser 与任意 active Board Manager。`UserMan
 | H2a-UI | ✅ 代码 | 已有 Session 内的绑定/确认、恢复码一次展示、`no-store` 与受限重绑页面；真实手机和 break-glass 仍需人工验收 |
 | H2b | ✅ 代码 | 密码后置 challenge、防重放、5 次/15 分钟共享冷却、恢复受限态、15 分钟 privileged Session 与双后台 middleware |
 
-H2a-0 的 `accounts.mfa_crypto` 不读取数据库或环境。H2a-1 的 `MfaTotpDevice` 只保存密文、96-bit nonce、key ID 与生命周期元数据，AAD 固定绑定 user ID 和 device UUID。H2a-2/3 的 `accounts.mfa_services` 从 `MFA_TOTP_KEYRING_JSON` 与 `MFA_TOTP_ACTIVE_KEY_ID` 读取版本化 KEK；缺失、非法或 active key 不存在时，在生成/持久化 seed 前默认拒绝。`MFA_TOTP_ISSUER` 可配置显示名称。仓库与测试不得写入真实 KEK、业务 seed、二维码 URI、TOTP code 或恢复码。设备与恢复码均不注册到 Django Admin。
+#### H3 实施切片
+
+| 切片 | 状态 | 交付 |
+|---|---|---|
+| H3a | ✅ 代码 | `ClientCertificateBinding` 多证书轮换模型；issuer 使用 SM3 摘要索引，issuer + serial 唯一，保存 Subject/profile/有效期/状态/`auth_version`，不保存 PEM 或私钥 |
+| H3b | ✅ 代码 | 独立管理 Host、可信代理网络或 Unix socket、代理共享认证值、`SUCCESS` 与最小证书 Header 的 fail-closed 契约；伪造 Header、错误 Host/profile/用户/Subject 均拒绝 |
+| H3c | ✅ 代码 | `/super_admin/` 证书 → 密码 → TOTP 串联；privileged Session 绑定同一证书及版本，证书撤销/过期/替换后要求重新认证 |
+| H3d | ✅ 工具骨架 | `deploy/mtls/` 提供仓库外 CA、clientAuth、CRL、轮换、丢失与 break-glass 契约；生产边界固定 OpenSSL 4.0.x 最新补丁版，readiness 强制版本证据等五项人工确认且不读取密钥 |
+| H3-ops | 🟡 部分实测 | OpenSSL 4.0.1 已通过开发 CA、clientAuth、PKCS#12、撤销与 CRL error 23 流程；独立 Nginx vhost、真实浏览器、Django 真实绑定和 break-glass 尚未验收，`MTLS_ENFORCEMENT_ENABLED` 保持关闭 |
+
+H3 提供 `bind_client_certificate`、`revoke_client_certificate` 与 `check_mtls_readiness` 三个命令。readiness 要求显式确认代理边界、Client CA、吊销、break-glass 和 OpenSSL 4.0.x 版本证据；声明不能替代 `nginx -t` 或 TLS 握手证据。绑定/撤销进入现有 `LogEntry → SecureLogEntry` SM3-HMAC 审计链；Admin 只读观察绑定，不能在表单里随意改写身份材料。旧 `MyUser.cert_*` 字段不再作为运行时事实来源，待观察并确认无历史依赖后另行迁移删除。
+
+H2a-0 的 `accounts.authn.mfa_crypto` 不读取数据库或环境。H2a-1 的 `MfaTotpDevice` 只保存密文、96-bit nonce、key ID 与生命周期元数据，AAD 固定绑定 user ID 和 device UUID。H2a-2/3 的 `accounts.authn.mfa_services` 从 `MFA_TOTP_KEYRING_JSON` 与 `MFA_TOTP_ACTIVE_KEY_ID` 读取版本化 KEK；缺失、非法或 active key 不存在时，在生成/持久化 seed 前默认拒绝。`MFA_TOTP_ISSUER` 可配置显示名称。仓库与测试不得写入真实 KEK、业务 seed、二维码 URI、TOTP code 或恢复码。设备与恢复码均不注册到 Django Admin。
 
 服务层授权边界固定为：active superuser 或拥有任一 active Manager Membership 的用户只能给自己绑定和确认；恢复码消费也只允许本人，且只标记一次性材料已用，不创建 Session。设备重置只允许 active superuser；superuser 重置自己时还必须重新校验当前密码，重置其他账号时形成更高权限复核。撤销或过期会用随机数据覆盖 seed 密文与 nonce、删除恢复码并递增 `auth_version`。审计仅记录固定事件/原因码，通过 `LogEntry` 同步生成 `SecureLogEntry` HMAC，不记录用户输入或认证材料。
 
@@ -224,12 +236,43 @@ sequenceDiagram
 
 ## 3A. superuser 客户端证书与 `/super_admin/` mTLS
 
+### 3A.0 证书、TOTP 与国密路线决策（2026-07-28）
+
+TOTP 不使用、也不签发 TLS 证书。当前项目的 TOTP 是 RFC 6238 时间型动态口令，seed 由 Django 生成后交给 Microsoft Authenticator 保存；TLS 客户端证书是另一套身份材料。两者可以共同保护 `super_admin`，但不得在配置、恢复或审计中混成同一种资产。
+
+建议把证书分成两条互不替代的信任链：
+
+| 证书用途 | 推荐签发方 | 用途边界 |
+|---|---|---|
+| `admin.poweradapter.xyz` 服务器证书 | Let’s Encrypt / 公网 Web PKI | 浏览器验证管理域名服务器身份；可以继续自动续期 |
+| superuser 客户端证书 | 项目私有 Client CA | Nginx/TLCP 网关验证访问者设备身份；不使用 Let’s Encrypt |
+
+Let’s Encrypt 已在 2026 年停止签发带 TLS Client Authentication EKU 的新证书，因此不应把公网服务器证书复用为客户端身份。所谓“自签”应具体实现为：离线保存一个**自签 Root CA**，由它签发带 `clientAuth` 用途、独立序列号和较短有效期的客户端叶证书；不要为每台设备建立互不关联的自签叶证书，否则信任分发、统一吊销和轮换都会变得更困难。
+
+国密实践分为两个层级，不宣称仅靠算法替换即可通过正式密评：
+
+1. **当前可用基线**：公网/管理域名继续使用标准 TLS；客户端证书由私有 CA 签发；Django 只绑定 issuer + serial + subject 等最小身份，证书事件继续进入现有 SM3-HMAC 审计链。该方案优先完成浏览器、Android 证书容器与 Nginx 的可靠双向验证。
+2. **隔离的国密实验基线**：客户端身份使用 SM2 证书；若传输层也要求 SM 系列，则另建测试管理域名/端口，以 TLCP、SM2、SM3、SM4 和支持该协议的终止网关进行兼容性验证。标准 Nginx 文档只保证其编译所用 OpenSSL 提供的 TLS 能力，不能把普通构建自动视为 TLCP/国密网关。该实验不属于 H3 发布范围，也不得接入生产 `/super_admin/`。
+
+TLCP 路线可能涉及签名证书与加密证书分离，并显著增加浏览器、Android、证书容器、Nginx 构建和恢复演练成本。因此 H3 生产认证固定为 `standard-tls`：普通 Nginx 终止 TLS 1.3 mTLS，Django 再完成证书映射、密码和 TOTP。数据模型保留 `sm2-tlcp` 仅用于表达隔离实验元数据；生产请求解析、绑定命令和 readiness 均拒绝该 profile。若未来重启 TLCP 实验，必须使用独立域名或端口、独立命令与握手证据，不能由一个可伪造的 Django Header 自证。
+
+依赖名称必须区分：PyPI 的 `gmssl==3.2.2` 是纯 Python 的 SM2/SM3/SM4 包，本项目仅用它计算审计日志的 SM3-HMAC；它不是 GmSSL/OpenSSL 的 TLS provider，也不参与 Nginx、mTLS 或 TLCP 握手。所谓“3.2.3 provider bug、升级至 3.2.4”属于 OpenSSL 3.2 发布线，不能通过安装不存在的 `pip gmssl==3.2.4` 修复。生产 `super_admin` 默认采用普通 Nginx + TLS 1.3 mTLS；Tongsuo/TLCP 只在独立域名或端口的实验环境验证，不要求日常管理员安装国密浏览器。
+
+最终推荐认证链为：
+
+```text
+生产管理链：TLS 1.3 mTLS 私有 Client CA 证书 + Django 用户映射 + 密码 + RFC 6238 TOTP
+隔离实验链（不接生产）：SM2 Client CA / TLCP 网关 + 独立互操作验证
+```
+
+RFC 6238 TOTP 继续保持 Microsoft Authenticator 兼容，不为“算法全换成 SM”而自行发明 SM3-TOTP。若未来研究 GB/T 38556 动态口令，应作为新的认证器适配项目，不覆盖当前可恢复、可互操作的 TOTP 实现。
+
 ### 3A.1 目标认证链
 
 superuser 访问管理后台时同时经过：
 
 1. Nginx mTLS：验证客户端证书链、有效期和撤销状态，未通过的请求不进入 Django。
-2. Django 证书绑定：将 Nginx 传入的 verified 状态、证书序列号 / Subject DN 与 `MyUser.cert_sn`、`cert_subject_dn`、`is_cert_verified` 匹配。
+2. Django 证书绑定：将边界网关传入的 verified 状态、profile、证书序列号、Issuer DN 与 Subject DN 映射到 active `ClientCertificateBinding`，并再次确认其用户是 active superuser。旧 `MyUser.cert_*` 字段不参与判定。
 3. TOTP：证书身份通过后再校验动态验证码、重放和失败限流，升级为短时 privileged session。
 
 目标产品形态可以是“证书 + TOTP 登录”，但首轮默认不直接删除密码因素。客户端证书和手机 TOTP 都可能属于 possession factor，尤其二者放在同一设备时并不天然等于两类独立因素；是否无密码化必须经过单独威胁模型与恢复评审。
@@ -253,11 +296,45 @@ Nginx 官方 `ssl_verify_client` 的配置上下文是 `http` / `server`，不�
 - Gunicorn 继续只监听 Unix socket / 本机可信链路，不能开放一个绕过 Nginx 的公网端口；
 - Nginx 配置更新必须先 `nginx -t`，并保留独立的 break-glass / 回滚操作流程。
 
+H3 应用侧固定使用以下 Header 契约；名称由 Nginx 覆盖，浏览器传入的同名值不得透传：
+
+```nginx
+# admin.poweradapter.xyz 的独立 server 块；示例仅用于配置评审，证书路径按部署调整。
+ssl_client_certificate /etc/nginx/mtls/client-ca.pem;
+ssl_verify_client on;
+ssl_verify_depth 2;
+ssl_crl /etc/nginx/mtls/client-ca.crl.pem;
+
+proxy_set_header X-PA-mTLS-Verify     $ssl_client_verify;
+proxy_set_header X-PA-mTLS-Serial     $ssl_client_serial;
+proxy_set_header X-PA-mTLS-Issuer-DN  $ssl_client_i_dn;
+proxy_set_header X-PA-mTLS-Subject-DN $ssl_client_s_dn;
+proxy_set_header X-PA-mTLS-Profile    standard-tls;
+
+# 此行应来自 root-only、仓库外的 include 文件，值至少 32 个随机字符。
+proxy_set_header X-PA-Proxy-Auth      "部署侧共享认证值";
+```
+
+管理 vhost 必须同时代理 `/super_admin/`、`/accounts/login/`、`/accounts/logout/` 与 `/accounts/security/mfa/`，否则密码后置 TOTP challenge 无法持续看到同一客户端证书。公网 vhost 对 `/super_admin/` 直接拒绝，不做一个绕过 mTLS 的平行入口。Django 配置至少包括：
+
+```text
+MTLS_ENFORCEMENT_ENABLED=true
+MTLS_ADMIN_HOST=admin.poweradapter.xyz
+MTLS_CERTIFICATE_PROFILE=standard-tls   # 生产唯一允许值
+MTLS_PROXY_AUTH_SECRET=<仓库外随机值>
+MTLS_TRUST_UNIX_SOCKET_PROXY=true       # Gunicorn 确实只监听 Unix socket 时
+# 或 MTLS_TRUSTED_PROXY_NETWORKS=127.0.0.1/32（仅本机 TCP upstream）
+```
+
+`MTLS_TRUST_UNIX_SOCKET_PROXY=true` 只允许在 Gunicorn 没有任何 TCP 监听、socket 文件权限已收紧时使用；否则必须按真实代理地址配置 `MTLS_TRUSTED_PROXY_NETWORKS`。两种模式仍都要求代理共享认证值。应用只记录 SM3 化的 issuer 索引、序列号、Subject、profile、状态和有效期，不保存 PEM 或私钥。
+
+可评审的完整配置模板位于 `deploy/nginx/super_admin_mtls.conf.example`，CA 与证书运维契约位于 `deploy/mtls/README.md`。模板不包含真实域名私钥、Client CA 私钥或代理共享认证值；这些材料必须在服务器仓库外以 root-only 权限管理。
+
 ### 3A.3 证书生命周期
 
 | 阶段 | 必须定义 | 证据 / 验收 |
 |---|---|---|
-| 签发 | 独立 Client CA、用途限制、有效期、唯一序列号 | 证书清单不含私钥；错误 CA 被拒绝 |
+| 签发 | 离线自签 Root Client CA、CA 签发的 `clientAuth` 叶证书、用途限制、有效期、唯一序列号；国密实验另标 SM2/TLCP profile | 证书清单不含私钥；错误 CA 和错误 profile 被拒绝 |
 | 分发 | 私钥生成位置、加密容器、Android/桌面导入步骤 | 私钥不经聊天、邮件或仓库明文传递 |
 | 绑定 | serial + Subject DN/fingerprint 与 MyUser 的绑定审批 | 只能绑定 active superuser；重复绑定拒绝 |
 | 使用 | mTLS SUCCESS + Django mapping + TOTP | 任意一层失败均不能获得 privileged session |
@@ -281,11 +358,12 @@ flowchart LR
 ```
 
 - [ ] **红色 / 高权重**：无客户端证书、过期证书、错误 CA、已吊销证书均不能到达 `super_admin` 应用页面。
-- [ ] **红色 / 高权重**：伪造 `X-SSL-*` / `X-Client-Cert-*` Header 不能绕过 Nginx 或 Django 映射。
-- [ ] **红色 / 高权重**：已验证证书不能直接获得权限；必须属于 active superuser 且完成 TOTP。
-- [ ] **红色 / 高权重**：证书或 TOTP 撤销后，关联 privileged session 必须失效。
+- [x] **红色 / 高权重（应用侧）**：伪造证书 Header 缺少可信代理地址/Unix socket 契约与代理共享认证值时不能通过 Django 映射；Nginx Header 覆盖仍待真实配置验收。
+- [x] **红色 / 高权重（应用侧）**：已验证证书不能直接获得权限；必须映射 active superuser 并完成密码与 TOTP。
+- [x] **红色 / 高权重（应用侧）**：证书或 TOTP 撤销、过期、版本变化后，关联 privileged Session 失效。
 - [ ] **红色 / 高权重**：存在经过演练的 break-glass 与配置回滚；恢复材料不得长期在线明文保存。
 - [ ] **黄色 / 中权重**：验证桌面浏览器、Android 证书容器和 Microsoft Authenticator 的实际兼容性。
+- [ ] **低权重 / 延后实验**：如未来确有密评研究需要，再在隔离环境验证 SM2/TLCP 网关、双证书要求和客户端互操作；不计入 H3 发布验收。
 - [ ] **黄色 / 中权重**：审计日志只记录证书最小标识和结果码，不记录私钥、完整证书、TOTP seed/code。
 
 ## 4. 密钥全生命周期规划（v2.5+）

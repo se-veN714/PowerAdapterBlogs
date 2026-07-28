@@ -13,6 +13,7 @@
 import json
 import os
 from pathlib import Path
+
 # here put the import lib
 """
 Django settings for PowerAdapterBlogs project.
@@ -35,11 +36,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 # 生产环境务必通过环境变量注入 SECRET_KEY，此处仅为开发环境兜底
 SECRET_KEY = os.getenv(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-dev-fallback--change-me-in-production"
+    "DJANGO_SECRET_KEY", "django-insecure-dev-fallback--change-me-in-production"
 )
 if SECRET_KEY.startswith("django-insecure-dev-fallback"):
     import warnings
+
     warnings.warn(
         "SECRET_KEY is using the dev fallback! Set DJANGO_SECRET_KEY env var in production.",
         RuntimeWarning,
@@ -79,6 +80,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.MtlsAdminMiddleware",
     "accounts.middleware.MfaPrivilegeMiddleware",
     "accounts.middleware.RequestUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -87,13 +89,15 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "PowerAdapterBlogs.urls"
 
-THEMES = 'devenir'  # 更改切换主题
+THEMES = "devenir"  # 更改切换主题
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'themes' / THEMES / 'templates', BASE_DIR / 'themes' / THEMES],
-
+        "DIRS": [
+            BASE_DIR / "themes" / THEMES / "templates",
+            BASE_DIR / "themes" / THEMES,
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -118,7 +122,7 @@ WSGI_APPLICATION = "PowerAdapterBlogs.wsgi.application"
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
-AUTH_USER_MODEL = 'accounts.MyUser'
+AUTH_USER_MODEL = "accounts.MyUser"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -238,9 +242,9 @@ JAZZMIN_UI_TWEAKS = {
 }
 
 REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": 'drf_spectacular.openapi.AutoSchema',
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
-    "PAGE_SIZE": 10,# 后续可以尝试 Cursor分页
+    "PAGE_SIZE": 10,  # 后续可以尝试 Cursor分页
 }
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -252,13 +256,11 @@ error_format = "[{asctime}] ERROR (╯°□°）╯︵ ┻━┻ {message}"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-
     "formatters": {
         "info": {"format": info_format, "style": "{"},
         "warning": {"format": warn_format, "style": "{"},
         "error": {"format": error_format, "style": "{"},
     },
-
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
@@ -292,7 +294,6 @@ LOGGING = {
             "encoding": "utf-8",
         },
     },
-
     "loggers": {
         "Blogs": {
             "handlers": ["info_file", "warning_file", "error_file"],
@@ -300,15 +301,14 @@ LOGGING = {
             "propagate": False,  # 阻止再传给 root
         }
     },
-
     "root": {
         "handlers": ["console"],
         "level": "DEBUG",
     },
 }
 
-REDIS_CACHE_URL = 'redis://127.0.0.1:6379/1'
-REDIS_SESSIONS_URL = 'redis://127.0.0.1:6379/2'
+REDIS_CACHE_URL = "redis://127.0.0.1:6379/1"
+REDIS_SESSIONS_URL = "redis://127.0.0.1:6379/2"
 
 CACHES = {
     "default": {
@@ -319,15 +319,15 @@ CACHES = {
             # 'PASSWORD':'<password>'
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
-        "CONNECTION_POOL_CLASS": "redis.connection.BlockingConnectionPool"
+        "CONNECTION_POOL_CLASS": "redis.connection.BlockingConnectionPool",
     },
     "sessions": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_SESSIONS_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
-    }
+        },
+    },
 }
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
@@ -341,7 +341,9 @@ COMMENT_RATE_WINDOW = 60
 
 # 邮件与邀请制账号。生产环境在 product.py 中强制从环境变量提供实际值。
 PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "http://127.0.0.1:8000")
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "PowerAdapter <webmaster@localhost>")
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL", "PowerAdapter <webmaster@localhost>"
+)
 SECURITY_CONTACT_EMAIL = os.getenv("SECURITY_CONTACT_EMAIL", "sevencdxxiv@qq.com")
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
@@ -372,7 +374,7 @@ def _json_object_env(name):
 
 
 # Versioned AES-256-GCM keyring. An empty keyring keeps MFA enrollment disabled;
-# accounts.mfa_services fails closed before it generates or persists a seed.
+# accounts.authn.mfa_services fails closed before it generates or persists a seed.
 MFA_TOTP_KEYRING = _json_object_env("MFA_TOTP_KEYRING_JSON")
 MFA_TOTP_ACTIVE_KEY_ID = os.getenv("MFA_TOTP_ACTIVE_KEY_ID", "")
 MFA_TOTP_ISSUER = os.getenv("MFA_TOTP_ISSUER", "PowerAdapter")
@@ -388,6 +390,28 @@ MFA_CHALLENGE_TTL_SECONDS = 5 * 60
 MFA_CHALLENGE_MAX_ATTEMPTS = 5
 MFA_CHALLENGE_COOLDOWN_SECONDS = 15 * 60
 MFA_PRIVILEGED_SESSION_TTL_SECONDS = 15 * 60
+
+# H3 TLS 1.3 mTLS application boundary. Nginx must clear and replace every
+# X-PA-* header. Production readiness accepts only the standard-tls profile;
+# SM2/TLCP is an isolated experiment and is not a production authentication path.
+# The feature stays disabled until an independent admin vhost, trusted proxy
+# network and shared proxy authentication secret have been configured.
+MTLS_ENFORCEMENT_ENABLED = os.getenv("MTLS_ENFORCEMENT_ENABLED", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+MTLS_ADMIN_HOST = os.getenv("MTLS_ADMIN_HOST", "")
+MTLS_TRUSTED_PROXY_NETWORKS = tuple(
+    item.strip()
+    for item in os.getenv("MTLS_TRUSTED_PROXY_NETWORKS", "").split(",")
+    if item.strip()
+)
+MTLS_TRUST_UNIX_SOCKET_PROXY = os.getenv(
+    "MTLS_TRUST_UNIX_SOCKET_PROXY", "false"
+).lower() in {"1", "true", "yes"}
+MTLS_PROXY_AUTH_SECRET = os.getenv("MTLS_PROXY_AUTH_SECRET", "")
+MTLS_CERTIFICATE_PROFILE = os.getenv("MTLS_CERTIFICATE_PROFILE", "")
 
 MONGO = {
     "HOST": os.getenv("MONGO_HOST", "localhost"),

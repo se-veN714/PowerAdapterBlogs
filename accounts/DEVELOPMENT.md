@@ -5,7 +5,7 @@
 > **职责**: 自定义用户模型、认证、账号状态、全局 Group 编排与用户安全；不拥有 Board Policy
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-28 — H2 TOTP 绑定、恢复、登录强制与特权 Session 完成
+> **最后更新**: 2026-07-29 — H3 生产路线固定为 TLS 1.3 mTLS，并整理认证域目录
 
 ---
 
@@ -13,6 +13,12 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-29 | v3.24 | H3 安全检查点提交前验证：Ruff、迁移一致性与全项目 250 项测试通过；生产强制开关仍保持关闭 |
+| 2026-07-29 | v3.23 | OpenSSL 4.0.1 开发 CA 实测通过：clientAuth 叶证书、链验证、PKCS#12、撤销、CRL 重发及 error 23 拒绝；Nginx/浏览器仍待验收 |
+| 2026-07-29 | v3.22 | H3 边界选择 OpenSSL 4.0.x 最新补丁版（初始 4.0.1）；新增 Nginx/CA CLI 版本证据脚本和 readiness 确认项 |
+| 2026-07-29 | v3.21 | H3d：增加仓库外 Client CA/CRL/轮换/丢失/break-glass 运维模板；mTLS readiness 新增 Client CA、吊销和恢复人工确认门槛 |
+| 2026-07-29 | v3.20 | `authn/` 集中 TOTP/mTLS/Session、`tests/` 集中回归；H3 生产 profile 仅接受标准 TLS 1.3 mTLS，SM2/TLCP 降为隔离实验 |
+| 2026-07-28 | v3.19 | H3 应用侧完成：私有客户端证书绑定、SM3 issuer 索引、标准 TLS/SM2-TLCP profile、可信代理 Header 契约、证书绑定 privileged Session 与 readiness 命令；真实 CA/Nginx 仍待人工验收 |
 | 2026-07-28 | v3.18 | H2 完成：绑定/恢复 UI、二维码、密码后置 challenge、防重放、共享限流、恢复受限态、15 分钟 privileged Session、双后台保护与 readiness 命令 |
 | 2026-07-28 | v3.17 | H2a-2/3：新增 TOTP pending 绑定/首次确认、hash-only 恢复码、原子消费、密钥擦除、受控重置与 HMAC 审计服务；未接 UI/登录 |
 | 2026-07-27 | v3.16 | H2a-1：新增 encrypted-only `MfaTotpDevice`、单用户单设备及生命周期/防重放约束、迁移与 7 个 ORM 测试；未开放页面或修改登录 |
@@ -148,14 +154,16 @@ flowchart TD
 
 | 文件 | 核心类/函数 | 职责 |
 |------|------------|------|
-| `models.py` | `MyUser`, `AccountInvitation`, `MfaTotpDevice`, `MfaRecoveryCode`, `UserManager`, `SENSITIVE_FIELDS` | 自定义用户、邀请状态、MFA 持久化边界、创建工厂与模型层防御 |
+| `models.py` | `MyUser`, `AccountInvitation`, `MfaTotpDevice`, `MfaRecoveryCode`, `ClientCertificateBinding`, `UserManager`, `SENSITIVE_FIELDS` | 自定义用户、邀请状态、MFA/客户端证书持久化边界、创建工厂与模型层防御 |
 | `services.py` | invitation 与 password email helpers | 邀请激活；改密验证码摘要、发送/错误限流及 Session 验证授权 |
 | `admin.py` | `MyUserAdmin`, `CusMyUserAdmin`, `AccountInvitationAdmin` | 双 Admin 注册、邀请发放/重发、字段权限与 M2M 拦截 |
 | `views.py` | 登录、邀请、Profile、邮箱验证、密码修改与 MFA Views | 账号前台流程、密码后置 challenge 与所有者边界 |
 | `forms.py` | 登录、邀请、Profile、密码、邮箱验证码与 MFA Forms | 输入校验与可编辑字段白名单 |
-| `mfa_crypto.py` / `mfa_services.py` | seed 加密、绑定、验证、恢复与撤销服务 | encrypted-only TOTP 生命周期、原子防重放和 HMAC 审计 |
-| `mfa_session.py` | pending / privileged / restricted recovery Session helpers | 登录状态机、共享失败计数与安全回跳 |
-| `middleware.py` | `RequestUserMiddleware`, `MfaPrivilegeMiddleware` | 请求用户捕获与双后台短时特权 Session 保护 |
+| `authn/mfa_crypto.py` / `authn/mfa_services.py` | seed 加密、绑定、验证、恢复与撤销服务 | encrypted-only TOTP 生命周期、原子防重放和 HMAC 审计 |
+| `authn/mfa_session.py` | pending / privileged / restricted recovery Session helpers | 登录状态机、共享失败计数与安全回跳 |
+| `authn/mtls_services.py` | 私有证书绑定、可信代理解析、撤销与审计 | `/super_admin/` 客户端证书身份与 profile 边界；不保存 PEM/私钥 |
+| `tests/` | accounts 单元测试与安全回归 | 测试不再散落在 app 根目录；测试数据不得包含真实 TOTP seed、KEK 或客户端私钥 |
+| `middleware.py` | `RequestUserMiddleware`, `MfaPrivilegeMiddleware`, `MtlsAdminMiddleware` | 请求用户捕获、双后台短时特权 Session 与系统后台证书保护 |
 | `urls.py` | — | 登录/邀请/Profile/邮箱验证/密码修改/MFA 路由 |
 | `thread_local.py` | `get_current_user()`, `set_current_user()`, `clear_current_user()` | thread-local 用户存储 |
 | `middleware.py` | `RequestUserMiddleware` | 请求生命周期捕获 `request.user` |
@@ -163,7 +171,7 @@ flowchart TD
 | `apps.py` | `AccountsConfig` | AppConfig |
 | `LOGGUIDE.md` | — | 日志规范（含安全红线） |
 | `PERMISSIONS_GUIDE.md` | — | Group + Permission + BoardMembership + Policy 授权设计与线性实施路线 |
-| `SECURITY_ROADMAP.md` | — | H0–H2 已实现；生产 MFA 强制待真实设备与 break-glass 人工验收，证书、mTLS 与完整密钥生命周期仍待推进 |
+| `SECURITY_ROADMAP.md` | — | H0–H3 应用侧已实现；生产 MFA/mTLS 待真实设备、Client CA、独立管理 vhost 与 break-glass 人工验收，完整密钥生命周期仍待推进 |
 
 ### 2.1 协同模块（审核工作流）
 
@@ -561,14 +569,15 @@ erDiagram
     MyUser ||--o{ "custom Admin 操作" : "audit action 等"
     MyUser ||--o| AccountInvitation : "接受账号邀请"
     MyUser ||--o{ AccountInvitation : "created_by"
+    MyUser ||--o{ ClientCertificateBinding : "拥有客户端证书"
 
     MyUser {
         int id PK
         string username UK "唯一，USERNAME_FIELD"
         string email UK "唯一"
-        string cert_sn UK "证书序列号 (可选)"
-        text cert_subject_dn "证书 Subject DN (可选)"
-        bool is_cert_verified "证书已验证"
+        string cert_sn UK "遗留字段，H3 不读取"
+        text cert_subject_dn "遗留字段，H3 不读取"
+        bool is_cert_verified "遗留字段，H3 不读取"
         datetime date_joined "auto_now_add"
         bool is_active "账号启用"
         bool is_reviewer "内容审核权限 (v3.0)"
@@ -585,6 +594,19 @@ erDiagram
         datetime expires_at "过期时间"
         datetime sent_at "发送时间，可空"
         datetime accepted_at "接受时间，可空"
+    }
+
+    ClientCertificateBinding {
+        uuid id PK
+        int user_id FK
+        string serial_number
+        string issuer_dn_sm3 "SM3 索引"
+        text subject_dn
+        string certificate_profile "standard-tls 或 sm2-tlcp"
+        string status "active 或 revoked"
+        int auth_version
+        datetime expires_at
+        datetime revoked_at
     }
 
     UserProfile {
@@ -618,6 +640,7 @@ erDiagram
 | 双后台入口边界 | ✅ H0 | `/super_admin/` 只接受 active superuser；`/dashboard/` 接受 active dashboard 用户或 superuser；staff-only 不能获得系统后台 Session。 |
 | 固定全局 Group | ✅ Stage 6a | VerifiedUsers 仅可申请 Board 权限；UserManagers 受限管理账号；SiteOperators 查看并运行完整性审计。 |
 | 特权账户 TOTP | ✅ H2 代码 / ⏸ 生产开关 | active superuser 与 active Board Manager 的绑定、恢复、登录 challenge 和短时特权 Session 已实现；真实 Microsoft Authenticator、离线恢复材料及 break-glass 演练完成前保持 `MFA_ENFORCEMENT_ENABLED=false`。 |
+| 系统后台 mTLS | ✅ H3 应用与运维骨架 / ⏸ 边界部署 | TLS 1.3 私有 CA 证书映射、可信代理、证书绑定 Session、撤销、profile 拒绝与运维模板已实现；独立 Nginx vhost、CRL、真实浏览器握手及 break-glass 仍需人工验收。 |
 
 ---
 
@@ -625,7 +648,7 @@ erDiagram
 
 ### A. 测试现状
 
-- H2、账号登录和双后台定向回归共 76 项通过（2026-07-28）；按本轮任务边界未重复执行由 K3/back 覆盖的全项目测试
+- H2/H3、账号登录和双后台联合安全回归共 87 项通过（2026-07-28）；按本轮任务边界未重复执行由 K3/back 覆盖的全项目测试
 - `tests.py` + `test_admin_hardening.py` + `test_global_roles.py` 继续覆盖邀请、登录锁定、H0 双后台入口/Session 拒绝矩阵、Stage 6a 固定组与最小权限、Profile 隔离及改密邮箱验证限制
 - 建议优先覆盖：
   1. `MyUser.save()` SENSITIVE_FIELDS 回滚逻辑

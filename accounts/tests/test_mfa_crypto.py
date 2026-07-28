@@ -4,7 +4,7 @@ from dataclasses import replace
 
 from django.test import SimpleTestCase
 
-from accounts.mfa_crypto import (
+from accounts.authn.mfa_crypto import (
     AES_256_KEY_BYTES,
     MfaCryptoError,
     decode_keyring,

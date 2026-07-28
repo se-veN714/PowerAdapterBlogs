@@ -3,7 +3,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Q
 
-from accounts.mfa_services import (
+from accounts.authn.mfa_services import (
     MfaServiceError,
     _active_key_id,
     _decrypt_seed,

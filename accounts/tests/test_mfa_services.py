@@ -13,8 +13,8 @@ from django.utils import timezone
 from boards.models import Board, BoardMembership
 from security.models import SecureLogEntry
 
-from .mfa_crypto import MfaCryptoError, decode_keyring, decrypt_mfa_secret
-from .mfa_services import (
+from accounts.authn.mfa_crypto import MfaCryptoError, decode_keyring, decrypt_mfa_secret
+from accounts.authn.mfa_services import (
     MfaServiceError,
     _aad,
     _encrypted_value,
@@ -23,7 +23,7 @@ from .mfa_services import (
     revoke_totp_device,
     start_totp_enrollment,
 )
-from .models import MfaRecoveryCode, MfaTotpDevice, MyUser
+from accounts.models import MfaRecoveryCode, MfaTotpDevice, MyUser
 
 
 def _encoded_key():

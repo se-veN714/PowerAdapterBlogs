@@ -1,0 +1,6 @@
+# The CA database, private keys, issued certificates, CSRs, PKCS#12 files and
+# CRLs must be created in an external PA_CLIENT_CA_DIR, never in this folder.
+*
+!.gitignore
+!README.md
+!openssl-client-ca.cnf.example

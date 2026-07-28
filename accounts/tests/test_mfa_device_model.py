@@ -8,14 +8,14 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.utils import timezone
 
-from .mfa_crypto import (
+from accounts.authn.mfa_crypto import (
     EncryptedMfaSecret,
     MfaCryptoError,
     build_mfa_device_aad,
     decrypt_mfa_secret,
     encrypt_mfa_secret,
 )
-from .models import MfaRecoveryCode, MfaTotpDevice, MyUser
+from accounts.models import MfaRecoveryCode, MfaTotpDevice, MyUser
 
 
 class MfaTotpDeviceModelTest(TestCase):

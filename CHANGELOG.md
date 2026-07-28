@@ -2,7 +2,26 @@
 
 > **文档权重**：60（历史变更记录；不覆盖当前架构文档）
 
+## [2026-07-29]
+
+### H3 生产传输路线冻结
+- 生产 `/super_admin/` 固定为 Nginx TLS 1.3 mTLS；应用解析、证书绑定命令与 readiness 仅接受 `standard-tls`
+- `sm2-tlcp` 仅保留为隔离实验元数据，不接生产认证链、不计入 H3 发布验收；新增不含任何真实密钥的 Nginx 配置评审模板
+- 整理 `accounts` 结构：TOTP、mTLS 与特权 Session 归入 `accounts/authn/`，测试归入 `accounts/tests/`
+- H3d 增加默认忽略生成物的 Client CA/OpenSSL 模板及签发、CRL、轮换、泄露处置和 break-glass 手册；readiness 必须显式确认全部真实演练
+- 按项目持续维护策略选择 OpenSSL 4.0.x 最新补丁版作为 H3 边界基线（初始 4.0.1）；新增 Nginx 实际链接、CA CLI 版本与配置语法检查脚本
+- OpenSSL 4.0.1 开发 CA 生命周期实测通过：clientAuth 叶证书、链验证、PKCS#12、吊销与 CRL error 23 拒绝；测试密钥仅保留在被忽略的 `.local` 目录
+- H3 安全检查点通过 Ruff、迁移一致性检查及全项目 250 项测试；MFA/mTLS 生产强制开关仍默认关闭
+
 ## [2026-07-28]
+
+### 后台加固 H3 应用侧 mTLS
+- 新增多证书 `ClientCertificateBinding`：issuer 使用 SM3 摘要索引，保存 serial/Subject/profile/有效期/状态/认证版本，不保存证书 PEM 或私钥
+- 固定独立管理 Host、可信代理网络/Unix socket、仓库外代理共享认证值与 `X-PA-mTLS-*` Header 契约；错误 Host、来源、验证结果、profile、Subject、账号绑定一律 fail closed
+- `/super_admin/` 串联客户端证书、密码与 RFC 6238 TOTP；privileged Session 绑定证书 ID/版本，证书过期、撤销或更换时立即要求重新认证
+- 增加证书绑定/撤销/readiness 命令和只读 Admin 观察入口；事件继续由 `LogEntry → SecureLogEntry` 进行 SM3-HMAC 完整性保护
+- 明确服务器证书继续用 Let’s Encrypt，客户端证书由离线私有 CA 签发；`standard-tls` 与 `sm2-tlcp` profile 不得静默混用，真实 Nginx/TLCP 与 Android 互操作仍待人工验收
+- H3 聚焦测试 11 项及 H2/H3/账号/双后台联合安全回归 87 项通过；MFA 与 mTLS 生产开关保持默认关闭
 
 ### 后台加固 H2 完成
 - 新增 Devenir 风格 TOTP 绑定、确认、恢复码一次性展示与登录 challenge 页面；QR 由 `qrcode==8.2` 在内存生成，敏感响应统一 `no-store`

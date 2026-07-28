@@ -12,7 +12,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 
 from boards.models import BoardMembership
 
-from .models import MfaTotpDevice, MyUser
+from ..models import MfaTotpDevice, MyUser
 
 PENDING_KEY = "accounts.mfa.pending"
 PRIVILEGED_KEY = "accounts.mfa.privileged"
@@ -26,6 +26,8 @@ class PendingMfaChallenge:
     target: str
     nonce: str
     issued_at: float
+    certificate_binding_id: str | None = None
+    certificate_auth_version: int | None = None
 
 
 def mfa_required_for_user(user) -> bool:
@@ -57,8 +59,15 @@ def _safe_target(request, target: str | None) -> str:
     return reverse("index")
 
 
-def issue_pending_challenge(request, *, user, backend: str, target: str | None):
-    request.session[PENDING_KEY] = {
+def issue_pending_challenge(
+    request,
+    *,
+    user,
+    backend: str,
+    target: str | None,
+    certificate_binding=None,
+):
+    value = {
         "user_id": user.pk,
         "backend": backend,
         "target": _safe_target(request, target),
@@ -66,6 +75,10 @@ def issue_pending_challenge(request, *, user, backend: str, target: str | None):
         "issued_at": timezone.now().timestamp(),
         "attempts": 0,
     }
+    if certificate_binding is not None:
+        value["certificate_binding_id"] = str(certificate_binding.pk)
+        value["certificate_auth_version"] = certificate_binding.auth_version
+    request.session[PENDING_KEY] = value
     request.session.pop(PRIVILEGED_KEY, None)
     request.session.pop(RECOVERY_KEY, None)
 
@@ -95,7 +108,27 @@ def get_pending_challenge(request) -> PendingMfaChallenge | None:
     ):
         clear_pending_challenge(request)
         return None
-    return PendingMfaChallenge(user, backend, target, nonce, issued_at)
+    binding_id = value.get("certificate_binding_id")
+    binding_version = value.get("certificate_auth_version")
+    if (binding_id is None) != (binding_version is None):
+        clear_pending_challenge(request)
+        return None
+    if binding_id is not None:
+        try:
+            binding_id = str(binding_id)
+            binding_version = int(binding_version)
+        except (TypeError, ValueError):
+            clear_pending_challenge(request)
+            return None
+    return PendingMfaChallenge(
+        user,
+        backend,
+        target,
+        nonce,
+        issued_at,
+        binding_id,
+        binding_version,
+    )
 
 
 def clear_pending_challenge(request):
@@ -167,18 +200,22 @@ def clear_challenge_failures(request, user_id: int):
     )
 
 
-def mark_privileged_session(request, device: MfaTotpDevice):
-    request.session[PRIVILEGED_KEY] = {
+def mark_privileged_session(request, device: MfaTotpDevice, certificate_binding=None):
+    value = {
         "user_id": device.user_id,
         "device_id": str(device.pk),
         "auth_version": device.auth_version,
         "verified_at": timezone.now().timestamp(),
     }
+    if certificate_binding is not None:
+        value["certificate_binding_id"] = str(certificate_binding.pk)
+        value["certificate_auth_version"] = certificate_binding.auth_version
+    request.session[PRIVILEGED_KEY] = value
     request.session.pop(PENDING_KEY, None)
     request.session.pop(RECOVERY_KEY, None)
 
 
-def privileged_session_is_valid(request) -> bool:
+def privileged_session_is_valid(request, *, require_certificate: bool = False) -> bool:
     value = request.session.get(PRIVILEGED_KEY)
     if not isinstance(value, dict) or not request.user.is_authenticated:
         return False
@@ -200,6 +237,39 @@ def privileged_session_is_valid(request) -> bool:
         status=MfaTotpDevice.Status.ACTIVE,
         auth_version=auth_version,
     ).exists()
+    certificate_binding_id = value.get("certificate_binding_id")
+    certificate_auth_version = value.get("certificate_auth_version")
+    if require_certificate and certificate_binding_id is None:
+        valid = False
+    if (certificate_binding_id is None) != (certificate_auth_version is None):
+        valid = False
+    elif certificate_binding_id is not None:
+        from ..models import ClientCertificateBinding
+
+        try:
+            certificate_auth_version = int(certificate_auth_version)
+        except (TypeError, ValueError):
+            valid = False
+        else:
+            valid = (
+                valid
+                and ClientCertificateBinding.objects.filter(
+                    pk=certificate_binding_id,
+                    user=request.user,
+                    status=ClientCertificateBinding.Status.ACTIVE,
+                    auth_version=certificate_auth_version,
+                    expires_at__gt=timezone.now(),
+                ).exists()
+            )
+            presented_binding = getattr(
+                request,
+                "client_certificate_binding",
+                None,
+            )
+            if presented_binding is not None:
+                valid = valid and str(presented_binding.pk) == str(
+                    certificate_binding_id
+                )
     if not valid:
         request.session.pop(PRIVILEGED_KEY, None)
     return valid

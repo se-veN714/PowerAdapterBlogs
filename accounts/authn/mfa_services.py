@@ -1,4 +1,4 @@
-"""H2a TOTP enrollment and recovery services; no login integration lives here."""
+"""H2a TOTP enrollment and recovery services."""
 
 import os
 import secrets
@@ -25,7 +25,7 @@ from .mfa_crypto import (
     decrypt_mfa_secret,
     encrypt_mfa_secret,
 )
-from .models import MfaRecoveryCode, MfaTotpDevice, MyUser
+from ..models import MfaRecoveryCode, MfaTotpDevice, MyUser
 
 GENERIC_MFA_ERROR = "无法完成动态验证码操作。"
 RESET_REASONS = frozenset(

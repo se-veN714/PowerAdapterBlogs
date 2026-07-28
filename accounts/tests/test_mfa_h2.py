@@ -14,14 +14,14 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .mfa_services import (
+from accounts.authn.mfa_services import (
     MfaServiceError,
     confirm_totp_enrollment,
     start_totp_enrollment,
     verify_active_totp,
 )
-from .mfa_session import PENDING_KEY, PRIVILEGED_KEY, RECOVERY_KEY
-from .models import MfaTotpDevice, MyUser
+from accounts.authn.mfa_session import PENDING_KEY, PRIVILEGED_KEY, RECOVERY_KEY
+from accounts.models import MfaTotpDevice, MyUser
 
 
 def _encoded_key():
@@ -99,7 +99,7 @@ class H2PrivilegedAuthenticationTest(TestCase):
     def _complete_challenge(self):
         self._begin_login()
         step, code = self._fresh_step_and_code()
-        with patch("accounts.mfa_services._matching_step", return_value=step):
+        with patch("accounts.authn.mfa_services._matching_step", return_value=step):
             return self.client.post(
                 reverse("accounts:mfa-challenge"),
                 {"action": "totp", "code": code},
@@ -156,7 +156,7 @@ class H2PrivilegedAuthenticationTest(TestCase):
 
     def test_same_totp_step_cannot_be_replayed(self):
         step, code = self._fresh_step_and_code()
-        with patch("accounts.mfa_services._matching_step", return_value=step):
+        with patch("accounts.authn.mfa_services._matching_step", return_value=step):
             verify_active_totp(user=self.user, actor=self.user, code=code)
             with self.assertRaises(MfaServiceError) as context:
                 verify_active_totp(user=self.user, actor=self.user, code=code)
@@ -188,7 +188,7 @@ class H2PrivilegedAuthenticationTest(TestCase):
         self.assertRedirects(response, reverse("accounts:mfa-challenge"))
 
         step, code = self._fresh_step_and_code()
-        with patch("accounts.mfa_services._matching_step", return_value=step):
+        with patch("accounts.authn.mfa_services._matching_step", return_value=step):
             response = self.client.post(
                 reverse("accounts:mfa-challenge"),
                 {"action": "totp", "code": code},

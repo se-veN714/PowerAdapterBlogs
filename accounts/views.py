@@ -4,6 +4,7 @@ import base64
 import hashlib
 import io
 import logging
+from urllib.parse import urlsplit
 
 import pyotp
 import qrcode
@@ -17,7 +18,7 @@ from django.views.generic.edit import FormView
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
-from django.http import Http404
+from django.http import Http404, HttpResponseForbidden
 from django.urls import reverse, reverse_lazy
 from django.views.generic import ListView, RedirectView, UpdateView
 from django.utils.decorators import method_decorator
@@ -36,7 +37,7 @@ from .forms import (
     TotpCodeForm,
     UserProfileForm,
 )
-from .mfa_services import (
+from .authn.mfa_services import (
     MfaServiceError,
     confirm_totp_enrollment,
     consume_recovery_code_for_rebind,
@@ -44,7 +45,8 @@ from .mfa_services import (
     start_totp_enrollment,
     verify_active_totp,
 )
-from .mfa_session import (
+from .authn.mtls_services import MtlsServiceError, resolve_client_certificate
+from .authn.mfa_session import (
     challenge_is_locked,
     clear_challenge_failures,
     get_pending_challenge,
@@ -171,11 +173,26 @@ class LoginView(FormView):
                         )
                         return self.form_invalid(form)
                     target = self.get_success_url_for_user(user)
+                    certificate_binding = None
+                    if settings.MTLS_ENFORCEMENT_ENABLED and urlsplit(
+                        target
+                    ).path.startswith(reverse("admin:index")):
+                        try:
+                            certificate_binding = resolve_client_certificate(
+                                self.request,
+                                expected_user=user,
+                            )
+                        except MtlsServiceError:
+                            form.add_error(
+                                None, "客户端证书验证失败，无法进入系统后台。"
+                            )
+                            return self.form_invalid(form)
                     issue_pending_challenge(
                         self.request,
                         user=user,
                         backend=user.backend,
                         target=target,
+                        certificate_binding=certificate_binding,
                     )
                     cache.delete(failure_key)
                     return redirect("accounts:mfa-challenge")
@@ -591,11 +608,30 @@ class MfaChallengeView(View):
     def _challenge(self):
         return get_pending_challenge(self.request)
 
+    def _certificate_binding(self, challenge):
+        if challenge.certificate_binding_id is None:
+            return None
+        try:
+            binding = resolve_client_certificate(
+                self.request,
+                expected_user=challenge.user,
+            )
+        except MtlsServiceError:
+            return False
+        if (
+            str(binding.pk) != challenge.certificate_binding_id
+            or binding.auth_version != challenge.certificate_auth_version
+        ):
+            return False
+        return binding
+
     def get(self, request):
         challenge = self._challenge()
         if challenge is None:
             messages.info(request, "动态验证码挑战不存在或已过期，请重新登录。")
             return redirect("accounts:login")
+        if self._certificate_binding(challenge) is False:
+            return HttpResponseForbidden("客户端证书验证失败。")
         return render(
             request,
             self.template_name,
@@ -606,6 +642,9 @@ class MfaChallengeView(View):
         challenge = self._challenge()
         if challenge is None:
             return redirect("accounts:login")
+        certificate_binding = self._certificate_binding(challenge)
+        if certificate_binding is False:
+            return HttpResponseForbidden("客户端证书验证失败。")
         if challenge_is_locked(request, challenge.user.pk):
             return render(
                 request,
@@ -663,7 +702,11 @@ class MfaChallengeView(View):
             if device is not None:
                 if not request.user.is_authenticated:
                     login(request, challenge.user, backend=challenge.backend)
-                mark_privileged_session(request, device)
+                mark_privileged_session(
+                    request,
+                    device,
+                    certificate_binding=certificate_binding,
+                )
                 clear_challenge_failures(request, challenge.user.pk)
                 return redirect(challenge.target)
         attempts = record_challenge_failure(request, challenge.user.pk)

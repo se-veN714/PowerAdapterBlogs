@@ -1,4 +1,4 @@
-"""Small, persistence-agnostic encryption boundary for future TOTP seeds."""
+"""Small, persistence-agnostic encryption boundary for TOTP seeds."""
 
 import base64
 import binascii

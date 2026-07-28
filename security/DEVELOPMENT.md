@@ -3,7 +3,7 @@
 > **文档权重**：85（security 当前实现与模块 TODO）
 > **模块**: `security/`  
 > **职责**: Django Admin 日志 HMAC 完整性保护 + MongoDB 审计日志  
-> **依赖**: `gmssl` (SM3), `pymongo` (MongoDB), Django `LogEntry`  
+> **依赖**: PyPI `gmssl==3.2.2`（仅 SM3-HMAC）, `pymongo` (MongoDB), Django `LogEntry`
 > **创建**: 2026-06-21  
 > **最后更新**: 2026-07-27 — Stage 6a 接入 SiteOperators 最小审计权限
 
@@ -332,6 +332,8 @@ MONGO = {
 输出:  64 字符 hex string
 库:    gmssl
 ```
+
+这里的 `gmssl` 指 PyPI 上的纯 Python SM2/SM3/SM4 包，不是 GmSSL/OpenSSL/Tongsuo 的 TLS 实现。它不注册 OpenSSL provider，也不参与 Nginx 的 TLS、mTLS 或 TLCP 握手；OpenSSL 3.2.3/3.2.4 的版本建议不适用于该 pip 包。本模块的使用范围继续限定为日志完整性自我实践，不能据此宣称传输层国密或正式密评合规。
 
 ---
 

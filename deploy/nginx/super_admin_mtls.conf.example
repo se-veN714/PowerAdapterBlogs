@@ -1,0 +1,52 @@
+# H3 production boundary: TLS 1.3 mutual authentication for /super_admin/.
+# The deployment decision pins the edge to the latest supported OpenSSL 4.0.x
+# patch release; verify the actual linkage with check_mtls_edge.sh.
+# Copy this file outside the repository, replace every example path/domain,
+# create the root-only proxy secret include, then run `nginx -t` before reload.
+
+upstream poweradapter_django {
+    # Gunicorn must not expose a parallel public TCP listener.
+    server unix:/run/poweradapter/gunicorn.sock;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name admin.poweradapter.xyz;
+
+    # Public server certificate: keep using the normal ACME/Let's Encrypt chain.
+    ssl_certificate /etc/letsencrypt/live/admin.poweradapter.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/admin.poweradapter.xyz/privkey.pem;
+    ssl_protocols TLSv1.3;
+    ssl_early_data off;
+    ssl_session_tickets off;
+
+    # Private Client CA: this is not the public server certificate chain.
+    ssl_client_certificate /etc/nginx/mtls/client-ca-chain.pem;
+    ssl_verify_client on;
+    ssl_verify_depth 2;
+    ssl_crl /etc/nginx/mtls/client-ca.crl.pem;
+
+    location / {
+        proxy_pass http://poweradapter_django;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # Always replace client-supplied values with Nginx TLS variables.
+        proxy_set_header X-PA-mTLS-Verify $ssl_client_verify;
+        proxy_set_header X-PA-mTLS-Serial $ssl_client_serial;
+        proxy_set_header X-PA-mTLS-Issuer-DN $ssl_client_i_dn;
+        proxy_set_header X-PA-mTLS-Subject-DN $ssl_client_s_dn;
+        proxy_set_header X-PA-mTLS-Profile standard-tls;
+
+        # This untracked root-only file contains one proxy_set_header directive:
+        # proxy_set_header X-PA-Proxy-Auth "at-least-32-random-characters";
+        include /etc/nginx/snippets/poweradapter-mtls-secret.conf;
+    }
+}
+
+# Add this location to the ordinary public site's existing server block.
+# It prevents a parallel non-mTLS route to the Django super admin.
+# location ^~ /super_admin/ {
+#     return 404;
+# }

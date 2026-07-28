@@ -16,20 +16,27 @@ import secrets
 from gmssl import sm3, func
 
 
+def sm3_digest(message: bytes) -> str:
+    """Return a lowercase SM3 digest for non-secret canonical bytes."""
+    if not isinstance(message, bytes):
+        raise TypeError("message must be bytes")
+    return sm3.sm3_hash(func.bytes_to_list(message))
+
+
 def sm3_hmac(hmac_key: bytes, msg: bytes) -> str:
     """
-        Calculate HMAC using SM3.
-        :param hmac_key: secret key (recommended 32 bytes)
-        :param msg: message to authenticate
-        :return: hex string of HMAC-SM3
+    Calculate HMAC using SM3.
+    :param hmac_key: secret key (recommended 32 bytes)
+    :param msg: message to authenticate
+    :return: hex string of HMAC-SM3
     """
     assert len(hmac_key) == 32, "Key must be 32 bytes (256 bits) long."
 
-    OPAD = 0x5c
+    OPAD = 0x5C
     IPAD = 0x36
 
     block_size = 64
-    hmac_key = hmac_key.ljust(block_size, b'\x00')  # pad to block size
+    hmac_key = hmac_key.ljust(block_size, b"\x00")  # pad to block size
 
     o_key_pad = bytes([b ^ OPAD for b in hmac_key])
     i_key_pad = bytes([b ^ IPAD for b in hmac_key])
@@ -42,4 +49,3 @@ def sm3_hmac(hmac_key: bytes, msg: bytes) -> str:
 
 def generate_key() -> bytes:
     return secrets.token_bytes(32)
-

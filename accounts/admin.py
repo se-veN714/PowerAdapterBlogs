@@ -17,11 +17,10 @@ class MyUserAdmin(UserAdmin):
         "username",
         "email",
         "is_active",
-        "is_reviewer",
         "is_dashboard_user",
         "is_superuser",
     )
-    list_filter = ("is_active", "is_reviewer", "is_dashboard_user", "is_superuser")
+    list_filter = ("is_active", "is_dashboard_user", "is_superuser")
     ordering = ("date_joined",)
 
     fieldsets = (
@@ -31,7 +30,6 @@ class MyUserAdmin(UserAdmin):
             {
                 "fields": (
                     "is_active",
-                    "is_reviewer",
                     "is_dashboard_user",
                     "is_superuser",
                     "groups",
@@ -82,7 +80,8 @@ class MyUserAdmin(UserAdmin):
     def get_readonly_fields(self, request, obj=None):
         """
         权限颗粒化：非 superuser 仅可编辑 is_active（用户启停）。
-        is_reviewer 由 superuser 在 /super_admin/ 中授权。
+
+        遗留 is_reviewer 在 Stage 7 观察期不再展示或分配。
         """
         if request.user.is_superuser:
             return self.readonly_fields
@@ -95,7 +94,7 @@ class MyUserAdmin(UserAdmin):
     def get_fieldsets(self, request, obj=None):
         """
         非 superuser：仅显示用户审核视图。
-        superuser：完整 fieldsets（含 reviewer 授权）。
+        superuser：完整账号与全局 Group 管理视图。
         """
         if request.user.is_superuser:
             return self.fieldsets

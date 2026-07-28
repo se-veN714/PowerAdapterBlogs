@@ -4,8 +4,8 @@
 > **归档模块**：`accounts/`
 > **主要作用域**：`boards.Board`
 > **文档职责**：治理整个授权架构；BoardMembership、申请审批与 Policy 的实现归 `boards` App
-> **状态**：`accounts_linear` 阶段 0–6b 已完成；下一步为 Stage 7 停止读取 `is_reviewer` 并观察一个发布周期
-> **日期**：2026-07-27（固定全局 Group/Permission 已初始化并接入运行时）
+> **状态**：`accounts_linear` 阶段 0–6b 已完成；Stage 7 已于 2026-07-29 开始零授权读取观察，Stage 8 删除字段尚未开始
+> **日期**：2026-07-29（Stage 7 零授权读取观察开始）
 > **目标**：以后续功能围绕 Board 展开，在不引入第三方对象权限库的前提下实现最小权限、职责分离和可测试的板块级授权。
 
 ## 1. 当前问题
@@ -380,6 +380,8 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 | ✅ | View/API 权限判断分散 | Admin、普通 View、上传、修订端点和只读 API 均已收敛到 `boards.policies` |
 | ✅ | BoardMembership 自动审批 | Stage 6b 已用 BoardAccessRequest/审批 Service 自动创建、变更或恢复 Membership |
 | ✅ | 角色矩阵、ORM Policy 与跨入口拒绝路径已有测试 | Stage 4–5 新增 17 个测试；加入手测账号/导航契约后完整测试集 70 个通过 |
+| 🔴 高 | Board 权限申请只检查长期 `VerifiedUsers`，未要求本次敏感操作的短时邮箱确认 | 复用 accounts 现有 10 分钟邮箱验证码、冷却、发送次数与失败次数限制；泛化验证目的和安全返回地址，不复制 Board 专用验证码实现 |
+| 🟡 中 | Board Manager 缺少所属板块文章与专属内容的统一管理入口 | 先冻结不同角色可管理的内容模型和字段，再由 dashboard 使用 Board Policy 限定 queryset、对象和写入范围 |
 
 ## 12. accounts_linear
 
@@ -397,7 +399,7 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 | 5 ✅ | 接入审核 action、上传接口、普通 View/API | 2026-07-19 已完成；状态 Service 逐对象校验，API 暂定只读并明确拒绝写方法 |
 | 6a ✅ | accounts 创建全局 Group 并迁移全局身份 | VerifiedUsers、UserManagers、SiteOperators 已绑定精确 Permission 并接入工作台边界 |
 | 6b ✅ | boards 实现 BoardAccessRequest、审批与 Membership 迁移 | Manager/superuser 审批边界生效，用户无需手工勾选权限 |
-| 7 | 停止读取 `is_reviewer`，观察一个发布周期 | 日志中无旧字段授权路径，回归测试全部通过 |
+| 7 🔄 | 停止读取 `is_reviewer`，完成一次等价完整验收 | 已移除 Admin 分配/展示、superuser 默认赋值与测试账号写入；自动回归已通过，待用户完成本地角色流程手测 |
 | 8 | 删除 `is_reviewer`；单独评估 `is_dashboard_user` | 迁移可回滚，文档与权限矩阵同步更新 |
 
 ### 12.1 阶段 0 冻结结果
@@ -523,7 +525,17 @@ sequenceDiagram
     Service-->>Audit: 事务提交后记录审核结果
 ```
 
-当前下一步为 **阶段 7：停止读取 `is_reviewer`，观察一个发布周期并确认无旧字段授权路径**。
+当前处于 **阶段 7：`is_reviewer` 零授权读取验收期**。字段仍保留在模型和数据库中以支持可回滚验证，模型层敏感字段保护也暂时保留；它不再出现在 Admin 中，也不由 superuser/测试账号初始化流程赋值。完成一次生产等价的本地/预发布角色流程验收并确认无依赖后，即可进入 Stage 8，不要求先部署到服务器。
+
+### 12.8 Stage 7 等价完整验收
+
+Stage 7 不能只凭自动测试立即关闭，但不要求先部署到服务器。用户可在当前本地数据库或预发布环境中，至少完整覆盖一次账号创建、Board 申请/审批、投稿、审核、评论管理和双后台登录流程。
+
+- `/super_admin/` 不再展示或分配 `is_reviewer`；新建 superuser 和测试账号不再写入它。
+- `is_reviewer=True` 的历史账号在没有 Group/Membership 时仍无法进入工作台或获得 Board/审计权限。
+- 所有 Board 操作继续由 `BoardMembership`、Policy 和 Service 决策；代码审计中不存在旧旗标授权读取。
+- 观察期间不得手工清空历史字段值来伪造成功；Stage 8 删除前保留数据用于发现遗漏依赖。
+- 若这轮等价完整流程无回归且日志无相关授权异常，再创建可回滚的 Stage 8 schema migration；`is_dashboard_user` 仍单独评估。
 
 ## 13. 参考依据
 

@@ -2,8 +2,8 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-07-28
-> **状态**: Board Scope Stage 0–6b、邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0–H3 应用代码已完成；MFA/mTLS 生产开关默认关闭，待真实设备、Client CA、独立管理 vhost 与 break-glass 演练
+> **更新**: 2026-07-29
+> **状态**: Board Scope Stage 0–6b 已完成，Stage 7 已进入遗留 `is_reviewer` 零授权读取验收期（自动回归通过，待用户本地角色流程手测）；邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0–H3 应用代码已完成；MFA/mTLS 生产开关默认关闭，待真实设备、Client CA、独立管理 vhost 与 break-glass 演练
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -70,7 +70,11 @@ sequenceDiagram
 
 这里的证书绑定与 mTLS 是两层：Nginx 判断“证书是否由受信 CA 签发且当前有效”，Django 再判断“该证书是否绑定到当前 active superuser”。禁止仅凭可伪造的普通请求头授予权限；Nginx 必须覆盖/清除外部同名头，Gunicorn 仍只通过本机 Unix socket 接收请求。客户端证书的签发、分发、续期、吊销、丢失恢复和销毁纳入 v2.5+ 密钥生命周期，不允许成为无人能恢复的单点锁。
 
-截至 2026-07-27，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的各入口接入 `boards.policies`，Stage 6a 已初始化固定全局 Group，Stage 6b 已实现权限申请、分级审批与 Membership 自动写入。下一步进入 Stage 7：停止读取 `is_reviewer` 并观察一个发布周期。
+截至 2026-07-29，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的各入口接入 `boards.policies`，Stage 6a 已初始化固定全局 Group，Stage 6b 已实现权限申请、分级审批与 Membership 自动写入。Stage 7 已移除 superuser/测试账号对 `is_reviewer` 的默认赋值和 Admin 分配入口，并以回归测试固定“旧旗标为真仍不产生工作台、Board 或全局权限”；数据库字段及模型层防篡改保护保留到用户完成一次生产等价的本地/预发布角色流程验收，不要求先部署服务器，之后才进入 Stage 8 删除迁移。
+
+生产运维入口采用 Tailscale：管理员或 Agent 先进入受控 Tailnet，再以专用非 root 账号通过 SSH key 登录并按需 `sudo`。公网安全组不得为临时 Agent 出口长期开放 SSH，也不得通过放宽云主机安全地区/IP 白名单消除告警；云控制台仅作为 break-glass。Tailscale 负责运维网络入口，不能替代 `/super_admin/` 的 TLS 1.3 mTLS、Django 密码和 TOTP 身份验证。
+
+Board 后续缺口按风险排队：🔴 BoardAccessRequest 提交前复用 accounts 短时邮箱验证；🟡 三个 Board Index 接入按 Policy 过滤的文章入口/文章流；🟡 Skateboard Clip 固定为每组 1 个 `9:16` 竖屏与 3 个 `16:9` 横屏并在模型/表单验证版式；🟡 `/dashboard/` 为各 Board 提供仅管理所属文章和专属内容的工作区。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`，这些 TODO 尚未实现。
 
 后台加固主线不被 Stage 7 清债阻塞：H2a 已完成 AES-256-GCM encrypted-only 设备、10 分钟绑定页、Microsoft Authenticator QR、一次性恢复码、原子消费、撤销/密钥擦除和 HMAC 审计；敏感页面均 `no-store`。H2b 已完成密码后置 pending challenge、新时间步防重放、账号与账号+IP 双维共享限流、恢复受限重绑状态、15 分钟 privileged Session，以及 `/dashboard/`、`/super_admin/` 双入口保护。首期强制范围仅 active superuser 与 active Board Manager；`is_dashboard_user` 单独存在不触发 MFA。代码默认 `MFA_ENFORCEMENT_ENABLED=false`，不得在未执行 readiness 与人工恢复演练前开启。
 
@@ -82,7 +86,7 @@ sequenceDiagram
 
 #### blog_foundation_linear（2026-07-26，推进中）
 
-按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界；F1 已实现公开作者 Profile、本人资料编辑及带邮箱短时验证的密码修改；F2 已补齐 About、隐私说明和全局入口；F3 已实现公开年月归档、RSS/Atom 与统一公开文章 QuerySet helper；F4 已接入 canonical/Open Graph、Feed 自动发现、robots、公开 Sitemap 与生产错误页；F5 已按 RFC 9116 发布 `security.txt` 并补齐上线检查清单。该路线 F0–F5 与 accounts Stage 6a–6b 均已完成，下一步为 Stage 7 旧授权字段观察。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 `BLOG_FOUNDATION_GUIDE.md`（本地 docs/，git-ignored）为准。
+按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界；F1 已实现公开作者 Profile、本人资料编辑及带邮箱短时验证的密码修改；F2 已补齐 About、隐私说明和全局入口；F3 已实现公开年月归档、RSS/Atom 与统一公开文章 QuerySet helper；F4 已接入 canonical/Open Graph、Feed 自动发现、robots、公开 Sitemap 与生产错误页；F5 已按 RFC 9116 发布 `security.txt` 并补齐上线检查清单。该路线 F0–F5 与 accounts Stage 6a–6b 均已完成，Stage 7 旧授权字段观察已经开始。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 `BLOG_FOUNDATION_GUIDE.md`（本地 docs/，git-ignored）为准。
 
 #### 2026-07-27 三分支并行决策
 

@@ -55,7 +55,6 @@ class Command(BaseCommand):
             user.email = f"{username}@example.test"
             user.is_active = True
             user.is_dashboard_user = True
-            user.is_reviewer = False
             user.is_staff = False
             user.is_superuser = False
             user.set_password(password)
@@ -78,7 +77,6 @@ class Command(BaseCommand):
         no_board_user.email = "perm_no_board@example.test"
         no_board_user.is_active = True
         no_board_user.is_dashboard_user = True
-        no_board_user.is_reviewer = False
         no_board_user.is_staff = False
         no_board_user.is_superuser = False
         no_board_user.set_password(password)

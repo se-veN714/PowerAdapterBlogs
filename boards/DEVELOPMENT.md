@@ -238,7 +238,7 @@ Stage 6a 已创建 `boards.apply_board_access` 并只授予 `VerifiedUsers`。�
 - PostRevision 跟随 Post 可见范围；Comment 审核队列仅向本 Board Reviewer/Manager 只读展示。
 - 直接输入跨 Board Admin URL 无法读取或修改对象；Manager 编辑他人文章不会改写原作者。
 
-Stage 5 已恢复审核/发布/驳回和评论 action，但每个对象都会在事务 Service 或审核 Service 中重新校验 Policy，不再批量直写状态。Stage 6a 已初始化固定全局 Group；Stage 6b 已通过 `/boards/access/`、`BoardAccessRequest` 和审批 Service 自动写入 Membership。当前完整测试集 179 个全部通过，下一步为 Stage 7 旧字段观察。
+Stage 5 已恢复审核/发布/驳回和评论 action，但每个对象都会在事务 Service 或审核 Service 中重新校验 Policy，不再批量直写状态。Stage 6a 已初始化固定全局 Group；Stage 6b 已通过 `/boards/access/`、`BoardAccessRequest` 和审批 Service 自动写入 Membership。Stage 7 已停止测试账号命令写入遗留 `is_reviewer`；自动回归通过，待用户完成一次本地生产等价角色流程手测，Stage 8 前不删除数据库字段。
 
 Board 独立 Index 视觉在 `codex/board-index-k3` 并行推进，K3 仅修改 Devenir 专用模板/CSS/展示脚本；路由、QuerySet、Policy 与上下文组装仍由 boards 后端所有。本地 HANDOFF 仅用于临时交接，不进入 Git；长期边界以本节和 V2 指南为准。
 
@@ -317,6 +317,9 @@ index.html
 5. **Music 叙事区数据建模（绿色）**：Yearly 大数字 / Monthly bars / Companion / Gravity / Cross-Scale 仍静态 mock，仅 archive 与 hero 日期已数据驱动；若需全量数据驱动需更丰富快照建模。
 6. **mock 降级清理决策（绿色）**：后端已接线，决定是否保留模板 `{% empty %}` mock 分支。
 
-7. **板块申请复用 accounts 邮箱验证流程（红色）**：Open Node / `BoardAccessRequestView` 的申请前置条件应复用 accounts 已有的邮箱验证机制（`PasswordEmailVerification` 会话校验 + 验证邮件发送，见 `accounts/services.py` 的 `mark_password_email_verified` / `password_email_verification_remaining_seconds` 与 `accounts/views.py` 的 `PasswordEmailVerificationView`），不要为每个 Board 重新实现邮箱验证；申请入口应在用户完成邮箱验证后才开放（与 boards §4 “accounts 只确认用户已登录、激活和完成邮箱验证” 保持一致）。
+7. **板块申请复用 accounts 短时邮箱验证（🔴 高）**：邀请激活加入 `VerifiedUsers` 只证明邮箱曾验证；提交 `BoardAccessRequest` 前还应复用 accounts 现有 10 分钟验证码、60 秒冷却、每小时发送上限、失败次数锁定和 Session grant。应把当前 password 专用实现泛化为带 `purpose` 与安全站内返回地址的账号邮箱挑战，不复制 Board 专用验证码，也不得接受外部 open redirect。
+8. **Board Index 接入文章入口与文章流（🟡 中）**：三个 Index 当前只组装各自专属模型，没有按 `Board.category` 取得用户可见 `Post`，模板也没有“查看本板块文章/投稿”入口。后续统一复用 Blogs 的可见文章 QuerySet 与 `boards.policies`，明确公开、作者草稿和 Reviewer/Manager 内部内容的隔离，禁止在 Index 复制文章授权。
+9. **Skateboard Clip 固定展示编排（🟡 中）**：每组展示固定为 1 个竖屏 `9:16` + 3 个横屏 `16:9`。先在模型/表单定义受控版式或方向字段，并校验每组数量与比例契约；前端使用稳定的 `aspect-ratio`，不能仅按循环序号猜测上传视频方向。需明确不足 4 条、超过 4 条和移动端的降级方式。
+10. **各 Board 的内容管理工作区（🟡 中）**：当前 7 个专属内容模型仅在 `/super_admin/` 对 superuser 开放，Board Manager 无法维护自己的文章、Skate Clip、Music 记录或 Coding 内容。后续在 `/dashboard/` 提供按 Membership/Policy 限定的板块工作区；每种模型先冻结 Manager/Editor 的 queryset、字段、创建/修改/删除边界和审计要求，Board 创建及前端代码绑定仍为 superuser-only。
 
 > 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。

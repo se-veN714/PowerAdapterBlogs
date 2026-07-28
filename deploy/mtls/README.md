@@ -73,7 +73,8 @@ python manage.py bind_client_certificate \
 ## 6. Break-glass 与回滚
 
 - 唯一管理员不得把恢复能力全部放在同一台手机或电脑上。至少保留离线 TOTP 恢复码、离线 Client CA 恢复材料和服务器控制台/SSH 三类路径。
-- break-glass 不建立公网的无 mTLS 平行入口。通过云控制台或受限 SSH 修改配置，并把临时入口限制在 loopback、VPN 或明确的管理地址。
+- 日常运维统一经 Tailscale Tailnet 进入，再使用专用非 root 账号、SSH key 与按需 `sudo`；公网安全组不为 Agent 临时出口 IP 长期开 SSH，也不把宽泛地区加入云主机安全白名单。
+- break-glass 不建立公网的无 mTLS 平行入口。通过云控制台或 Tailscale 内受限 SSH 修改配置，并把临时入口限制在 loopback、Tailnet 或明确的固定管理地址。
 - 应用回滚可以关闭 `MTLS_ENFORCEMENT_ENABLED`，但必须同时确保公网 `/super_admin/` 仍被 Nginx 拒绝；修复后重新运行完整 readiness。
 - 所有演练记录时间、执行人、结果码和后续动作，不记录口令、私钥、TOTP seed/code 或完整证书。
 

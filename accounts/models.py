@@ -45,7 +45,6 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_active", True)
         extra_fields.setdefault("is_dashboard_user", True)
-        extra_fields.setdefault("is_reviewer", True)
         extra_fields.setdefault("is_superuser", True)
         return self.create_user(email, username, password, **extra_fields)
 
@@ -58,7 +57,8 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
     is_cert_verified = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
 
-    # 权限字段（四旗模型 + 审核角色）
+    # 账号与入口状态。is_reviewer 仅为 Stage 7 观察期保留的遗留数据字段，
+    # 不得作为任何运行时授权依据；Stage 8 将单独迁移删除。
     is_active = models.BooleanField(default=False, verbose_name="账号启用")
     is_staff = models.BooleanField(default=False, verbose_name="超级管理员入口")
     is_dashboard_user = models.BooleanField(default=False, verbose_name="仪表盘入口")

@@ -17,6 +17,7 @@
 | 2026-07-29 | v3.23 | OpenSSL 4.0.1 开发 CA 实测通过：clientAuth 叶证书、链验证、PKCS#12、撤销、CRL 重发及 error 23 拒绝；Nginx/浏览器仍待验收 |
 | 2026-07-29 | v3.22 | H3 边界选择 OpenSSL 4.0.x 最新补丁版（初始 4.0.1）；新增 Nginx/CA CLI 版本证据脚本和 readiness 确认项 |
 | 2026-07-29 | v3.21 | H3d：增加仓库外 Client CA/CRL/轮换/丢失/break-glass 运维模板；mTLS readiness 新增 Client CA、吊销和恢复人工确认门槛 |
+| 2026-07-29 | v3.24 | accounts_linear Stage 7 开始：移除 `is_reviewer` Admin 入口与初始化写入，以拒绝回归固定旧旗标无授权效果；字段保留到等价完整验收通过 |
 | 2026-07-29 | v3.20 | `authn/` 集中 TOTP/mTLS/Session、`tests/` 集中回归；H3 生产 profile 仅接受标准 TLS 1.3 mTLS，SM2/TLCP 降为隔离实验 |
 | 2026-07-28 | v3.19 | H3 应用侧完成：私有客户端证书绑定、SM3 issuer 索引、标准 TLS/SM2-TLCP profile、可信代理 Header 契约、证书绑定 privileged Session 与 readiness 命令；真实 CA/Nginx 仍待人工验收 |
 | 2026-07-28 | v3.18 | H2 完成：绑定/恢复 UI、二维码、密码后置 challenge、防重放、共享限流、恢复受限态、15 分钟 privileged Session、双后台保护与 readiness 命令 |
@@ -71,14 +72,14 @@ flowchart TD
     end
 
     subgraph auth["认证与用户模型"]
-        MYU["MyUser<br/>AbstractBaseUser + PermissionsMixin<br/>五旗模型"]
+        MYU["MyUser<br/>AbstractBaseUser + PermissionsMixin<br/>账号/入口状态"]
         UM["UserManager"]
     end
 
-    subgraph roles["角色体系 (五旗)"]
-        R1["👤 普通用户<br/>is_active=True"]
-        R2["✏️ 编辑者<br/>+ is_dashboard_user"]
-        R3["✅ 审核者<br/>+ is_reviewer"]
+    subgraph roles["当前身份与授权来源"]
+        R1["👤 可登录账号<br/>is_active"]
+        R2["🌐 全局职责<br/>Django Group"]
+        R3["🧭 Board 角色<br/>BoardMembership"]
         R4["🔧 超级管理员<br/>active + is_superuser"]
     end
 
@@ -137,7 +138,7 @@ flowchart TD
 
 **核心设计原则**：
 - **App 边界**：accounts 回答全局身份与职责；boards 回答指定 Board 内可以执行的动作
-- **Board 权限迁移状态**：Stage 0–5 已落地；下一步自动化全局 Group 与 BoardAccessRequest 审批
+- **Board 权限迁移状态**：Stage 0–6b 已落地；Stage 7 正在观察遗留字段零授权读取，Stage 8 尚未删除字段
 - **单一事实来源**：Contributor / Editor / Reviewer / Manager 不写入 Group；BoardMembership + Policy 跨 App 控制 Post 与 Comment
 - **全局旗标边界**：`is_active` / `is_dashboard_user` / `is_staff` / `is_superuser` 只表达账号或入口状态；`is_reviewer` 为待删除遗留字段，不再代表 Board 角色
 - **纵深防御**：4 层防护，模型层是最后一道防线
@@ -215,7 +216,7 @@ flowchart TD
 │                                                      │
 │  is_active         账号启用（可登录）                   │
 │  is_dashboard_user 可访问 /dashboard/ (CustomSite)     │
-│  is_reviewer       遗留审核旗标（业务入口已停止读取）      │  ← 待 Stage 7–8 删除
+│  is_reviewer       遗留审核旗标（业务入口已停止读取）      │  ← Stage 7 观察，Stage 8 删除
 │  is_staff          Django 兼容旗标，不单独授予后台入口      │
 │  is_superuser      拥有所有模型层特权                    │
 │                                                      │
@@ -458,7 +459,7 @@ def save(self, *args, **kwargs):
 - 使用 `.only()` 减少查询开销（只取 4 个布尔字段）
 - 回滚而非抛异常 — 静默拒绝，避免 `PermissionDenied` 在非 HTTP 上下文崩溃
 - 每次修改都查询旧值，这是 O(1) 的性能代价换取安全
-- v3.0 扩展 `is_reviewer`：审核权限只能通过 `/super_admin/` 授予，dashboard 用户不可自行提权
+- `is_reviewer` 仅为 Stage 7 可回滚观察保留在敏感字段集合中；Admin 已不展示或授予，任何授权逻辑不得读取它
 
 ---
 
@@ -480,12 +481,12 @@ class CusMyUserAdmin(MyUserAdmin):
 
 两个 Admin 共享同一个 `MyUserAdmin` 类；系统入口由 `SuperuserAdminSite` 先拒绝非 superuser，工作台中的账号模块在 Stage 6 前也只向 active superuser 开放。
 
-### 6.2 动态字段权限（v3.0 颗粒化）
+### 6.2 动态字段权限（Stage 7 当前状态）
 
 | 方法 | superuser 行为 | dashboard 行为 (CusMyUserAdmin) |
 |------|---------------|------------|
-| `get_readonly_fields()` | 全部可编辑 | 除 `is_active` 外全部只读（含 `is_reviewer`） |
-| `get_fieldsets()` | 4 个字段集（基本信息/证书/权限/其他） | 1 个字段集「用户审核」 |
+| `get_readonly_fields()` | 显式展示字段可编辑 | 除 `is_active` 外全部只读；`is_reviewer` 不展示 |
+| `get_fieldsets()` | 基本信息/全局权限/其他；不展示 `is_reviewer` | 1 个字段集「用户审核」 |
 | `has_change_permission()` | ✅ | ✅ (仅 is_active；不可编辑 superuser) |
 | `has_delete_permission()` | ✅ | ❌ |
 | `has_add_permission()` | ✅ | ❌ |
@@ -580,7 +581,7 @@ erDiagram
         bool is_cert_verified "遗留字段，H3 不读取"
         datetime date_joined "auto_now_add"
         bool is_active "账号启用"
-        bool is_reviewer "内容审核权限 (v3.0)"
+        bool is_reviewer "遗留数据；Stage 7 无授权效果"
         bool is_dashboard_user "dashboard 入口"
         bool is_staff "super_admin 入口"
         bool is_superuser "模型层特权"
@@ -665,26 +666,9 @@ python manage.py createsuperuser
 python manage.py migrate accounts
 python manage.py migrate Blogs
 
-# 授予现有 dashboard 用户审核权限
-python manage.py shell -c "
-from accounts.models import MyUser
-# 将 user1 设为审核者
-u = MyUser.objects.get(username='user1')
-u.is_reviewer = True
-u.save()
-# 授予 manage_category 权限（Django Permission）
-from django.contrib.auth.models import Permission
-perm = Permission.objects.get(codename='manage_category')
-u.user_permissions.add(perm)
-"
-
-# Django shell 验证权限逻辑
-python manage.py shell -c "
-from accounts.models import MyUser
-u = MyUser.objects.get(username='reviewer_user')
-print(u.is_dashboard_user, u.is_reviewer, u.is_superuser)
-print('perms:', u.get_all_permissions())
-"
+# Board 角色不得通过 MyUser 旗标或 user_permissions 手工授予。
+# 用户从 /boards/access/ 发起申请，Manager/superuser 审批后由
+# boards.services 原子创建或更新 BoardMembership。
 ```
 
 ### C. 安全红线 (来自 LOGGUIDE.md)
@@ -728,8 +712,8 @@ python manage.py migrate accounts
 python manage.py migrate Blogs
 ```
 
-**向后兼容**：
+**历史向后兼容说明（仅描述 v3.0；不得作为当前授权指南）**：
 - `STATUS_NORMAL=1` 和 `STATUS_DELETE=0` 值不变，存量文章不受影响
-- `is_reviewer` 默认为 False，现有用户行为完全不变
+- `is_reviewer` 当时默认为 False；当前已进入 Stage 7 零授权读取观察期
 - 现有 superuser 自动获得所有自定义权限（Django 默认行为）
 - 自定义 permissions 不会自动授予现有用户，需手动分配或通过 group 管理

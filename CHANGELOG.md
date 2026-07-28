@@ -4,6 +4,14 @@
 
 ## [2026-07-29]
 
+### accounts_linear Stage 7（观察期开始）
+
+- 移除 `is_reviewer` 的 Admin 展示/分配入口、superuser 默认赋值和 Board 测试账号写入；旧旗标不再形成新的运行时状态。
+- 增加旧旗标无授权效果的回归测试；字段与模型层防篡改保护暂留一个发布周期，删除迁移归入 Stage 8。
+- 新服务器日常运维入口确定为 Tailscale + 非 root SSH key + 按需 `sudo`；TLS 1.3 mTLS、密码与 TOTP 继续保护应用管理面。
+- 记录后续 Board 缺口：申请前复用短时邮箱验证、Index 接入文章流、Skate Clip 的 1 竖 3 横比例契约，以及按 Board Policy 隔离的内容管理工作区；均为未实现 TODO。
+- 修复登录后窄桌面窗口的 Devenir 顶栏挤压：宽度不足时提前切换侧边抽屉，并禁止导航标签逐字换行。
+
 ### H3 生产传输路线冻结
 - 生产 `/super_admin/` 固定为 Nginx TLS 1.3 mTLS；应用解析、证书绑定命令与 readiness 仅接受 `standard-tls`
 - `sm2-tlcp` 仅保留为隔离实验元数据，不接生产认证链、不计入 H3 发布验收；新增不含任何真实密钥的 Nginx 配置评审模板

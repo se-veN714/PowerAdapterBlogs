@@ -159,3 +159,22 @@ class GlobalRoleRuntimeBoundaryTest(TestCase):
         self.assertFalse(self.audit_admin.has_module_permission(request))
         self.assertFalse(self.audit_admin.has_view_permission(request))
         self.assertFalse(self.audit_admin.has_run_integrity_audit_permission(request))
+
+    def test_legacy_reviewer_flag_grants_no_runtime_access(self):
+        legacy_reviewer = MyUser.objects.create_user(
+            email="legacy-reviewer-runtime@example.test",
+            username="legacy-reviewer-runtime",
+            password="test-password",
+            is_active=True,
+            is_reviewer=True,
+        )
+        board = Board.objects.create(slug="legacy-flag", name="Legacy flag")
+        request = self.request_for(legacy_reviewer)
+
+        self.assertFalse(has_dashboard_access(legacy_reviewer))
+        self.assertFalse(custom_site.has_permission(request))
+        self.assertFalse(can_create_post(legacy_reviewer, board))
+        self.assertFalse(
+            legacy_reviewer.has_perm("accounts.manage_user_accounts")
+        )
+        self.assertFalse(legacy_reviewer.has_perm("security.view_audit_log"))

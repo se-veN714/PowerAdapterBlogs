@@ -2,8 +2,8 @@
 
 > **文档权重**：88（v2.5+ 安全规划；状态为规划时不得视为已实现）
 > **模块**：`accounts/`、`security/`
-> **状态**：H0、H1/Stage 6a–6b 已完成；H2 契约与 H2a-0–1 已完成，下一步实现 H2a-2 绑定确认
-> **日期**：2026-07-27
+> **状态**：H0–H2 代码与自动化验收已完成；生产强制默认关闭，待真实设备绑定、离线恢复材料和 break-glass 人工演练
+> **日期**：2026-07-28
 > **版本原则**：复杂安全能力默认进入 v2.5+；若前置测试、运维方案和回滚路径提前成熟，可以前移，但不以赶版本为目标。
 
 ## 1. 目标与边界
@@ -53,10 +53,22 @@ H2 首期明确强制 active superuser 与任意 active Board Manager。`UserMan
 |---|---|---|
 | H2a-0 | ✅ | 固定 `PyOTP==2.10.0` 与 `cryptography==49.0.0`；实现无持久化的 AES-256-GCM seed 加密边界和 5 个可执行测试 |
 | H2a-1 | ✅ | `MfaTotpDevice` 单用户单设备模型、状态/时间戳/版本/时间步约束、迁移与 encrypted-only ORM 测试；未开放页面 |
-| H2a-2 | 下一步 | pending 绑定、首次 TOTP 确认、二维码的一次性展示与过期清理 |
-| H2a-3 | 待办 | 恢复码 hash、原子消费、重置/撤销和 HMAC 审计；完成后进入观察窗口 |
+| H2a-2 | ✅ | 10 分钟 pending 绑定、Microsoft Authenticator QR、首次 TOTP 确认、一次性 provisioning URI 与过期 seed 擦除 |
+| H2a-3 | ✅ | 10 枚恢复码仅存 password hash、条件更新原子消费、superuser 重置/撤销、`auth_version` 递增与 HMAC 审计 |
+| H2a-UI | ✅ 代码 | 已有 Session 内的绑定/确认、恢复码一次展示、`no-store` 与受限重绑页面；真实手机和 break-glass 仍需人工验收 |
+| H2b | ✅ 代码 | 密码后置 challenge、防重放、5 次/15 分钟共享冷却、恢复受限态、15 分钟 privileged Session 与双后台 middleware |
 
-H2a-0 的 `accounts.mfa_crypto` 不读取数据库或环境，不生成业务 seed，也不被登录/视图调用。调用者必须提供版本化 keyring、active key ID 与 AAD；未知 key、错误长度、非法 key ID、密文或 AAD 篡改均使用不含敏感值的统一异常失败。H2a-1 的 `MfaTotpDevice` 只保存密文、96-bit nonce、key ID 与生命周期元数据，密文 AAD 固定绑定 user ID 和预生成的 device UUID；模型未注册到 Django Admin。KEK 到 Django settings 的加载和启动期生产配置校验留到 H2a-2，在第一次生成业务 seed 前完成。
+H2a-0 的 `accounts.mfa_crypto` 不读取数据库或环境。H2a-1 的 `MfaTotpDevice` 只保存密文、96-bit nonce、key ID 与生命周期元数据，AAD 固定绑定 user ID 和 device UUID。H2a-2/3 的 `accounts.mfa_services` 从 `MFA_TOTP_KEYRING_JSON` 与 `MFA_TOTP_ACTIVE_KEY_ID` 读取版本化 KEK；缺失、非法或 active key 不存在时，在生成/持久化 seed 前默认拒绝。`MFA_TOTP_ISSUER` 可配置显示名称。仓库与测试不得写入真实 KEK、业务 seed、二维码 URI、TOTP code 或恢复码。设备与恢复码均不注册到 Django Admin。
+
+服务层授权边界固定为：active superuser 或拥有任一 active Manager Membership 的用户只能给自己绑定和确认；恢复码消费也只允许本人，且只标记一次性材料已用，不创建 Session。设备重置只允许 active superuser；superuser 重置自己时还必须重新校验当前密码，重置其他账号时形成更高权限复核。撤销或过期会用随机数据覆盖 seed 密文与 nonce、删除恢复码并递增 `auth_version`。审计仅记录固定事件/原因码，通过 `LogEntry` 同步生成 `SecureLogEntry` HMAC，不记录用户输入或认证材料。
+
+#### H2 生产启用顺序
+
+1. 保持 `MFA_ENFORCEMENT_ENABLED=false`，通过环境变量配置 `MFA_TOTP_KEYRING_JSON`、`MFA_TOTP_ACTIVE_KEY_ID` 与可选 `MFA_TOTP_ISSUER`；KEK 不得写入仓库或聊天记录。
+2. 执行迁移并由所有 active superuser/Board Manager 在 `/accounts/security/mfa/` 完成真实设备绑定；分别离线保存只展示一次的恢复码。
+3. 人工验证 Microsoft Authenticator 扫码、TOTP 登录、单码恢复重绑、唯一管理员 break-glass 与关闭开关回滚。
+4. 执行 `python manage.py check_mfa_readiness --acknowledge-recovery-material`。命令会检查版本化 keyring、全部强制用户的 active 设备、seed 可解密性和剩余恢复码，但不会输出认证材料。
+5. 仅在上述步骤全部通过后设置 `MFA_ENFORCEMENT_ENABLED=true` 并重启服务；分别从账号登录页、`/dashboard/` 与 `/super_admin/` 验证。紧急回滚只关闭该开关，不删除设备、恢复码或审计记录。
 
 | 版本 | 目标 | 是否修改运行时 | 进入条件 |
 |---|---|:---:|---|
@@ -134,22 +146,22 @@ stateDiagram-v2
 
 H2a：
 
-- [ ] pending 设备未确认、过期或撤销时不能被当作 active 设备。
-- [ ] 数据库、日志、邮件和测试失败输出中均找不到 seed、URI、TOTP code 或恢复码明文。
-- [ ] 首次验证码错误不会激活设备；正确验证码只激活一次。
-- [ ] 恢复码只展示一次、库中只有 hash、并发消费最多成功一次。
-- [ ] 重置需要重新验证当前密码与更高权限边界，并递增 `auth_version`。
-- [ ] 未启用 H2b 时，新增模型与绑定页面不改变现有登录成功/失败行为。
+- [x] pending 设备未确认、过期或撤销时不能被当作 active 设备。
+- [x] 数据库与 HMAC 审计中不保存 seed、URI、TOTP code 或恢复码明文；绑定/恢复响应使用 `no-store`。
+- [x] 首次验证码错误不会激活设备；正确验证码只激活一次。
+- [x] 恢复码由服务只返回一次、库中只有 hash、条件更新保证竞争消费最多成功一次。
+- [x] 重置需要 superuser 边界；自助重置还需当前密码，并递增 `auth_version`。
+- [x] 未启用 H2b 时，新增模型与绑定页面不改变现有登录成功/失败行为。
 
 H2b：
 
-- [ ] 强制用户仅通过密码后仍未认证，不能访问任何特权页面或 action。
-- [ ] challenge 绑定用户、Session 和目标入口；换用户、换 Session、过期或篡改均失败。
-- [ ] 当前允许窗口内的新时间步成功，同一步重放及窗口外验证码失败。
-- [ ] 第 5 次失败进入共享冷却；更换 Gunicorn worker 或重复请求不能绕过。
-- [ ] privileged Session 15 分钟到期，设备撤销、`auth_version` 或特权角色变化后立即失效。
-- [ ] 普通非特权用户的登录、Profile 与公开阅读路径不受影响。
-- [ ] 功能开关关闭时可回滚到 H2a，但不得删除已加密设备或把密码直通误标为 MFA 成功。
+- [x] 强制用户仅通过密码后仍未认证，不能访问任何特权页面或 action。
+- [x] challenge 绑定用户、服务端 Session nonce 和白名单目标；换用户、过期、外部目标或状态篡改均失败。
+- [x] 当前允许窗口内的新时间步成功，同一步重放及窗口外验证码失败。
+- [x] 第 5 次失败进入账号与账号+IP共享冷却；生产默认 Redis，因此不能通过更换 Gunicorn worker 绕过。
+- [x] privileged Session 15 分钟到期，设备撤销或 `auth_version` 变化后立即失效；角色失效同时失去对应后台权限。
+- [x] 普通非特权用户的登录、Profile 与公开阅读路径不受影响。
+- [x] 功能开关关闭时回滚到 H2a，不删除已加密设备，也不把密码直通误标为 MFA 成功。
 
 ### 3.1 推荐方案
 

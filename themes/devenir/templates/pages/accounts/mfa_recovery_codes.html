@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}保存 MFA 恢复码{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20260728.1">{% endblock %}
+
+{% block hero %}<div class="page-header"><p class="profile-kicker">SECURITY / RECOVERY MATERIAL</p><h1 class="page-title">保存恢复码</h1></div>{% endblock %}
+
+{% block content %}
+<div class="auth-page mfa-page">
+    <section class="auth-card mfa-card">
+        <div class="mfa-alert mfa-alert-danger">这些恢复码只显示这一次。请离线保存，不要截图上传到网盘或发送到聊天工具。</div>
+        <ol class="mfa-recovery-list" id="mfa-recovery-list">
+            {% for code in recovery_codes %}<li><code>{{ code }}</code></li>{% endfor %}
+        </ol>
+        <div class="profile-form-actions">
+            <button class="btn-login" type="button" data-copy-recovery>复制全部</button>
+            <a class="btn-ghost" href="{% url 'accounts:mfa-settings' %}">我已安全保存</a>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+document.querySelector('[data-copy-recovery]')?.addEventListener('click', async function () {
+    const codes = [...document.querySelectorAll('#mfa-recovery-list code')].map(node => node.textContent.trim()).join('\n');
+    await navigator.clipboard.writeText(codes);
+    this.textContent = '已复制，请立即离线保存';
+});
+</script>
+{% endblock %}

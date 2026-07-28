@@ -5,7 +5,7 @@
 > **职责**: 自定义用户模型、认证、账号状态、全局 Group 编排与用户安全；不拥有 Board Policy
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-27 — H0 将 `/super_admin/` 收紧为 active superuser 并固定双后台拒绝矩阵
+> **最后更新**: 2026-07-28 — H2 TOTP 绑定、恢复、登录强制与特权 Session 完成
 
 ---
 
@@ -13,6 +13,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-07-28 | v3.18 | H2 完成：绑定/恢复 UI、二维码、密码后置 challenge、防重放、共享限流、恢复受限态、15 分钟 privileged Session、双后台保护与 readiness 命令 |
+| 2026-07-28 | v3.17 | H2a-2/3：新增 TOTP pending 绑定/首次确认、hash-only 恢复码、原子消费、密钥擦除、受控重置与 HMAC 审计服务；未接 UI/登录 |
 | 2026-07-27 | v3.16 | H2a-1：新增 encrypted-only `MfaTotpDevice`、单用户单设备及生命周期/防重放约束、迁移与 7 个 ORM 测试；未开放页面或修改登录 |
 | 2026-07-27 | v3.15 | H2a-0：固定 PyOTP/cryptography，新增无持久化 AES-256-GCM seed 加密边界及 5 个执行测试；登录与模型未改 |
 | 2026-07-27 | v3.14 | H2 契约冻结：先 H2a 绑定/恢复、后 H2b 登录强制；仅加入跳过的安全测试骨架，未生成密钥或修改登录 |
@@ -71,7 +73,7 @@ flowchart TD
         R1["👤 普通用户<br/>is_active=True"]
         R2["✏️ 编辑者<br/>+ is_dashboard_user"]
         R3["✅ 审核者<br/>+ is_reviewer"]
-        R4["🔧 超级管理员<br/>+ is_staff + is_superuser"]
+        R4["🔧 超级管理员<br/>active + is_superuser"]
     end
 
     subgraph perms["自定义 Django Permissions"]
@@ -101,8 +103,8 @@ flowchart TD
     end
 
     LOGIN --> MYU
-    SA -->|"is_staff?"| MYU
-    DB -->|"is_dashboard_user?"| MYU
+    SA -->|"active superuser?"| MYU
+    DB -->|"工作台身份?"| MYU
 
     MYU --> roles
     roles --> perms
@@ -146,19 +148,22 @@ flowchart TD
 
 | 文件 | 核心类/函数 | 职责 |
 |------|------------|------|
-| `models.py` | `MyUser`, `AccountInvitation`, `UserManager`, `SENSITIVE_FIELDS` | 自定义用户、邀请状态、创建工厂与模型层防御 |
+| `models.py` | `MyUser`, `AccountInvitation`, `MfaTotpDevice`, `MfaRecoveryCode`, `UserManager`, `SENSITIVE_FIELDS` | 自定义用户、邀请状态、MFA 持久化边界、创建工厂与模型层防御 |
 | `services.py` | invitation 与 password email helpers | 邀请激活；改密验证码摘要、发送/错误限流及 Session 验证授权 |
 | `admin.py` | `MyUserAdmin`, `CusMyUserAdmin`, `AccountInvitationAdmin` | 双 Admin 注册、邀请发放/重发、字段权限与 M2M 拦截 |
-| `views.py` | 登录、邀请、Profile、邮箱验证与密码修改 Views | 账号前台流程与所有者边界 |
-| `forms.py` | 登录、邀请、Profile、密码及邮箱验证码 Forms | 输入校验与可编辑字段白名单 |
-| `urls.py` | — | 登录/邀请/Profile/邮箱验证/密码修改路由 |
+| `views.py` | 登录、邀请、Profile、邮箱验证、密码修改与 MFA Views | 账号前台流程、密码后置 challenge 与所有者边界 |
+| `forms.py` | 登录、邀请、Profile、密码、邮箱验证码与 MFA Forms | 输入校验与可编辑字段白名单 |
+| `mfa_crypto.py` / `mfa_services.py` | seed 加密、绑定、验证、恢复与撤销服务 | encrypted-only TOTP 生命周期、原子防重放和 HMAC 审计 |
+| `mfa_session.py` | pending / privileged / restricted recovery Session helpers | 登录状态机、共享失败计数与安全回跳 |
+| `middleware.py` | `RequestUserMiddleware`, `MfaPrivilegeMiddleware` | 请求用户捕获与双后台短时特权 Session 保护 |
+| `urls.py` | — | 登录/邀请/Profile/邮箱验证/密码修改/MFA 路由 |
 | `thread_local.py` | `get_current_user()`, `set_current_user()`, `clear_current_user()` | thread-local 用户存储 |
 | `middleware.py` | `RequestUserMiddleware` | 请求生命周期捕获 `request.user` |
 | `PowerAdapterBlogs/admin_site.py` / `admin_config.py` | `SuperuserAdminSite`, `SuperuserAuthenticationForm` | `/super_admin/` active-superuser-only 的入口与认证边界 |
 | `apps.py` | `AccountsConfig` | AppConfig |
 | `LOGGUIDE.md` | — | 日志规范（含安全红线） |
 | `PERMISSIONS_GUIDE.md` | — | Group + Permission + BoardMembership + Policy 授权设计与线性实施路线 |
-| `SECURITY_ROADMAP.md` | — | H0–H1 与 H2a-0–1 加密边界/设备模型已实现；H2a 绑定/恢复和 H2b 登录仍未实现；证书、mTLS 与密钥全生命周期仍为规划 |
+| `SECURITY_ROADMAP.md` | — | H0–H2 已实现；生产 MFA 强制待真实设备与 break-glass 人工验收，证书、mTLS 与完整密钥生命周期仍待推进 |
 
 ### 2.1 协同模块（审核工作流）
 
@@ -612,6 +617,7 @@ erDiagram
 | Profile 与密码修改 | ✅ F1 | `UserProfile` 默认私密；公开页仅列公开已发布文章；Profile 改密入口以 `restart=1` 强制开启新邮箱验证（10 分钟、60 秒冷却、每小时 3 封、最多错 5 次），随后仍校验旧密码并保留当前 Session。 |
 | 双后台入口边界 | ✅ H0 | `/super_admin/` 只接受 active superuser；`/dashboard/` 接受 active dashboard 用户或 superuser；staff-only 不能获得系统后台 Session。 |
 | 固定全局 Group | ✅ Stage 6a | VerifiedUsers 仅可申请 Board 权限；UserManagers 受限管理账号；SiteOperators 查看并运行完整性审计。 |
+| 特权账户 TOTP | ✅ H2 代码 / ⏸ 生产开关 | active superuser 与 active Board Manager 的绑定、恢复、登录 challenge 和短时特权 Session 已实现；真实 Microsoft Authenticator、离线恢复材料及 break-glass 演练完成前保持 `MFA_ENFORCEMENT_ENABLED=false`。 |
 
 ---
 
@@ -619,7 +625,8 @@ erDiagram
 
 ### A. 测试现状
 
-- `tests.py` + `test_admin_hardening.py` + `test_global_roles.py` — 已覆盖邀请、登录锁定、H0 双后台入口/Session 拒绝矩阵、Stage 6a 固定组与最小权限、Profile 隔离及改密邮箱验证限制；全项目 163 项通过（2026-07-27）
+- H2、账号登录和双后台定向回归共 76 项通过（2026-07-28）；按本轮任务边界未重复执行由 K3/back 覆盖的全项目测试
+- `tests.py` + `test_admin_hardening.py` + `test_global_roles.py` 继续覆盖邀请、登录锁定、H0 双后台入口/Session 拒绝矩阵、Stage 6a 固定组与最小权限、Profile 隔离及改密邮箱验证限制
 - 建议优先覆盖：
   1. `MyUser.save()` SENSITIVE_FIELDS 回滚逻辑
   2. `LoginView` 登录成功/失败/不活跃三种路径

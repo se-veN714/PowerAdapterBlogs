@@ -9,6 +9,8 @@
 """
 本模块提供了基本的Django设置功能的类和函数。
 """
+
+import json
 import os
 from pathlib import Path
 # here put the import lib
@@ -77,6 +79,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.MfaPrivilegeMiddleware",
     "accounts.middleware.RequestUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -352,6 +355,39 @@ PASSWORD_EMAIL_SEND_WINDOW_SECONDS = 60 * 60
 PASSWORD_EMAIL_MAX_SENDS = 3
 PASSWORD_EMAIL_MAX_ATTEMPTS = 5
 PASSWORD_EMAIL_VERIFIED_TTL_SECONDS = 10 * 60
+
+
+def _json_object_env(name):
+    """Parse a JSON object without reflecting secret configuration in errors."""
+    raw_value = os.getenv(name, "")
+    if not raw_value:
+        return {}
+    try:
+        value = json.loads(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"{name} must be a valid JSON object.") from exc
+    if not isinstance(value, dict):
+        raise RuntimeError(f"{name} must be a valid JSON object.")
+    return value
+
+
+# Versioned AES-256-GCM keyring. An empty keyring keeps MFA enrollment disabled;
+# accounts.mfa_services fails closed before it generates or persists a seed.
+MFA_TOTP_KEYRING = _json_object_env("MFA_TOTP_KEYRING_JSON")
+MFA_TOTP_ACTIVE_KEY_ID = os.getenv("MFA_TOTP_ACTIVE_KEY_ID", "")
+MFA_TOTP_ISSUER = os.getenv("MFA_TOTP_ISSUER", "PowerAdapter")
+MFA_TOTP_BINDING_TTL_SECONDS = 10 * 60
+MFA_TOTP_VALID_WINDOW = 1
+MFA_RECOVERY_CODE_COUNT = 10
+MFA_ENFORCEMENT_ENABLED = os.getenv("MFA_ENFORCEMENT_ENABLED", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+MFA_CHALLENGE_TTL_SECONDS = 5 * 60
+MFA_CHALLENGE_MAX_ATTEMPTS = 5
+MFA_CHALLENGE_COOLDOWN_SECONDS = 15 * 60
+MFA_PRIVILEGED_SESSION_TTL_SECONDS = 15 * 60
 
 MONGO = {
     "HOST": os.getenv("MONGO_HOST", "localhost"),

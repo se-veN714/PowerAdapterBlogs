@@ -15,7 +15,7 @@ from .mfa_crypto import (
     decrypt_mfa_secret,
     encrypt_mfa_secret,
 )
-from .models import MfaTotpDevice, MyUser
+from .models import MfaRecoveryCode, MfaTotpDevice, MyUser
 
 
 class MfaTotpDeviceModelTest(TestCase):
@@ -123,3 +123,4 @@ class MfaTotpDeviceModelTest(TestCase):
 
     def test_device_is_not_exposed_in_django_admin(self):
         self.assertNotIn(MfaTotpDevice, admin.site._registry)
+        self.assertNotIn(MfaRecoveryCode, admin.site._registry)

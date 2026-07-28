@@ -97,3 +97,38 @@ class PasswordEmailVerificationForm(forms.Form):
             }
         ),
     )
+
+
+class TotpCodeForm(forms.Form):
+    code = forms.RegexField(
+        regex=r"^\d{6}$",
+        label="动态验证码",
+        max_length=6,
+        min_length=6,
+        error_messages={"invalid": "请输入 Authenticator 中的 6 位动态验证码。"},
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "one-time-code",
+                "inputmode": "numeric",
+                "pattern": "[0-9]{6}",
+                "placeholder": "000000",
+            }
+        ),
+    )
+
+
+class MfaRecoveryForm(forms.Form):
+    recovery_code = forms.CharField(
+        label="恢复码",
+        min_length=16,
+        max_length=64,
+        strip=True,
+        widget=forms.TextInput(attrs={"autocomplete": "off"}),
+    )
+
+
+class MfaRevokeForm(forms.Form):
+    current_password = forms.CharField(
+        label="当前密码",
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )

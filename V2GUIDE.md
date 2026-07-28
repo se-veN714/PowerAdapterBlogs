@@ -3,7 +3,7 @@
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
 > **更新**: 2026-07-28
-> **状态**: Board Scope Stage 0–6b、邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0–H1 已完成；H2a-0–1 加密边界与设备模型已完成，下一步实现 H2a-2 绑定确认
+> **状态**: Board Scope Stage 0–6b、邀请制账号激活、`blog_foundation_linear` F1–F5、后台加固 H0–H2 已完成；H2 生产强制默认关闭，待人工绑定与 break-glass 演练后启用
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -33,7 +33,7 @@
 
 复杂功能可以后移；只有在前置测试、恢复方案和回滚路径提前成熟时才允许前移。v2.1 内容模型对接仍由另一项目完成后再推进，不与本路线强绑定。
 
-#### v2.5 特权账户强认证边界（规划，未实现）
+#### v2.5 特权账户强认证边界（TOTP 已实现；证书与 mTLS 仍在规划）
 
 superuser 的目标链路为“受信客户端证书 + TOTP 动态验证码”；首轮实现默认仍保留密码校验，形成 mTLS、应用身份和 TOTP 三道独立闸门。只有完成威胁模型、恢复流程和兼容性测试后，才单独评估是否允许证书 + TOTP 的无密码登录。Board Manager 首期只强制 TOTP，不强制客户端证书，避免把板块协作入口和站点最高权限入口混成同一门槛。
 
@@ -70,7 +70,7 @@ sequenceDiagram
 
 截至 2026-07-27，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的各入口接入 `boards.policies`，Stage 6a 已初始化固定全局 Group，Stage 6b 已实现权限申请、分级审批与 Membership 自动写入。下一步进入 Stage 7：停止读取 `is_reviewer` 并观察一个发布周期。
 
-后台加固主线不被 Stage 7 清债阻塞：H2 已在 `accounts/SECURITY_ROADMAP.md` 冻结为 H2a/H2b 两段。H2a-0 已选定 PyOTP 与 cryptography 并建立 AES-256-GCM 加密边界；H2a-1 已新增单用户单设备、状态/时间戳、防重放时间步与认证版本约束的 encrypted-only 模型。下一步 H2a-2 才生成临时 seed、开放绑定确认和一次性二维码。完成绑定和 break-glass 演练后，H2b 才接入密码后置 challenge、防重放、限流和 15 分钟特权 Session。当前尚未生成、保存任何业务 TOTP seed，也未把 MFA 接入登录链路。
+后台加固主线不被 Stage 7 清债阻塞：H2a 已完成 AES-256-GCM encrypted-only 设备、10 分钟绑定页、Microsoft Authenticator QR、一次性恢复码、原子消费、撤销/密钥擦除和 HMAC 审计；敏感页面均 `no-store`。H2b 已完成密码后置 pending challenge、新时间步防重放、账号与账号+IP 双维共享限流、恢复受限重绑状态、15 分钟 privileged Session，以及 `/dashboard/`、`/super_admin/` 双入口保护。首期强制范围仅 active superuser 与 active Board Manager；`is_dashboard_user` 单独存在不触发 MFA。代码默认 `MFA_ENFORCEMENT_ENABLED=false`，不得在未执行 readiness 与人工恢复演练前开启。
 
 #### 邀请制账号决策（2026-07-26）
 
@@ -94,7 +94,7 @@ sequenceDiagram
 
 三个分支必须使用独立 worktree。后台先冻结只读上下文契约，K3 只消费契约；最终先合并后台数据/权限边界（`board-back`），再合并前端模板（`board-index-k3`），导航与路由由集成方最后接线。具体 HANDOFF 属于本地 Agent 交接材料，不纳入 Git；长期有效边界必须回写本指南或对应 App 文档。
 
-> **进展（2026-07-28）**：`codex/board-back` 的 Board Index 后端已落地（内容模型合并入单一 `boards/models.py`、固定 Board 归属由 Model 层强制、分派视图与路由、数据保留型音乐扁平化迁移）。内容种子数据（`seed_board_index`，Faker 驱动，幂等+`--reset`）已补齐；Music 叙事区（Yearly 大数字 / Monthly bars / Cross-Scale / Companion / Gravity）已全量数据驱动，模板硬编码 mock 与 `{% empty %}` 假数据分支已清除，死脚本 `music-mock-data.js` 已删除。合并前已在 Python 3.13.5 + Django 5.2.16 环境通过 system check、迁移漂移检查、100 项 Board/全局角色回归及 215 项全项目测试（16 项未来 MFA 契约按设计跳过）。
+> **Board 分支历史基线（2026-07-28）**：`codex/board-back` 的 Board Index 后端已落地（内容模型合并入单一 `boards/models.py`、固定 Board 归属由 Model 层强制、分派视图与路由、数据保留型音乐扁平化迁移）。内容种子数据（`seed_board_index`，Faker 驱动，幂等+`--reset`）已补齐；Music 叙事区（Yearly 大数字 / Monthly bars / Cross-Scale / Companion / Gravity）已全量数据驱动，模板硬编码 mock 与 `{% empty %}` 假数据分支已清除，死脚本 `music-mock-data.js` 已删除。该分支当时通过 system check、迁移漂移检查、100 项 Board/全局角色回归及 215 项全项目测试；其中当时跳过的 16 项 MFA 契约骨架现已由 H2 可执行测试取代，不能作为当前 MFA 状态依据。
 
 ### 0.2 前端架构决策：Devenir HDA，不做全面分离
 
@@ -820,11 +820,12 @@ PowerGlitch.glitch('.article-cover', {
 
 | 入口 | 需要 | 反向解析 |
 |------|------|---------|
-| `/super_admin/` | `is_staff`（Django 默认） | `reverse("admin:index")` |
-| `/dashboard/` | `is_dashboard_user`（CustomSite 自定义） | `reverse("cus_admin:index")` |
+| `/super_admin/` | active superuser；启用 H2 强制时还需有效 privileged Session | `reverse("admin:index")` |
+| `/dashboard/` | `CustomSite.has_permission()` 认可的 active 工作台身份；active superuser / Board Manager 在 H2 首期范围内还需有效 privileged Session | `reverse("cus_admin:index")` |
 
 **关键修复**：
-- `CustomSite.has_permission()` 重写为 `is_dashboard_user` 检查（原继承 `is_staff`）
+- `CustomSite.has_permission()` 不再继承 Django 的 `is_staff` 单点判断，而是复用工作台访问判定；Board 对象权限仍由 Membership + Policy 裁决
+- `MfaPrivilegeMiddleware` 只在 `MFA_ENFORCEMENT_ENABLED=true` 时增加第二道认证门槛，不替代两个 AdminSite 自身的身份与对象授权
 - 登录 `NoReverseMatch` 修复：AdminSite URL 必须用 `namespace:name` 反解（`cus_admin:index`），不能用外层 `path()` 的 `name=`
 - `DashboardAdminMixin`（`base_admin.py`）仍只负责 dashboard 入口兼容；截至 Stage 4，Board/Post/PostRevision/Comment 的具体 ModelAdmin 已覆盖其全量 queryset 行为，改由 `boards.policies` 按 Membership 与对象归属收敛。
 

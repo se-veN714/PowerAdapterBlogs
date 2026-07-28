@@ -96,6 +96,8 @@ class MfaSecretEncryptionTest(SimpleTestCase):
             {"test-v1": "not-base64"},
             {"bad\nkey-id": encoded},
             {"test-v1": None},
+            {1: encoded},
+            {"test-v1": 123},
         ):
             with self.subTest(invalid=invalid):
                 with self.assertRaisesMessage(

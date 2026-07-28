@@ -17,6 +17,9 @@ from accounts.views import (
     AcceptAccountInvitationView,
     AccountPasswordChangeView,
     LoginView,
+    MfaChallengeView,
+    MfaConfirmEnrollmentView,
+    MfaSettingsView,
     MyProfileRedirectView,
     PasswordEmailVerificationView,
     ProfileDetailView,
@@ -25,6 +28,13 @@ from accounts.views import (
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
+    path('security/mfa/', MfaSettingsView.as_view(), name='mfa-settings'),
+    path(
+        'security/mfa/confirm/',
+        MfaConfirmEnrollmentView.as_view(),
+        name='mfa-confirm',
+    ),
+    path('security/mfa/challenge/', MfaChallengeView.as_view(), name='mfa-challenge'),
     path('profile/', MyProfileRedirectView.as_view(), name='my-profile'),
     path('u/<str:username>/', ProfileDetailView.as_view(), name='profile-detail'),
     path('settings/profile/', ProfileUpdateView.as_view(), name='profile-update'),

@@ -298,3 +298,29 @@ class MfaTotpDevice(models.Model):
 
     def __str__(self):
         return f"{self.user.username} / {self.status} / {self.pk}"
+
+
+class MfaRecoveryCode(models.Model):
+    """One hash-only recovery code belonging to an active TOTP device."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    device = models.ForeignKey(
+        MfaTotpDevice,
+        on_delete=models.CASCADE,
+        related_name="recovery_codes",
+        verbose_name="TOTP 设备",
+    )
+    code_digest = models.CharField(
+        max_length=128, editable=False, verbose_name="恢复码哈希"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    used_at = models.DateTimeField(null=True, blank=True, verbose_name="使用时间")
+
+    class Meta:
+        verbose_name = "MFA 恢复码"
+        verbose_name_plural = "MFA 恢复码"
+        indexes = [models.Index(fields=["device", "used_at"])]
+
+    def __str__(self):
+        state = "used" if self.used_at else "unused"
+        return f"{self.device_id} / {state} / {self.pk}"

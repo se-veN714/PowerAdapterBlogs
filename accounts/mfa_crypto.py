@@ -37,7 +37,11 @@ def decode_keyring(encoded_keys: Mapping[str, str]) -> Mapping[str, bytes]:
     """Decode a versioned URL-safe Base64 keyring from deployment settings."""
     decoded = {}
     for key_id, encoded_key in encoded_keys.items():
-        if not re.fullmatch(r"[A-Za-z0-9._-]{1,32}", key_id):
+        if (
+            not isinstance(key_id, str)
+            or not isinstance(encoded_key, str)
+            or not re.fullmatch(r"[A-Za-z0-9._-]{1,32}", key_id)
+        ):
             raise MfaCryptoError("MFA encryption key configuration is invalid.")
         try:
             key = base64.b64decode(encoded_key, altchars=b"-_", validate=True)

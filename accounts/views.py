@@ -1,8 +1,12 @@
-"""账户认证视图：登录。
-"""
+"""账户认证视图：登录。"""
+
+import base64
 import hashlib
+import io
 import logging
 
+import pyotp
+import qrcode
 from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache
@@ -16,6 +20,9 @@ from django.contrib.auth.views import PasswordChangeView
 from django.http import Http404
 from django.urls import reverse, reverse_lazy
 from django.views.generic import ListView, RedirectView, UpdateView
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters
 
 from Blogs.models import Post
 
@@ -23,10 +30,33 @@ from .forms import (
     AcceptAccountInvitationForm,
     AccountPasswordChangeForm,
     LoginForm,
+    MfaRecoveryForm,
+    MfaRevokeForm,
     PasswordEmailVerificationForm,
+    TotpCodeForm,
     UserProfileForm,
 )
-from .models import AccountInvitation, MyUser, UserProfile
+from .mfa_services import (
+    MfaServiceError,
+    confirm_totp_enrollment,
+    consume_recovery_code_for_rebind,
+    revoke_totp_device,
+    start_totp_enrollment,
+    verify_active_totp,
+)
+from .mfa_session import (
+    challenge_is_locked,
+    clear_challenge_failures,
+    get_pending_challenge,
+    increment_pending_attempts,
+    issue_pending_challenge,
+    mark_privileged_session,
+    mark_recovery_session,
+    mfa_required_for_user,
+    record_challenge_failure,
+    recovery_session_is_valid,
+)
+from .models import AccountInvitation, MfaTotpDevice, MyUser, UserProfile
 from .services import (
     PASSWORD_CODE_COOLDOWN,
     PASSWORD_CODE_EXPIRED,
@@ -54,13 +84,15 @@ logger = logging.getLogger(__name__)
 
 def _login_failure_key(request, username):
     """构造不暴露用户名和 IP 原文的失败计数 key。"""
-    client_ip = getattr(request, 'client_ip', request.META.get('REMOTE_ADDR', 'unknown'))
-    identity = f"{username.casefold()}|{client_ip}".encode('utf-8')
+    client_ip = getattr(
+        request, "client_ip", request.META.get("REMOTE_ADDR", "unknown")
+    )
+    identity = f"{username.casefold()}|{client_ip}".encode("utf-8")
     return f"login-fail:{hashlib.sha256(identity).hexdigest()}"
 
 
 def _record_login_failure(key):
-    timeout = getattr(settings, 'LOGIN_LOCKOUT_SECONDS', 15 * 60)
+    timeout = getattr(settings, "LOGIN_LOCKOUT_SECONDS", 15 * 60)
     if cache.add(key, 1, timeout=timeout):
         return 1
     try:
@@ -70,6 +102,7 @@ def _record_login_failure(key):
         return 1
 
 
+@method_decorator(sensitive_post_parameters("password"), name="dispatch")
 class LoginView(FormView):
     """登录视图。
 
@@ -88,6 +121,16 @@ class LoginView(FormView):
 
     def get_success_url(self):
         """dashboard 用户登录后直接跳转后台，普通用户跳首页。"""
+        requested_target = self.request.POST.get("next") or self.request.GET.get("next")
+        if requested_target:
+            from django.utils.http import url_has_allowed_host_and_scheme
+
+            if url_has_allowed_host_and_scheme(
+                requested_target,
+                allowed_hosts={self.request.get_host()},
+                require_https=self.request.is_secure(),
+            ):
+                return requested_target
         user = self.request.user
         if user.is_authenticated and user.is_dashboard_user:
             return reverse("cus_admin:index")
@@ -105,16 +148,37 @@ class LoginView(FormView):
         username = form.cleaned_data["username"]
         password = form.cleaned_data["password"]
         failure_key = _login_failure_key(self.request, username)
-        max_failures = getattr(settings, 'LOGIN_MAX_FAILURES', 5)
-        lockout_seconds = getattr(settings, 'LOGIN_LOCKOUT_SECONDS', 15 * 60)
+        max_failures = getattr(settings, "LOGIN_MAX_FAILURES", 5)
+        lockout_seconds = getattr(settings, "LOGIN_LOCKOUT_SECONDS", 15 * 60)
         if (cache.get(failure_key) or 0) >= max_failures:
             logger.warning("User 登录锁定: username=%s", username)
-            form.add_error(None, f"登录失败次数过多，请在 {lockout_seconds // 60} 分钟后重试")
+            form.add_error(
+                None, f"登录失败次数过多，请在 {lockout_seconds // 60} 分钟后重试"
+            )
             return self.form_invalid(form)
 
         user = authenticate(self.request, username=username, password=password)
         if user is not None:
             if user.is_active:
+                if settings.MFA_ENFORCEMENT_ENABLED and mfa_required_for_user(user):
+                    if not MfaTotpDevice.objects.filter(
+                        user=user,
+                        status=MfaTotpDevice.Status.ACTIVE,
+                    ).exists():
+                        form.add_error(
+                            None,
+                            "该特权账号尚未绑定动态验证码，暂时无法登录。请先关闭强制开关并完成绑定。",
+                        )
+                        return self.form_invalid(form)
+                    target = self.get_success_url_for_user(user)
+                    issue_pending_challenge(
+                        self.request,
+                        user=user,
+                        backend=user.backend,
+                        target=target,
+                    )
+                    cache.delete(failure_key)
+                    return redirect("accounts:mfa-challenge")
                 login(self.request, user)
                 cache.delete(failure_key)
                 logger.info("User 登录: user_id=%s", user.id)
@@ -132,6 +196,21 @@ class LoginView(FormView):
             )
             form.add_error(None, "用户名或密码错误")
         return self.form_invalid(form)
+
+    def get_success_url_for_user(self, user):
+        requested_target = self.request.POST.get("next") or self.request.GET.get("next")
+        if requested_target:
+            from django.utils.http import url_has_allowed_host_and_scheme
+
+            if url_has_allowed_host_and_scheme(
+                requested_target,
+                allowed_hosts={self.request.get_host()},
+                require_https=self.request.is_secure(),
+            ):
+                return requested_target
+        if user.is_dashboard_user or user.is_superuser:
+            return reverse("cus_admin:index")
+        return reverse("index")
 
 
 class AcceptAccountInvitationView(View):
@@ -152,14 +231,18 @@ class AcceptAccountInvitationView(View):
     def get(self, request, token):
         invitation = self._get_invitation(token)
         if invitation is None:
-            return render(request, self.template_name, {"invalid_invitation": True}, status=400)
+            return render(
+                request, self.template_name, {"invalid_invitation": True}, status=400
+            )
         form = AcceptAccountInvitationForm(invitation.user)
         return render(request, self.template_name, {"form": form})
 
     def post(self, request, token):
         invitation = self._get_invitation(token)
         if invitation is None:
-            return render(request, self.template_name, {"invalid_invitation": True}, status=400)
+            return render(
+                request, self.template_name, {"invalid_invitation": True}, status=400
+            )
 
         form = AcceptAccountInvitationForm(invitation.user, request.POST)
         if not form.is_valid():
@@ -171,7 +254,9 @@ class AcceptAccountInvitationView(View):
             expected_invitation_id=invitation.pk,
         )
         if user is None:
-            return render(request, self.template_name, {"invalid_invitation": True}, status=400)
+            return render(
+                request, self.template_name, {"invalid_invitation": True}, status=400
+            )
         messages.success(request, "账号已激活，请使用刚设置的密码登录。")
         return redirect("accounts:login")
 
@@ -206,7 +291,9 @@ class ProfileDetailView(ListView):
         if user is None:
             raise Http404("作者主页不存在")
 
-        is_owner = self.request.user.is_authenticated and self.request.user.pk == user.pk
+        is_owner = (
+            self.request.user.is_authenticated and self.request.user.pk == user.pk
+        )
         try:
             profile = user.profile
         except UserProfile.DoesNotExist:
@@ -234,6 +321,9 @@ class ProfileDetailView(ListView):
             self.request.user.is_authenticated
             and self.request.user.pk == self.profile_user.pk
         )
+        context["mfa_settings_available"] = context[
+            "is_profile_owner"
+        ] and mfa_required_for_user(self.profile_user)
         return context
 
 
@@ -280,10 +370,22 @@ class PasswordEmailVerificationView(LoginRequiredMixin, FormView):
                 self._session_key(),
             )
             message_map = {
-                PASSWORD_CODE_SENT: (messages.success, "验证码已发送，请检查账号邮箱。"),
-                PASSWORD_CODE_COOLDOWN: (messages.warning, "发送过于频繁，请一分钟后再试。"),
-                PASSWORD_CODE_SEND_LIMIT: (messages.error, "本小时发送次数已用完，请稍后再试。"),
-                PASSWORD_CODE_SEND_FAILED: (messages.error, "邮件暂时发送失败，请稍后再试。"),
+                PASSWORD_CODE_SENT: (
+                    messages.success,
+                    "验证码已发送，请检查账号邮箱。",
+                ),
+                PASSWORD_CODE_COOLDOWN: (
+                    messages.warning,
+                    "发送过于频繁，请一分钟后再试。",
+                ),
+                PASSWORD_CODE_SEND_LIMIT: (
+                    messages.error,
+                    "本小时发送次数已用完，请稍后再试。",
+                ),
+                PASSWORD_CODE_SEND_FAILED: (
+                    messages.error,
+                    "邮件暂时发送失败，请稍后再试。",
+                ),
             }
             handler, text = message_map[result]
             handler(request, text)
@@ -359,3 +461,221 @@ class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
         logger.info("用户密码已修改: user_id=%s", self.request.user.pk)
         messages.success(self.request, "密码已修改，当前设备保持登录。")
         return response
+
+
+@method_decorator(never_cache, name="dispatch")
+@method_decorator(sensitive_post_parameters("current_password"), name="dispatch")
+class MfaSettingsView(LoginRequiredMixin, View):
+    template_name = "pages/accounts/mfa_settings.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and not mfa_required_for_user(request.user):
+            raise Http404("动态验证码设置不可用")
+        return super().dispatch(request, *args, **kwargs)
+
+    def _context(self, **extra):
+        device = MfaTotpDevice.objects.filter(user=self.request.user).first()
+        return {
+            "device": device,
+            "confirm_form": extra.pop("confirm_form", TotpCodeForm()),
+            "revoke_form": extra.pop("revoke_form", MfaRevokeForm()),
+            "recovery_rebind": recovery_session_is_valid(self.request),
+            **extra,
+        }
+
+    def get(self, request):
+        return render(request, self.template_name, self._context())
+
+    def post(self, request):
+        action = request.POST.get("action")
+        if action == "start":
+            try:
+                enrollment = start_totp_enrollment(
+                    user=request.user, actor=request.user
+                )
+            except MfaServiceError:
+                messages.error(request, "暂时无法开始动态验证码绑定。")
+                return render(request, self.template_name, self._context(), status=400)
+            parsed = pyotp.parse_uri(enrollment.provisioning_uri)
+            image = qrcode.make(enrollment.provisioning_uri)
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+            qr_data_uri = "data:image/png;base64," + base64.b64encode(
+                buffer.getvalue()
+            ).decode("ascii")
+            return render(
+                request,
+                self.template_name,
+                self._context(
+                    enrollment=enrollment,
+                    qr_data_uri=qr_data_uri,
+                    manual_secret=parsed.secret,
+                ),
+            )
+        if action == "revoke":
+            form = MfaRevokeForm(request.POST)
+            if not form.is_valid():
+                return render(
+                    request,
+                    self.template_name,
+                    self._context(revoke_form=form),
+                    status=400,
+                )
+            try:
+                revoke_totp_device(
+                    target_user=request.user,
+                    actor=request.user,
+                    current_password=form.cleaned_data["current_password"],
+                    reason="self_reset",
+                )
+            except MfaServiceError:
+                form.add_error("current_password", "密码不正确或设备不可撤销。")
+                return render(
+                    request,
+                    self.template_name,
+                    self._context(revoke_form=form),
+                    status=400,
+                )
+            messages.success(request, "动态验证码设备已撤销，旧种子和恢复码均已销毁。")
+            return redirect("accounts:mfa-settings")
+        raise Http404("未知的动态验证码操作")
+
+
+@method_decorator(never_cache, name="dispatch")
+@method_decorator(sensitive_post_parameters("code"), name="dispatch")
+class MfaConfirmEnrollmentView(LoginRequiredMixin, FormView):
+    form_class = TotpCodeForm
+    template_name = "pages/accounts/mfa_settings.html"
+
+    def form_valid(self, form):
+        try:
+            confirmation = confirm_totp_enrollment(
+                user=self.request.user,
+                actor=self.request.user,
+                code=form.cleaned_data["code"],
+            )
+        except MfaServiceError:
+            form.add_error("code", "验证码无效、已过期或绑定状态已经改变。")
+            return self.form_invalid(form)
+        device = MfaTotpDevice.objects.get(pk=confirmation.device_id)
+        mark_privileged_session(self.request, device)
+        return render(
+            self.request,
+            "pages/accounts/mfa_recovery_codes.html",
+            {"recovery_codes": confirmation.recovery_codes},
+        )
+
+    def form_invalid(self, form):
+        device = MfaTotpDevice.objects.filter(user=self.request.user).first()
+        return render(
+            self.request,
+            self.template_name,
+            {
+                "device": device,
+                "confirm_form": form,
+                "revoke_form": MfaRevokeForm(),
+                "recovery_rebind": recovery_session_is_valid(self.request),
+            },
+            status=400,
+        )
+
+
+@method_decorator(never_cache, name="dispatch")
+@method_decorator(
+    sensitive_post_parameters("code", "recovery_code"),
+    name="dispatch",
+)
+class MfaChallengeView(View):
+    template_name = "pages/accounts/mfa_challenge.html"
+
+    def _challenge(self):
+        return get_pending_challenge(self.request)
+
+    def get(self, request):
+        challenge = self._challenge()
+        if challenge is None:
+            messages.info(request, "动态验证码挑战不存在或已过期，请重新登录。")
+            return redirect("accounts:login")
+        return render(
+            request,
+            self.template_name,
+            {"totp_form": TotpCodeForm(), "recovery_form": MfaRecoveryForm()},
+        )
+
+    def post(self, request):
+        challenge = self._challenge()
+        if challenge is None:
+            return redirect("accounts:login")
+        if challenge_is_locked(request, challenge.user.pk):
+            return render(
+                request,
+                self.template_name,
+                {
+                    "totp_form": TotpCodeForm(),
+                    "recovery_form": MfaRecoveryForm(),
+                    "locked": True,
+                },
+                status=429,
+            )
+        action = request.POST.get("action", "totp")
+        if action == "recovery":
+            recovery_form = MfaRecoveryForm(request.POST)
+            if recovery_form.is_valid():
+                try:
+                    device = consume_recovery_code_for_rebind(
+                        user=challenge.user,
+                        actor=challenge.user,
+                        code=recovery_form.cleaned_data["recovery_code"],
+                    )
+                except MfaServiceError:
+                    device = None
+                if device is not None:
+                    login(request, challenge.user, backend=challenge.backend)
+                    mark_recovery_session(request, device)
+                    clear_challenge_failures(request, challenge.user.pk)
+                    return redirect("accounts:mfa-settings")
+            attempts = record_challenge_failure(request, challenge.user.pk)
+            increment_pending_attempts(request)
+            recovery_form.add_error(None, "恢复码无效或已经使用。")
+            return render(
+                request,
+                self.template_name,
+                {
+                    "totp_form": TotpCodeForm(),
+                    "recovery_form": recovery_form,
+                    "locked": attempts >= settings.MFA_CHALLENGE_MAX_ATTEMPTS,
+                },
+                status=(
+                    429 if attempts >= settings.MFA_CHALLENGE_MAX_ATTEMPTS else 400
+                ),
+            )
+
+        totp_form = TotpCodeForm(request.POST)
+        if totp_form.is_valid():
+            try:
+                device = verify_active_totp(
+                    user=challenge.user,
+                    actor=challenge.user,
+                    code=totp_form.cleaned_data["code"],
+                )
+            except MfaServiceError:
+                device = None
+            if device is not None:
+                if not request.user.is_authenticated:
+                    login(request, challenge.user, backend=challenge.backend)
+                mark_privileged_session(request, device)
+                clear_challenge_failures(request, challenge.user.pk)
+                return redirect(challenge.target)
+        attempts = record_challenge_failure(request, challenge.user.pk)
+        increment_pending_attempts(request)
+        totp_form.add_error(None, "动态验证码无效、已使用或已过期。")
+        return render(
+            request,
+            self.template_name,
+            {
+                "totp_form": totp_form,
+                "recovery_form": MfaRecoveryForm(),
+                "locked": attempts >= settings.MFA_CHALLENGE_MAX_ATTEMPTS,
+            },
+            status=429 if attempts >= settings.MFA_CHALLENGE_MAX_ATTEMPTS else 400,
+        )

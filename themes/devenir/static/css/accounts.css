@@ -767,3 +767,27 @@ a.profile-coordinate:focus-visible {
     .rotation-submit i,
     .rotation-card::after { animation: none !important; }
 }
+.mfa-page { max-width: 920px; margin-inline: auto; }
+.mfa-card { width: 100%; border-top: 1px solid var(--accent, #9fffc1); }
+.mfa-status-line { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(159,255,193,.22); letter-spacing: .12em; }
+.mfa-enrollment-grid { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 2rem; align-items: start; }
+.mfa-qr-frame { padding: 1rem; background: #edfdf1; border: 1px solid #9fffc1; }
+.mfa-qr-frame img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.mfa-steps { padding-left: 1.25rem; color: var(--text-muted, #9aa69e); line-height: 1.8; }
+.mfa-secret { display: grid; gap: .35rem; margin: 1rem 0; padding: .75rem; border: 1px dashed rgba(159,255,193,.35); overflow-wrap: anywhere; }
+.mfa-secret small, .mfa-metadata dt { color: var(--text-muted, #84938a); letter-spacing: .14em; }
+.mfa-form { display: grid; gap: .75rem; margin-top: 1.25rem; }
+.mfa-alert { margin-bottom: 1.25rem; padding: .85rem 1rem; border: 1px solid rgba(159,255,193,.35); }
+.mfa-alert-danger, .mfa-danger-zone { border-color: rgba(255,100,100,.55); }
+.mfa-copy { color: var(--text-muted, #9aa69e); line-height: 1.75; }
+.mfa-metadata { display: grid; gap: .8rem; }
+.mfa-metadata div { display: grid; grid-template-columns: 140px 1fr; gap: 1rem; }
+.mfa-metadata dd { margin: 0; overflow-wrap: anywhere; }
+.mfa-danger-zone { margin-top: 2rem; padding-top: 1rem; border-top-width: 1px; border-top-style: solid; }
+.mfa-recovery-list { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem 2rem; padding: 1rem 1rem 1rem 2.5rem; border: 1px dashed rgba(159,255,193,.35); }
+.mfa-recovery-panel { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid rgba(159,255,193,.2); }
+.mfa-recovery-panel summary { cursor: pointer; color: var(--text-muted, #9aa69e); }
+@media (max-width: 720px) {
+    .mfa-enrollment-grid, .mfa-recovery-list { grid-template-columns: 1fr; }
+    .mfa-metadata div { grid-template-columns: 1fr; gap: .25rem; }
+}

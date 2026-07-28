@@ -27,6 +27,7 @@
 
         <form method="post" id="login-form">
             {% csrf_token %}
+            {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
 
             <div class="field">
                 <label for="id_username">账号</label>

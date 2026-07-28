@@ -4,6 +4,21 @@
 
 ## [2026-07-28]
 
+### 后台加固 H2 完成
+- 新增 Devenir 风格 TOTP 绑定、确认、恢复码一次性展示与登录 challenge 页面；QR 由 `qrcode==8.2` 在内存生成，敏感响应统一 `no-store`
+- 强制账号密码通过后只创建 5 分钟 pending challenge；新 TOTP 时间步成功后才登录并签发 15 分钟 privileged Session，同一步重放拒绝
+- 失败按账号及账号+IP在共享缓存计数，第 5 次进入 15 分钟冷却；恢复码只进入受限重绑状态，过期时直接注销
+- `/dashboard/` 与 `/super_admin/` 由 middleware 统一保护，原生 Admin 登录在强制模式下转到账号登录；普通非特权账号保持单阶段登录
+- 新增 fail-closed `check_mfa_readiness` 上线前置检查和开关回滚流程；`MFA_ENFORCEMENT_ENABLED` 默认关闭，真实设备/break-glass 演练完成前不得开启
+- H2、账号登录与双后台相关回归 76 项通过；按任务约束未运行 K3/back 覆盖的全项目测试
+
+### 后台加固 H2a-2/3 绑定与恢复服务
+- 新增 fail-closed 版本化 MFA keyring 配置、10 分钟 pending TOTP 绑定、首次验证码确认和一次性 provisioning URI 返回；仅 active superuser 与 active Board Manager 可为自己绑定
+- 新增 `MfaRecoveryCode` hash-only 模型与迁移，首次确认生成 10 枚高熵恢复码；条件更新保证单码竞争消费最多成功一次，消费本身不创建登录 Session
+- superuser 重置执行权限复核，自助重置额外校验当前密码；撤销/过期覆盖 seed 密文、删除恢复码并递增 `auth_version`
+- 所有成功及验证失败只把固定事件/原因码写入 Django `LogEntry`，并要求同步生成 HMAC `SecureLogEntry`；未记录 seed、URI、验证码、恢复码或任意撤销原因文本
+- H2a 服务定向测试通过；随后由“后台加固 H2 完成”接入 UI 与 H2b 登录状态机
+
 ### Board Index 合并前加固
 - 修复音乐 Snapshot/Entry 扁平化迁移：在删除旧表前双向搬运 Apple/Spotify 全字段与时间元数据，并新增 `0007 → 0008 → 0007` 往返迁移测试
 - 通过抽象模型基类在 `clean()` 与 `save()` 层强制 Skateboard、Music、Coding 内容归属固定 Board，拒绝 ORM/脚本写入错误板块

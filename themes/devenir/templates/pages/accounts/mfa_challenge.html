@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% load static widget_tweaks %}
+
+{% block title %}特权登录验证{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20260728.1">{% endblock %}
+
+{% block hero %}<div class="page-header"><p class="profile-kicker">SECURITY / STEP-UP CHALLENGE</p><h1 class="page-title">确认第二因素</h1></div>{% endblock %}
+
+{% block content %}
+<div class="auth-page mfa-page">
+    <section class="auth-card mfa-card">
+        {% if locked %}<div class="mfa-alert mfa-alert-danger">失败次数已用完，请 15 分钟后重新登录。</div>{% endif %}
+        <form method="post" class="mfa-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="totp">
+            <label for="{{ totp_form.code.id_for_label }}">Authenticator 动态验证码</label>
+            {{ totp_form.code|add_class:"input" }}
+            {% for error in totp_form.code.errors %}<p class="error-msg">{{ error }}</p>{% endfor %}
+            {% for error in totp_form.non_field_errors %}<p class="error-msg">{{ error }}</p>{% endfor %}
+            <button class="btn-login" type="submit" {% if locked %}disabled{% endif %}>验证并进入</button>
+        </form>
+        <details class="mfa-recovery-panel">
+            <summary>无法使用 Authenticator？使用一次性恢复码</summary>
+            <form method="post" class="mfa-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="recovery">
+                {{ recovery_form.recovery_code|add_class:"input" }}
+                {% for error in recovery_form.errors.values %}{% for item in error %}<p class="error-msg">{{ item }}</p>{% endfor %}{% endfor %}
+                <button class="btn-ghost" type="submit" {% if locked %}disabled{% endif %}>进入受限恢复流程</button>
+            </form>
+        </details>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static widget_tweaks %}
+
+{% block title %}动态验证码安全设置{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20260728.1">
+{% endblock %}
+
+{% block hero %}
+<div class="page-header">
+    <p class="profile-kicker">SECURITY / AUTHENTICATOR NODE</p>
+    <h1 class="page-title">动态验证码</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="auth-page mfa-page">
+    <section class="auth-card mfa-card">
+        {% if recovery_rebind %}
+        <div class="mfa-alert mfa-alert-danger">恢复状态仅允许重新绑定设备。完成前无法访问其他页面。</div>
+        {% endif %}
+
+        <div class="mfa-status-line">
+            <span>DEVICE</span>
+            <strong>{% if device %}{{ device.get_status_display }}{% else %}未绑定{% endif %}</strong>
+        </div>
+
+        {% if enrollment %}
+        <div class="mfa-enrollment-grid">
+            <div class="mfa-qr-frame">
+                <img src="{{ qr_data_uri }}" alt="Microsoft Authenticator TOTP 绑定二维码">
+            </div>
+            <div>
+                <h2>扫描并确认</h2>
+                <ol class="mfa-steps">
+                    <li>打开 Microsoft Authenticator，选择“其他账户”。</li>
+                    <li>扫描左侧二维码；无法扫描时手动输入下方密钥。</li>
+                    <li>在 {{ enrollment.expires_at|date:"H:i:s" }} 前输入当前 6 位验证码。</li>
+                </ol>
+                <div class="mfa-secret"><small>MANUAL KEY</small><code>{{ manual_secret }}</code></div>
+                <form method="post" action="{% url 'accounts:mfa-confirm' %}" class="mfa-form">
+                    {% csrf_token %}
+                    <label for="{{ confirm_form.code.id_for_label }}">动态验证码</label>
+                    {{ confirm_form.code|add_class:"input" }}
+                    {% for error in confirm_form.code.errors %}<p class="error-msg">{{ error }}</p>{% endfor %}
+                    <button class="btn-login" type="submit">确认绑定</button>
+                </form>
+            </div>
+        </div>
+        {% elif device.status == 'active' %}
+        <p class="mfa-copy">设备已启用。登录特权入口时需要 Authenticator 中的新时间步验证码。</p>
+        <dl class="mfa-metadata">
+            <div><dt>DEVICE ID</dt><dd>{{ device.pk }}</dd></div>
+            <div><dt>CONFIRMED</dt><dd>{{ device.confirmed_at|date:"Y-m-d H:i:s" }}</dd></div>
+            <div><dt>AUTH VERSION</dt><dd>{{ device.auth_version }}</dd></div>
+        </dl>
+        {% if request.user.is_superuser %}
+        <form method="post" class="mfa-form mfa-danger-zone">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="revoke">
+            <h2>撤销设备</h2>
+            <p>撤销会销毁现有 seed 与全部恢复码，并使特权 Session 失效。</p>
+            {{ revoke_form.current_password|add_class:"input" }}
+            {% for error in revoke_form.current_password.errors %}<p class="error-msg">{{ error }}</p>{% endfor %}
+            <button class="btn-ghost" type="submit">确认撤销</button>
+        </form>
+        {% else %}
+        <p class="mfa-copy">Board Manager 的人工撤销由 active superuser 复核；遗失设备时可在登录挑战页使用恢复码重绑。</p>
+        {% endif %}
+        {% else %}
+        <p class="mfa-copy">绑定后可使用 Microsoft Authenticator 生成标准 6 位 TOTP。当前不会改变普通站点登录。</p>
+        {% if device.status == 'pending' %}
+        <form method="post" action="{% url 'accounts:mfa-confirm' %}" class="mfa-form">
+            {% csrf_token %}
+            <label for="{{ confirm_form.code.id_for_label }}">继续确认已有绑定</label>
+            {{ confirm_form.code|add_class:"input" }}
+            {% for error in confirm_form.code.errors %}<p class="error-msg">{{ error }}</p>{% endfor %}
+            <button class="btn-login" type="submit">确认验证码</button>
+        </form>
+        {% endif %}
+        <form method="post" class="mfa-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="start">
+            <button class="btn-login" type="submit">{% if device %}生成新的绑定{% else %}开始绑定{% endif %}</button>
+        </form>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

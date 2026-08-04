@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Boards Manage — Music 记录列表（Devenir 管理壳，待后端授权接线）。
+
+契约（.agents/BOARD_MUSIC_CODING_K3_HANDOFF.md §5；路由名冻结，由协调后端分支提供）：
+    provider  "spotify" | "apple"
+    records   paginated records（page_obj 惯例）
+    filters   year / month / kind / query（GET 回显）
+    can_create bool
+路由：boards:music-manage-list(provider) / -create(provider) / -update(provider, pk) / -delete(provider, pk)
+{% endcomment %}
+
+{% block title %}Music Records · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles">
+                <p class="bm-kicker">MANAGE / MUSIC</p>
+                <h1 class="bm-title">MUSIC RECORDS <span>/ {{ provider|upper }}</span></h1>
+                <p class="bm-sub">公开 Index 只读；此处的变更经后端授权后写入档案。</p>
+            </div>
+            {% if can_create %}
+            <a class="bm-btn bm-btn--primary" href="{% url 'boards:music-manage-create' provider=provider %}">+ NEW RECORD</a>
+            {% else %}
+            <span class="bm-btn is-disabled" aria-disabled="true" title="当前账号无新建权限">+ NEW RECORD</span>
+            {% endif %}
+        </header>
+
+        <ul class="bm-tabs" role="list" aria-label="Provider">
+            <li><a class="bm-tab{% if provider == 'spotify' %} is-active{% endif %}" href="{% url 'boards:music-manage-list' provider='spotify' %}"{% if provider == 'spotify' %} aria-current="page"{% endif %}>SPOTIFY</a></li>
+            <li><a class="bm-tab{% if provider == 'apple' %} is-active{% endif %}" href="{% url 'boards:music-manage-list' provider='apple' %}"{% if provider == 'apple' %} aria-current="page"{% endif %}>APPLE MUSIC</a></li>
+        </ul>
+
+        <form class="bm-filters" method="get" action="{% url 'boards:music-manage-list' provider=provider %}" role="search" aria-label="筛选记录">
+            <div class="bm-filters__field">
+                <label for="bm-f-year">YEAR</label>
+                <input id="bm-f-year" type="number" name="year" value="{{ filters.year }}" min="2000" max="2100" placeholder="全部">
+            </div>
+            <div class="bm-filters__field">
+                <label for="bm-f-month">MONTH</label>
+                <input id="bm-f-month" type="number" name="month" value="{{ filters.month }}" min="1" max="12" placeholder="全部">
+            </div>
+            <div class="bm-filters__field">
+                <label for="bm-f-kind">KIND</label>
+                <input id="bm-f-kind" type="text" name="kind" value="{{ filters.kind }}" placeholder="total / tag / …">
+            </div>
+            <div class="bm-filters__field bm-filters__query">
+                <label for="bm-f-q">SEARCH</label>
+                <input id="bm-f-q" type="search" name="query" value="{{ filters.query }}" placeholder="标题 / 指标 / 注记">
+            </div>
+            <button class="bm-btn" type="submit">APPLY</button>
+        </form>
+
+        {% if records %}
+        <div class="bm-table" role="table" aria-label="Music records">
+            <div class="bm-row bm-row--head" role="row" style="--bm-cols:1.6fr 5rem 4.5rem 5rem 6.5rem 5.5rem auto;">
+                <span role="columnheader">TITLE</span>
+                <span role="columnheader">SCOPE</span>
+                <span role="columnheader">YEAR</span>
+                <span role="columnheader">MONTH</span>
+                <span role="columnheader">KIND</span>
+                <span role="columnheader">VALUE</span>
+                <span role="columnheader">ACTIONS</span>
+            </div>
+            {% for record in records %}
+            <div class="bm-row" role="row" style="--bm-cols:1.6fr 5rem 4.5rem 5rem 6.5rem 5.5rem auto;">
+                <span class="bm-cell bm-cell--strong" role="cell">
+                    {{ record.title }}
+                    <span class="bm-cell__sub">{{ record.label }}{% if record.note %} · {{ record.note|truncatechars:40 }}{% endif %}</span>
+                </span>
+                <span class="bm-cell bm-cell--collapse" role="cell"><span class="bm-tag">{{ record.scope|upper }}</span></span>
+                <span class="bm-cell bm-cell--collapse" role="cell">{{ record.year }}</span>
+                <span class="bm-cell bm-cell--collapse" role="cell">{{ record.month|default:"—" }}</span>
+                <span class="bm-cell bm-cell--collapse" role="cell"><span class="bm-tag bm-tag--accent">{{ record.kind|default:"—" }}</span></span>
+                <span class="bm-cell bm-cell--collapse" role="cell">{{ record.value }}{% if record.unit %} {{ record.unit }}{% endif %}{% if record.value2 %} / {{ record.value2 }}{% endif %}</span>
+                <span class="bm-actions" role="cell">
+                    <a href="{% url 'boards:music-manage-update' provider=provider pk=record.pk %}">EDIT</a>
+                    <a class="bm-actions__delete" href="{% url 'boards:music-manage-delete' provider=provider pk=record.pk %}">DELETE</a>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if records.paginator.num_pages > 1 %}
+        <nav class="bm-pager" aria-label="分页">
+            <span>PAGE {{ records.number }} / {{ records.paginator.num_pages }}</span>
+            <span class="bm-pager__links">
+                {% if records.has_previous %}
+                <a class="bm-btn" href="?page={{ records.previous_page_number }}&year={{ filters.year|urlencode }}&month={{ filters.month|urlencode }}&kind={{ filters.kind|urlencode }}&query={{ filters.query|urlencode }}">&larr; PREV</a>
+                {% endif %}
+                {% if records.has_next %}
+                <a class="bm-btn" href="?page={{ records.next_page_number }}&year={{ filters.year|urlencode }}&month={{ filters.month|urlencode }}&kind={{ filters.kind|urlencode }}&query={{ filters.query|urlencode }}">NEXT &rarr;</a>
+                {% endif %}
+            </span>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="bm-empty">
+            <strong>NO RECORDS</strong>
+            {% if filters.year or filters.month or filters.kind or filters.query %}
+            当前筛选条件下没有记录。<a href="{% url 'boards:music-manage-list' provider=provider %}">清除筛选</a>
+            {% else %}
+            该 provider 下还没有记录。{% if can_create %}从右上角新建第一条。{% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,14 +1,27 @@
 {% extends 'base.html' %}
 {% load static %}
 {% comment %}
-Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）。
-概念图参考：.local/img/boards-music-sa.png
-旧版本保留在 index_legacy.html / music_legacy.css / music_legacy.js / music-mock-data_legacy.js
-核心内容静态预渲染，JS 仅负责 archive 展开等轻量交互。
+Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）。
+
+数据契约（.agents/BOARD_MUSIC_CODING_K3_HANDOFF.md §4，由协调后端分支提供）：
+    board / music_updated / current_period_label
+    spotify_summary      year / minutes_display / unique_artists / unique_tracks / tags
+    spotify_top_artists  rank / name / minutes_display / plays|null / cover_url|null / external_url|null
+    spotify_top_tracks   rank / title / artist / plays / minutes_display / cover_url|null / external_url|null
+    apple_months         year / month / label / minutes / minutes_display / is_current
+    apple_current        label / minutes_display / top_artists[] / top_tracks[]（同上形状）
+    spotify_archive      label / value / tags / period
+    apple_archive        同上
+
+规则：
+- 封面缺失 → 确定性字体回退（名称前 2 字符），不渲染破图。
+- external_url 缺失 → 内容不可点；全站不出现 href="#" 占位。
+- 数据缺失 → 安静空态；不渲染任何硬编码样例记录。
+- Archive 详情为行内展开区域（button 切换），不假装存在后端路由。
 {% endcomment %}
 
 {% block title %}Music · PowerAdapter{% endblock %}
-{% block meta_description %}PowerAdapter Listening Field — 将听歌记录呈现为持续生成的声音场域：按年度沉积与按月追踪的两栏视图。{% endblock %}
+{% block meta_description %}PowerAdapter Listening Field — 将听歌记录呈现为持续生成的声音场域：Spotify 年度沉积与 Apple Music 月度追踪的双源档案。{% endblock %}
 {% block mathjax %}{% endblock %}
 
 {% block extra_css %}
@@ -34,7 +47,7 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
             </p>
             <dl class="music-source">
                 <div class="music-source__row">
-                    <dt>SPOTIFY</dt><dd>YEARLY</dd>
+                    <dt>SPOTIFY</dt><dd>ANNUAL</dd>
                 </div>
                 <div class="music-source__row">
                     <dt>APPLE MUSIC</dt><dd>MONTHLY</dd>
@@ -69,18 +82,27 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                 <h2 class="music-card__title">CURRENT PERIOD</h2>
                 <span class="music-card__hint">{{ current_period_label|default:"—" }}</span>
             </div>
-            <p class="music-period__sub">{% if current_period_artists %}RETURN TO LONG-FORM LISTENING{% else %}—{% endif %}</p>
+            {% if apple_current %}
+            <p class="music-period__sub">{{ apple_current.minutes_display }} MIN THIS MONTH</p>
             <ul class="music-period__artists" role="list" aria-label="Current period artists">
-                {% for artist in current_period_artists %}
+                {% for artist in apple_current.top_artists %}
                 <li class="music-period__artist">
-                    <span class="music-thumb" aria-hidden="true">{{ artist.name|slice:":2" }}</span>
+                    {% if artist.cover_url %}
+                    <img class="music-thumb music-thumb--img" src="{{ artist.cover_url }}" alt="" loading="lazy">
+                    {% else %}
+                    <span class="music-thumb" aria-hidden="true">{{ artist.name|slice:":2"|upper }}</span>
+                    {% endif %}
                     <div class="music-period__artist-info">
                         <p class="music-period__artist-name">{{ artist.name }}</p>
-                        <p class="music-period__artist-tag">{{ artist.tag }}</p>
+                        <p class="music-period__artist-tag">{{ artist.minutes_display }} MIN</p>
                     </div>
                 </li>
                 {% endfor %}
             </ul>
+            {% else %}
+            <p class="music-period__sub">—</p>
+            <p class="music-empty-line">本月度还没有公开记录。</p>
+            {% endif %}
         </div>
     </div>
 </section>
@@ -89,7 +111,7 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
 {% block content %}
 <article class="music-page">
     <div class="container music-dashboard">
-        <!-- LEFT COLUMN -->
+        <!-- LEFT COLUMN · SPOTIFY / ANNUAL -->
         <div class="music-col music-col--left">
             <section class="music-card music-yearly reveal" aria-labelledby="music-yearly-title">
                 <div class="music-card__head">
@@ -97,56 +119,98 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                     <h2 id="music-yearly-title" class="music-card__title">YEARLY OVERVIEW</h2>
                     <span class="music-card__hint">SPOTIFY / ANNUAL</span>
                 </div>
-                {% if yearly %}
+                {% if spotify_summary %}
                 <div class="music-yearly__main">
                     <div class="music-yearly__figures">
-                        <p class="music-yearly__year">{{ yearly.year }}</p>
-                        <p class="music-yearly__total">{{ yearly.total }}</p>
-                        <div class="music-yearly__core">
-                            <p class="music-yearly__core-title">CORE ARTISTS</p>
-                            <ol class="music-yearly__core-list">
-                                {% for ca in yearly.core_artists %}
-                                <li><span class="music-rank">{{ ca.rank }}</span> {{ ca.name }}</li>
-                                {% endfor %}
-                            </ol>
-                        </div>
+                        <p class="music-yearly__year">{{ spotify_summary.year }}</p>
+                        <p class="music-yearly__total">{{ spotify_summary.minutes_display }}<span>MIN</span></p>
+                        <dl class="music-yearly__stats">
+                            {% if spotify_summary.unique_artists is not None %}
+                            <div><dt>ARTISTS</dt><dd>{{ spotify_summary.unique_artists }}</dd></div>
+                            {% endif %}
+                            {% if spotify_summary.unique_tracks is not None %}
+                            <div><dt>TRACKS</dt><dd>{{ spotify_summary.unique_tracks }}</dd></div>
+                            {% endif %}
+                        </dl>
                     </div>
                     <div class="music-yearly__chart" aria-hidden="true">
                         <svg viewBox="0 0 300 120" preserveAspectRatio="none">
                             <polyline points="0,90 20,70 40,80 60,50 80,65 100,40 120,55 140,35 160,60 180,30 200,50 220,25 240,45 260,20 280,40 300,15"/>
                         </svg>
                         <p class="music-yearly__summary">YEARLY TRACE SUMMARY</p>
-                        <p class="music-yearly__tags">{{ yearly.tags }}</p>
+                        <p class="music-yearly__tags">{{ spotify_summary.tags }}</p>
                     </div>
                 </div>
+                {% else %}
+                <p class="music-empty-line">SPOTIFY 年度数据尚未归档。</p>
                 {% endif %}
             </section>
 
-            <section class="music-card music-cross reveal" aria-labelledby="music-cross-title">
+            <section class="music-card music-top reveal" aria-labelledby="music-topartists-title">
                 <div class="music-card__head">
-                    <span class="music-card__num">04</span>
-                    <h2 id="music-cross-title" class="music-card__title">CROSS-SCALE RELATIONS</h2>
+                    <span class="music-card__num">03</span>
+                    <h2 id="music-topartists-title" class="music-card__title">TOP ARTISTS</h2>
+                    <span class="music-card__hint">SPOTIFY / YEAR · TOP 5</span>
                 </div>
-                <ul class="music-cross__list" role="list">
-                    {% for item in cross_scale %}
-                    <li class="music-cross__item">
-                        <span class="music-thumb music-thumb--wide" aria-hidden="true">{{ item.name|slice:":2" }}</span>
-                        <div class="music-cross__info">
-                            <p class="music-cross__name">{{ item.name }}</p>
-                            <p class="music-cross__scales">
-                                <span class="music-cross__scale">YEARLY: <strong>{{ item.yearly }}</strong></span>
-                                <span class="music-cross__scale">MONTHLY: <strong>{{ item.monthly }}</strong></span>
-                            </p>
+                {% if spotify_top_artists %}
+                <ol class="music-rows" role="list">
+                    {% for row in spotify_top_artists %}
+                    <li class="music-row">
+                        <span class="music-row__rank">{{ row.rank|stringformat:"02d" }}</span>
+                        {% if row.cover_url %}
+                        <img class="music-thumb music-thumb--img" src="{{ row.cover_url }}" alt="" loading="lazy">
+                        {% else %}
+                        <span class="music-thumb" aria-hidden="true">{{ row.name|slice:":2"|upper }}</span>
+                        {% endif %}
+                        <div class="music-row__main">
+                            <p class="music-row__name">{{ row.name }}</p>
+                            <p class="music-row__sub">{{ row.minutes_display }} MIN{% if row.plays is not None %} · {{ row.plays }} PLAYS{% endif %}</p>
                         </div>
-                        <svg class="music-spark" viewBox="0 0 80 24" aria-hidden="true"><polyline points="0,18 13,14 26,16 39,9 52,13 65,7 80,10"/></svg>
+                        {% if row.external_url %}
+                        <a class="music-row__link" href="{{ row.external_url }}" target="_blank" rel="noopener noreferrer" aria-label="在 Spotify 打开 {{ row.name }}">↗</a>
+                        {% endif %}
                     </li>
                     {% endfor %}
-                </ul>
+                </ol>
+                {% else %}
+                <p class="music-empty-line">NO ARTIST RANKING YET</p>
+                {% endif %}
+            </section>
+
+            <section class="music-card music-top reveal" aria-labelledby="music-toptracks-title">
+                <div class="music-card__head">
+                    <span class="music-card__num">04</span>
+                    <h2 id="music-toptracks-title" class="music-card__title">TOP TRACKS</h2>
+                    <span class="music-card__hint">SPOTIFY / YEAR · TOP 10</span>
+                </div>
+                {% if spotify_top_tracks %}
+                <ol class="music-rows" role="list">
+                    {% for row in spotify_top_tracks %}
+                    <li class="music-row">
+                        <span class="music-row__rank">{{ row.rank|stringformat:"02d" }}</span>
+                        {% if row.cover_url %}
+                        <img class="music-thumb music-thumb--img" src="{{ row.cover_url }}" alt="" loading="lazy">
+                        {% else %}
+                        <span class="music-thumb" aria-hidden="true">{{ row.title|slice:":2"|upper }}</span>
+                        {% endif %}
+                        <div class="music-row__main">
+                            <p class="music-row__name">{{ row.title }}</p>
+                            <p class="music-row__sub">{{ row.artist }} · {{ row.plays }} PLAYS · {{ row.minutes_display }} MIN</p>
+                        </div>
+                        {% if row.external_url %}
+                        <a class="music-row__link" href="{{ row.external_url }}" target="_blank" rel="noopener noreferrer" aria-label="在 Spotify 打开 {{ row.title }}">↗</a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <p class="music-empty-line">NO TRACK RANKING YET</p>
+                {% endif %}
             </section>
 
             <section class="music-card music-archive-yearly reveal" aria-labelledby="music-archive-yearly-title">
                 <div class="music-card__head">
-                    <span class="music-card__num">06</span>
+                    <span class="music-card__num">05</span>
                     <h2 id="music-archive-yearly-title" class="music-card__title">SPOTIFY / YEARLY ARCHIVE</h2>
                 </div>
                 <ul class="music-archive__list" role="list">
@@ -155,8 +219,8 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                         <span class="music-archive__label">{{ row.label }}</span>
                         <span class="music-archive__value">{{ row.value }}</span>
                         <span class="music-archive__tags">{{ row.tags }}</span>
-                        <a class="music-archive__link" href="#" data-period="{{ row.period }}">VIEW ARCHIVE &rarr;</a>
-                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
+                        <button type="button" class="music-archive__link" data-period="{{ row.period }}" aria-expanded="false">VIEW ARCHIVE &rarr;</button>
+                        <p class="music-archive__note" hidden>该年度归档详情将在后端接入后提供；当前仅展示摘要。</p>
                     </li>
                     {% empty %}
                     <li class="music-archive__row music-archive__row--empty">
@@ -169,78 +233,99 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
             </section>
         </div>
 
-        <!-- RIGHT COLUMN -->
+        <!-- RIGHT COLUMN · APPLE MUSIC / MONTHLY -->
         <div class="music-col music-col--right">
-            <section class="music-card music-monthly reveal" aria-labelledby="music-monthly-title">
+            <section class="music-card music-months reveal" aria-labelledby="music-months-title">
                 <div class="music-card__head">
-                    <span class="music-card__num">03</span>
-                    <h2 id="music-monthly-title" class="music-card__title">MONTHLY TRACES</h2>
+                    <span class="music-card__num">06</span>
+                    <h2 id="music-months-title" class="music-card__title">MONTH INDEX</h2>
                     <span class="music-card__hint">APPLE MUSIC / MONTHLY</span>
                 </div>
-                <div class="music-monthly__chart">
-                    <ul class="music-monthly__bars" role="list" aria-label="Monthly listening minutes">
-                        {% for bar in monthly_bars %}
-                        <li{% if bar.is_current %} class="is-current"{% endif %}><span class="music-monthly__month">{{ bar.month_label }}</span><span class="music-monthly__bar" style="--pct:{{ bar.pct }}%"><span class="music-monthly__fill"></span></span><span class="music-monthly__min">{{ bar.minutes_display }} MIN</span></li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% if monthly_current %}
-                <div class="music-monthly__current">
-                    <div class="music-monthly__current-head">
-                        <span class="music-monthly__current-month">{{ monthly_current.label }}</span>
-                        <span class="music-monthly__current-min">{{ monthly_current.minutes_display }} MIN</span>
-                    </div>
-                    <p class="music-monthly__current-title">CORE ARTISTS</p>
-                    <ul class="music-monthly__current-artists" role="list">
-                        {% for artist in current_period_artists %}
-                        <li><span class="music-thumb" aria-hidden="true">{{ artist.name|slice:":2" }}</span><span class="music-monthly__artist-name">{{ artist.name }}</span></li>
-                        {% endfor %}
-                    </ul>
-                </div>
+                {% if apple_months %}
+                <ul class="music-chips" role="list" aria-label="Monthly listening index">
+                    {% for m in apple_months %}
+                    <li class="music-chip{% if m.is_current %} is-current{% endif %}">
+                        <span class="music-chip__label">{{ m.label }}</span>
+                        <span class="music-chip__min">{{ m.minutes_display }} MIN</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="music-empty-line">APPLE MUSIC 月度数据尚未归档。</p>
                 {% endif %}
             </section>
 
-            <section class="music-card music-companion reveal" aria-labelledby="music-companion-title">
+            <section class="music-card music-current reveal" aria-labelledby="music-current-title">
                 <div class="music-card__head">
-                    <span class="music-card__num">05A</span>
-                    <h2 id="music-companion-title" class="music-card__title">LONGEST COMPANION</h2>
-                    <span class="music-card__hint">SPOTIFY / MULTI-YEAR</span>
+                    <span class="music-card__num">07</span>
+                    <h2 id="music-current-title" class="music-card__title">CURRENT MONTH</h2>
+                    <span class="music-card__hint">{% if apple_current %}{{ apple_current.label }}{% else %}—{% endif %}</span>
                 </div>
-                {% if companion %}
-                <div class="music-companion__body">
-                    <span class="music-thumb music-thumb--xl" aria-hidden="true">{{ companion.name|slice:":2" }}</span>
-                    <div class="music-companion__info">
-                        <p class="music-companion__name">{{ companion.name }}</p>
-                        <p class="music-companion__since">{{ companion.since }}</p>
-                        <p class="music-companion__stat">{{ companion.stat }}</p>
-                        <p class="music-companion__note">{{ companion.note }}</p>
-                    </div>
-                </div>
+                {% if apple_current %}
+                <p class="music-current__figure">
+                    <span class="music-current__minutes">{{ apple_current.minutes_display }}</span>
+                    <span class="music-current__unit">MIN / {{ apple_current.label }}</span>
+                </p>
+                {% if apple_current.top_artists %}
+                <p class="music-current__section-label">TOP ARTISTS · MONTH</p>
+                <ol class="music-artcards" role="list">
+                    {% for row in apple_current.top_artists %}
+                    <li class="music-artcard">
+                        <span class="music-artcard__rank" aria-hidden="true">{{ row.rank }}</span>
+                        {% if row.cover_url %}
+                        <img class="music-artcard__cover" src="{{ row.cover_url }}" alt="" loading="lazy">
+                        {% else %}
+                        <span class="music-artcard__fallback" aria-hidden="true">{{ row.name|slice:":2"|upper }}</span>
+                        {% endif %}
+                        <div class="music-artcard__body">
+                            <p class="music-artcard__name">{{ row.name }}</p>
+                            <p class="music-artcard__min">{{ row.minutes_display }} MIN{% if row.plays is not None %} · {{ row.plays }} PLAYS{% endif %}</p>
+                        </div>
+                        {% if row.external_url %}
+                        <a class="music-artcard__link" href="{{ row.external_url }}" target="_blank" rel="noopener noreferrer" aria-label="在 Apple Music 打开 {{ row.name }}">↗</a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% endif %}
+                {% else %}
+                <p class="music-empty-line">当月数据尚未归档。</p>
                 {% endif %}
             </section>
 
-            <section class="music-card music-gravity reveal" aria-labelledby="music-gravity-title">
+            <section class="music-card music-tracks reveal" aria-labelledby="music-monthtracks-title">
                 <div class="music-card__head">
-                    <span class="music-card__num">05B</span>
-                    <h2 id="music-gravity-title" class="music-card__title">RECENT GRAVITY</h2>
-                    <span class="music-card__hint">APPLE MUSIC / RECENT</span>
+                    <span class="music-card__num">08</span>
+                    <h2 id="music-monthtracks-title" class="music-card__title">TOP TRACKS</h2>
+                    <span class="music-card__hint">APPLE MUSIC / MONTH · TOP 15</span>
                 </div>
-                {% if gravity %}
-                <div class="music-companion__body">
-                    <span class="music-thumb music-thumb--xl" aria-hidden="true">{{ gravity.name|slice:":2" }}</span>
-                    <div class="music-companion__info">
-                        <p class="music-companion__name">{{ gravity.name }}</p>
-                        <p class="music-companion__since">{{ gravity.since }}</p>
-                        <p class="music-companion__stat">{{ gravity.stat }}</p>
-                        <p class="music-companion__note">{{ gravity.note }}</p>
-                    </div>
-                </div>
+                {% if apple_current.top_tracks %}
+                <ol class="music-trackgrid" role="list">
+                    {% for row in apple_current.top_tracks %}
+                    <li class="music-trackcell">
+                        {% if row.cover_url %}
+                        <img class="music-thumb music-thumb--img music-thumb--sm" src="{{ row.cover_url }}" alt="" loading="lazy">
+                        {% else %}
+                        <span class="music-thumb music-thumb--sm" aria-hidden="true">{{ row.title|slice:":2"|upper }}</span>
+                        {% endif %}
+                        <div class="music-trackcell__main">
+                            <p class="music-trackcell__title"><span class="music-row__rank">{{ row.rank|stringformat:"02d" }}</span> {{ row.title }}</p>
+                            <p class="music-trackcell__sub">{{ row.artist }} · {{ row.plays }} PLAYS</p>
+                        </div>
+                        {% if row.external_url %}
+                        <a class="music-row__link" href="{{ row.external_url }}" target="_blank" rel="noopener noreferrer" aria-label="在 Apple Music 打开 {{ row.title }}">↗</a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <p class="music-empty-line">NO TRACK RANKING THIS MONTH</p>
                 {% endif %}
             </section>
 
             <section class="music-card music-archive-monthly reveal" aria-labelledby="music-archive-monthly-title">
                 <div class="music-card__head">
-                    <span class="music-card__num">07</span>
+                    <span class="music-card__num">09</span>
                     <h2 id="music-archive-monthly-title" class="music-card__title">APPLE MUSIC / MONTHLY ARCHIVE</h2>
                 </div>
                 <ul class="music-archive__list" role="list">
@@ -249,8 +334,8 @@ Music 页面 — 双栏版本 v2（Spotify / Yearly + Apple Music / Monthly）�
                         <span class="music-archive__label">{{ row.label }}</span>
                         <span class="music-archive__value">{{ row.value }}</span>
                         <span class="music-archive__tags">{{ row.tags }}</span>
-                        <a class="music-archive__link" href="#" data-period="{{ row.period }}">VIEW ARCHIVE &rarr;</a>
-                        <p class="music-archive__note" hidden>归档详情页待后端接入。</p>
+                        <button type="button" class="music-archive__link" data-period="{{ row.period }}" aria-expanded="false">VIEW ARCHIVE &rarr;</button>
+                        <p class="music-archive__note" hidden>该月度归档详情将在后端接入后提供；当前仅展示摘要。</p>
                     </li>
                     {% empty %}
                     <li class="music-archive__row music-archive__row--empty">

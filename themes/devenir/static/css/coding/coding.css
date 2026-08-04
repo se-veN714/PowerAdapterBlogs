@@ -284,8 +284,9 @@
 }
 
 .coding-project {
+    position: relative; /* stretched-link 覆盖层定位上下文 */
     display: grid;
-    grid-template-columns: 56px 1.5fr 140px 64px 140px 40px;
+    grid-template-columns: 56px 48px 1.5fr 140px 64px 150px auto;
     gap: 1.5rem;
     align-items: center;
     padding: 1.25rem 1.5rem;
@@ -301,6 +302,11 @@
     transform: translateY(-2px);
 }
 
+/* featured：accent 左缘 + 微光 */
+.coding-project--featured {
+    border-left: 2px solid var(--coding-accent);
+}
+
 .coding-project__num {
     font-family: var(--font-mono);
     font-size: 1.5rem;
@@ -308,10 +314,33 @@
     color: var(--coding-accent);
 }
 
+/* 封面缩略：img 或确定性字体回退（名称前 2 字符） */
+.coding-project__cover {
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--coding-border);
+    object-fit: cover;
+    display: block;
+}
+.coding-project__cover--fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--glitch-c) 22%, transparent), transparent 70%),
+        var(--coding-bg-elevated);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--coding-accent);
+}
+
 .coding-project__main {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    min-width: 0;
 }
 
 .coding-project__name {
@@ -320,6 +349,18 @@
     font-weight: 700;
     color: var(--coding-text);
     letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.coding-project__badge {
+    font-size: 0.56rem;
+    letter-spacing: 0.14em;
+    color: var(--coding-accent);
+    border: 1px solid color-mix(in srgb, var(--glitch-c) 45%, transparent);
+    padding: 0.15rem 0.45rem;
 }
 
 .coding-project__desc {
@@ -339,6 +380,28 @@
 
 .coding-project__status {
     color: var(--coding-accent-soft);
+    display: grid;
+    gap: 0.3rem;
+    justify-items: start;
+}
+
+/* project_type 徽标 */
+.coding-project__type {
+    font-size: 0.56rem;
+    letter-spacing: 0.14em;
+    padding: 0.15rem 0.45rem;
+    border: 1px solid var(--coding-border);
+    color: var(--coding-text-muted);
+}
+.coding-project__type--github { color: var(--coding-accent-soft); border-color: var(--coding-border-hover); }
+.coding-project__type--local_tool { color: var(--coding-accent); border-color: color-mix(in srgb, var(--glitch-c) 45%, transparent); }
+
+/* 动作区：主动作箭头 + 可选 DEMO 次链接 */
+.coding-project__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    justify-content: flex-end;
 }
 
 .coding-project__arrow {
@@ -346,10 +409,67 @@
     color: var(--coding-accent);
     text-align: right;
     transition: transform 0.25s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+/* stretched-link：仅主动作存在时整行可点（::after 覆盖整行） */
+.coding-project__arrow--primary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+.coding-project__demo {
+    position: relative; /* 高于 stretched-link 覆盖层，保持独立可点 */
+    z-index: 2;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    color: var(--coding-text-muted);
+    text-decoration: none;
+    border: 1px solid var(--coding-border);
+    padding: 0.4rem 0.7rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.2s, border-color 0.2s;
+}
+.coding-project__demo:hover,
+.coding-project__demo:focus-visible {
+    color: var(--coding-accent);
+    border-color: var(--coding-border-hover);
+    outline: none;
+}
+
+.coding-project__arrow--primary:hover,
+.coding-project__arrow--primary:focus-visible {
+    outline: none;
+}
+.coding-project__arrow--primary:focus-visible {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--glitch-c) 55%, transparent);
 }
 
 .coding-project:hover .coding-project__arrow {
     transform: translateX(4px);
+}
+
+/* 空态行：安静占位，无交互暗示 */
+.coding-project--empty,
+.coding-principle--empty,
+.coding-experiment--empty {
+    opacity: 0.65;
+}
+.coding-project--empty:hover,
+.coding-principle--empty:hover,
+.coding-experiment--empty:hover {
+    border-color: var(--coding-border);
+    box-shadow: none;
+    transform: none;
 }
 
 /* ===== Working Principles ===== */
@@ -482,7 +602,7 @@
     }
 
     .coding-project {
-        grid-template-columns: 48px 1fr 100px;
+        grid-template-columns: 44px 44px 1fr auto;
         gap: 1rem;
     }
 
@@ -519,11 +639,12 @@
     }
 
     .coding-project {
-        grid-template-columns: 40px 1fr 32px;
+        grid-template-columns: 36px 1fr auto;
         padding: 1rem;
     }
 
-    .coding-project__stack {
+    .coding-project__stack,
+    .coding-project__cover {
         display: none;
     }
 

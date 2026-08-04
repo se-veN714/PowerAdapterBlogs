@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Boards Manage — Coding 项目删除确认（in-page Devenir 面板，绝不 window.confirm）。
+
+契约：object（待删除项目）。
+POST 到 boards:coding-manage-delete(pk)；取消返回 list。
+{% endcomment %}
+
+{% block title %}Delete Coding Project · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles">
+                <p class="bm-kicker">MANAGE / CODING</p>
+                <h1 class="bm-title">DELETE PROJECT</h1>
+            </div>
+            <a class="bm-btn" href="{% url 'boards:coding-manage-list' %}">&larr; BACK TO LIST</a>
+        </header>
+
+        <div class="bm-danger" role="alertdialog" aria-labelledby="bm-danger-title" aria-describedby="bm-danger-warn">
+            <p class="bm-danger__kicker">DESTRUCTIVE ACTION</p>
+            <h2 class="bm-danger__title" id="bm-danger-title">确认删除这个项目？</h2>
+
+            <div class="bm-danger__summary">
+                <span><strong>{{ object.index|stringformat:"02d" }} · {{ object.name }}</strong></span>
+                <span>{{ object.stack }} · {% if object.year %}{{ object.year }} · {% endif %}{{ object.status|upper }}</span>
+                {% if object.description %}<span>{{ object.description|truncatechars:80 }}</span>{% endif %}
+            </div>
+
+            <p class="bm-danger__warn" id="bm-danger-warn">
+                删除后该项目将<em>立即从公开 Coding Index 消失</em>，且不可在管理界面内恢复。
+                若只是暂时不想展示，建议改用 EDIT 取消 ACTIVE 标记，而不是删除。
+            </p>
+
+            <form method="post" action="{% url 'boards:coding-manage-delete' pk=object.pk %}">
+                {% csrf_token %}
+                <div class="bm-danger__actions">
+                    <button class="bm-btn bm-btn--danger" type="submit">CONFIRM DELETE</button>
+                    <a class="bm-btn" href="{% url 'boards:coding-manage-list' %}">CANCEL</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

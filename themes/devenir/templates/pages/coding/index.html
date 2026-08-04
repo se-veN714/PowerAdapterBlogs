@@ -2,8 +2,21 @@
 {% load static %}
 {% comment %}
 Coding 页面 — PowerAdapter 项目档案页。
-概念图参考：.local/img/boards-coding.png
-核心内容静态预渲染，JS 仅负责轻量交互增强。
+
+数据契约（.agents/BOARD_MUSIC_CODING_K3_HANDOFF.md §6，由协调后端分支提供）：
+    projects     index / name / description / stack / year|null / status
+                 project_type: "github" | "local_tool" | "external"
+                 repository_url|null / demo_url|null / cover_url|null / is_featured
+    principles   index / title / body（既有形状，不重新设计）
+    experiments  date / title（既有形状，不重新设计）
+
+链接层级：
+- github      主动作 = repository_url（新标签，rel="noopener noreferrer"）；可选次动作 = demo_url
+- local_tool  主动作 = boards:padif-local（站内本地工作区，不新开标签）
+- external    主动作 = repository_url 或 demo_url（新标签，rel="noopener noreferrer"）
+- 无任何 URL  → 整行不可点，箭头为纯装饰 span。
+- 整行可点仅在主动作存在时（stretched-link）；次动作保持独立可点。
+空态：安静占位，不渲染硬编码样例项目/原则/实验。
 {% endcomment %}
 
 {% block title %}Coding · PowerAdapter{% endblock %}
@@ -44,8 +57,8 @@ Coding 页面 — PowerAdapter 项目档案页。
                     <span class="coding-meta__val">TOOLS, SYSTEMS, AUTOMATION</span>
                 </div>
                 <div class="coding-meta__row">
-                    <span class="coding-meta__key">UPDATED</span>
-                    <span class="coding-meta__val">2026.07</span>
+                    <span class="coding-meta__key">PROJECTS</span>
+                    <span class="coding-meta__val">{{ projects|length }} ON RECORD</span>
                 </div>
             </div>
             <div class="coding-scroll" aria-hidden="true">
@@ -59,10 +72,9 @@ Coding 页面 — PowerAdapter 项目档案页。
                 <div class="coding-tree">
                     <p class="coding-tree__root">/projects</p>
                     <ul class="coding-tree__list">
-                        <li><span class="coding-tree__folder">monitor/</span></li>
-                        <li><span class="coding-tree__folder">poweradapter/</span></li>
-                        <li><span class="coding-tree__folder">credits/</span></li>
-                        <li><span class="coding-tree__folder">security_log/</span></li>
+                        <li><span class="coding-tree__folder">tools/</span></li>
+                        <li><span class="coding-tree__folder">systems/</span></li>
+                        <li><span class="coding-tree__folder">archives/</span></li>
                         <li><span class="coding-tree__folder">experiments/</span></li>
                         <li><span class="coding-tree__file">README.md</span></li>
                         <li><span class="coding-tree__file">notes.txt</span></li>
@@ -107,61 +119,50 @@ Coding 页面 — PowerAdapter 项目档案页。
             </div>
             <ul class="coding-projects" role="list">
                 {% for project in projects %}
-                <li class="coding-project reveal">
+                <li class="coding-project reveal{% if project.is_featured %} coding-project--featured{% endif %}">
                     <span class="coding-project__num">{{ project.index|stringformat:"02d" }}</span>
+                    {% if project.cover_url %}
+                    <img class="coding-project__cover" src="{{ project.cover_url }}" alt="" loading="lazy">
+                    {% else %}
+                    <span class="coding-project__cover coding-project__cover--fallback" aria-hidden="true">{{ project.name|slice:":2"|upper }}</span>
+                    {% endif %}
                     <div class="coding-project__main">
-                        <p class="coding-project__name">{{ project.name|upper }}</p>
+                        <p class="coding-project__name">
+                            {{ project.name|upper }}
+                            {% if project.is_featured %}<span class="coding-project__badge">FEATURED</span>{% endif %}
+                        </p>
                         <p class="coding-project__desc">{{ project.description }}</p>
                     </div>
                     <span class="coding-project__stack">{{ project.stack|upper }}</span>
                     <span class="coding-project__year">{% if project.year %}{{ project.year }}{% endif %}</span>
-                    <span class="coding-project__status">STATUS / {{ project.status|upper }}</span>
-                    {% if project.url %}<a class="coding-project__arrow" href="{{ project.url }}" aria-label="Open {{ project.name }}">→</a>{% else %}<span class="coding-project__arrow" aria-hidden="true">→</span>{% endif %}
+                    <span class="coding-project__status">
+                        <span class="coding-project__type coding-project__type--{{ project.project_type|default:'external' }}">
+                            {% if project.project_type == 'github' %}GITHUB{% elif project.project_type == 'local_tool' %}LOCAL TOOL{% else %}EXTERNAL{% endif %}
+                        </span>
+                        {% if project.status %}STATUS / {{ project.status|upper }}{% endif %}
+                    </span>
+                    <span class="coding-project__actions">
+                        {% if project.project_type == 'local_tool' %}
+                        <a class="coding-project__arrow coding-project__arrow--primary" href="{% url 'boards:padif-local' %}" aria-label="打开 {{ project.name }} 的本地工作区">→</a>
+                        {% elif project.repository_url %}
+                        <a class="coding-project__arrow coding-project__arrow--primary" href="{{ project.repository_url }}" target="_blank" rel="noopener noreferrer" aria-label="打开 {{ project.name }} 仓库">→</a>
+                        {% if project.demo_url %}
+                        <a class="coding-project__demo" href="{{ project.demo_url }}" target="_blank" rel="noopener noreferrer">DEMO ↗</a>
+                        {% endif %}
+                        {% elif project.demo_url %}
+                        <a class="coding-project__arrow coding-project__arrow--primary" href="{{ project.demo_url }}" target="_blank" rel="noopener noreferrer" aria-label="打开 {{ project.name }}">→</a>
+                        {% else %}
+                        <span class="coding-project__arrow" aria-hidden="true">→</span>
+                        {% endif %}
+                    </span>
                 </li>
                 {% empty %}
-                <li class="coding-project reveal">
-                    <span class="coding-project__num">01</span>
+                <li class="coding-project coding-project--empty reveal">
+                    <span class="coding-project__num">—</span>
                     <div class="coding-project__main">
-                        <p class="coding-project__name">MONITOR</p>
-                        <p class="coding-project__desc">Remote training log viewer</p>
+                        <p class="coding-project__name">NO PROJECTS ON RECORD</p>
+                        <p class="coding-project__desc">项目档案尚未公开。</p>
                     </div>
-                    <span class="coding-project__stack">PYTHON / SSE</span>
-                    <span class="coding-project__year">2026</span>
-                    <span class="coding-project__status">STATUS / IN USE</span>
-                    <span class="coding-project__arrow" aria-hidden="true">→</span>
-                </li>
-                <li class="coding-project reveal">
-                    <span class="coding-project__num">02</span>
-                    <div class="coding-project__main">
-                        <p class="coding-project__name">POWERADAPTER</p>
-                        <p class="coding-project__desc">Personal publishing and archive system</p>
-                    </div>
-                    <span class="coding-project__stack">DJANGO / MONGO</span>
-                    <span class="coding-project__year">2026</span>
-                    <span class="coding-project__status">STATUS / ACTIVE</span>
-                    <span class="coding-project__arrow" aria-hidden="true">→</span>
-                </li>
-                <li class="coding-project reveal">
-                    <span class="coding-project__num">03</span>
-                    <div class="coding-project__main">
-                        <p class="coding-project__name">CREDITS</p>
-                        <p class="coding-project__desc">AI tool usage dashboard</p>
-                    </div>
-                    <span class="coding-project__stack">HTML / API</span>
-                    <span class="coding-project__year">2026</span>
-                    <span class="coding-project__status">STATUS / ACTIVE</span>
-                    <span class="coding-project__arrow" aria-hidden="true">→</span>
-                </li>
-                <li class="coding-project reveal">
-                    <span class="coding-project__num">04</span>
-                    <div class="coding-project__main">
-                        <p class="coding-project__name">SECURITY LOG</p>
-                        <p class="coding-project__desc">Operational audit trail</p>
-                    </div>
-                    <span class="coding-project__stack">MONGO / HMAC</span>
-                    <span class="coding-project__year">2026</span>
-                    <span class="coding-project__status">STATUS / STABLE</span>
-                    <span class="coding-project__arrow" aria-hidden="true">→</span>
                 </li>
                 {% endfor %}
             </ul>
@@ -182,20 +183,10 @@ Coding 页面 — PowerAdapter 项目档案页。
                         <p class="coding-principle__body">{{ principle.body|linebreaksbr }}</p>
                     </div>
                     {% empty %}
-                    <div class="coding-principle reveal">
-                        <div class="coding-principle__num">01</div>
-                        <h3 class="coding-principle__title">NEED BEFORE FRAMEWORK</h3>
-                        <p class="coding-principle__body">Start from the problem.<br>Let the structure emerge from use.</p>
-                    </div>
-                    <div class="coding-principle reveal">
-                        <div class="coding-principle__num">02</div>
-                        <h3 class="coding-principle__title">FIRST WORKING, THEN CLEAR</h3>
-                        <p class="coding-principle__body">Build a form that moves.<br>Refine until the relations become readable.</p>
-                    </div>
-                    <div class="coding-principle reveal">
-                        <div class="coding-principle__num">03</div>
-                        <h3 class="coding-principle__title">SMALL TOOLS, LONG LIFE</h3>
-                        <p class="coding-principle__body">Keep the scope open enough to evolve,<br>and small enough to stay useful.</p>
+                    <div class="coding-principle coding-principle--empty reveal">
+                        <div class="coding-principle__num">—</div>
+                        <h3 class="coding-principle__title">NO PRINCIPLES RECORDED</h3>
+                        <p class="coding-principle__body">原则尚未归档。</p>
                     </div>
                     {% endfor %}
                 </div>
@@ -217,29 +208,11 @@ Coding 页面 — PowerAdapter 项目档案页。
                         <span class="coding-experiment__arrow" aria-hidden="true">→</span>
                     </li>
                     {% empty %}
-                    <li class="coding-experiment reveal">
+                    <li class="coding-experiment coding-experiment--empty reveal">
                         <span class="coding-experiment__dot" aria-hidden="true"></span>
-                        <span class="coding-experiment__date">2026.07</span>
-                        <span class="coding-experiment__title">HTMX partial refresh experiment</span>
-                        <span class="coding-experiment__arrow" aria-hidden="true">→</span>
-                    </li>
-                    <li class="coding-experiment reveal">
-                        <span class="coding-experiment__dot" aria-hidden="true"></span>
-                        <span class="coding-experiment__date">2026.06</span>
-                        <span class="coding-experiment__title">MongoDB logging migration</span>
-                        <span class="coding-experiment__arrow" aria-hidden="true">→</span>
-                    </li>
-                    <li class="coding-experiment reveal">
-                        <span class="coding-experiment__dot" aria-hidden="true"></span>
-                        <span class="coding-experiment__date">2026.05</span>
-                        <span class="coding-experiment__title">Private admin access with Tailscale</span>
-                        <span class="coding-experiment__arrow" aria-hidden="true">→</span>
-                    </li>
-                    <li class="coding-experiment reveal">
-                        <span class="coding-experiment__dot" aria-hidden="true"></span>
-                        <span class="coding-experiment__date">2026.04</span>
-                        <span class="coding-experiment__title">Unity IL2CPP mod research</span>
-                        <span class="coding-experiment__arrow" aria-hidden="true">→</span>
+                        <span class="coding-experiment__date">—</span>
+                        <span class="coding-experiment__title">实验记录尚未归档。</span>
+                        <span class="coding-experiment__arrow" aria-hidden="true"></span>
                     </li>
                     {% endfor %}
                 </ul>

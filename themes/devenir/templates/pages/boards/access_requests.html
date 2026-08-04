@@ -23,6 +23,12 @@
     .access-verification p { color: var(--text-secondary); font-size: .78rem; line-height: 1.7; margin-bottom: .9rem; }
     .access-verification-status { color: var(--accent-soft); font-size: .72rem; letter-spacing: .08em; margin-bottom: .9rem; }
     .request-list { display: grid; gap: .8rem; }
+    .membership-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; }
+    .membership-item { border: 1px solid var(--fragment-border); background: var(--bg-primary); padding: .9rem 1rem; }
+    .membership-item strong { display: block; color: var(--text-primary); margin-bottom: .3rem; }
+    .membership-role { color: var(--accent-soft); font-size: .76rem; }
+    .membership-actions { margin-top: .8rem; }
+    .membership-note { color: var(--text-tertiary); font-size: .7rem; line-height: 1.6; }
     .request-item { border-left: 2px solid var(--accent-deep); background: var(--bg-primary); padding: .85rem 1rem; }
     .request-head { display: flex; justify-content: space-between; gap: 1rem; }
     .request-board { color: var(--text-primary); }
@@ -49,6 +55,42 @@
     <p class="access-lead">提交申请不会立即获得权限。板块 Manager 可审核常规角色，Manager 角色仅由 superuser 批准。</p>
 
     <div class="access-grid">
+        <section class="access-panel" style="grid-column: 1 / -1" aria-labelledby="current-access-title">
+            <h2 id="current-access-title">CURRENT ACCESS / 已获得权限</h2>
+            <div class="membership-list">
+                {% for membership in active_memberships %}
+                    <article class="membership-item">
+                        <strong>{{ membership.board.name }}</strong>
+                        <span class="membership-role">{{ membership.get_role_display }}</span>
+                        <div class="membership-actions">
+                            {% if membership.role == 'manager' %}
+                                <p class="membership-note">Manager 退出需由 superuser 处理。</p>
+                            {% else %}
+                                <button class="btn-ghost" type="button" data-withdraw-open="{{ membership.pk }}">退出板块</button>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% if membership.role != 'manager' %}
+                    <dialog class="access-dialog" id="withdraw-membership-{{ membership.pk }}" aria-labelledby="withdraw-title-{{ membership.pk }}">
+                        <div class="access-dialog-body">
+                            <p class="access-dialog-kicker">MEMBERSHIP / DEACTIVATE</p>
+                            <h2 id="withdraw-title-{{ membership.pk }}">退出 {{ membership.board.name }}？</h2>
+                            <p>退出后将立即失去该板块的 {{ membership.get_role_display }} 权限。审批记录会保留；如需恢复，必须重新提交申请并审核。</p>
+                            <div class="access-dialog-actions" style="gap:.6rem">
+                                <button class="btn-ghost" type="button" data-withdraw-close>取消</button>
+                                <form method="post" action="{% url 'boards:withdraw-membership' membership.pk %}">
+                                    {% csrf_token %}
+                                    <button class="btn-accent" type="submit">确认退出</button>
+                                </form>
+                            </div>
+                        </div>
+                    </dialog>
+                    {% endif %}
+                {% empty %}
+                    <p class="access-empty">当前尚未获得任何板块权限。</p>
+                {% endfor %}
+            </div>
+        </section>
         <section class="access-panel" aria-labelledby="new-request-title">
             <h2 id="new-request-title">NEW REQUEST</h2>
             {% if email_verified %}
@@ -122,6 +164,23 @@
 {% endif %}
 <script>
     (() => {
+        document.querySelectorAll('[data-withdraw-open]').forEach((trigger) => {
+            trigger.addEventListener('click', () => {
+                const dialog = document.getElementById(`withdraw-membership-${trigger.dataset.withdrawOpen}`);
+                if (!dialog) return;
+                if (typeof dialog.showModal === 'function') dialog.showModal();
+                else dialog.setAttribute('open', '');
+            });
+        });
+        document.querySelectorAll('[data-withdraw-close]').forEach((trigger) => {
+            trigger.addEventListener('click', () => trigger.closest('dialog')?.close());
+        });
+        document.querySelectorAll('dialog[id^="withdraw-membership-"]').forEach((dialog) => {
+            dialog.addEventListener('click', (event) => {
+                if (event.target === dialog) dialog.close();
+            });
+        });
+
         const countdown = document.querySelector('[data-email-grant-countdown]');
         if (!countdown) return;
         let remaining = Number.parseInt(countdown.dataset.seconds || '0', 10);

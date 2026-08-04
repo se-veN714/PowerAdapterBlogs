@@ -38,6 +38,22 @@ class ModerationBoundaryTest(TestCase):
             200,
         )
 
+    def test_verified_contributor_cannot_enter_review_center(self):
+        contributor = self.create_user("verified-contributor")
+        contributor.user_permissions.add(
+            Permission.objects.get(codename="apply_board_access")
+        )
+        board = Board.objects.create(slug="contributor-only", name="Contributor")
+        BoardMembership.objects.create(
+            board=board,
+            user=contributor,
+            role=BoardMembership.Role.CONTRIBUTOR,
+            created_by=contributor,
+        )
+        self.client.force_login(contributor)
+
+        self.assertEqual(self.client.get(reverse("moderation:hub")).status_code, 403)
+
     def test_account_reviewer_cannot_activate_unaccepted_invitation(self):
         manager = self.create_user("account-reviewer")
         manager.user_permissions.add(

@@ -91,7 +91,7 @@ def _issuer() -> str:
 def _is_enrollment_eligible(user: MyUser) -> bool:
     if not user.is_active:
         return False
-    if user.is_superuser:
+    if user.is_superuser or user.is_dashboard_user:
         return True
     return BoardMembership.objects.filter(
         user=user,
@@ -454,6 +454,7 @@ def revoke_totp_device(
     target_user: MyUser,
     actor: MyUser,
     current_password: str = "",
+    totp_code: str = "",
     reason: str = "operator_reset",
 ) -> MfaTotpDevice:
     """Revoke and cryptographically erase a device under a superuser boundary."""
@@ -466,6 +467,33 @@ def revoke_totp_device(
     device = MfaTotpDevice.objects.select_for_update().filter(user=target_user).first()
     if device is None or device.status == MfaTotpDevice.Status.REVOKED:
         raise MfaServiceError("device_inactive")
+
+    if actor.pk == target_user.pk:
+        matched_step = _matching_step(
+            pyotp.TOTP(_decrypt_seed(device)),
+            str(totp_code),
+            timezone.now(),
+        )
+        if matched_step is None:
+            _audit(
+                actor=actor,
+                device=device,
+                event="device_revoke_failed",
+                reason="invalid_code",
+            )
+            raise MfaServiceError("invalid_code")
+        if (
+            device.last_accepted_step is not None
+            and matched_step <= device.last_accepted_step
+        ):
+            _audit(
+                actor=actor,
+                device=device,
+                event="device_revoke_failed",
+                reason="replayed_code",
+            )
+            raise MfaServiceError("replayed_code")
+        _audit(actor=actor, device=device, event="device_revoke_step_up_verified")
 
     _erase_device_secret(device, revoked_at=timezone.now())
     audit_reason = reason if reason in RESET_REASONS else "operator_reset"

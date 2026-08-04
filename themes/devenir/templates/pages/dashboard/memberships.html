@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}成员管理 · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}{% include "pages/dashboard/_styles.html" %}{% endblock %}
+
+{% block content %}
+<section class="membership-shell">
+    <div class="container">
+        <p class="membership-kicker">Dashboard / Membership Control</p>
+        <h1 class="membership-heading">板块成员管理</h1>
+        <p class="membership-intro">这里处理全站 Board Membership 的日常变更。每次写操作都要求有效的工作台特权 Session、一次性动态验证码和变更原因，并留下不可变审计事件。</p>
+
+        <div class="membership-toolbar">
+            <div class="membership-stats" aria-label="成员管理统计">
+                <div class="membership-stat"><strong>{{ paginator.count }}</strong><span>当前筛选</span></div>
+                <a class="membership-stat" href="{% url 'board-dashboard:membership-events' %}"><strong>{{ event_count }}</strong><span>审计事件 →</span></a>
+            </div>
+            <a class="membership-action" href="{% url 'board-dashboard:membership-grant' %}">+ 直接授予</a>
+        </div>
+
+        <form class="membership-filters" method="get" role="search">
+            <input type="search" name="q" value="{{ selected_q }}" placeholder="搜索账号、邮箱或板块" aria-label="搜索成员">
+            <select name="board" aria-label="筛选板块">
+                <option value="">全部板块</option>
+                {% for board in boards %}<option value="{{ board.pk }}" {% if selected_board == board.pk|stringformat:"s" %}selected{% endif %}>{{ board.name }}</option>{% endfor %}
+            </select>
+            <select name="role" aria-label="筛选角色">
+                <option value="">全部角色</option>
+                {% for value, label in role_choices %}<option value="{{ value }}" {% if selected_role == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <select name="status" aria-label="筛选状态">
+                <option value="active" {% if selected_status == "active" %}selected{% endif %}>仅启用</option>
+                <option value="inactive" {% if selected_status == "inactive" %}selected{% endif %}>仅停用</option>
+                <option value="all" {% if selected_status == "all" %}selected{% endif %}>全部状态</option>
+            </select>
+            <button class="membership-action subtle" type="submit">筛选</button>
+        </form>
+
+        <div class="membership-list">
+            <div class="membership-row head"><span>账号</span><span>板块</span><span>角色</span><span>状态</span><span>操作</span></div>
+            {% for membership in memberships %}
+            <article class="membership-row">
+                <div class="membership-user"><strong>{{ membership.user.username }}</strong><small>{{ membership.user.email|default:"未设置邮箱" }}</small></div>
+                <div class="membership-board"><strong>{{ membership.board.name }}</strong><small>{{ membership.board.slug }}</small></div>
+                <span class="membership-badge">{{ membership.get_role_display }}</span>
+                <span class="membership-badge {% if membership.is_active %}active{% else %}inactive{% endif %}">{% if membership.is_active %}ACTIVE{% else %}INACTIVE{% endif %}</span>
+                <div class="membership-actions">
+                    <a class="membership-action subtle" href="{% url 'board-dashboard:membership-event-history' membership.pk %}">历史</a>
+                    {% if membership.is_active %}
+                        <a class="membership-action subtle" href="{% url 'board-dashboard:membership-role' membership.pk %}">调整角色</a>
+                        {% if membership.role == "manager" %}<a class="membership-action" href="{% url 'board-dashboard:manager-transfer' membership.pk %}">交接</a>{% endif %}
+                        <a class="membership-action danger" href="{% url 'board-dashboard:membership-deactivate' membership.pk %}">停用</a>
+                    {% else %}
+                        <a class="membership-action" href="{% url 'board-dashboard:membership-reactivate' membership.pk %}">恢复</a>
+                    {% endif %}
+                </div>
+            </article>
+            {% empty %}
+            <p class="membership-empty">没有符合条件的 Membership。</p>
+            {% endfor %}
+        </div>
+
+        {% if is_paginated %}
+        <nav class="membership-pagination" aria-label="成员分页">
+            {% if page_obj.has_previous %}<a class="membership-action subtle" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">上一页</a>{% endif %}
+            <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+            {% if page_obj.has_next %}<a class="membership-action subtle" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.next_page_number }}">下一页</a>{% endif %}
+        </nav>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

@@ -16,6 +16,7 @@ from ..models import MfaTotpDevice, MyUser
 
 PENDING_KEY = "accounts.mfa.pending"
 PRIVILEGED_KEY = "accounts.mfa.privileged"
+DASHBOARD_REMEMBER_KEY = "accounts.mfa.dashboard_remember"
 RECOVERY_KEY = "accounts.mfa.recovery"
 
 
@@ -202,17 +203,37 @@ def clear_challenge_failures(request, user_id: int):
     )
 
 
-def mark_privileged_session(request, device: MfaTotpDevice, certificate_binding=None):
+def mark_privileged_session(
+    request,
+    device: MfaTotpDevice,
+    certificate_binding=None,
+    *,
+    remember_dashboard: bool | None = None,
+):
+    now = timezone.now().timestamp()
     value = {
         "user_id": device.user_id,
         "device_id": str(device.pk),
         "auth_version": device.auth_version,
-        "verified_at": timezone.now().timestamp(),
+        "verified_at": now,
     }
     if certificate_binding is not None:
         value["certificate_binding_id"] = str(certificate_binding.pk)
         value["certificate_auth_version"] = certificate_binding.auth_version
+        value["last_seen_at"] = now
+        # The admin host uses its own host-only cookie. Keep its authenticated
+        # session browser-scoped without shortening the dashboard session.
+        request.session.set_expiry(0)
     request.session[PRIVILEGED_KEY] = value
+    if remember_dashboard is not None:
+        if remember_dashboard and certificate_binding is None:
+            request.session[DASHBOARD_REMEMBER_KEY] = {
+                **value,
+                "expires_at": timezone.now().timestamp()
+                + settings.MFA_DASHBOARD_REMEMBER_TTL_SECONDS,
+            }
+        else:
+            request.session.pop(DASHBOARD_REMEMBER_KEY, None)
     request.session.pop(PENDING_KEY, None)
     request.session.pop(RECOVERY_KEY, None)
 
@@ -222,7 +243,9 @@ def privileged_session_is_valid(request, *, require_certificate: bool = False) -
     if not isinstance(value, dict) or not request.user.is_authenticated:
         return False
     try:
-        age = timezone.now().timestamp() - float(value["verified_at"])
+        now = timezone.now().timestamp()
+        verified_at = float(value["verified_at"])
+        age = now - verified_at
         user_id = int(value["user_id"])
         device_id = str(value["device_id"])
         auth_version = int(value["auth_version"])
@@ -272,9 +295,62 @@ def privileged_session_is_valid(request, *, require_certificate: bool = False) -
                 valid = valid and str(presented_binding.pk) == str(
                     certificate_binding_id
                 )
+    if valid and require_certificate:
+        try:
+            last_seen_at = float(value.get("last_seen_at", verified_at))
+        except (TypeError, ValueError):
+            valid = False
+        else:
+            idle_age = now - last_seen_at
+            valid = 0 <= idle_age <= settings.MFA_SUPER_ADMIN_IDLE_TTL_SECONDS
+            if valid:
+                value["last_seen_at"] = now
+                request.session[PRIVILEGED_KEY] = value
     if not valid:
         request.session.pop(PRIVILEGED_KEY, None)
     return valid
+
+
+def dashboard_remembered_session_is_valid(request) -> bool:
+    """Validate the optional seven-day grant only for the daily dashboard."""
+
+    value = request.session.get(DASHBOARD_REMEMBER_KEY)
+    if not isinstance(value, dict) or not request.user.is_authenticated:
+        return False
+    try:
+        now = timezone.now().timestamp()
+        verified_at = float(value["verified_at"])
+        expires_at = float(value["expires_at"])
+        user_id = int(value["user_id"])
+        device_id = str(value["device_id"])
+        auth_version = int(value["auth_version"])
+    except (KeyError, TypeError, ValueError):
+        request.session.pop(DASHBOARD_REMEMBER_KEY, None)
+        return False
+    max_ttl = settings.MFA_DASHBOARD_REMEMBER_TTL_SECONDS
+    valid = (
+        0 <= now - verified_at <= max_ttl
+        and now <= expires_at <= verified_at + max_ttl
+        and request.user.pk == user_id
+        and (request.user.is_dashboard_user or request.user.is_superuser)
+        and MfaTotpDevice.objects.filter(
+            pk=device_id,
+            user_id=user_id,
+            status=MfaTotpDevice.Status.ACTIVE,
+            auth_version=auth_version,
+        ).exists()
+    )
+    if not valid:
+        request.session.pop(DASHBOARD_REMEMBER_KEY, None)
+    return valid
+
+
+def dashboard_session_is_valid(request) -> bool:
+    """Accept a fresh TOTP session or the dashboard-only remembered grant."""
+
+    return privileged_session_is_valid(
+        request,
+    ) or dashboard_remembered_session_is_valid(request)
 
 
 def mark_recovery_session(request, device: MfaTotpDevice):

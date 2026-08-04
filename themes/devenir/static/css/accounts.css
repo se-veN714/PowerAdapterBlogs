@@ -767,14 +767,16 @@ a.profile-coordinate:focus-visible {
     .rotation-submit i,
     .rotation-card::after { animation: none !important; }
 }
-.mfa-page { max-width: 920px; margin-inline: auto; }
-.mfa-card { width: 100%; border-top: 1px solid var(--accent, #9fffc1); }
+.auth-page.mfa-page { width: min(100%, 920px); max-width: 920px; margin-inline: auto; }
+.mfa-card { width: 100%; max-width: none; min-width: 0; box-sizing: border-box; border-top: 1px solid var(--accent, #9fffc1); }
 .mfa-status-line { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(159,255,193,.22); letter-spacing: .12em; }
-.mfa-enrollment-grid { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 2rem; align-items: start; }
-.mfa-qr-frame { padding: 1rem; background: #edfdf1; border: 1px solid #9fffc1; }
+.mfa-enrollment-grid { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: 2rem; align-items: start; }
+.mfa-enrollment-grid > * { min-width: 0; }
+.mfa-qr-frame { width: 100%; max-width: 300px; box-sizing: border-box; padding: 1rem; background: #edfdf1; border: 1px solid #9fffc1; }
 .mfa-qr-frame img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
 .mfa-steps { padding-left: 1.25rem; color: var(--text-muted, #9aa69e); line-height: 1.8; }
-.mfa-secret { display: grid; gap: .35rem; margin: 1rem 0; padding: .75rem; border: 1px dashed rgba(159,255,193,.35); overflow-wrap: anywhere; }
+.mfa-secret { display: grid; min-width: 0; gap: .35rem; margin: 1rem 0; padding: .75rem; border: 1px dashed rgba(159,255,193,.35); overflow: hidden; }
+.mfa-secret code { display: block; max-width: 100%; word-break: break-all; overflow-wrap: anywhere; line-height: 1.7; }
 .mfa-secret small, .mfa-metadata dt { color: var(--text-muted, #84938a); letter-spacing: .14em; }
 .mfa-form { display: grid; gap: .75rem; margin-top: 1.25rem; }
 .mfa-alert { margin-bottom: 1.25rem; padding: .85rem 1rem; border: 1px solid rgba(159,255,193,.35); }
@@ -784,10 +786,29 @@ a.profile-coordinate:focus-visible {
 .mfa-metadata div { display: grid; grid-template-columns: 140px 1fr; gap: 1rem; }
 .mfa-metadata dd { margin: 0; overflow-wrap: anywhere; }
 .mfa-danger-zone { margin-top: 2rem; padding-top: 1rem; border-top-width: 1px; border-top-style: solid; }
+.mfa-danger-heading, .mfa-recovery-header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
+.mfa-danger-heading small, .mfa-danger-heading > span, .mfa-recovery-header { color: var(--text-muted, #84938a); font-size: .72rem; letter-spacing: .14em; }
+.mfa-danger-heading h2 { margin: .35rem 0 0; }
+.mfa-revoke-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr); gap: 1rem; }
+.mfa-code-input { font-variant-numeric: tabular-nums; letter-spacing: .32em; }
+.mfa-revoke-submit { justify-self: start; border-color: rgba(255,100,100,.7); color: #ff9b9b; }
+.mfa-recovery-header { margin: 1.25rem 0 .65rem; }
 .mfa-recovery-list { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem 2rem; padding: 1rem 1rem 1rem 2.5rem; border: 1px dashed rgba(159,255,193,.35); }
+.mfa-recovery-list code { overflow-wrap: anywhere; }
+.mfa-recovery-actions { margin-top: 1rem; flex-wrap: wrap; }
 .mfa-recovery-panel { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid rgba(159,255,193,.2); }
 .mfa-recovery-panel summary { cursor: pointer; color: var(--text-muted, #9aa69e); }
-@media (max-width: 720px) {
-    .mfa-enrollment-grid, .mfa-recovery-list { grid-template-columns: 1fr; }
+.mfa-remember-option { display: grid !important; grid-template-columns: auto 1fr; gap: .75rem; align-items: start; padding: .8rem; border: 1px dashed rgba(159,255,193,.28); cursor: pointer; text-transform: none !important; }
+.mfa-remember-option input { width: 1rem; height: 1rem; margin-top: .15rem; accent-color: var(--accent, #9fffc1); }
+.mfa-remember-option span { display: grid; gap: .2rem; }
+.mfa-remember-option strong { color: var(--text, #d8e4dc); font-size: .82rem; letter-spacing: .05em; }
+.mfa-remember-option small { color: var(--text-muted, #84938a); font-size: .7rem; line-height: 1.5; letter-spacing: .02em; }
+@media (max-width: 820px) {
+    .mfa-enrollment-grid, .mfa-recovery-list, .mfa-revoke-fields { grid-template-columns: 1fr; }
     .mfa-metadata div { grid-template-columns: 1fr; gap: .25rem; }
+    .mfa-qr-frame { margin-inline: auto; }
+}
+@media (max-width: 520px) {
+    .mfa-card { padding: 1.5rem 1rem; }
+    .mfa-status-line, .mfa-danger-heading, .mfa-recovery-header { align-items: flex-start; flex-direction: column; }
 }

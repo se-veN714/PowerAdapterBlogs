@@ -16,11 +16,17 @@ from accounts.services import (
     mark_email_verification_verified,
 )
 from boards.admin import DashboardBoardAccessRequestAdmin
-from boards.models import Board, BoardAccessRequest, BoardMembership
+from boards.models import (
+    Board,
+    BoardAccessRequest,
+    BoardMembership,
+    BoardMembershipEvent,
+)
 from boards.services import (
     approve_board_access_request,
     reject_board_access_request,
     submit_board_access_request,
+    withdraw_board_membership,
 )
 
 
@@ -117,6 +123,14 @@ class BoardAccessRequestTest(TestCase):
         self.assertEqual(membership.created_by, self.manager)
         self.assertEqual(approved.status, BoardAccessRequest.Status.APPROVED)
         self.assertEqual(approved.reviewed_by, self.manager)
+        event = BoardMembershipEvent.objects.get(membership=membership)
+        self.assertEqual(event.event_type, BoardMembershipEvent.EventType.GRANTED)
+        self.assertEqual(event.source, BoardMembershipEvent.Source.ACCESS_REQUEST)
+        self.assertEqual(event.access_request, access_request)
+        self.assertIsNone(event.previous_is_active)
+        self.assertTrue(event.new_is_active)
+        self.assertEqual(event.board_slug_snapshot, self.board.slug)
+        self.assertEqual(event.username_snapshot, self.applicant.username)
 
     def test_role_change_reuses_membership_and_records_previous_role(self):
         membership = BoardMembership.objects.create(
@@ -136,6 +150,15 @@ class BoardAccessRequestTest(TestCase):
         self.assertEqual(membership.role, BoardMembership.Role.EDITOR)
         self.assertTrue(membership.is_active)
         self.assertEqual(approved.previous_role, BoardMembership.Role.CONTRIBUTOR)
+        event = BoardMembershipEvent.objects.get(membership=membership)
+        self.assertEqual(
+            event.event_type,
+            BoardMembershipEvent.EventType.REACTIVATED,
+        )
+        self.assertEqual(event.previous_role, BoardMembership.Role.CONTRIBUTOR)
+        self.assertEqual(event.new_role, BoardMembership.Role.EDITOR)
+        self.assertFalse(event.previous_is_active)
+        self.assertTrue(event.new_is_active)
         self.assertEqual(
             BoardMembership.objects.filter(
                 board=self.board, user=self.applicant
@@ -263,6 +286,25 @@ class BoardAccessRequestTest(TestCase):
                 actor=self.manager,
             )
 
+    def test_approval_rejects_no_op_if_membership_changed_while_pending(self):
+        access_request = self.submit(role=BoardMembership.Role.CONTRIBUTOR)
+        BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.CONTRIBUTOR,
+            created_by=self.superuser,
+        )
+
+        with self.assertRaisesMessage(ValidationError, "没有发生变化"):
+            approve_board_access_request(
+                access_request=access_request,
+                actor=self.manager,
+            )
+
+        access_request.refresh_from_db()
+        self.assertEqual(access_request.status, BoardAccessRequest.Status.PENDING)
+        self.assertFalse(BoardMembershipEvent.objects.exists())
+
     @patch("boards.services.BoardMembership.objects.create")
     def test_membership_failure_rolls_back_decision(self, create_membership):
         create_membership.side_effect = RuntimeError("database write failed")
@@ -277,6 +319,26 @@ class BoardAccessRequestTest(TestCase):
         access_request.refresh_from_db()
         self.assertEqual(access_request.status, BoardAccessRequest.Status.PENDING)
         self.assertIsNone(access_request.reviewed_by)
+
+    @patch("boards.services.BoardMembershipEvent.objects.create")
+    def test_membership_event_failure_rolls_back_approval(self, create_event):
+        create_event.side_effect = RuntimeError("event write failed")
+        access_request = self.submit()
+
+        with self.assertRaises(RuntimeError):
+            approve_board_access_request(
+                access_request=access_request,
+                actor=self.manager,
+            )
+
+        access_request.refresh_from_db()
+        self.assertEqual(access_request.status, BoardAccessRequest.Status.PENDING)
+        self.assertFalse(
+            BoardMembership.objects.filter(
+                board=self.board,
+                user=self.applicant,
+            ).exists()
+        )
 
     def test_manager_membership_does_not_grant_dashboard_shell_or_global_permissions(self):
         self.assertFalse(has_dashboard_access(self.manager))
@@ -316,6 +378,125 @@ class BoardAccessRequestTest(TestCase):
         self.client.force_login(self.manager)
         denied = self.client.get(url)
         self.assertEqual(denied.status_code, 403)
+
+    def test_application_page_lists_current_active_memberships(self):
+        membership = BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.EDITOR,
+            created_by=self.superuser,
+        )
+        BoardMembership.objects.create(
+            board=self.other_board,
+            user=self.applicant,
+            role=BoardMembership.Role.CONTRIBUTOR,
+            is_active=False,
+            created_by=self.superuser,
+        )
+        self.client.force_login(self.applicant)
+
+        response = self.client.get(reverse("boards:access-requests"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context["active_memberships"], [membership])
+        self.assertContains(response, "CURRENT ACCESS / 已获得权限")
+        self.assertContains(response, self.board.name)
+        self.assertContains(response, "退出板块")
+
+    def test_membership_withdrawal_requires_email_verification(self):
+        membership = BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.EDITOR,
+            created_by=self.superuser,
+        )
+        self.client.force_login(self.applicant)
+
+        response = self.client.post(
+            reverse("boards:withdraw-membership", args=(membership.pk,))
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:board-access-email-verify"),
+        )
+        membership.refresh_from_db()
+        self.assertTrue(membership.is_active)
+
+    @patch("boards.services._audit_membership_event")
+    def test_member_can_withdraw_own_membership_after_email_verification(
+        self,
+        audit_event,
+    ):
+        membership = BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.REVIEWER,
+            created_by=self.superuser,
+        )
+        self.client.force_login(self.applicant)
+        self.grant_board_email_verification()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse("boards:withdraw-membership", args=(membership.pk,)),
+                follow=True,
+            )
+
+        membership.refresh_from_db()
+        self.assertFalse(membership.is_active)
+        self.assertContains(response, f"已退出 {self.board.name} 板块")
+        event = BoardMembershipEvent.objects.get(membership=membership)
+        self.assertEqual(
+            event.event_type,
+            BoardMembershipEvent.EventType.DEACTIVATED,
+        )
+        self.assertEqual(event.source, BoardMembershipEvent.Source.SELF_SERVICE)
+        self.assertTrue(event.previous_is_active)
+        self.assertFalse(event.new_is_active)
+        audit_event.assert_called_once_with(event.pk)
+
+    def test_member_cannot_withdraw_another_users_or_manager_membership(self):
+        another_membership = BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.EDITOR,
+            created_by=self.superuser,
+        )
+        manager_membership = BoardMembership.objects.get(
+            board=self.board,
+            user=self.manager,
+        )
+
+        with self.assertRaises(PermissionDenied):
+            withdraw_board_membership(
+                membership=another_membership,
+                actor=self.other_applicant,
+            )
+        with self.assertRaisesMessage(PermissionDenied, "Manager 不能自助退出"):
+            withdraw_board_membership(
+                membership=manager_membership,
+                actor=self.manager,
+            )
+
+    def test_member_cannot_withdraw_while_same_board_request_is_pending(self):
+        membership = BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.EDITOR,
+            created_by=self.superuser,
+        )
+        self.submit(role=BoardMembership.Role.REVIEWER)
+
+        with self.assertRaisesMessage(ValidationError, "仍有待审核申请"):
+            withdraw_board_membership(
+                membership=membership,
+                actor=self.applicant,
+            )
+
+        membership.refresh_from_db()
+        self.assertTrue(membership.is_active)
+        self.assertFalse(BoardMembershipEvent.objects.exists())
 
     def test_successful_application_shows_one_time_devenir_dialog(self):
         url = reverse("boards:access-requests")

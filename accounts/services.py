@@ -67,8 +67,10 @@ PASSWORD_CODE_LOCKED = "locked"
 PASSWORD_CODE_VERIFIED = "verified"
 PASSWORD_EMAIL_VERIFIED_SESSION_KEY = "password_email_verified"
 BOARD_ACCESS_EMAIL_VERIFIED_SESSION_KEY = "board_access_email_verified"
+MFA_ENROLLMENT_EMAIL_VERIFIED_SESSION_KEY = "mfa_enrollment_email_verified"
 EMAIL_PURPOSE_PASSWORD_CHANGE = "password_change"
 EMAIL_PURPOSE_BOARD_ACCESS = "board_access"
+EMAIL_PURPOSE_MFA_ENROLLMENT = "mfa_enrollment"
 
 EMAIL_VERIFICATION_PURPOSES = {
     EMAIL_PURPOSE_PASSWORD_CHANGE: {
@@ -84,6 +86,13 @@ EMAIL_VERIFICATION_PURPOSES = {
         "text_template": "emails/accounts/board_access_code.txt",
         "html_template": "emails/accounts/board_access_code.html",
         "session_key": BOARD_ACCESS_EMAIL_VERIFIED_SESSION_KEY,
+    },
+    EMAIL_PURPOSE_MFA_ENROLLMENT: {
+        "hmac_salt": "accounts.mfa-enrollment-email",
+        "subject": "PowerAdapter 动态验证码绑定验证码",
+        "text_template": "emails/accounts/mfa_enrollment_code.txt",
+        "html_template": "emails/accounts/mfa_enrollment_code.html",
+        "session_key": MFA_ENROLLMENT_EMAIL_VERIFIED_SESSION_KEY,
     },
 }
 

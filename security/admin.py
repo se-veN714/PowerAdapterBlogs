@@ -1,17 +1,17 @@
-from django.conf import settings
 from django.contrib import admin
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils.safestring import mark_safe
 
-from PowerAdapterBlogs.cus_site import custom_site
 from security.models import SecureLogEntry
+from security.services import audit_secure_log_entries
 from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 
 # Register your models here.
 admin.site.register(SecureLogEntry)
 
-@admin.register(SecureLogEntry, site=custom_site)
 class SecureLogEntryAdmin(DashboardAdminMixin, admin.ModelAdmin):
+    """Legacy adapter retained for tests; operations now live at /operations/."""
     list_display = ("log_entry", "status_display", "computed_at", "last_verified_at")
     readonly_fields = ("log_entry", "hmac_truncated", "status_display", "computed_at", "last_verified_at")
     exclude = ("is_tampered", "hmac")
@@ -68,19 +68,17 @@ class SecureLogEntryAdmin(DashboardAdminMixin, admin.ModelAdmin):
         permissions=["run_integrity_audit"],
     )
     def audit_selected_logentries(self, request, queryset):
-        secret_key = ""
         try:
-            secret_key = settings.LOG_HMAC_KEY
-            tampered_count = 0
-
-            for entry in queryset.select_related("log_entry"):
-                if SecureLogEntry.audit(entry, secret_key):
-                    tampered_count += 1
-
-            messages.success(request, f"审计完成。发现 {tampered_count} 条被篡改的日志。")
-        finally:
-            # 简单内存清理
-            if 'secret_key' in locals():
-                secret_key = b"\x00" * len(secret_key)
-                del secret_key
+            result = audit_secure_log_entries(
+                actor=request.user,
+                entry_ids=queryset.values_list("pk", flat=True)[:101],
+            )
+        except (PermissionDenied, ValidationError) as exc:
+            detail = "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc)
+            messages.error(request, detail)
+        else:
+            messages.success(
+                request,
+                f"审计完成。核验 {result.checked} 条，发现 {result.tampered} 条异常。",
+            )
 

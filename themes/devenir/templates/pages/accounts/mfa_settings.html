@@ -4,7 +4,7 @@
 {% block title %}动态验证码安全设置{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20260728.1">
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20260803.2">
 {% endblock %}
 
 {% block hero %}
@@ -59,11 +59,24 @@
         <form method="post" class="mfa-form mfa-danger-zone">
             {% csrf_token %}
             <input type="hidden" name="action" value="revoke">
-            <h2>撤销设备</h2>
-            <p>撤销会销毁现有 seed 与全部恢复码，并使特权 Session 失效。</p>
-            {{ revoke_form.current_password|add_class:"input" }}
-            {% for error in revoke_form.current_password.errors %}<p class="error-msg">{{ error }}</p>{% endfor %}
-            <button class="btn-ghost" type="submit">确认撤销</button>
+            <div class="mfa-danger-heading">
+                <div><small>DANGER / CREDENTIAL DESTRUCTION</small><h2>撤销设备</h2></div>
+                <span>2-FA STEP-UP</span>
+            </div>
+            <p class="mfa-copy">撤销会销毁现有 seed 与全部恢复码，并使特权 Session 失效。操作必须同时验证当前密码和 Authenticator 动态验证码。</p>
+            <div class="mfa-revoke-fields">
+                <div class="field">
+                    <label for="{{ revoke_form.current_password.id_for_label }}">{{ revoke_form.current_password.label }}</label>
+                    {{ revoke_form.current_password|add_class:"input" }}
+                    {% for error in revoke_form.current_password.errors %}<p class="error-msg">{{ error }}</p>{% endfor %}
+                </div>
+                <div class="field">
+                    <label for="{{ revoke_form.code.id_for_label }}">{{ revoke_form.code.label }}</label>
+                    {{ revoke_form.code|add_class:"input mfa-code-input" }}
+                    {% for error in revoke_form.code.errors %}<p class="error-msg">{{ error }}</p>{% endfor %}
+                </div>
+            </div>
+            <button class="btn-ghost mfa-revoke-submit" type="submit">验证并撤销设备</button>
         </form>
         {% else %}
         <p class="mfa-copy">Board Manager 的人工撤销由 active superuser 复核；遗失设备时可在登录挑战页使用恢复码重绑。</p>

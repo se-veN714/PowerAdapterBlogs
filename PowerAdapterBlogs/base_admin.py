@@ -15,7 +15,12 @@ from django.contrib import admin
 
 
 def has_dashboard_access(user):
-    """Return whether a user may enter the custom dashboard shell."""
+    """Return whether a user is explicitly assigned to the dashboard shell.
+
+    Django Groups, model permissions, ``is_staff`` and Board memberships are
+    intentionally ignored here. They authorize their own business routes,
+    never the reduced-superuser dashboard shell.
+    """
     if not getattr(user, "is_authenticated", False) or not user.is_active:
         return False
     return bool(user.is_dashboard_user or user.is_superuser)

@@ -1,7 +1,7 @@
 from boards.policies import (
     can_access_board_admin,
     can_access_comment_admin,
-    can_access_post_admin,
+    can_review_posts_in_admin,
 )
 
 
@@ -19,7 +19,7 @@ def can_review_accounts(user) -> bool:
 def moderation_capabilities(user) -> dict[str, bool]:
     return {
         "accounts": can_review_accounts(user),
-        "posts": can_access_post_admin(user),
+        "posts": can_review_posts_in_admin(user),
         "comments": can_access_comment_admin(user),
         "boards": can_access_board_admin(user),
     }

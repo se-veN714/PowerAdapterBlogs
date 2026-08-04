@@ -32,6 +32,10 @@ from .cus_site import custom_site
 urlpatterns = [
     path("super_admin/", admin.site.urls, name="super_admin"),
     # dashboard
+    path(
+        "dashboard/memberships/",
+        include("boards.dashboard_urls"),
+    ),
     path("dashboard/", custom_site.urls, name="dashboard"),
     # dal
     path(
@@ -62,6 +66,10 @@ urlpatterns = [
     path("accounts/", include(("accounts.urls", "accounts"), namespace="accounts")),
     path("boards/", include(("boards.urls", "boards"), namespace="boards")),
     path("review/", include(("moderation.urls", "moderation"), namespace="moderation")),
+    path(
+        "operations/",
+        include(("operations.urls", "operations"), namespace="operations"),
+    ),
 ]
 
 if settings.DEBUG:

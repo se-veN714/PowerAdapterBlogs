@@ -10,16 +10,30 @@
 本模块提供了自定义dashboard功能的类和函数。
 """
 
+from urllib.parse import urlencode
+
+from django.conf import settings
 from django.contrib.admin import AdminSite
 from django.contrib.admin.forms import AdminAuthenticationForm
 from django.contrib.auth import REDIRECT_FIELD_NAME
-from django.core.exceptions import ValidationError
-from django.urls import reverse
-from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.db.models.base import ModelBase
 from django.shortcuts import redirect
-from urllib.parse import urlencode
+from django.urls import reverse
 
 from PowerAdapterBlogs.base_admin import has_dashboard_access
+
+
+DASHBOARD_MODEL_ALLOWLIST = frozenset(
+    {
+        "admin.logentry",
+        "blogs.category",
+        "blogs.post",
+        "blogs.postrevision",
+        "blogs.postworkflowevent",
+        "blogs.tag",
+    }
+)
 
 
 class DashboardAuthenticationForm(AdminAuthenticationForm):
@@ -44,6 +58,25 @@ class CustomSite(AdminSite):
     site_title = "PowerAdapterBlogs 管理后台"
     index_title = "首页"
     login_form = DashboardAuthenticationForm
+
+    def register(self, model_or_iterable, admin_class=None, **options):
+        """Reject accidental expansion of the reduced-superuser dashboard."""
+        models = (
+            (model_or_iterable,)
+            if isinstance(model_or_iterable, ModelBase)
+            else tuple(model_or_iterable)
+        )
+        unexpected = sorted(
+            model._meta.label_lower.lower()
+            for model in models
+            if model._meta.label_lower.lower() not in DASHBOARD_MODEL_ALLOWLIST
+        )
+        if unexpected:
+            raise ImproperlyConfigured(
+                "Models are not approved for /dashboard/: "
+                + ", ".join(unexpected)
+            )
+        return super().register(model_or_iterable, admin_class, **options)
 
     def login(self, request, extra_context=None):
         """Default a direct dashboard login to this AdminSite's index."""

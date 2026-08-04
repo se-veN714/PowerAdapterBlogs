@@ -175,6 +175,7 @@
             width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%;
             background: var(--accent-primary); box-shadow: 0 0 6px var(--fragment-highlight);
         }
+        .nav .nav-primary-action { color: var(--accent); }
         .btn-ghost {
             background: transparent; color: var(--text-muted);
             border: 1px solid var(--border); padding: 0.4rem 0.85rem;
@@ -352,22 +353,25 @@
             <a href="{% url 'links' %}" class="{% if '/links' in request.path %}active{% endif %}">Links</a>
             <div class="nav-buttons">
                 {% if user.is_authenticated %}
+                    {% if can_create_board_post %}<a href="{% url 'Blogs:post_create' %}" class="btn-accent nav-primary-action">新文章</a>{% endif %}
                     <details class="nav-menu">
                         <summary class="btn-ghost">功能</summary>
                         <div class="nav-menu-panel">
                             <div class="nav-menu-grid">
-                            {% if can_create_board_post or can_access_moderation_center %}
+                            {% if can_access_moderation_center %}
                             <section class="nav-menu-group">
                                 <p class="nav-menu-label">创作与审核</p>
-                                {% if can_create_board_post %}<a href="{% url 'Blogs:post_create' %}">新文章</a>{% endif %}
                                 {% if can_access_moderation_center %}<a href="{% url 'moderation:hub' %}">审核中心</a>{% endif %}
                             </section>
                             {% endif %}
-                            {% if can_access_dashboard or user.is_superuser or perms.boards.apply_board_access %}
+                            {% if can_access_dashboard or can_access_security_operations or user.is_superuser or perms.boards.apply_board_access or can_manage_mfa %}
                             <section class="nav-menu-group">
                                 <p class="nav-menu-label">管理与权限</p>
                                 {% if can_access_dashboard %}<a href="{% url 'cus_admin:index' %}">工作台</a>{% endif %}
-                                {% if user.is_superuser %}<a href="{% url 'admin:index' %}">系统后台</a>{% endif %}
+                                {% if can_access_dashboard and perms.boards.manage_all_board_memberships %}<a href="{% url 'board-dashboard:memberships' %}">成员管理</a>{% endif %}
+                                {% if can_access_security_operations %}<a href="{% url 'operations:security' %}">安全运维</a>{% endif %}
+                                {% if can_manage_mfa %}<a href="{% url 'accounts:mfa-settings' %}">动态验证码</a>{% endif %}
+                                {% if super_admin_entry_url %}<a href="{{ super_admin_entry_url }}" target="_blank" rel="noopener">系统后台</a>{% endif %}
                                 {% if perms.boards.apply_board_access %}<a href="{% url 'boards:access-requests' %}">板块权限</a>{% endif %}
                             </section>
                             {% endif %}
@@ -422,12 +426,15 @@
                 </div>
             </details>
             {% endif %}
-            {% if can_access_dashboard or user.is_superuser or perms.boards.apply_board_access %}
+            {% if can_access_dashboard or can_access_security_operations or user.is_superuser or perms.boards.apply_board_access or can_manage_mfa %}
             <details>
                 <summary>管理与权限</summary>
                 <div class="sidebar-submenu">
                     {% if can_access_dashboard %}<a href="{% url 'cus_admin:index' %}">工作台</a>{% endif %}
-                    {% if user.is_superuser %}<a href="{% url 'admin:index' %}">系统后台</a>{% endif %}
+                    {% if can_access_dashboard and perms.boards.manage_all_board_memberships %}<a href="{% url 'board-dashboard:memberships' %}">成员管理</a>{% endif %}
+                    {% if can_access_security_operations %}<a href="{% url 'operations:security' %}">安全运维</a>{% endif %}
+                    {% if can_manage_mfa %}<a href="{% url 'accounts:mfa-settings' %}">动态验证码</a>{% endif %}
+                    {% if super_admin_entry_url %}<a href="{{ super_admin_entry_url }}" target="_blank" rel="noopener">系统后台</a>{% endif %}
                     {% if perms.boards.apply_board_access %}<a href="{% url 'boards:access-requests' %}">板块权限</a>{% endif %}
                 </div>
             </details>

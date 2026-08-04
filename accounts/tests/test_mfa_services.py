@@ -138,6 +138,22 @@ class MfaEnrollmentServiceTest(TestCase):
             start_totp_enrollment(user=ordinary, actor=ordinary)
         self.assertEqual(context.exception.reason, "not_allowed")
 
+    def test_dashboard_user_can_enroll(self):
+        dashboard_user = MyUser.objects.create_user(
+            email="dashboard-mfa@example.test",
+            username="dashboard_mfa",
+            password="test-only-password",
+            is_active=True,
+            is_dashboard_user=True,
+        )
+
+        enrollment = start_totp_enrollment(
+            user=dashboard_user,
+            actor=dashboard_user,
+        )
+
+        self.assertEqual(enrollment.device_id, dashboard_user.mfa_totp_device.pk)
+
     def test_invalid_code_does_not_activate_and_is_hmac_audited(self):
         enrollment = self._start()
         invalid_code = self._invalid_code(enrollment)
@@ -258,12 +274,25 @@ class MfaEnrollmentServiceTest(TestCase):
             )
         self.assertEqual(context.exception.reason, "reset_not_allowed")
 
-        revoked = revoke_totp_device(
-            target_user=self.user,
-            actor=self.user,
-            current_password="test-only-password",
-            reason="test-only-password",
-        )
+        with self.assertRaises(MfaServiceError) as context:
+            revoke_totp_device(
+                target_user=self.user,
+                actor=self.user,
+                current_password="test-only-password",
+            )
+        self.assertEqual(context.exception.reason, "invalid_code")
+
+        with patch(
+            "accounts.authn.mfa_services._matching_step",
+            return_value=device.last_accepted_step + 1,
+        ):
+            revoked = revoke_totp_device(
+                target_user=self.user,
+                actor=self.user,
+                current_password="test-only-password",
+                totp_code="123456",
+                reason="test-only-password",
+            )
         self.assertEqual(revoked.status, MfaTotpDevice.Status.REVOKED)
         self.assertEqual(revoked.auth_version, original_version + 1)
         self.assertNotEqual(bytes(revoked.secret_ciphertext), original_ciphertext)

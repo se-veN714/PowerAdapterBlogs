@@ -79,8 +79,6 @@ class MyUserAdmin(UserAdmin):
     def get_readonly_fields(self, request, obj=None):
         """
         权限颗粒化：非 superuser 仅可编辑 is_active（用户启停）。
-
-        遗留 is_reviewer 在 Stage 7 观察期不再展示或分配。
         """
         if request.user.is_superuser:
             return self.readonly_fields
@@ -115,7 +113,7 @@ class MyUserAdmin(UserAdmin):
         """
         非 superuser 修改用户时，禁止修改 M2M 关系（groups、user_permissions）。
 
-        MyUser.save() 保护了标量字段（含 is_reviewer），
+        MyUser.save() 保护了敏感标量字段，
         但 M2M 在 save() 之后才提交，需要在此处拦截。
         """
         if not request.user.is_superuser and change:

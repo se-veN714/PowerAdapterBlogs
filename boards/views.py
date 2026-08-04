@@ -4,12 +4,14 @@
 """
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import F
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.views.decorators.http import require_POST
 from django.views.generic import FormView, ListView, TemplateView
 
 from PowerAdapterBlogs.base_admin import has_dashboard_access
@@ -21,12 +23,18 @@ from accounts.services import (
 )
 from boards.board_index import ASSEMBLERS, BOARD_TEMPLATES, prepare_skate_clips
 from boards.forms import BoardAccessRequestForm
-from boards.models import Board, BoardAccessRequest, SkateClip, SkateHomie
+from boards.models import (
+    Board,
+    BoardAccessRequest,
+    BoardMembership,
+    SkateClip,
+    SkateHomie,
+)
 from boards.policies import (
     can_access_post_admin,
     can_create_post_in_any_board,
 )
-from boards.services import submit_board_access_request
+from boards.services import submit_board_access_request, withdraw_board_membership
 
 
 class BoardAccessRequestView(
@@ -47,6 +55,11 @@ class BoardAccessRequestView(
         context["access_requests"] = BoardAccessRequest.objects.filter(
             applicant=self.request.user
         ).select_related("board", "reviewed_by")
+        context["active_memberships"] = BoardMembership.objects.filter(
+            user=self.request.user,
+            is_active=True,
+            board__is_active=True,
+        ).select_related("board").order_by("board__sort_order", "board__name")
         context["show_submission_dialog"] = self.request.session.pop(
             "board_access_request_submitted",
             False,
@@ -87,6 +100,33 @@ class BoardAccessRequestView(
         self.request.session["board_access_request_submitted"] = True
         messages.success(self.request, "板块权限申请已提交。")
         return super().form_valid(form)
+
+
+@login_required
+@require_POST
+def withdraw_membership(request, pk):
+    """Consume a short email grant and deactivate the caller's Membership."""
+    if not email_verification_is_verified(request, EMAIL_PURPOSE_BOARD_ACCESS):
+        messages.info(request, "退出板块前，请先完成账号邮箱验证。")
+        return redirect("accounts:board-access-email-verify")
+    membership = get_object_or_404(
+        BoardMembership,
+        pk=pk,
+        user=request.user,
+    )
+    try:
+        withdrawn = withdraw_board_membership(
+            membership=membership,
+            actor=request.user,
+        )
+    except PermissionDenied as exc:
+        messages.error(request, str(exc))
+    except ValidationError as exc:
+        messages.warning(request, exc.messages[0])
+    else:
+        clear_email_verification(request, EMAIL_PURPOSE_BOARD_ACCESS)
+        messages.success(request, f"已退出 {withdrawn.board.name} 板块。")
+    return redirect("boards:access-requests")
 
 
 class BoardIndexView(TemplateView):

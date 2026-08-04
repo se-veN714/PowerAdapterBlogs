@@ -35,6 +35,7 @@ from .forms import (
     LoginForm,
     MfaRecoveryForm,
     MfaRevokeForm,
+    MfaChallengeTotpForm,
     PasswordEmailVerificationForm,
     TotpCodeForm,
     UserProfileForm,
@@ -71,6 +72,7 @@ from .services import (
     PASSWORD_CODE_SENT,
     PASSWORD_CODE_VERIFIED,
     EMAIL_PURPOSE_BOARD_ACCESS,
+    EMAIL_PURPOSE_MFA_ENROLLMENT,
     EMAIL_PURPOSE_PASSWORD_CHANGE,
     accept_account_invitation,
     clear_email_verification,
@@ -406,6 +408,7 @@ class AccountEmailVerificationView(LoginRequiredMixin, FormView):
         if self.purpose not in {
             EMAIL_PURPOSE_PASSWORD_CHANGE,
             EMAIL_PURPOSE_BOARD_ACCESS,
+            EMAIL_PURPOSE_MFA_ENROLLMENT,
         }:
             raise Http404("未知的邮箱验证用途")
         return self.purpose
@@ -535,6 +538,18 @@ class BoardAccessEmailVerificationView(AccountEmailVerificationView):
     required_permission = "boards.apply_board_access"
 
 
+class MfaEnrollmentEmailVerificationView(AccountEmailVerificationView):
+    """首次或撤销后的 TOTP 绑定前确认账号邮箱控制权。"""
+
+    purpose = EMAIL_PURPOSE_MFA_ENROLLMENT
+    verification_url_name = "accounts:mfa-enrollment-email-verify"
+    success_url_name = "accounts:mfa-settings"
+    cancel_url_name = "accounts:my-profile"
+    challenge_title = "确认动态验证码绑定"
+    challenge_intro = "验证通过后可在 10 分钟内开始或继续绑定 Authenticator。"
+    terminal_command = "verify mailbox --purpose mfa-enrollment"
+
+
 class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
     """邮箱验证后使用 Django 密码策略改密，并保持当前登录会话。"""
 
@@ -567,13 +582,25 @@ class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
 
 
 @method_decorator(never_cache, name="dispatch")
-@method_decorator(sensitive_post_parameters("current_password"), name="dispatch")
+@method_decorator(
+    sensitive_post_parameters("current_password", "code"),
+    name="dispatch",
+)
 class MfaSettingsView(LoginRequiredMixin, View):
     template_name = "pages/accounts/mfa_settings.html"
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated and not mfa_required_for_user(request.user):
             raise Http404("动态验证码设置不可用")
+        if request.user.is_authenticated:
+            device = MfaTotpDevice.objects.filter(user=request.user).first()
+            needs_email = device is None or device.status != MfaTotpDevice.Status.ACTIVE
+            if needs_email and not email_verification_is_verified(
+                request,
+                EMAIL_PURPOSE_MFA_ENROLLMENT,
+            ):
+                messages.info(request, "首次绑定或设备撤销后，请先验证账号邮箱。")
+                return redirect("accounts:mfa-enrollment-email-verify")
         return super().dispatch(request, *args, **kwargs)
 
     def _context(self, **extra):
@@ -629,10 +656,16 @@ class MfaSettingsView(LoginRequiredMixin, View):
                     target_user=request.user,
                     actor=request.user,
                     current_password=form.cleaned_data["current_password"],
+                    totp_code=form.cleaned_data["code"],
                     reason="self_reset",
                 )
-            except MfaServiceError:
-                form.add_error("current_password", "密码不正确或设备不可撤销。")
+            except MfaServiceError as exc:
+                field = (
+                    "current_password"
+                    if exc.reason == "reset_not_allowed"
+                    else "code"
+                )
+                form.add_error(field, "密码或动态验证码不正确，设备未撤销。")
                 return render(
                     request,
                     self.template_name,
@@ -640,6 +673,7 @@ class MfaSettingsView(LoginRequiredMixin, View):
                     status=400,
                 )
             messages.success(request, "动态验证码设备已撤销，旧种子和恢复码均已销毁。")
+            clear_email_verification(request, EMAIL_PURPOSE_MFA_ENROLLMENT)
             return redirect("accounts:mfa-settings")
         raise Http404("未知的动态验证码操作")
 
@@ -649,6 +683,15 @@ class MfaSettingsView(LoginRequiredMixin, View):
 class MfaConfirmEnrollmentView(LoginRequiredMixin, FormView):
     form_class = TotpCodeForm
     template_name = "pages/accounts/mfa_settings.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and not email_verification_is_verified(
+            request,
+            EMAIL_PURPOSE_MFA_ENROLLMENT,
+        ):
+            messages.info(request, "确认绑定前，请先完成账号邮箱验证。")
+            return redirect("accounts:mfa-enrollment-email-verify")
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
         try:
@@ -662,6 +705,7 @@ class MfaConfirmEnrollmentView(LoginRequiredMixin, FormView):
             return self.form_invalid(form)
         device = MfaTotpDevice.objects.get(pk=confirmation.device_id)
         mark_privileged_session(self.request, device)
+        clear_email_verification(self.request, EMAIL_PURPOSE_MFA_ENROLLMENT)
         return render(
             self.request,
             "pages/accounts/mfa_recovery_codes.html",
@@ -711,6 +755,17 @@ class MfaChallengeView(View):
             return False
         return binding
 
+    @staticmethod
+    def _can_remember_dashboard(challenge):
+        return (
+            challenge.certificate_binding_id is None
+            and challenge.target.startswith("/dashboard/")
+            and (
+                challenge.user.is_dashboard_user
+                or challenge.user.is_superuser
+            )
+        )
+
     def get(self, request):
         challenge = self._challenge()
         if challenge is None:
@@ -721,7 +776,11 @@ class MfaChallengeView(View):
         return render(
             request,
             self.template_name,
-            {"totp_form": TotpCodeForm(), "recovery_form": MfaRecoveryForm()},
+            {
+                "totp_form": MfaChallengeTotpForm(),
+                "recovery_form": MfaRecoveryForm(),
+                "can_remember_dashboard": self._can_remember_dashboard(challenge),
+            },
         )
 
     def post(self, request):
@@ -736,9 +795,12 @@ class MfaChallengeView(View):
                 request,
                 self.template_name,
                 {
-                    "totp_form": TotpCodeForm(),
+                    "totp_form": MfaChallengeTotpForm(),
                     "recovery_form": MfaRecoveryForm(),
                     "locked": True,
+                    "can_remember_dashboard": self._can_remember_dashboard(
+                        challenge
+                    ),
                 },
                 status=429,
             )
@@ -766,16 +828,19 @@ class MfaChallengeView(View):
                 request,
                 self.template_name,
                 {
-                    "totp_form": TotpCodeForm(),
+                    "totp_form": MfaChallengeTotpForm(),
                     "recovery_form": recovery_form,
                     "locked": attempts >= settings.MFA_CHALLENGE_MAX_ATTEMPTS,
+                    "can_remember_dashboard": self._can_remember_dashboard(
+                        challenge
+                    ),
                 },
                 status=(
                     429 if attempts >= settings.MFA_CHALLENGE_MAX_ATTEMPTS else 400
                 ),
             )
 
-        totp_form = TotpCodeForm(request.POST)
+        totp_form = MfaChallengeTotpForm(request.POST)
         if totp_form.is_valid():
             try:
                 device = verify_active_totp(
@@ -792,6 +857,11 @@ class MfaChallengeView(View):
                     request,
                     device,
                     certificate_binding=certificate_binding,
+                    remember_dashboard=(
+                        totp_form.cleaned_data["remember_dashboard"]
+                        if self._can_remember_dashboard(challenge)
+                        else None
+                    ),
                 )
                 clear_challenge_failures(request, challenge.user.pk)
                 return redirect(challenge.target)
@@ -805,6 +875,7 @@ class MfaChallengeView(View):
                 "totp_form": totp_form,
                 "recovery_form": MfaRecoveryForm(),
                 "locked": attempts >= settings.MFA_CHALLENGE_MAX_ATTEMPTS,
+                "can_remember_dashboard": self._can_remember_dashboard(challenge),
             },
             status=429 if attempts >= settings.MFA_CHALLENGE_MAX_ATTEMPTS else 400,
         )

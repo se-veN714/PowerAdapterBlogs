@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "accounts",
     "boards.apps.BoardsConfig",
     "moderation.apps.ModerationConfig",
+    "operations.apps.OperationsConfig",
 ]
 
 MIDDLEWARE = [
@@ -81,6 +82,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.PrivilegedSingleSessionMiddleware",
     "accounts.middleware.MtlsAdminMiddleware",
     "accounts.middleware.MfaPrivilegeMiddleware",
     "accounts.middleware.RequestUserMiddleware",
@@ -109,6 +111,8 @@ TEMPLATES = [
                 "django.template.context_processors.static",
                 "boards.views.boards_context",
                 "config.context_processors.public_site_metadata",
+                "accounts.context_processors.account_security_navigation",
+                "operations.context_processors.operations_context",
             ],
         },
     },
@@ -391,6 +395,9 @@ MFA_CHALLENGE_TTL_SECONDS = 5 * 60
 MFA_CHALLENGE_MAX_ATTEMPTS = 5
 MFA_CHALLENGE_COOLDOWN_SECONDS = 15 * 60
 MFA_PRIVILEGED_SESSION_TTL_SECONDS = 15 * 60
+MFA_SUPER_ADMIN_IDLE_TTL_SECONDS = 5 * 60
+MFA_DASHBOARD_REMEMBER_TTL_SECONDS = 7 * 24 * 60 * 60
+MEMBERSHIP_STEP_UP_TTL_SECONDS = 5 * 60
 
 # H3 TLS 1.3 mTLS application boundary. Nginx must clear and replace every
 # X-PA-* header. Production readiness accepts only the standard-tls profile;
@@ -413,6 +420,7 @@ MTLS_TRUST_UNIX_SOCKET_PROXY = os.getenv(
 ).lower() in {"1", "true", "yes"}
 MTLS_PROXY_AUTH_SECRET = os.getenv("MTLS_PROXY_AUTH_SECRET", "")
 MTLS_CERTIFICATE_PROFILE = os.getenv("MTLS_CERTIFICATE_PROFILE", "")
+SUPER_ADMIN_EXTERNAL_URL = os.getenv("SUPER_ADMIN_EXTERNAL_URL", "")
 
 MONGO = {
     "HOST": os.getenv("MONGO_HOST", "localhost"),

@@ -5,7 +5,7 @@
 > **职责**: Django Admin 日志 HMAC 完整性保护 + MongoDB 审计日志  
 > **依赖**: PyPI `gmssl==3.2.2`（仅 SM3-HMAC）, `pymongo` (MongoDB), Django `LogEntry`
 > **创建**: 2026-06-21  
-> **最后更新**: 2026-07-27 — Stage 6a 接入 SiteOperators 最小审计权限
+> **最后更新**: 2026-08-02 — SiteOperators 审计能力迁移到独立 `/operations/security/`
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-02 | v2.4 | 新增 `/operations/security/` 只读安全运维页；SiteOperators 不再进入 Dashboard，选中核验在事务内锁定且单次最多 100 条，核验动作本身写入 HMAC 审计事件 |
 | 2026-07-27 | v2.3 | `SiteOperators` 获得查看与运行完整性审计的精确 Permission；普通 dashboard 用户不再默认看到全站审计 |
 | 2026-07-19 | v2.2 | **完整性误报热修**：规范签名载荷；初始化改为只补缺；历史记录仅按可验证旧算法安全升级；8 个回归测试通过 |
 | 2026-07-12 | v2.1 | **审计链收口**: 删除已迁往 MongoDB 的 ORM CommentEventLog；CommentAdmin action 统一调用 moderate_comment；补日志防篡改和审核写入测试 |

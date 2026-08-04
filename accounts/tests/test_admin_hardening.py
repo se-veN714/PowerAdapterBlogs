@@ -1,10 +1,12 @@
 """H0 regression tests for privileged administration entry points."""
 
 from django.contrib import admin
-from django.test import TestCase
+from django.core.exceptions import ImproperlyConfigured
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from PowerAdapterBlogs.admin_site import SuperuserAdminSite
+from PowerAdapterBlogs.cus_site import DASHBOARD_MODEL_ALLOWLIST, custom_site
 from accounts.models import MyUser
 
 
@@ -54,6 +56,19 @@ class PrivilegedAdminEntryBoundaryTest(TestCase):
     def test_default_admin_uses_superuser_only_site(self):
         self.assertIsInstance(admin.site, SuperuserAdminSite)
 
+    def test_dashboard_registry_matches_explicit_model_allowlist(self):
+        registered_labels = {
+            model._meta.label_lower.lower() for model in custom_site._registry
+        }
+        self.assertEqual(registered_labels, DASHBOARD_MODEL_ALLOWLIST)
+
+    def test_dashboard_rejects_unapproved_model_registration(self):
+        with self.assertRaisesMessage(
+            ImproperlyConfigured,
+            "Models are not approved for /dashboard/: accounts.myuser",
+        ):
+            custom_site.register(MyUser)
+
     def test_anonymous_user_is_redirected_to_each_matching_login(self):
         cases = (
             (reverse("admin:index"), reverse("admin:login")),
@@ -96,6 +111,31 @@ class PrivilegedAdminEntryBoundaryTest(TestCase):
     def test_active_superuser_can_enter_system_admin(self):
         self.client.force_login(self.superuser)
         self.assertEqual(self.client.get(reverse("admin:index")).status_code, 200)
+
+    def test_newest_superuser_login_invalidates_older_browser_session(self):
+        chrome = Client()
+        edge = Client()
+        chrome.force_login(self.superuser)
+        self.assertEqual(chrome.get(reverse("admin:index")).status_code, 200)
+
+        edge.force_login(self.superuser)
+        self.assertEqual(edge.get(reverse("admin:index")).status_code, 200)
+        retired = chrome.get(reverse("admin:index"))
+
+        self.assertEqual(retired.status_code, 302)
+        self.assertTrue(retired.url.startswith(reverse("accounts:login")))
+        self.assertNotIn("_auth_user_id", chrome.session)
+
+    def test_regular_user_sessions_remain_multi_device(self):
+        first = Client()
+        second = Client()
+        first.force_login(self.regular_user)
+        second.force_login(self.regular_user)
+
+        self.assertEqual(first.get(reverse("index")).status_code, 200)
+        self.assertEqual(second.get(reverse("index")).status_code, 200)
+        self.assertIn("_auth_user_id", first.session)
+        self.assertIn("_auth_user_id", second.session)
 
     def test_inactive_superuser_cannot_enter_either_admin_site(self):
         cases = (

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action_title }} · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}{% include "pages/dashboard/_styles.html" %}{% endblock %}
+
+{% block content %}
+<section class="membership-shell">
+    <div class="container">
+        <p class="membership-kicker">Dashboard / Step-up Authorization</p>
+        <h1 class="membership-heading">{{ action_title }}</h1>
+        <div class="membership-panel">
+            {% if membership %}
+            <div class="membership-target">
+                <strong>{{ membership.user.username }}</strong> · {{ membership.board.name }} · {{ membership.get_role_display }}
+                <small>{% if membership.is_active %}当前启用{% else %}当前停用{% endif %}</small>
+            </div>
+            {% endif %}
+            <p class="membership-warning">{{ warning }}</p>
+
+            <form class="membership-form" method="post" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}<ul class="membership-errors">{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                {% for field in form %}
+                <div class="membership-field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<p class="membership-help">{{ field.help_text }}</p>{% endif %}
+                    {% if field.errors %}<ul class="membership-errors">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                </div>
+                {% endfor %}
+                <p class="membership-help">动态验证码只授权本页这一次、这个对象与这个动作；不能复用于其他成员或其他变更。</p>
+                <div class="membership-confirm">
+                    <button class="membership-action" type="submit">{{ submit_label }}</button>
+                    <a class="membership-action subtle" href="{% url 'board-dashboard:memberships' %}">取消并返回</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

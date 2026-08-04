@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Membership 事件历史 · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}{% include "pages/dashboard/_styles.html" %}{% endblock %}
+
+{% block content %}
+<section class="membership-shell">
+    <div class="container">
+        <p class="membership-kicker">Dashboard / Immutable Event Timeline</p>
+        <h1 class="membership-heading">{% if membership %}{{ membership.user.username }} 的成员历史{% else %}Membership 事件历史{% endif %}</h1>
+        <p class="membership-intro">关系型事件是 Membership 生命周期的可靠业务历史；即使关联账号或 Board 以后删除，快照字段仍保留当时语义。</p>
+
+        <div class="membership-toolbar">
+            <div class="membership-stats">
+                <div class="membership-stat"><strong>{{ paginator.count }}</strong><span>当前事件</span></div>
+                {% if membership %}<div class="membership-stat"><strong>{{ membership.get_role_display }}</strong><span>{% if membership.is_active %}当前启用{% else %}当前停用{% endif %}</span></div>{% endif %}
+            </div>
+            <a class="membership-action subtle" href="{% url 'board-dashboard:memberships' %}">← 返回成员管理</a>
+        </div>
+
+        <form class="membership-filters" method="get" role="search">
+            <input type="search" name="q" value="{{ selected_q }}" placeholder="搜索成员、操作者或原因" aria-label="搜索事件">
+            <input type="text" name="board" value="{{ selected_board }}" placeholder="Board slug" aria-label="筛选板块标识">
+            <select name="event_type" aria-label="筛选事件类型">
+                <option value="">全部事件</option>
+                {% for value, label in event_type_choices %}<option value="{{ value }}" {% if selected_event_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <select name="source" aria-label="筛选来源">
+                <option value="">全部来源</option>
+                {% for value, label in source_choices %}<option value="{{ value }}" {% if selected_source == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <button class="membership-action subtle" type="submit">筛选</button>
+        </form>
+
+        <div class="membership-event-list">
+            {% for event in events %}
+            <article class="membership-event">
+                <span class="membership-event-node" aria-hidden="true"></span>
+                <div class="membership-event-card">
+                    <header class="membership-event-head">
+                        <div class="membership-event-title">
+                            <strong>#{{ event.pk }} · {{ event.get_event_type_display }}</strong>
+                            <span class="membership-badge">{{ event.get_source_display }}</span>
+                        </div>
+                        <time datetime="{{ event.created_at|date:'c' }}">{{ event.created_at|date:"Y-m-d H:i:s" }}</time>
+                    </header>
+                    <div class="membership-event-meta">
+                        <span><small>Board</small>{{ event.board_slug_snapshot }} · #{{ event.board_id_snapshot }}</span>
+                        <span><small>Member</small>{{ event.username_snapshot }} · #{{ event.user_id_snapshot }}</span>
+                        <span><small>Actor</small>{{ event.actor_username_snapshot|default:"SYSTEM" }}{% if event.actor_id_snapshot %} · #{{ event.actor_id_snapshot }}{% endif %}</span>
+                        <span><small>Role</small>{{ event.get_previous_role_display|default:"∅" }} → {{ event.get_new_role_display|default:"∅" }}</span>
+                        <span><small>Active</small>{{ event.previous_is_active|yesno:"YES,NO,∅" }} → {{ event.new_is_active|yesno:"YES,NO" }}</span>
+                        <span><small>Request</small>{% if event.access_request_id %}#{{ event.access_request_id }}{% else %}—{% endif %}</span>
+                    </div>
+                    <p class="membership-event-reason">{{ event.reason|default:"未填写原因" }}</p>
+                </div>
+            </article>
+            {% empty %}
+            <p class="membership-empty">没有符合条件的 Membership 事件。</p>
+            {% endfor %}
+        </div>
+
+        {% if is_paginated %}
+        <nav class="membership-pagination" aria-label="事件分页">
+            {% if page_obj.has_previous %}<a class="membership-action subtle" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">上一页</a>{% endif %}
+            <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+            {% if page_obj.has_next %}<a class="membership-action subtle" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.next_page_number }}">下一页</a>{% endif %}
+        </nav>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

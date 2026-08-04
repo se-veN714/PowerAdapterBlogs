@@ -2,6 +2,61 @@
 
 > **文档权重**：60（历史变更记录；不覆盖当前架构文档）
 
+## [2026-08-04]
+
+### accounts_linear Stage 8 完成
+
+- 全局审计确认运行时授权、审核入口、MFA 与 Board Policy 均不再读取遗留 `MyUser.is_reviewer`；删除模型字段与敏感字段兼容保护。
+- 新增 `0011_remove_myuser_is_reviewer` schema migration，保留历史 `0002` 以支持旧数据库顺序升级；回归测试改为固定当前模型不再暴露该字段。
+- 高权重文档将 Stage 0–8 标记为完成；Reviewer/Manager 的唯一业务事实来源为 `BoardMembership.role`，`is_dashboard_user` 继续只表达 Dashboard 外壳入口。
+- 提交前 Ruff、迁移漂移与 Django system check 通过；全量 314 项测试通过，1 项 PostgreSQL 专属并发测试在 SQLite 下按设计跳过。
+
+### Super Admin 与 Dashboard 特权会话收敛
+
+- 本地开发统一以 `python run.py` 作为安全启动入口：默认加载本地 MFA keyring、启用 mTLS/MFA 强制并启动 Nginx；首次绑定使用 `--enrollment-mode`，显式降级调试使用 `--plain`。
+- `/super_admin/` 维持每次 TLS 连接的客户端证书认证，并采用 15 分钟绝对有效期、5 分钟空闲超时和浏览器会话 Cookie；不尝试不可靠的“关闭单个标签页即失效”。
+- Dashboard 的可选 7 天可信会话与 Super Admin 完全隔离；成员管理允许该可信会话进入，但所有写操作仍需当前 TOTP 换取一次性、绑定动作与目标的 capability。
+- 更新 `V2GUIDE.md`、安全路线图、权限指南和开发说明，清理已完成却仍标为待办的阶段描述；生产证书吊销与 PostgreSQL 并发验收继续保留为未完成项。
+
+## [2026-08-03]
+
+### BoardMembership 生命周期 M3
+
+- 新增 `/dashboard/memberships/events/` 与单 Membership 不可变事件时间线，支持按成员/操作者/原因、Board、事件类型及来源筛选，并使用快照展示已删除关联对象的历史语义。
+- 将 Manager 连续性约束下沉到统一状态内核：最后一名 Manager 既不能停用，也不能通过角色调整或其他普通入口降级；Manager 交接仍在同一事务中先建立接替者。
+- `/super_admin/` 的 Membership 默认 CRUD 永久只读；新增唯一 break-glass URL，仅在 MFA/mTLS 强制同时开启、证书与 privileged Session 匹配、重新验证 TOTP、精确确认目标且确为最后 Manager 时允许停用。
+- M3 定向回归 56 项通过；PostgreSQL 双 Manager 并发停用测试已加入，当前 SQLite 因不支持 `select_for_update()` 明确跳过；Ruff 检查通过。
+
+### BoardMembership 生命周期 M2
+
+- 新增 Devenir `/dashboard/memberships/`：支持搜索/筛选、直接授予、角色调整、停用、恢复及 Manager 原子交接；Django 默认 Membership CRUD 与批量写继续关闭。
+- 新增独立 `boards.manage_all_board_memberships` Permission；入口要求 dashboard 身份和有效 privileged Session，每次写操作再校验新鲜 TOTP，capability 绑定用户、Session、动作与目标并只能消费一次。
+- pending 申请冲突、非法状态、inactive 目标、superuser Membership 与最后一名 Manager 停用均 fail closed；所有成功动作写入关系型事件并在提交后镜像 Mongo HMAC。
+- 修正 dashboard 用户无法绑定 TOTP 的资格矛盾；39 项既有 Membership/申请回归、22 项 M2/MFA 定向测试、迁移漂移与 Ruff 检查通过。事件详情和全验证 super_admin break-glass 留待 M3。
+
+### BoardMembership 生命周期 M1
+
+- 新增 append-only `BoardMembershipEvent`、Membership `updated_at` 和迁移；事件保存角色/active 前后状态、来源、原因、关联申请及 Board/User/actor 快照。
+- 申请批准与成员自助退出改用统一事务状态内核；Membership 和关系型事件同事务提交，pending 冲突、空操作及 inactive 目标 fail closed，提交后再镜像 Mongo HMAC。
+- super_admin 增加事件只读观察入口，默认 Membership CRUD 仍关闭；当时 Devenir Dashboard、独立 Permission、TOTP step-up 与全验证 break-glass 留待后续阶段。
+- 39 项 Membership/申请定向测试、迁移漂移检查与 Ruff 静态检查通过。
+
+### Stage 7 手工验收修正
+
+- superuser 与显式 `dashboard_user` 纳入最新登录唯一策略；新浏览器成功登录后，旧浏览器 Session 在下一请求失效，普通账号仍允许多设备使用。
+- 板块权限申请页增加当前有效 Membership；安全运维页增加本页全选与清除；顶部导航恢复常驻“新文章”主按钮。
+- `/review/` 改用 Reviewer/Manager 审核能力判定，VerifiedUsers 与 Contributor 不再因投稿能力进入审核中心。
+- 板块权限页补齐成员退出闭环：短时邮箱验证后停用本人非 Manager Membership，保留审批历史并记录 Mongo+HMAC 审计；Manager 与存在待审核申请的成员不能自助退出。
+
+## [2026-08-02]
+
+### SiteOperators 独立安全运维入口
+
+- 新增 `/operations/security/`，按查看与运行审计两个 Permission 分离授权，SiteOperators 不再进入 `/dashboard/`。
+- 页面只读展示日志完整性状态、筛选和分页；单次核验限制在选中记录，服务层事务加锁并记录新的 HMAC 审计事件。
+- SecureLogEntry 从自定义 Dashboard 移除；修改、补签和删除仍不向 SiteOperators 开放。
+- `/dashboard/` 新增模型注册 fail-fast 白名单；Group Permission、`is_staff` 与 Board Manager Membership 即使叠加，也不能获得工作台外壳入口。
+
 ## [2026-07-29]
 
 ### Stage 7 审核入口收敛

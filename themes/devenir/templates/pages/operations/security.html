@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}安全运维 | PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}{% include "pages/operations/_styles.html" %}{% endblock %}
+{% block content %}
+<main class="ops-shell">
+    <p class="ops-kicker">OPERATIONS / LOG INTEGRITY</p>
+    <h1 class="ops-title">安全运维</h1>
+    <p class="ops-lead">只读查看 Django 审计日志的 SM3-HMAC 完整性状态。核验操作只更新验证结果，不提供日志修改、补签或删除能力。</p>
+
+    <div class="ops-stats" aria-label="完整性摘要">
+        <div class="ops-stat"><strong>{{ total_count }}</strong><span>TOTAL RECORDS</span></div>
+        <div class="ops-stat"><strong>{{ tampered_count }}</strong><span>TAMPERED</span></div>
+        <div class="ops-stat"><strong>{{ unverified_count }}</strong><span>NOT VERIFIED</span></div>
+    </div>
+
+    <form class="ops-filter" method="get">
+        <input name="q" value="{{ filters.q }}" placeholder="搜索账号、对象或变更信息">
+        <select name="status">
+            <option value="">全部状态</option>
+            <option value="intact" {% if filters.status == 'intact' %}selected{% endif %}>当前未标记异常</option>
+            <option value="tampered" {% if filters.status == 'tampered' %}selected{% endif %}>已发现异常</option>
+        </select>
+        <button class="btn-ghost" type="submit">筛选</button>
+    </form>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="status" value="{{ filters.status }}">
+        <input type="hidden" name="q" value="{{ filters.q }}">
+        <div class="ops-toolbar">
+            <p class="ops-lead">每次最多核验当前页面的 25 条记录。</p>
+            {% if can_run_integrity_audit %}
+            <div class="ops-selection-actions">
+                <button class="btn-ghost" type="button" data-select-page>全选本页</button>
+                <button class="btn-ghost" type="button" data-clear-page>清除选择</button>
+                <button class="btn-ghost" type="submit">核验选中记录</button>
+            </div>
+            {% endif %}
+        </div>
+        <div class="ops-table-wrap">
+            <table class="ops-table">
+                <thead><tr><th>选择</th><th>状态</th><th>操作人 / 时间</th><th>对象</th><th>变更</th><th>最近核验</th></tr></thead>
+                <tbody>
+                {% for entry in audit_entries %}
+                    <tr>
+                        <td>{% if can_run_integrity_audit %}<input type="checkbox" name="entry_ids" value="{{ entry.pk }}" aria-label="选择审计记录 {{ entry.pk }}">{% else %}—{% endif %}</td>
+                        <td><span class="ops-status {% if entry.is_tampered %}tampered{% endif %}">{% if entry.is_tampered %}异常{% elif entry.last_verified_at %}已核验{% else %}未核验{% endif %}</span></td>
+                        <td>{{ entry.log_entry.user.username }}<br>{{ entry.log_entry.action_time|date:"Y-m-d H:i:s" }}</td>
+                        <td class="ops-object">{{ entry.log_entry.object_repr }}</td>
+                        <td class="ops-message">{{ entry.log_entry.change_message|truncatechars:180 }}</td>
+                        <td>{{ entry.last_verified_at|date:"Y-m-d H:i:s"|default:"尚未核验" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">当前筛选条件下没有审计记录。</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+
+    {% if is_paginated %}<nav class="ops-pagination" aria-label="分页">{% if page_obj.has_previous %}<a class="btn-ghost" href="?page={{ page_obj.previous_page_number }}&q={{ filters.q|urlencode }}&status={{ filters.status|urlencode }}">上一页</a>{% endif %}<span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="btn-ghost" href="?page={{ page_obj.next_page_number }}&q={{ filters.q|urlencode }}&status={{ filters.status|urlencode }}">下一页</a>{% endif %}</nav>{% endif %}
+</main>
+{% if can_run_integrity_audit %}
+<script>
+    (() => {
+        const entries = Array.from(document.querySelectorAll('input[name="entry_ids"]'));
+        const setEntries = (checked) => entries.forEach((entry) => { entry.checked = checked; });
+        document.querySelector('[data-select-page]')?.addEventListener('click', () => setEntries(true));
+        document.querySelector('[data-clear-page]')?.addEventListener('click', () => setEntries(false));
+    })();
+</script>
+{% endif %}
+{% endblock %}

@@ -37,6 +37,12 @@ MIDDLEWARE = ['debug_toolbar.middleware.DebugToolbarMiddleware'] + MIDDLEWARE  #
 
 INTERNAL_IPS = ['127.0.0.1']
 
+# 本地 Nginx mTLS 入口终止 TLS 后通过 loopback 转发给 Waitress。
+# 保留外部 HTTPS scheme/Origin，避免管理登录被 CSRF 同源检查拒绝。
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_TRUSTED_ORIGINS = ['https://admin.localhost:8443']
+SUPER_ADMIN_EXTERNAL_URL = 'https://admin.localhost:8443/super_admin/'
+
 # WhiteNoise — 开发环境自动检测静态文件变更，无需 collectstatic
 WHITENOISE_AUTOREFRESH = True
 

@@ -2,8 +2,8 @@
 
 > **文档权重**：88（v2.5+ 安全规划；状态为规划时不得视为已实现）
 > **模块**：`accounts/`、`security/`
-> **状态**：H0–H3 应用代码与自动化验收已完成；MFA/mTLS 生产强制均默认关闭，待真实设备、独立管理 vhost、客户端 CA 和 break-glass 人工演练
-> **日期**：2026-07-28
+> **状态**：H0–H3 应用代码与自动化验收已完成；本地 `run.py` 默认执行完整 MFA/mTLS，生产强制仍默认关闭并等待真实 CA/CRL、恢复和 break-glass 演练
+> **日期**：2026-08-04
 > **版本原则**：复杂安全能力默认进入 v2.5+；若前置测试、运维方案和回滚路径提前成熟，可以前移，但不以赶版本为目标。
 
 ## 1. 目标与边界
@@ -30,7 +30,7 @@
 ### H1 / Stage 6a–6b 完成结果（2026-07-27）
 
 - 固定 `VerifiedUsers`、`UserManagers`、`SiteOperators` 三个全局 Group 及其最小 Permission 集。
-- UserManagers 与 SiteOperators 的 Permission 已接入 dashboard 外壳及各自 Admin 模块；普通 dashboard 旗标不能越权查看全站审计或账号。
+- UserManagers 与 SiteOperators 的 Permission 已分别收敛到 `/review/accounts/` 与 `/operations/security/` 业务路由，不再授予 dashboard 外壳；普通 dashboard 旗标也不能越权查看全站审计或账号。
 - 迁移不根据旧 `is_reviewer` 推断安全运维身份，避免把 Board 审核职责错误升级为全站审计权限。
 - Stage 6b 已通过 `BoardAccessRequest` 审批服务稳定产生 Manager Membership；H2 不再读取旧 `is_reviewer` 推断强制范围。
 
@@ -45,7 +45,9 @@ H2 必须拆成两个可独立回滚的阶段，禁止在首次引入密钥模�
 
 H2a 上线后先保留“可绑定但不强制”的观察窗口。确认至少一个 active superuser 已绑定、恢复码已离线保存且 break-glass 流程经过演练后，才允许开启 H2b。不得把“用户没有设备”自动降级成密码直通，也不得在没有恢复证据时强制唯一管理员启用 MFA。
 
-H2 首期明确强制 active superuser 与任意 active Board Manager。`UserManagers`、`SiteOperators` 同样属于敏感全局职责，是否随 H2b 一并强制是进入 H2b 前的显式决策；旧 `is_dashboard_user` 旗标本身不构成 MFA 身份。推荐最终把两个全局敏感 Group 纳入，但不得在未确认时静默扩大上线范围。
+首次生成 TOTP 绑定材料前必须完成 purpose 隔离、用户 + Session 绑定的账号邮箱挑战；邮件验证仅确认绑定发起者仍控制账号邮箱，不作为登录 MFA 因素，也不能替代首次 TOTP 确认。设备 active 后查看设置不重复要求邮件；设备被撤销或通过恢复流程进入重新绑定状态后，必须重新完成邮箱挑战。active 设备自助撤销要求当前密码与一个通过防重放校验的新鲜 TOTP 同时成立，不能仅凭密码销毁第二因素。
+
+H2 首期明确强制 active superuser、显式 active `is_dashboard_user` 与任意 active Board Manager。`UserManagers`、`SiteOperators` 同样属于敏感全局职责，是否随 H2b 一并强制是进入生产前的显式决策；Group 或 Board Membership 本身仍不能授予 `/dashboard/` 外壳。推荐最终把两个全局敏感 Group 纳入 MFA，但不得在未确认时静默扩大上线范围。
 
 #### H2a 实施切片
 
@@ -56,7 +58,7 @@ H2 首期明确强制 active superuser 与任意 active Board Manager。`UserMan
 | H2a-2 | ✅ | 10 分钟 pending 绑定、Microsoft Authenticator QR、首次 TOTP 确认、一次性 provisioning URI 与过期 seed 擦除 |
 | H2a-3 | ✅ | 10 枚恢复码仅存 password hash、条件更新原子消费、superuser 重置/撤销、`auth_version` 递增与 HMAC 审计 |
 | H2a-UI | ✅ 代码 | 已有 Session 内的绑定/确认、恢复码一次展示、`no-store` 与受限重绑页面；真实手机和 break-glass 仍需人工验收 |
-| H2b | ✅ 代码 | 密码后置 challenge、防重放、5 次/15 分钟共享冷却、恢复受限态、15 分钟 privileged Session 与双后台 middleware |
+| H2b | ✅ 代码 | 密码后置 challenge、防重放、5 次/15 分钟共享冷却、恢复受限态、双后台 middleware；Dashboard 可选当前 Session 7 天信任，super_admin 为 15 分钟绝对/5 分钟闲置上限并使用浏览器会话 Cookie |
 
 #### H3 实施切片
 
@@ -66,18 +68,18 @@ H2 首期明确强制 active superuser 与任意 active Board Manager。`UserMan
 | H3b | ✅ 代码 | 独立管理 Host、可信代理网络或 Unix socket、代理共享认证值、`SUCCESS` 与最小证书 Header 的 fail-closed 契约；伪造 Header、错误 Host/profile/用户/Subject 均拒绝 |
 | H3c | ✅ 代码 | `/super_admin/` 证书 → 密码 → TOTP 串联；privileged Session 绑定同一证书及版本，证书撤销/过期/替换后要求重新认证 |
 | H3d | ✅ 工具骨架 | `deploy/mtls/` 提供仓库外 CA、clientAuth、CRL、轮换、丢失与 break-glass 契约；生产边界固定 OpenSSL 4.0.x 最新补丁版，readiness 强制版本证据等五项人工确认且不读取密钥 |
-| H3-ops | 🟡 部分实测 | OpenSSL 4.0.1 已通过开发 CA、clientAuth、PKCS#12、撤销与 CRL error 23 流程；独立 Nginx vhost、真实浏览器、Django 真实绑定和 break-glass 尚未验收，`MTLS_ENFORCEMENT_ENABLED` 保持关闭 |
+| H3-ops | 🟡 部分实测 | OpenSSL 4.0.1 已通过开发 CA、clientAuth、PKCS#12、撤销与 CRL error 23；本地独立 Nginx vhost、Chrome 系统证书容器、TLS 1.3、无证书拒绝、真实 Django 证书绑定及密码登录已通过。Django mTLS + TOTP 强制、错误/过期/吊销证书、CRL 与 break-glass 尚待验收，生产开关保持关闭 |
 
 H3 提供 `bind_client_certificate`、`revoke_client_certificate` 与 `check_mtls_readiness` 三个命令。readiness 要求显式确认代理边界、Client CA、吊销、break-glass 和 OpenSSL 4.0.x 版本证据；声明不能替代 `nginx -t` 或 TLS 握手证据。绑定/撤销进入现有 `LogEntry → SecureLogEntry` SM3-HMAC 审计链；Admin 只读观察绑定，不能在表单里随意改写身份材料。旧 `MyUser.cert_*` 字段不再作为运行时事实来源，待观察并确认无历史依赖后另行迁移删除。
 
 H2a-0 的 `accounts.authn.mfa_crypto` 不读取数据库或环境。H2a-1 的 `MfaTotpDevice` 只保存密文、96-bit nonce、key ID 与生命周期元数据，AAD 固定绑定 user ID 和 device UUID。H2a-2/3 的 `accounts.authn.mfa_services` 从 `MFA_TOTP_KEYRING_JSON` 与 `MFA_TOTP_ACTIVE_KEY_ID` 读取版本化 KEK；缺失、非法或 active key 不存在时，在生成/持久化 seed 前默认拒绝。`MFA_TOTP_ISSUER` 可配置显示名称。仓库与测试不得写入真实 KEK、业务 seed、二维码 URI、TOTP code 或恢复码。设备与恢复码均不注册到 Django Admin。
 
-服务层授权边界固定为：active superuser 或拥有任一 active Manager Membership 的用户只能给自己绑定和确认；恢复码消费也只允许本人，且只标记一次性材料已用，不创建 Session。设备重置只允许 active superuser；superuser 重置自己时还必须重新校验当前密码，重置其他账号时形成更高权限复核。撤销或过期会用随机数据覆盖 seed 密文与 nonce、删除恢复码并递增 `auth_version`。审计仅记录固定事件/原因码，通过 `LogEntry` 同步生成 `SecureLogEntry` HMAC，不记录用户输入或认证材料。
+服务层授权边界固定为：active superuser、显式 active `is_dashboard_user` 或拥有任一 active Manager Membership 的用户只能给自己绑定和确认；恢复码消费也只允许本人，且只标记一次性材料已用，不创建 Session。设备重置只允许 active superuser；superuser 重置自己时还必须重新校验当前密码，重置其他账号时形成更高权限复核。撤销或过期会用随机数据覆盖 seed 密文与 nonce、删除恢复码并递增 `auth_version`。审计仅记录固定事件/原因码，通过 `LogEntry` 同步生成 `SecureLogEntry` HMAC，不记录用户输入或认证材料。
 
 #### H2 生产启用顺序
 
 1. 保持 `MFA_ENFORCEMENT_ENABLED=false`，通过环境变量配置 `MFA_TOTP_KEYRING_JSON`、`MFA_TOTP_ACTIVE_KEY_ID` 与可选 `MFA_TOTP_ISSUER`；KEK 不得写入仓库或聊天记录。
-2. 执行迁移并由所有 active superuser/Board Manager 在 `/accounts/security/mfa/` 完成真实设备绑定；分别离线保存只展示一次的恢复码。
+2. 执行迁移并由所有 active superuser、显式 dashboard 用户和 Board Manager 在 `/accounts/security/mfa/` 完成真实设备绑定；分别离线保存只展示一次的恢复码。
 3. 人工验证 Microsoft Authenticator 扫码、TOTP 登录、单码恢复重绑、唯一管理员 break-glass 与关闭开关回滚。
 4. 执行 `python manage.py check_mfa_readiness --acknowledge-recovery-material`。命令会检查版本化 keyring、全部强制用户的 active 设备、seed 可解密性和剩余恢复码，但不会输出认证材料。
 5. 仅在上述步骤全部通过后设置 `MFA_ENFORCEMENT_ENABLED=true` 并重启服务；分别从账号登录页、`/dashboard/` 与 `/super_admin/` 验证。紧急回滚只关闭该开关，不删除设备、恢复码或审计记录。
@@ -140,7 +142,7 @@ stateDiagram-v2
     PendingMfa --> PrivilegedSession: 新时间步 TOTP 验证成功
     PendingMfa --> RestrictedRecovery: 一次性恢复码成功
     RestrictedRecovery --> PendingMfa: 仅在新设备确认后重新验证
-    PrivilegedSession --> StepUpRequired: 15 分钟到期 / auth_version 变化 / 角色变化
+    PrivilegedSession --> StepUpRequired: 15 分钟到期 / SU 闲置 5 分钟 / auth_version 或角色变化
     StepUpRequired --> PendingMfa: 重新验证密码或按策略发起 step-up
     PrivilegedSession --> NormalSession: 失去全部特权身份
 ```
@@ -150,7 +152,7 @@ stateDiagram-v2
 - 对强制 MFA 的用户，密码通过后不得先调用 Django `login()` 建立完整认证 Session；pending challenge 只保存最小 user ID、签发时间、随机 nonce、目标入口和失败计数，不保存密码、seed 或验证码。
 - TOTP 使用 6 位、30 秒周期，首期最多接受当前时间步前后各 1 步；成功时在同一事务内锁定设备并更新 `last_accepted_step`，相同或更旧时间步一律拒绝。
 - challenge 默认 5 分钟有效、最多错误 5 次；按账号与客户端地址执行 15 分钟冷却。具体缓存/数据库实现必须保证多进程 Gunicorn 下共享，不能依赖进程内字典。
-- 验证成功后才建立/升级 Session，并记录 `mfa_verified_at`、设备 ID 与 `auth_version`。特权有效期首期 15 分钟；到期可保留普通站点 Session，但 `/dashboard/`、`/super_admin/` 及敏感 action 必须重新 step-up。
+- 验证成功后才建立/升级 Session，并记录验证时间、设备 ID 与 `auth_version`。Dashboard 用户可以显式选择在当前服务端 Session 中保留最长 7 天的 dashboard-only grant。super_admin privileged Session 绝对不超过 15 分钟，闲置超过 5 分钟立即重新 challenge，并在证书绑定成功时设置浏览器关闭失效；单标签关闭不参与状态机。Dashboard grant 不适用于 `/super_admin/` 或操作级敏感 action，并在账号/设备版本变化、撤销/重绑、重新登录或 Session 消失时失效。
 - 恢复码成功只授予受限的恢复状态，不直接等价于长期特权 Session；用户必须立即重新绑定设备。重置与 break-glass 需要当前密码和更高权限复核，单一 superuser 场景使用预先演练的离线流程，不能降级为仅邮箱重置。
 - 所有失败对外使用统一提示，审计内部只记录枚举原因码。任何日志和异常不得包含 seed、`otpauth://` URI、二维码内容、TOTP code 或恢复码。
 
@@ -163,6 +165,7 @@ H2a：
 - [x] 首次验证码错误不会激活设备；正确验证码只激活一次。
 - [x] 恢复码由服务只返回一次、库中只有 hash、条件更新保证竞争消费最多成功一次。
 - [x] 重置需要 superuser 边界；自助重置还需当前密码，并递增 `auth_version`。
+- [x] 首次/撤销后重新绑定先完成独立邮箱挑战；active 设备自助撤销同时校验当前密码与新鲜 TOTP。
 - [x] 未启用 H2b 时，新增模型与绑定页面不改变现有登录成功/失败行为。
 
 H2b：
@@ -171,7 +174,7 @@ H2b：
 - [x] challenge 绑定用户、服务端 Session nonce 和白名单目标；换用户、过期、外部目标或状态篡改均失败。
 - [x] 当前允许窗口内的新时间步成功，同一步重放及窗口外验证码失败。
 - [x] 第 5 次失败进入账号与账号+IP共享冷却；生产默认 Redis，因此不能通过更换 Gunicorn worker 绕过。
-- [x] privileged Session 15 分钟到期，设备撤销或 `auth_version` 变化后立即失效；角色失效同时失去对应后台权限。
+- [x] privileged Session 15 分钟到期；super_admin 另有 5 分钟闲置上限和浏览器会话 Cookie；设备撤销、`auth_version` 或角色变化后立即失效。
 - [x] 普通非特权用户的登录、Profile 与公开阅读路径不受影响。
 - [x] 功能开关关闭时回滚到 H2a，不删除已加密设备，也不把密码直通误标为 MFA 成功。
 
@@ -210,7 +213,8 @@ sequenceDiagram
 ### 3.2 强制范围
 
 - `is_superuser=True`：强制绑定并在特权登录时验证。
-- 任意有效 `BoardMembership.role=manager`：强制验证后才能进入 dashboard。
+- 任意有效 `BoardMembership.role=manager`：执行受保护的板块管理/审核能力前强制 TOTP，但 Membership 本身不授予 dashboard 外壳。
+- 显式 active `is_dashboard_user`：进入 Dashboard 前强制密码 + TOTP；Membership 写操作已额外要求操作级新鲜 TOTP step-up。
 - 普通 Contributor / Editor / Reviewer：首期不强制，后续可配置扩展。
 - `SiteOperators`、`UserManagers`：安全上也属于高权限角色，v2.5 实施前应决定是否一并强制；默认建议强制。
 
@@ -233,6 +237,16 @@ sequenceDiagram
 - 不依赖 Microsoft Entra tenant。
 - 不以邮件或短信作为同等级 MFA 因素。
 - 不在 v2.5 同时引入 Passkey/WebAuthn，避免扩大恢复和兼容性范围。
+
+### 3.5 Devenir Dashboard 的操作级 step-up（M2 代码已实现）
+
+Devenir Dashboard 是站长日常业务管理面，不要求客户端证书；登录边界为账号密码 + TOTP。仅持有 Dashboard Session 不足以修改全站 Membership：调用 `boards.manage_all_board_memberships` 对应 Service 前，还需完成一次新的 TOTP 校验并取得最长 5 分钟、绑定用户 + Session + purpose + 目标操作的一次性 grant，成功写入后立即消费。
+
+step-up 不复用邮箱验证码、Board 申请 grant、密码修改 grant 或 super_admin privileged grant。验证码继续使用现有防重放与限流能力，不记录 code/seed；操作原因、结果和 actor 进入 `BoardMembershipEvent` 与 Mongo HMAC 镜像。普通 Board Manager 不能通过完成 TOTP 自动获得全站 Membership 管理 Permission。
+
+M2 的 `boards.membership_step_up` 已实现上述约束：签名 capability 绑定 actor、Session 摘要、动作、目标对象与随机 nonce，最长 5 分钟并通过共享缓存原子单次消费；入口还会重新检查 dashboard 身份、`boards.manage_all_board_memberships` 与 privileged Session。真实 Authenticator、Redis 多进程消费和 Session 到期体验仍属于部署前人工验收，不能仅凭自动测试开启生产强制。
+
+M3 的 Membership break-glass 已接入现有 H3 证据链，但不扩大默认 Admin CRUD：仅当 `MFA_ENFORCEMENT_ENABLED` 与 `MTLS_ENFORCEMENT_ENABLED` 同时开启，当前请求呈现的 active 客户端证书与 active superuser、证书绑定 privileged Session 完全一致，并重新通过一次 TOTP step-up 和精确目标确认后，才允许停用最后一名 Manager。证书绑定行与 Membership/Manager 集合在同一数据库事务中加锁；成功事件来源固定为 `super_admin` 并进入关系型事件与 Mongo HMAC 镜像。真实 Nginx、浏览器证书容器和 PostgreSQL 并发仍须人工/预发布验收。
 
 ## 3A. superuser 客户端证书与 `/super_admin/` mTLS
 
@@ -273,9 +287,10 @@ superuser 访问管理后台时同时经过：
 
 1. Nginx mTLS：验证客户端证书链、有效期和撤销状态，未通过的请求不进入 Django。
 2. Django 证书绑定：将边界网关传入的 verified 状态、profile、证书序列号、Issuer DN 与 Subject DN 映射到 active `ClientCertificateBinding`，并再次确认其用户是 active superuser。旧 `MyUser.cert_*` 字段不参与判定。
-3. TOTP：证书身份通过后再校验动态验证码、重放和失败限流，升级为短时 privileged session。
+3. 密码：证书映射出的身份仍必须通过 Django 密码验证，不允许证书直接换取登录态。
+4. TOTP：密码通过后再校验动态验证码、重放和失败限流，升级为短时 privileged session。
 
-目标产品形态可以是“证书 + TOTP 登录”，但首轮默认不直接删除密码因素。客户端证书和手机 TOTP 都可能属于 possession factor，尤其二者放在同一设备时并不天然等于两类独立因素；是否无密码化必须经过单独威胁模型与恢复评审。
+本项目把上述完整 AND 链简称为“全验证”。安全分类上密码 + TOTP 仍是 MFA，mTLS 额外提供受管客户端设备边界；该称呼不代表新的认证标准。`/super_admin/` 不进入无密码化路线，也不存在公网无 mTLS、只验证密码/TOTP 的平行入口。客户端证书和手机 TOTP 若放在同一设备仍会降低因素独立性，因此恢复材料必须分离保存。
 
 ### 3A.2 Nginx 部署建议
 
@@ -357,7 +372,8 @@ flowchart LR
     SESSION --> AUDIT
 ```
 
-- [ ] **红色 / 高权重**：无客户端证书、过期证书、错误 CA、已吊销证书均不能到达 `super_admin` 应用页面。
+- [x] **红色 / 高权重（本地部分实测）**：无客户端证书在 Nginx 层返回 `400 No required SSL certificate was sent`；有效客户端证书完成 TLS 1.3 后可到达 Django。
+- [ ] **红色 / 高权重**：过期证书、错误 CA、已吊销证书和 CRL 在真实 Nginx 边缘均不能到达 `super_admin` 应用页面。
 - [x] **红色 / 高权重（应用侧）**：伪造证书 Header 缺少可信代理地址/Unix socket 契约与代理共享认证值时不能通过 Django 映射；Nginx Header 覆盖仍待真实配置验收。
 - [x] **红色 / 高权重（应用侧）**：已验证证书不能直接获得权限；必须映射 active superuser 并完成密码与 TOTP。
 - [x] **红色 / 高权重（应用侧）**：证书或 TOTP 撤销、过期、版本变化后，关联 privileged Session 失效。
@@ -365,6 +381,14 @@ flowchart LR
 - [ ] **黄色 / 中权重**：验证桌面浏览器、Android 证书容器和 Microsoft Authenticator 的实际兼容性。
 - [ ] **低权重 / 延后实验**：如未来确有密评研究需要，再在隔离环境验证 SM2/TLCP 网关、双证书要求和客户端互操作；不计入 H3 发布验收。
 - [ ] **黄色 / 中权重**：审计日志只记录证书最小标识和结果码，不记录私钥、完整证书、TOTP seed/code。
+
+#### 3A.4.1 本地真实握手证据（2026-08-03）
+
+- Windows Nginx 1.31.3 在 `admin.localhost:8443` 建立独立管理 vhost，只允许 TLS 1.3 并强制客户端证书；该官方构建链接 OpenSSL 3.5.7，证书生成与检查工具为独立安装的 OpenSSL 4.0.1，两者不得混称。
+- Chrome 使用当前用户证书容器提交 `clientAuth` 叶证书；Nginx 记录 `client_verify=SUCCESS`、实际 serial、issuer DN 与 subject DN。缺少证书的请求在边缘层返回 400，未进入 Django。
+- 证书实际 Header 元数据已绑定到本地 active superuser `PowerAdapter`；修正可信反代 scheme/Host 后，密码登录 POST 返回 302，`/super_admin/` 与用户管理页均返回 200。
+- `run.py` 已于 2026-08-04 收敛为本地默认安全入口：读取 Git 忽略的本地 keyring 与 Nginx Header 契约、默认开启 Django MFA/mTLS enforcement，并在 8443 未监听时自动启动本地 Nginx；首次绑定必须显式使用 `--enrollment-mode`，普通 HTTP 调试必须显式使用 `--plain`，不得因遗漏启动参数静默进入弱化模式。
+- 所有本地 Nginx、证书、私钥和日志材料均位于 Git 忽略的 `.local/nginx-mtls/`；开发材料禁止复用到生产。
 
 ## 4. 密钥全生命周期规划（v2.5+）
 
@@ -422,7 +446,7 @@ stateDiagram-v2
 | 🔴 高 | mTLS 若直接作用于现有整站 vhost，可能干扰普通用户 TLS 握手；若保留公网平行入口又会被绕过 | 优先独立 admin vhost，并对公网 `/super_admin/` 做拒绝测试 |
 | 🔴 高 | 客户端 CA 或唯一管理员证书丢失可能把站点管理员永久锁在门外 | 上线前完成离线 CA、break-glass 和回滚演练 |
 | 🔴 高 | 仅信任代理 Header 会允许绕过证书验证 | Header 清洗 + Unix socket + Django 二次映射测试 |
-| 🟡 中 | MFA 丢失设备后的恢复流程尚未定义 | v2.5 实施前确定恢复码和人工重置边界 |
+| ✅ 已实现 | MFA 丢失设备后的恢复流程 | 一次性恢复码仅进入受限重绑态；重新绑定先过邮箱闸门，active 设备自助撤销要求当前密码 + 新鲜 TOTP，superuser 重置进入审计链 |
 | 🟡 中 | 个人项目无法凭软件实现本身证明正式密评合规 | 始终标注为自我实践，保留证据但不做合规承诺 |
 | 🟢 低 | Passkey 与推送认证体验更好但范围显著扩大 | v2.6+ 按实际需要再评估 |
 

@@ -6,6 +6,7 @@
 
 ## 1. 固定边界
 
+- `/super_admin/` 采用项目所称“全验证”：Nginx TLS 1.3 mTLS、Django `ClientCertificateBinding`、账号密码和 RFC 6238 TOTP 必须全部通过，四层为 AND；不得配置无 mTLS 或无密码的公网平行入口。
 - 生产 profile 仅为 `standard-tls`，Nginx 仅允许 TLS 1.3。
 - Nginx 和离线 CA 命令行统一使用仍受支持的 OpenSSL 4.0.x 最新补丁版；初始基线为 4.0.1。4.0 是非 LTS，因此每次 OpenSSL 安全更新都必须及时跟进，且在 2027-05-14 前重新选择受支持分支。
 - 公网服务器证书继续由 Let’s Encrypt 签发；私有 Client CA 只签发 `clientAuth` 客户端证书。
@@ -97,4 +98,6 @@ python manage.py check_mtls_readiness \
 
 2026-07-29 已使用 Windows VC-WIN64A OpenSSL 4.0.1 对本模板完成开发材料测试：Root CA 自签、3072-bit RSA 客户端 CSR、`clientAuth`-only 叶证书签发、证书链验证、PKCS#12 导出、CA 撤销、CRL 重发以及 `-crl_check` 拒绝均通过。撤销后的证书按预期返回 X.509 error 23。测试材料位于仓库已忽略的 `.local/mtls-openssl-4-test/`，口令固定且仅用于开发，不能导入生产或充当 break-glass 材料。
 
-该证据只覆盖 OpenSSL CA/CRL 工具链，不代表 Nginx 已链接 OpenSSL 4.0.x，也不代表 Chrome/Edge 握手、Django 绑定或生产吊销链已经验收。
+2026-08-03 又完成本地真实边缘验收：Windows Nginx 1.31.3 独立监听 `admin.localhost:8443`，Chrome 从当前用户证书容器提交客户端证书，无证书请求被 Nginx 拒绝，有效证书以 TLS 1.3 完成握手；实际 serial/issuer/subject 已绑定本地 `PowerAdapter`，密码登录 POST 返回 302，`/super_admin/` 返回 200。修复了反向代理 Host/scheme 不一致触发的 Django CSRF 403。
+
+该证据不代表 Nginx 已链接 OpenSSL 4.0.x：官方 Windows 构建实际链接 OpenSSL 3.5.7，独立 CA 工具为 OpenSSL 4.0.1。它也不证明 Django mTLS + TOTP 强制、错误/过期/吊销证书、真实 CRL、生产网络边界或 break-glass 已验收。

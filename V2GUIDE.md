@@ -2,8 +2,8 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-07-29
-> **状态**: Board Scope Stage 0–6b 已完成，Stage 7 正在进行入口收敛与遗留 `is_reviewer` 零授权读取验收；`/review/` 已成为账号、板块权限、稿件、评论审核的统一业务入口，`/dashboard/` 仅供显式 `dashboard_user` 与 superuser 日常运维；MFA/mTLS 生产开关默认关闭，待真实设备、Client CA、独立管理 vhost 与 break-glass 演练
+> **更新**: 2026-08-04
+> **状态**: Board Scope Stage 0–8 已完成，遗留 `is_reviewer` 已停止授权并通过 schema migration 删除；`/review/` 承载业务审核，`/operations/security/` 承载 SiteOperators 日志完整性核验，`/dashboard/` 仅供显式 `dashboard_user` 与 superuser 日常运维；生产 MFA/mTLS 开关仍默认关闭，本地 `run.py` 已默认开启完整验证并自动维护独立 Nginx 边缘
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
 ---
@@ -35,7 +35,9 @@
 
 #### v2.5 特权账户强认证边界（TOTP 与 mTLS 应用侧已实现；真实 CA/网关仍待验收）
 
-superuser 的目标链路为“受信客户端证书 + TOTP 动态验证码”；首轮实现默认仍保留密码校验，形成 mTLS、应用身份和 TOTP 三道独立闸门。只有完成威胁模型、恢复流程和兼容性测试后，才单独评估是否允许证书 + TOTP 的无密码登录。Board Manager 首期只强制 TOTP，不强制客户端证书，避免把板块协作入口和站点最高权限入口混成同一门槛。
+superuser 的目标链路固定为项目语境中的“全验证”：Nginx TLS 1.3 mTLS、Django 客户端证书绑定、账号密码和 RFC 6238 TOTP 必须全部通过，四层是 AND 关系，任何一层都不能替代或降级另一层。安全分类上密码 + TOTP 仍属于 MFA，mTLS 则额外提供受管客户端设备边界；“全验证”只是本项目对完整链路的简称，不是另造认证标准。Board Manager 和 dashboard 用户不强制客户端证书，但日常管理入口仍要求密码 + TOTP，避免把板块协作入口和站点最高权限入口混成同一门槛。此前“以后评估证书 + TOTP 无密码登录”的候选方向取消，`/super_admin/` 不进入无密码化路线。
+
+双后台的 TOTP 时效按风险分层：`/dashboard/` 是日常运维面，完成 TOTP 后可主动勾选“信任当前浏览器 7 天”；该授权只存在于当前服务端 Session，并绑定账号、TOTP 设备和 `auth_version`，重新登录、MFA 撤销/重绑或身份失效后立即作废。`/super_admin/` 不读取这份长期授权，始终要求 mTLS 证书绑定与短时 TOTP privileged Session：绝对上限 15 分钟、连续闲置 5 分钟即失效，并把管理域 Session Cookie 设置为浏览器关闭失效。单个标签页关闭不作为安全事件；浏览器可能提供会话恢复，不能把该行为替代服务端超时。首页菜单可以向符合资格的账号显示 MFA 设置和系统后台入口；URL 可见性不构成安全边界，服务端认证、授权与独立管理 vhost 才是边界。
 
 证书与 TOTP 明确分离：管理域名的服务器证书继续使用 Let’s Encrypt；superuser 客户端证书由离线私有 Client CA 签发，不复用公网服务器证书。H3 生产链正式固定为 Nginx + OpenSSL 4.0.x 最新补丁版终止 TLS 1.3 mTLS，再由 Django 完成证书映射、密码和 TOTP；初始部署基线为 OpenSSL 4.0.1，并接受其非 LTS、需持续跟进补丁和在 EOL 前迁移的维护成本。主流浏览器可直接使用系统证书容器，不依赖国密浏览器。审计事件继续使用现有 SM3-HMAC 完整性链。SM2/TLCP 降为不接生产、不计入 H3 验收的隔离实验，TOTP 保持 RFC 6238 与 Microsoft Authenticator 兼容。
 
@@ -70,19 +72,29 @@ sequenceDiagram
 
 这里的证书绑定与 mTLS 是两层：Nginx 判断“证书是否由受信 CA 签发且当前有效”，Django 再判断“该证书是否绑定到当前 active superuser”。禁止仅凭可伪造的普通请求头授予权限；Nginx 必须覆盖/清除外部同名头，Gunicorn 仍只通过本机 Unix socket 接收请求。客户端证书的签发、分发、续期、吊销、丢失恢复和销毁纳入 v2.5+ 密钥生命周期，不允许成为无人能恢复的单点锁。
 
-截至 2026-07-29，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的各入口接入 `boards.policies`，Stage 6a 已初始化固定全局 Group，Stage 6b 已实现权限申请、分级审批与 Membership 自动写入。Stage 7 已移除 superuser/测试账号对 `is_reviewer` 的默认赋值和 Admin 分配入口，并以回归测试固定“旧旗标为真仍不产生工作台、Board 或全局权限”；数据库字段及模型层防篡改保护保留到用户完成一次生产等价的本地/预发布角色流程验收，不要求先部署服务器，之后才进入 Stage 8 删除迁移。
+截至 2026-08-04，`accounts_linear` Stage 4–5 已把 Board/Post/PostRevision/Comment 的各入口接入 `boards.policies`，Stage 6a 已初始化固定全局 Group，Stage 6b 已实现权限申请、分级审批与 Membership 自动写入。Stage 7 已完成旧旗标零授权读取验证，Stage 8 已通过 `0011_remove_myuser_is_reviewer` 删除字段；Reviewer/Manager 的唯一业务事实来源为带 Board 外键的 `BoardMembership.role`。
 
 生产运维入口采用 Tailscale：管理员或 Agent 先进入受控 Tailnet，再以专用非 root 账号通过 SSH key 登录并按需 `sudo`。公网安全组不得为临时 Agent 出口长期开放 SSH，也不得通过放宽云主机安全地区/IP 白名单消除告警；云控制台仅作为 break-glass。Tailscale 负责运维网络入口，不能替代 `/super_admin/` 的 TLS 1.3 mTLS、Django 密码和 TOTP 身份验证。
 
-BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。剩余缺口按风险排队：🟡 三个 Board Index 接入按 Policy 过滤的文章入口/文章流；🟡 Skateboard Clip 固定为每组 1 个 `9:16` 竖屏与 3 个 `16:9` 横屏并在模型/表单验证版式；🟡 `/dashboard/` 为各 Board 提供仅管理所属文章和专属内容的工作区。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
+BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。剩余缺口按风险排队：🟡 三个 Board Index 接入按 Policy 过滤的文章入口/文章流；🟡 Skateboard Clip 增加受控方向/比例字段与上传校验；🟡 在业务路由为各 Board 提供仅管理所属文章和专属内容的工作区，不重新开放 Dashboard。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
 
 Board Index 的访问边界已重新冻结：`/boards/<slug>/` 及其纯展示 htmx 片段是个人站的公开陈列面，不要求 BoardMembership；Membership 只保护投稿、编辑、审核、评论管理、成员管理和专属内容维护等动作。Index 后续先由 K3 补齐对应 Category 的公开文章入口与参与 CTA，且不得修改后端；前端完成后再由后端接入公开文章 QuerySet、申请预选及受保护动作的 403/REFUSE 流程。详细矩阵和前后端契约见 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（本地，git-ignored）。
 
 2026-07-29 的体验补丁已补齐 Board 申请提交后的 Devenir 中央确认层（一次性显示，明确“等待审核或联系管理员”），并新增 `/Blogs/review/` Board-scoped 稿件流程工作区。工作区只列出当前账号、当前 Board、当前状态真正允许执行的转换，将“草稿→提审”“审核中→通过/驳回”“已发布→下架”拆开；“可下架”栏支持 Board、Tag、作者和标题/摘要组合筛选，并以每批 8 篇的签名游标通过 htmx 懒加载，不执行传统分页总数 COUNT。它不替代后续按 Board 管理全部专属内容的完整工作区。
 
-后台加固主线不被 Stage 7 清债阻塞：H2a 已完成 AES-256-GCM encrypted-only 设备、10 分钟绑定页、Microsoft Authenticator QR、一次性恢复码、原子消费、撤销/密钥擦除和 HMAC 审计；敏感页面均 `no-store`。H2b 已完成密码后置 pending challenge、新时间步防重放、账号与账号+IP 双维共享限流、恢复受限重绑状态、15 分钟 privileged Session，以及 `/dashboard/`、`/super_admin/` 双入口保护。强制对象为 active superuser、显式 `dashboard_user` 与 active Board Manager；其中 Board Manager 不再仅因 Membership 获得 `/dashboard/` 入口。代码默认 `MFA_ENFORCEMENT_ENABLED=false`，不得在未执行 readiness 与人工恢复演练前开启。
+后台加固主线不被 Stage 7 清债阻塞：H2a 已完成 encrypted-only 设备、邮箱闸门、Microsoft Authenticator QR、一次性恢复码、原子消费、自助撤销/密钥擦除和 HMAC 审计；敏感页面均 `no-store`。H2b 已完成密码后置 pending challenge、新时间步防重放、账号与账号+IP 双维共享限流、恢复受限重绑状态和双后台保护。Dashboard 可选当前 Session 7 天信任；super_admin 为 15 分钟绝对上限、5 分钟闲置上限、浏览器关闭失效且不接受 Dashboard 长期 grant。Membership break-glass 等高危自定义动作继续要求操作级新鲜 TOTP，新增同类动作不得只依赖普通 privileged Session。生产代码默认开关仍为关闭，本地 `run.py` 则默认加载 Git 忽略的安全材料并开启完整验证；生产不得跳过 readiness 与人工恢复演练。
 
-Stage 7 的管理入口采用两维模型：Django Group 仅包含 `VerifiedUsers`、`UserManagers`、`SiteOperators` 等全站职责；Contributor、Editor、Reviewer、Manager 只存在于带 Board 外键的 `BoardMembership.role`。因此 Django 用户编辑页不出现 `Board Manager` Group 是预期行为，不能通过新增全局 Group“补齐”。
+当前管理入口采用两维模型：Django Group 仅包含 `VerifiedUsers`、`UserManagers`、`SiteOperators` 等全站职责；Contributor、Editor、Reviewer、Manager 只存在于带 Board 外键的 `BoardMembership.role`。因此 Django 用户编辑页不出现 `Board Manager` Group 是预期行为，不能通过新增全局 Group“补齐”。
+
+SiteOperators 的运行时入口已经从 Dashboard 收敛到 `/operations/security/`：查看与运行审计分别校验 `security.view_audit_log` 和 `security.run_integrity_audit`，单次只核验当前页选中的记录，事务内锁定并写入新的 HMAC 审计事件；页面不提供修改、补签或删除能力。`/dashboard/` 同时采用两层显式白名单：用户必须是 active `is_dashboard_user`/superuser，注册模型必须位于 `DASHBOARD_MODEL_ALLOWLIST`；Group Permission、`is_staff`、Board Membership 及其任意组合都不能扩张该外壳。
+
+特权账号登录采用“最新会话唯一”策略：superuser 与显式 `dashboard_user` 每次完成登录后原子递增 `privileged_session_version`，旧浏览器在下一次请求时退出；普通账号仍允许多设备 Session。该控制与 MFA 正交——启用 MFA 时只在动态验证码成功并正式建立登录 Session 后轮换，不在密码阶段提前踢出旧会话。
+
+Board 权限生命周期已补齐成员主动退出：审批记录不回写、不删除；Contributor、Editor、Reviewer 在板块权限页完成短时邮箱验证后可停用自己的 Membership，并记录 Mongo+HMAC 审计。Manager 或存在同板块待审核申请时禁止自助退出，由 superuser/审核流程先处理，避免治理真空或退出后被旧申请意外恢复。
+
+BoardMembership 全生命周期管理已于 2026-08-03 重新冻结为 **Devenir Dashboard 日常能力**。M1 已新增 append-only `BoardMembershipEvent`、Membership `updated_at`、统一事务状态内核和迁移；申请批准与成员自助退出已接入同事务关系型事件及提交后 Mongo HMAC 镜像，39 项定向测试通过。M2 已实现 `/dashboard/memberships/` 的筛选列表、直接授予、角色调整、停用、恢复和 Manager 原子交接；入口同时要求 dashboard 身份、独立 `boards.manage_all_board_memberships` Permission、有效 privileged Session，并为每次写操作重新校验 TOTP，签发绑定用户、Session、动作和目标且只能消费一次的短时 capability。M3 已增加全局/单 Membership 不可变事件时间线，并把“最后一名 Manager 不能停用或降级”下沉到统一状态内核；`/super_admin/boards/boardmembership/` 的默认 CRUD 继续只读，唯一自定义写入口只允许在 MFA 与 mTLS 强制均开启、当前证书与账号/privileged Session 一致、重新验证 TOTP 并输入精确确认短语后停用最后一名 Manager。pending 申请仍必须先处理，Membership 不物理删除。56 项 M3 定向回归通过；PostgreSQL 双 Manager 竞争测试已编写，但因本地 SQLite 不支持 `select_for_update()` 而明确跳过，必须在 PostgreSQL CI/预发布补验后才能宣称并发验收完成。完整状态机、冲突规则和分阶段验收见 `accounts/PERMISSIONS_GUIDE.md` 的 `membership_admin_linear` 与 `boards/DEVELOPMENT.md`。
+
+Devenir Dashboard 采用第一方 Django View + Template + htmx 业务界面，不以大规模覆盖 Django Admin CSS 作为长期方案。它逐步承载审核、Membership、Board 内容管理和安全状态概览；现有 AdminSite 只作为迁移期兼容层。结构性配置、证书/MFA 恢复、全局 Group/Permission、Board 创建删除及 break-glass 纠错仍留在低频 `/super_admin/`。
 
 #### 邀请制账号决策（2026-07-26）
 
@@ -92,7 +104,7 @@ Stage 7 的管理入口采用两维模型：Django Group 仅包含 `VerifiedUser
 
 #### blog_foundation_linear（2026-07-26，推进中）
 
-按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界；F1 已实现公开作者 Profile、本人资料编辑及带邮箱短时验证的密码修改；F2 已补齐 About、隐私说明和全局入口；F3 已实现公开年月归档、RSS/Atom 与统一公开文章 QuerySet helper；F4 已接入 canonical/Open Graph、Feed 自动发现、robots、公开 Sitemap 与生产错误页；F5 已按 RFC 9116 发布 `security.txt` 并补齐上线检查清单。该路线 F0–F5 与 accounts Stage 6a–6b 均已完成，Stage 7 旧授权字段观察已经开始。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 `BLOG_FOUNDATION_GUIDE.md`（本地 docs/，git-ignored）为准。
+按当前用户优先级，在 Stage 6a 前插入个人博客基础体验补全。F0 已冻结边界；F1 已实现公开作者 Profile、本人资料编辑及带邮箱短时验证的密码修改；F2 已补齐 About、隐私说明和全局入口；F3 已实现公开年月归档、RSS/Atom 与统一公开文章 QuerySet helper；F4 已接入 canonical/Open Graph、Feed 自动发现、robots、公开 Sitemap 与生产错误页；F5 已按 RFC 9116 发布 `security.txt` 并补齐上线检查清单。该路线 F0–F5 与 accounts Stage 0–8 均已完成。该路线不开放公共注册，也不加入关注、点赞、私信或社区排行榜。详细字段、App 职责、权限矩阵和验收标准以 `BLOG_FOUNDATION_GUIDE.md`（本地 docs/，git-ignored）为准。
 
 #### 2026-07-27 三分支并行决策
 

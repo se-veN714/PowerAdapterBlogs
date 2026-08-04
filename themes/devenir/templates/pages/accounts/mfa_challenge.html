@@ -2,7 +2,7 @@
 {% load static widget_tweaks %}
 
 {% block title %}特权登录验证{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20260728.1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20260804.1">{% endblock %}
 
 {% block hero %}<div class="page-header"><p class="profile-kicker">SECURITY / STEP-UP CHALLENGE</p><h1 class="page-title">确认第二因素</h1></div>{% endblock %}
 
@@ -17,6 +17,12 @@
             {{ totp_form.code|add_class:"input" }}
             {% for error in totp_form.code.errors %}<p class="error-msg">{{ error }}</p>{% endfor %}
             {% for error in totp_form.non_field_errors %}<p class="error-msg">{{ error }}</p>{% endfor %}
+            {% if can_remember_dashboard %}
+            <label class="mfa-remember-option" for="{{ totp_form.remember_dashboard.id_for_label }}">
+                {{ totp_form.remember_dashboard }}
+                <span><strong>信任当前浏览器 7 天</strong><small>仅减少 /dashboard/ 的重复验证；不会放宽 /super_admin/。</small></span>
+            </label>
+            {% endif %}
             <button class="btn-login" type="submit" {% if locked %}disabled{% endif %}>验证并进入</button>
         </form>
         <details class="mfa-recovery-panel">

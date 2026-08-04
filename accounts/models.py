@@ -19,7 +19,12 @@ from .thread_local import get_current_user
 logger = logging.getLogger(__name__)
 
 # 敏感权限字段：非 superuser 禁止修改
-SENSITIVE_FIELDS = {"is_superuser", "is_staff", "is_dashboard_user", "is_reviewer"}
+SENSITIVE_FIELDS = {
+    "is_superuser",
+    "is_staff",
+    "is_dashboard_user",
+    "privileged_session_version",
+}
 
 
 def profile_avatar_upload_to(_instance, filename):
@@ -57,12 +62,15 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
     is_cert_verified = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
 
-    # 账号与入口状态。is_reviewer 仅为 Stage 7 观察期保留的遗留数据字段，
-    # 不得作为任何运行时授权依据；Stage 8 将单独迁移删除。
+    # 账号与入口状态；具体业务能力由 Django Group 与 BoardMembership 决定。
     is_active = models.BooleanField(default=False, verbose_name="账号启用")
     is_staff = models.BooleanField(default=False, verbose_name="超级管理员入口")
     is_dashboard_user = models.BooleanField(default=False, verbose_name="仪表盘入口")
-    is_reviewer = models.BooleanField(default=False, verbose_name="内容审核权限")
+    privileged_session_version = models.PositiveBigIntegerField(
+        default=0,
+        editable=False,
+        verbose_name="特权会话版本",
+    )
 
     objects = UserManager()
 

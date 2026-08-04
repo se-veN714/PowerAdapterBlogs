@@ -1,0 +1,28 @@
+<style>
+    .ops-shell { max-width: 1180px; margin: 0 auto; padding: 7rem 2rem 4rem; }
+    .ops-kicker { color: var(--accent-soft); letter-spacing: .2em; font-size: .72rem; }
+    .ops-title { color: var(--accent); font-size: clamp(2rem, 5vw, 3.6rem); margin: .45rem 0; }
+    .ops-lead { max-width: 780px; color: var(--text-secondary); line-height: 1.8; }
+    .ops-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 1.5rem 0; }
+    .ops-stat { border: 1px solid var(--fragment-border); background: var(--bg-elevated); padding: 1rem; }
+    .ops-stat strong { display: block; color: var(--accent-soft); font-size: 1.6rem; }
+    .ops-stat span { color: var(--text-tertiary); font-size: .7rem; letter-spacing: .12em; }
+    .ops-filter { display: flex; flex-wrap: wrap; gap: .55rem; margin: 1.25rem 0; }
+    .ops-filter input, .ops-filter select { min-width: 12rem; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--fragment-border); padding: .65rem; font: .75rem var(--font-mono); }
+    .ops-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .75rem; }
+    .ops-selection-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+    .ops-table-wrap { overflow-x: auto; border: 1px solid var(--fragment-border); }
+    .ops-table { width: 100%; border-collapse: collapse; min-width: 850px; }
+    .ops-table th, .ops-table td { padding: .75rem; border-bottom: 1px solid var(--fragment-border); text-align: left; vertical-align: top; }
+    .ops-table th { color: var(--accent-soft); font-size: .68rem; letter-spacing: .12em; }
+    .ops-table td { color: var(--text-secondary); font-size: .72rem; }
+    .ops-table tr:last-child td { border-bottom: 0; }
+    .ops-object { color: var(--text-primary); overflow-wrap: anywhere; }
+    .ops-message { max-width: 30rem; overflow-wrap: anywhere; }
+    .ops-status { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; }
+    .ops-status::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--accent-soft); }
+    .ops-status.tampered { color: var(--error-accent); }
+    .ops-status.tampered::before { background: var(--error-accent); }
+    .ops-pagination { display: flex; justify-content: center; align-items: center; gap: .75rem; margin-top: 1.25rem; }
+    @media (max-width: 720px) { .ops-shell { padding: 5.5rem 1.25rem 2rem; } .ops-stats { grid-template-columns: 1fr; } .ops-toolbar { align-items: flex-start; flex-direction: column; } }
+</style>

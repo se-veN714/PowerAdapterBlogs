@@ -1,0 +1,7 @@
+{{ user.username }}，你好：
+
+你的 PowerAdapter 动态验证码绑定验证码是：{{ code }}
+
+验证码将在 {{ ttl_minutes }} 分钟后失效。验证通过后才能生成新的 Authenticator 绑定材料。
+请勿将验证码、二维码、TOTP seed 或恢复码转发给任何人。
+如果不是你本人发起，请忽略本邮件并检查账号安全。

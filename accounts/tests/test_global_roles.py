@@ -43,7 +43,6 @@ class GlobalGroupProvisioningTest(TestCase):
         active_user = self.create_user("active")
         legacy_staff = self.create_user("legacy-staff", is_staff=True)
         inactive_user = self.create_user("inactive", is_active=False)
-        legacy_reviewer = self.create_user("legacy-reviewer", is_reviewer=True)
         initializer = import_module(
             "accounts.migrations.0006_initialize_global_groups"
         ).initialize_global_groups
@@ -55,7 +54,11 @@ class GlobalGroupProvisioningTest(TestCase):
         self.assertTrue(legacy_staff.groups.filter(name="VerifiedUsers").exists())
         self.assertTrue(legacy_staff.groups.filter(name="UserManagers").exists())
         self.assertFalse(inactive_user.groups.exists())
-        self.assertFalse(legacy_reviewer.groups.filter(name="SiteOperators").exists())
+
+    def test_legacy_reviewer_field_has_been_removed(self):
+        field_names = {field.name for field in MyUser._meta.get_fields()}
+
+        self.assertNotIn("is_reviewer", field_names)
 
     @staticmethod
     def create_user(username, **extra_fields):
@@ -160,21 +163,21 @@ class GlobalRoleRuntimeBoundaryTest(TestCase):
         self.assertFalse(self.audit_admin.has_view_permission(request))
         self.assertFalse(self.audit_admin.has_run_integrity_audit_permission(request))
 
-    def test_legacy_reviewer_flag_grants_no_runtime_access(self):
-        legacy_reviewer = MyUser.objects.create_user(
-            email="legacy-reviewer-runtime@example.test",
-            username="legacy-reviewer-runtime",
-            password="test-password",
+    def test_combined_business_roles_do_not_grant_dashboard_shell(self):
+        user = self.create_group_user("combined-operator", "UserManagers")
+        user.groups.add(Group.objects.get(name="SiteOperators"))
+        board = Board.objects.create(slug="combined-role", name="Combined role")
+        board.memberships.create(
+            user=user,
+            role="manager",
             is_active=True,
-            is_reviewer=True,
+            created_by=self.root,
         )
-        board = Board.objects.create(slug="legacy-flag", name="Legacy flag")
-        request = self.request_for(legacy_reviewer)
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+        request = self.request_for(user)
 
-        self.assertFalse(has_dashboard_access(legacy_reviewer))
+        self.assertTrue(user.has_perm("accounts.manage_user_accounts"))
+        self.assertTrue(user.has_perm("security.view_audit_log"))
+        self.assertFalse(has_dashboard_access(user))
         self.assertFalse(custom_site.has_permission(request))
-        self.assertFalse(can_create_post(legacy_reviewer, board))
-        self.assertFalse(
-            legacy_reviewer.has_perm("accounts.manage_user_accounts")
-        )
-        self.assertFalse(legacy_reviewer.has_perm("security.view_audit_log"))

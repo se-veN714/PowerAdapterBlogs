@@ -4,7 +4,7 @@
 > **项目**: 基于 Django 5.2 的个人博客系统  
 > **作者**: seveN1foR / PowerAdapter  
 > **许可证**: MIT  
-> **最后更新**: 2026-07-29 — H3 TLS 1.3 mTLS 应用与 OpenSSL 4.0.1 运维骨架
+> **最后更新**: 2026-08-04 — App 目录决策与双后台 MFA 时效分层
 
 ---
 
@@ -30,6 +30,19 @@ DjangoProject/                 # 项目根目录
 ├── setup.py                   # 打包配置
 └── CHANGELOG.md               # 变更日志
 ```
+
+### 1.1 Django App 目录决策（2026-08-04）
+
+现阶段保留 `accounts/`、`boards/`、`Blogs/`、`comment/` 等一级 App，不批量搬入
+`apps/`。Django 并不要求业务 App 位于 `apps/`；当前布局也让 App 与项目配置包
+`PowerAdapterBlogs/` 的边界直观。批量移动带来的收益主要是视觉整齐，却会同时影响
+`AppConfig.name`、Python import、迁移依赖、ContentType/Permission 的 `app_label`、
+模板与静态文件发现以及部署脚本，在当前权限与安全主线尚未收束时不值得承担回归风险。
+
+后续新增 App 继续遵循当前一级目录约定。只有在独立架构重构任务中，先完成 import、
+迁移/ContentType 兼容表、部署回滚和全量测试后，才允许统一迁移；不得在普通功能分支中
+顺手移动 App。可将测试、服务和认证实现继续收敛到各 App 内部子目录，解决“文件繁杂”
+而不改变 Django App 的稳定身份。
 
 ### App 职责速查
 
@@ -72,9 +85,12 @@ DjangoProject/                 # 项目根目录
 
 | URL | 后台 | 权限要求 |
 |-----|------|---------|
-| `/super_admin/` | Django 原生 Admin | active superuser；开启 H2/H3 后还需受信客户端证书与短时 TOTP privileged Session |
-| `/dashboard/` | 日常运维 AdminSite | active `is_dashboard_user` 或 superuser；启用强制开关后要求 MFA |
+| `/super_admin/` | Django 原生 Admin | active superuser；开启 H2/H3 后还需受信客户端证书；TOTP Session 最长 15 分钟、闲置 5 分钟失效、浏览器关闭失效，且不接受 Dashboard 7 天授权 |
+| `/dashboard/` | 日常运维 AdminSite | active `is_dashboard_user` 或 superuser；模型受 `DASHBOARD_MODEL_ALLOWLIST` 限制；启用强制开关后要求 MFA，可由用户选择在当前 Session 信任 7 天 |
+| `/dashboard/memberships/` | Devenir 板块成员管理 | dashboard 身份 + `boards.manage_all_board_memberships` + privileged Session；每次写操作另需新鲜 TOTP step-up |
+| `/dashboard/memberships/events/` | Membership 不可变事件时间线 | 与成员管理相同的身份、Permission 与 privileged Session；只读 |
 | `/review/` | 统一审核中心 | 按账号 Permission 与 Board Membership 分别显示账号、板块权限、稿件、评论审核入口 |
+| `/operations/security/` | 安全运维 | `security.view_audit_log` 查看；`security.run_integrity_audit` 核验选中记录 |
 > **反向解析**：AdminSite 的 URL 必须通过 `namespace:name` 形式反向解析，如 `reverse("cus_admin:index")` → `/dashboard/`。`custom_site.name = 'cus_admin'`。
 
 ### 2.3 账号路由
@@ -204,7 +220,16 @@ Agent HANDOFF、线程上下文和一次性 worktree 任务快照不属于本索
 ## 7. 快速命令
 
 ```bash
-# 开发运行
+# 日常本地运行：默认加载本地 keyring、开启 MFA/mTLS，并确保 8443 Nginx 已启动
+python run.py
+
+# 仅在首次绑定或恢复 TOTP 时使用；不会作为日常弱化入口
+python run.py --enrollment-mode
+
+# 明确关闭本地 MFA/mTLS 的普通 HTTP 调试
+python run.py --plain
+
+# Django 原生调试入口（不负责本项目的本地安全边缘）
 python manage.py runserver
 
 # 检查路由（排查 NoReverseMatch 等）

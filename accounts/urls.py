@@ -20,6 +20,7 @@ from accounts.views import (
     LoginView,
     MfaChallengeView,
     MfaConfirmEnrollmentView,
+    MfaEnrollmentEmailVerificationView,
     MfaSettingsView,
     MyProfileRedirectView,
     PasswordEmailVerificationView,
@@ -30,6 +31,11 @@ from accounts.views import (
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('security/mfa/', MfaSettingsView.as_view(), name='mfa-settings'),
+    path(
+        'security/mfa/verify-email/',
+        MfaEnrollmentEmailVerificationView.as_view(),
+        name='mfa-enrollment-email-verify',
+    ),
     path(
         'security/mfa/confirm/',
         MfaConfirmEnrollmentView.as_view(),

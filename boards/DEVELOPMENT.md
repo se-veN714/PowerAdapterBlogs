@@ -5,7 +5,7 @@
 > **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及板块申请审批
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-07-29 — 申请成功确认层与 Board-scoped 稿件流程工作区
+> **最后更新**: 2026-08-03 — Membership M3 事件时间线、Manager 连续性与全验证 break-glass 完成
 
 ---
 
@@ -13,6 +13,11 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-03 | v3.0 | `membership_admin_linear` M3：新增全局/单成员不可变事件时间线；统一阻止最后 Manager 的停用和降级；增加 mTLS + 证书绑定 privileged Session + 新鲜 TOTP + 精确短语的 super_admin break-glass。56 项定向测试通过，PostgreSQL 行锁用例因本地 SQLite 明确跳过 |
+| 2026-08-03 | v2.9 | `membership_admin_linear` M2：新增 `/dashboard/memberships/` 筛选列表及授予、改角色、停用、恢复、Manager 原子交接；写操作要求独立 Permission、privileged Session、原因和一次性目标绑定 TOTP capability；22 项 M2/MFA 定向测试通过 |
+| 2026-08-03 | v2.8 | `membership_admin_linear` M1：新增 append-only `BoardMembershipEvent`、Membership `updated_at`、迁移和只读事件 Admin；审批/自助退出接入统一事务内核与 Mongo HMAC 镜像，39 项定向测试通过 |
+| 2026-08-03 | v2.7-planning | 修订 `membership_admin_linear`：日常管理改由 Devenir Dashboard + 独立 Permission + TOTP step-up 承载；super_admin 保持只读，仅在 mTLS + 证书绑定 + 密码 + TOTP 全验证后执行 break-glass |
+| 2026-08-03 | v2.6-planning（已由 v2.7 替代） | 完成 `membership_admin_linear` 初版 M0：核对 Membership 只读观察、申请审批、自助退出间的生命周期缺口；原拟将写操作置于 super_admin，随后按低频全验证定位改由 Devenir Dashboard 承载 |
 | 2026-07-29 | v2.5 | 重新冻结 Board 展示/参与边界：Index 与纯展示 htmx 片段保持公开，Membership 只保护投稿、审核、管理等动作；新增本地 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md` 作为 K3 前端与后续后端接线契约 |
 | 2026-07-29 | v2.4 | BoardAccessRequest 成功后一次性显示 Devenir 中央确认层；提交前强制 accounts purpose 隔离的 10 分钟邮箱验证且成功即消费；新增 `/Blogs/review/` 稿件状态工作区及 Board-scoped 发布文章 QuerySet 筛选 |
 | 2026-07-28 | v2.3 | 合并前加固：音乐旧数据双向搬运与往返迁移测试；固定 Board 归属改为 Model 层强制校验；首页过滤无 Index 的 Board；Admin 颜色预览适配 Django 5.2；全项目 215 项测试通过、16 项未来 MFA 契约按设计跳过 |
@@ -126,8 +131,13 @@ editorial-section × N (动态渲染)
 | `is_active` | BooleanField | 停用后不授予任何 Board 动作 |
 | `created_by` | FK → MyUser, nullable | 人工创建者；删除创建者时保留记录并置空 |
 | `created_at` | DateTimeField | 创建时间 |
+| `updated_at` | DateTimeField | 最近一次状态或角色更新时间；不代替事件历史 |
 
 数据库约束 `unique_board_member` 保证同一用户在同一 Board 只有一条记录。角色调整或停用更新原记录，不堆叠历史角色；后续审批和审计流程引用这条稳定记录。
+
+### BoardMembershipEvent
+
+append-only 关系型事件保存事件类型、来源、角色/active 前后状态、原因、操作者、关联申请，以及 Board/User/actor 的不可丢失快照。Membership、Board 或用户外键删除后可置空，快照仍保留审计语义。模型实例禁止修改和删除，super_admin 仅提供只读观察；状态与事件在同一事务写入，提交后再镜像到 MongoDB HMAC。
 
 ### Board Index 内容模型
 
@@ -205,8 +215,10 @@ python manage.py seed_permission_test_users --board coding
 
 - URL：`/super_admin/boards/boardmembership/`
 - 仅激活的 superuser 可查看。
-- 禁止新增、修改和删除；成员写入将在后续审核入组流程中实现。
-- 暂不注册到 `/dashboard/`，避免 Board 范围 queryset 尚未接入时泄露跨板块成员关系。
+- 当前禁止新增、修改和删除。Stage 6b 已实现审核入组，普通非 Manager 成员也可自助退出；日常 Manager 处理、无申请直接授予、角色调整、停用和恢复已由独立 Devenir 页面承载。
+- 不把模型注册到 `/dashboard/` AdminSite；全站成员查询只通过独立 `/dashboard/memberships/` View，并在查询前复核 dashboard 身份、独立 Permission 与 privileged Session。
+
+M2/M3 已实现受控管理而没有解除 ModelAdmin 只读：日常直接授予、调整角色、停用、恢复和 Manager 原子交接位于 Devenir `/dashboard/memberships/`，要求 active dashboard 身份、独立 Permission、privileged Session 和一次性 TOTP step-up；事件历史位于 `/dashboard/memberships/events/`。所有操作要求原因并写入关系型 `BoardMembershipEvent`，事务提交后再镜像 MongoDB HMAC；默认 add/change/delete 与批量写继续关闭。`/super_admin/` 只增加一个全验证、自定义 URL，用于停用确实没有接替者的最后一名 Manager。PostgreSQL 行锁竞争测试仍需在 PostgreSQL CI/预发布运行。完整状态机与验收标准见 [`accounts/PERMISSIONS_GUIDE.md`](../accounts/PERMISSIONS_GUIDE.md#129-membership_admin_lineardashboard-membership-全生命周期)。
 
 ### 跨 App 授权关系
 
@@ -240,7 +252,9 @@ Stage 6a 已创建 `boards.apply_board_access` 并只授予 `VerifiedUsers`。�
 - PostRevision 跟随 Post 可见范围；Comment 审核队列仅向本 Board Reviewer/Manager 只读展示。
 - 直接输入跨 Board Admin URL 无法读取或修改对象；Manager 编辑他人文章不会改写原作者。
 
-Stage 5 已恢复审核/发布/驳回和评论 action，但每个对象都会在事务 Service 或审核 Service 中重新校验 Policy，不再批量直写状态。Stage 6a 已初始化固定全局 Group；Stage 6b 已通过 `/boards/access/`、`BoardAccessRequest` 和审批 Service 自动写入 Membership。Stage 7 已停止测试账号命令写入遗留 `is_reviewer`；自动回归通过，待用户完成一次本地生产等价角色流程手测，Stage 8 前不删除数据库字段。
+Stage 5 已恢复审核/发布/驳回和评论 action，但每个对象都会在事务 Service 或审核 Service 中重新校验 Policy，不再批量直写状态。Stage 6a 已初始化固定全局 Group；Stage 6b 已通过 `/boards/access/`、`BoardAccessRequest` 和审批 Service 自动写入 Membership。Stage 7 已确认全部业务授权不读取遗留 `is_reviewer`，Stage 8 已从 accounts schema 删除该字段；Board 角色只以 Membership + Policy 为事实来源。
+
+当前日常 Membership 写路径已经统一：申请审批、自助退出和 Dashboard 管理都会在同一事务内更新稳定 Membership 并追加 `BoardMembershipEvent`，提交后再 best-effort 镜像 Mongo HMAC。super_admin break-glass 尚不存在；M3 必须复用同一状态变更内核，不得直接调用 `BoardMembership.save()` 构造旁路。
 
 Board 独立 Index 视觉在 `codex/board-index-k3` 并行推进，K3 仅修改 Devenir 专用模板/CSS/展示脚本；路由、QuerySet、Policy 与上下文组装仍由 boards 后端所有。本地 HANDOFF 仅用于临时交接，不进入 Git；长期边界以本节和 V2 指南为准。
 
@@ -323,8 +337,12 @@ index.html
 7. **板块申请复用 accounts 短时邮箱验证（✅ 已完成）**：`/accounts/security/email/board-access/` 复用 accounts 通用邮箱挑战；验证码按 purpose + 用户 + Session 隔离，60 秒冷却和每小时发送上限按账号共享，错误次数受限。验证成功签发 10 分钟 Board 专用 Session grant，申请成功立即消费；密码修改 grant/code 不可复用，目标路由由服务端固定，不接收外部 `next`。
 8. **Board Index 接入文章入口与文章流（🟡 中）**：三个 Index 当前只组装各自专属模型，没有按 `Board.category` 取得公开 `Post`，模板也没有“查看本板块文章/参与板块”入口。已确定先由 K3 按本地 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md` 完成纯前端和 empty state，且不得修改后端；完成后由 Codex 统一复用 Blogs 的公开文章 QuerySet，提供参与状态上下文、申请预选与受保护动作 REFUSE，禁止在 Index 复制授权规则。
 9. **Skateboard Clip 固定展示编排（🟡 部分完成）**：公开 Index 当前由后端生成 `clip_groups`，每 5 条按 2 个 `9:16` + 3 个 `16:9` 展示。两条竖屏共用一个 box，中央信息区宽于两侧媒体，并分为左上/右下两层分别展示两条 Clip 的完整信息；不足 5 条时按现有条数安全降级，移动端转为单列。`/boards/skateboard/clips/` 是按拍摄时间倒序、仅含公开内容的分页浏览入口，不是管理页。后续仍需增加受控方向/比例字段与上传校验，不能永久用展示位置代替媒体元数据。
-10. **各 Board 的内容管理工作区（🟡 中）**：当前 7 个专属内容模型仅在 `/super_admin/` 对 superuser 开放，Board Manager 无法维护自己的文章、Skate Clip、Music 记录或 Coding 内容。后续在 `/dashboard/` 提供按 Membership/Policy 限定的板块工作区；每种模型先冻结 Manager/Editor 的 queryset、字段、创建/修改/删除边界和审计要求，Board 创建及前端代码绑定仍为 superuser-only。
-    - Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`/Policy 判定的板块成员工作区进入；公开 Clip List 不展示排序控件，也不能复用为管理入口。
+10. **各 Board 的内容管理工作区（🟡 中）**：当前 7 个专属内容模型仅在 `/super_admin/` 对 superuser 开放，Board Manager 无法维护自己的文章、Skate Clip、Music 记录或 Coding 内容。后续在独立业务路由提供按 Membership/Policy 限定的板块工作区，不重新开放 `/dashboard/`；每种模型先冻结 Manager/Editor 的 queryset、字段、创建/修改/删除边界和审计要求，Board 创建及前端代码绑定仍为 superuser-only。
+
+板块权限页同时展示当前 active Membership。非 Manager 成员可在复用邮箱短时验证后自助退出；实现只把 `is_active` 设为 False，保留审批记录，并以 Mongo+HMAC 记录退出事件。Manager 退出和存在待审核申请的情况均 fail closed。
+
+Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`/Policy 判定的板块成员工作区进入；公开 Clip List 不展示排序控件，也不能复用为管理入口。
 11. **Skate Spot 结构化位置与 PostGIS（🟢 低）**：当前 `SkateClip.spot` 文本足够用于地点展示，不为此新增 MongoDB 业务集合。只有地图视口、附近 Spot、距离排序等需求真实出现后，才评估独立 `SkateSpot`（名称、城市、可空坐标、`exact/approximate/city_only/hidden` 精度与公开状态）并在现有 PostgreSQL 上启用 PostGIS/GeoDjango；精确坐标默认不公开，国内地图供应商坐标不得未经统一转换混存。
+12. **Dashboard BoardMembership 全生命周期（🟡 验收，M0–M3 代码完成）**：关系型事件、统一状态 Service、申请/自助/日常 Dashboard、事件时间线与全验证 break-glass 已完成；pending 申请继续 fail closed，不开放物理删除、默认 CRUD 或批量写。剩余工作是在 PostgreSQL CI/预发布执行真实行锁竞争测试，并完成人工 Authenticator + Nginx mTLS 演练。
 
 > 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。

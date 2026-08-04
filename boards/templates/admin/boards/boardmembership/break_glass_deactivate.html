@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module aligned">
+        <h2>{{ original.board.name }} / {{ original.user.username }}</h2>
+        <div class="form-row" style="border-left:4px solid #ba2121;padding-left:1rem;">
+            <p><strong>这是允许制造零 Manager 状态的最高风险例外。</strong></p>
+            <p>当前请求必须同时具有受信客户端证书、证书绑定的 privileged Session、superuser 身份和一个尚未使用的新 TOTP 时间步。</p>
+            <p>如果仍有其他 Manager，应返回 Dashboard 使用正常停用或原子交接。</p>
+        </div>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {% for field in form %}
+            <div class="form-row">
+                {{ field.errors }}
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.name == "confirmation" %}
+                <p class="help">请输入：<code>{{ confirmation_phrase }}</code></p>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <div class="submit-row">
+                <input type="submit" value="执行 Break-glass 停用" class="deletelink">
+                <a href="{{ back_url }}" class="button cancel-link">取消</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

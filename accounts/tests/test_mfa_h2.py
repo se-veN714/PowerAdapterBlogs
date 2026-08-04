@@ -20,8 +20,17 @@ from accounts.authn.mfa_services import (
     start_totp_enrollment,
     verify_active_totp,
 )
-from accounts.authn.mfa_session import PENDING_KEY, PRIVILEGED_KEY, RECOVERY_KEY
+from accounts.authn.mfa_session import (
+    DASHBOARD_REMEMBER_KEY,
+    PENDING_KEY,
+    PRIVILEGED_KEY,
+    RECOVERY_KEY,
+)
 from accounts.models import MfaTotpDevice, MyUser
+from accounts.services import (
+    EMAIL_PURPOSE_MFA_ENROLLMENT,
+    MFA_ENROLLMENT_EMAIL_VERIFIED_SESSION_KEY,
+)
 
 
 def _encoded_key():
@@ -40,6 +49,7 @@ def _encoded_key():
     MFA_CHALLENGE_MAX_ATTEMPTS=5,
     MFA_CHALLENGE_COOLDOWN_SECONDS=900,
     MFA_PRIVILEGED_SESSION_TTL_SECONDS=900,
+    MFA_DASHBOARD_REMEMBER_TTL_SECONDS=7 * 24 * 60 * 60,
     LOG_HMAC_KEY=os.urandom(32),
     CACHES={
         "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
@@ -154,6 +164,48 @@ class H2PrivilegedAuthenticationTest(TestCase):
             msg=f"unexpected admin redirect: {admin_response.get('Location')}",
         )
 
+    def test_dashboard_can_be_remembered_for_seven_days_without_relaxing_super_admin(self):
+        dashboard_url = reverse("cus_admin:index")
+        self._begin_login(target=dashboard_url)
+        challenge_page = self.client.get(reverse("accounts:mfa-challenge"))
+        self.assertContains(challenge_page, "信任当前浏览器 7 天")
+
+        step, code = self._fresh_step_and_code()
+        with patch("accounts.authn.mfa_services._matching_step", return_value=step):
+            response = self.client.post(
+                reverse("accounts:mfa-challenge"),
+                {
+                    "action": "totp",
+                    "code": code,
+                    "remember_dashboard": "on",
+                },
+            )
+        self.assertRedirects(response, dashboard_url, fetch_redirect_response=False)
+        session = self.client.session
+        self.assertIn(DASHBOARD_REMEMBER_KEY, session)
+        session[PRIVILEGED_KEY]["verified_at"] = (
+            timezone.now() - timedelta(minutes=16)
+        ).timestamp()
+        session.save()
+
+        self.assertEqual(self.client.get(dashboard_url).status_code, 200)
+        self.assertRedirects(
+            self.client.get(reverse("admin:index")),
+            reverse("accounts:mfa-challenge"),
+            fetch_redirect_response=False,
+        )
+        MfaTotpDevice.objects.filter(pk=self.device.pk).update(auth_version=2)
+        self.assertRedirects(
+            self.client.get(dashboard_url),
+            reverse("accounts:mfa-challenge"),
+            fetch_redirect_response=False,
+        )
+
+    def test_super_admin_challenge_never_offers_dashboard_remember_option(self):
+        self._begin_login(target=reverse("admin:index"))
+        response = self.client.get(reverse("accounts:mfa-challenge"))
+        self.assertNotContains(response, "信任当前浏览器 7 天")
+
     def test_same_totp_step_cannot_be_replayed(self):
         step, code = self._fresh_step_and_code()
         with patch("accounts.authn.mfa_services._matching_step", return_value=step):
@@ -227,7 +279,15 @@ class H2PrivilegedAuthenticationTest(TestCase):
             reverse("accounts:mfa-challenge"),
             {"action": "recovery", "recovery_code": self.recovery_codes[0]},
         )
-        self.assertRedirects(response, reverse("accounts:mfa-settings"))
+        self.assertRedirects(
+            response,
+            reverse("accounts:mfa-settings"),
+            fetch_redirect_response=False,
+        )
+        self.assertRedirects(
+            self.client.get(reverse("accounts:mfa-settings")),
+            reverse("accounts:mfa-enrollment-email-verify"),
+        )
         session = self.client.session
         self.assertIn(SESSION_KEY, session)
         self.assertIn(RECOVERY_KEY, session)
@@ -237,6 +297,7 @@ class H2PrivilegedAuthenticationTest(TestCase):
         self.assertRedirects(
             self.client.get(reverse("index")),
             reverse("accounts:mfa-settings"),
+            fetch_redirect_response=False,
         )
 
     def test_recovery_rebind_clears_restriction_and_issues_privilege(self):
@@ -245,6 +306,13 @@ class H2PrivilegedAuthenticationTest(TestCase):
             reverse("accounts:mfa-challenge"),
             {"action": "recovery", "recovery_code": self.recovery_codes[0]},
         )
+        session = self.client.session
+        session[MFA_ENROLLMENT_EMAIL_VERIFIED_SESSION_KEY] = {
+            "user_id": self.user.pk,
+            "purpose": EMAIL_PURPOSE_MFA_ENROLLMENT,
+            "verified_at": timezone.now().timestamp(),
+        }
+        session.save()
         start_response = self.client.post(
             reverse("accounts:mfa-settings"),
             {"action": "start"},
@@ -332,6 +400,30 @@ class H2PrivilegedAuthenticationTest(TestCase):
     PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"],
 )
 class H2EnrollmentUiTest(TestCase):
+    def _mark_email_verified(self, user):
+        session = self.client.session
+        session[MFA_ENROLLMENT_EMAIL_VERIFIED_SESSION_KEY] = {
+            "user_id": user.pk,
+            "purpose": EMAIL_PURPOSE_MFA_ENROLLMENT,
+            "verified_at": timezone.now().timestamp(),
+        }
+        session.save()
+
+    def test_initial_binding_redirects_to_email_verification(self):
+        user = MyUser.objects.create_superuser(
+            email="email-gate-admin@example.test",
+            username="email_gate_admin",
+            password="test-only-password",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("accounts:mfa-settings"))
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:mfa-enrollment-email-verify"),
+        )
+
     def test_binding_page_returns_qr_without_persisting_uri(self):
         user = MyUser.objects.create_superuser(
             email="ui-admin@example.test",
@@ -339,6 +431,7 @@ class H2EnrollmentUiTest(TestCase):
             password="test-only-password",
         )
         self.client.force_login(user)
+        self._mark_email_verified(user)
         response = self.client.post(
             reverse("accounts:mfa-settings"),
             {"action": "start"},

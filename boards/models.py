@@ -4,6 +4,7 @@
   （skateboard / music / coding，由 slug 唯一标识，分派时直接用 slug）。
 - BoardMembership：用户在单个 Board 中的权限角色（与展示内容无关）。
 - BoardAccessRequest：权限申请的不可变审核记录。
+- BoardMembershipEvent：Membership 状态变更的 append-only 关系型历史。
 - 三块内容模型（Skateboard / Music / Coding）：其所属板块由模型类型固定，
   通过 `board` FK 的 default 自动写入对应 Board，Admin 中不可手动选择。
 
@@ -197,9 +198,13 @@ class BoardMembership(models.Model):
         help_text="自动迁移或系统初始化的记录可以为空。",
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
     class Meta:
         ordering = ["board_id", "user_id"]
+        permissions = [
+            ("manage_all_board_memberships", "可管理所有板块成员"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["board", "user"],
@@ -280,6 +285,141 @@ class BoardAccessRequest(models.Model):
             f"{self.board.name} / {self.applicant.username} / "
             f"{self.get_requested_role_display()} / {self.get_status_display()}"
         )
+
+
+class BoardMembershipEvent(models.Model):
+    """Append-only relational history for one Membership state transition."""
+
+    class EventType(models.TextChoices):
+        GRANTED = "granted", "授予"
+        ROLE_CHANGED = "role_changed", "角色变更"
+        DEACTIVATED = "deactivated", "停用"
+        REACTIVATED = "reactivated", "恢复"
+        MANAGER_TRANSFERRED = "manager_transferred", "Manager 交接"
+
+    class Source(models.TextChoices):
+        ACCESS_REQUEST = "access_request", "权限申请"
+        SELF_SERVICE = "self_service", "成员自助"
+        DASHBOARD = "dashboard", "Dashboard"
+        SUPER_ADMIN = "super_admin", "Super admin break-glass"
+        SYSTEM_MIGRATION = "system_migration", "系统迁移"
+
+    membership = models.ForeignKey(
+        BoardMembership,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="events",
+        verbose_name="板块成员关系",
+    )
+    board = models.ForeignKey(
+        Board,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="membership_events",
+        verbose_name="板块",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="board_membership_events",
+        verbose_name="成员",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="performed_board_membership_events",
+        verbose_name="操作者",
+    )
+    access_request = models.ForeignKey(
+        BoardAccessRequest,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="membership_events",
+        verbose_name="关联申请",
+    )
+    event_type = models.CharField(
+        max_length=32,
+        choices=EventType.choices,
+        verbose_name="事件类型",
+    )
+    source = models.CharField(
+        max_length=32,
+        choices=Source.choices,
+        verbose_name="来源",
+    )
+    previous_role = models.CharField(
+        max_length=16,
+        choices=BoardMembership.Role.choices,
+        blank=True,
+        verbose_name="原角色",
+    )
+    new_role = models.CharField(
+        max_length=16,
+        choices=BoardMembership.Role.choices,
+        blank=True,
+        verbose_name="新角色",
+    )
+    previous_is_active = models.BooleanField(
+        null=True,
+        verbose_name="原启用状态",
+    )
+    new_is_active = models.BooleanField(verbose_name="新启用状态")
+    reason = models.TextField(blank=True, verbose_name="原因")
+    board_id_snapshot = models.PositiveBigIntegerField(verbose_name="板块 ID 快照")
+    board_slug_snapshot = models.SlugField(
+        max_length=64,
+        verbose_name="板块标识快照",
+    )
+    user_id_snapshot = models.PositiveBigIntegerField(verbose_name="用户 ID 快照")
+    username_snapshot = models.CharField(max_length=150, verbose_name="用户名快照")
+    actor_id_snapshot = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="操作者 ID 快照",
+    )
+    actor_username_snapshot = models.CharField(
+        max_length=150,
+        blank=True,
+        verbose_name="操作者名称快照",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        default_permissions = ("view",)
+        indexes = [
+            models.Index(
+                fields=["board_id_snapshot", "-created_at"],
+                name="board_event_board_time_idx",
+            ),
+            models.Index(
+                fields=["user_id_snapshot", "-created_at"],
+                name="board_event_user_time_idx",
+            ),
+        ]
+        verbose_name = "板块成员事件"
+        verbose_name_plural = "板块成员事件"
+
+    def __str__(self):
+        return (
+            f"{self.board_slug_snapshot} / {self.username_snapshot} / "
+            f"{self.get_event_type_display()}"
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValidationError("板块成员事件为不可变记录，不能修改。")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("板块成员事件为不可变记录，不能删除。")
 
 
 # ---------------------------------------------------------------------------

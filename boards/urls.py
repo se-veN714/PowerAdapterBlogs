@@ -5,12 +5,18 @@ from boards.views import (
     BoardIndexView,
     HomieLineView,
     SkateClipListView,
+    withdraw_membership,
 )
 
 app_name = "boards"
 
 urlpatterns = [
     path("access/", BoardAccessRequestView.as_view(), name="access-requests"),
+    path(
+        "access/membership/<int:pk>/withdraw/",
+        withdraw_membership,
+        name="withdraw-membership",
+    ),
     path(
         "skateboard/clips/",
         SkateClipListView.as_view(),

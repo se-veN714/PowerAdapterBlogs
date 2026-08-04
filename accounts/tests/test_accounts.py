@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.admin import CusMyUserAdmin
+from accounts.context_processors import account_security_navigation
 from accounts.forms import AccountInvitationCreationForm
 from accounts.models import AccountInvitation, MyUser, UserProfile
 from accounts.services import (
@@ -142,6 +143,48 @@ class DashboardLoginTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('_auth_user_id', self.client.session)
+
+
+@override_settings(
+    SUPER_ADMIN_EXTERNAL_URL="https://admin.example.test/super_admin/",
+)
+class AccountSecurityNavigationTest(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def context_for(self, user):
+        request = self.factory.get("/")
+        request.user = user
+        return account_security_navigation(request)
+
+    def test_dashboard_user_sees_mfa_but_not_super_admin_entry(self):
+        user = MyUser.objects.create_user(
+            email="nav-dashboard@example.test",
+            username="nav-dashboard",
+            password="test-password",
+            is_active=True,
+            is_dashboard_user=True,
+        )
+
+        context = self.context_for(user)
+
+        self.assertTrue(context["can_manage_mfa"])
+        self.assertEqual(context["super_admin_entry_url"], "")
+
+    def test_superuser_uses_configured_external_admin_origin(self):
+        user = MyUser.objects.create_superuser(
+            email="nav-root@example.test",
+            username="nav-root",
+            password="test-password",
+        )
+
+        context = self.context_for(user)
+
+        self.assertTrue(context["can_manage_mfa"])
+        self.assertEqual(
+            context["super_admin_entry_url"],
+            "https://admin.example.test/super_admin/",
+        )
 
 
 @override_settings(

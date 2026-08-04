@@ -4,10 +4,16 @@
 > **归档模块**：`accounts/`
 > **主要作用域**：`boards.Board`
 > **文档职责**：治理整个授权架构；BoardMembership、申请审批与 Policy 的实现归 `boards` App
-> **状态**：`accounts_linear` 阶段 0–6b 已完成；Stage 7 已于 2026-07-29 开始零授权读取观察，Stage 8 删除字段尚未开始
-> **日期**：2026-07-29（Stage 7 零授权读取观察开始）
+> **状态**：`accounts_linear` 阶段 0–8 已完成，遗留 `is_reviewer` 字段已删除；`membership_admin_linear` M0–M3 代码已完成，PostgreSQL 真实并发验收尚未执行
+> **日期**：2026-08-03（重定 BoardMembership 日常管理与 break-glass 边界）
 
-> **Stage 7 入口收敛（当前规则，优先于下方历史阶段记录）**：`/review/` 是账号、板块权限、稿件、评论审核的统一业务入口；`UserManagers`、`SiteOperators`、Board Reviewer/Manager 均不因 Group 或 Membership 自动获得 `/dashboard/`。`/dashboard/` 只接受 active `is_dashboard_user` 或 active superuser，并在启用强制开关后要求 MFA；`/super_admin/` 继续作为低频最高权限入口。UserManager 只能在审核中心启停非 staff、非 dashboard、非 superuser 的普通账号，且不能绕过未完成的邮箱邀请；Board Manager 只审批自己板块内可授予的角色。
+> **Stage 7 入口收敛（当前规则，优先于下方历史阶段记录）**：`/review/` 是账号、板块权限、稿件、评论审核的统一业务入口；`UserManagers`、`SiteOperators`、Board Reviewer/Manager 均不因 Group 或 Membership 自动获得 `/dashboard/`。`/dashboard/` 只接受 active `is_dashboard_user` 或 active superuser，并在启用强制开关后要求 MFA；其模型注册也受 `DASHBOARD_MODEL_ALLOWLIST` 显式白名单约束，新增 Admin 模型必须经过代码审查。`/super_admin/` 继续作为低频最高权限入口。UserManager 只能在审核中心启停非 staff、非 dashboard、非 superuser 的普通账号，且不能绕过未完成的邮箱邀请；Board Manager 只审批自己板块内可授予的角色。
+
+> **审核中心与投稿边界**：`VerifiedUsers` 和 Contributor 只拥有申请/投稿能力，不得进入 `/review/`；文章审核入口只授予 Board Reviewer/Manager 或 superuser。作者提审与编辑继续在个人主页和文章详情等作者工作面完成。
+
+> **成员退出边界**：已批准的申请记录保持不可变；Contributor、Editor、Reviewer 可在板块权限页通过短时邮箱验证自助停用自己的 `BoardMembership`，不得删除历史。Manager 不能自助退出：存在其他 active Manager 时可由 Dashboard 停用，否则必须原子交接；只有全验证 superuser break-glass 能强制移除最后一名 Manager。存在同板块待审核申请时仍不得退出。
+
+> **Membership 管理边界（M2/M3 已实现）**：日常管理进入 Devenir `/dashboard/memberships/`，要求 active `is_dashboard_user`、独立 Permission、有效 privileged Session 和操作级新鲜 TOTP step-up；`/super_admin/` 保持低频只读观察，仅通过独立的全验证 break-glass URL 停用最后一名 Manager。两者都不开放默认 ModelAdmin CRUD。
 > **目标**：以后续功能围绕 Board 展开，在不引入第三方对象权限库的前提下实现最小权限、职责分离和可测试的板块级授权。
 
 ## 1. 当前问题
@@ -45,7 +51,7 @@ flowchart TD
 | BoardMembership | 用户在某个 Board 内是什么角色 | Coding 的 Editor、Music 的 Reviewer |
 | Policy | 结合板块角色、对象归属、作者和状态作最终判断 | 只能编辑所属 Board 的文章 |
 
-`is_active`、`is_staff`、`is_superuser` 保留 Django 原生语义；`is_dashboard_user` 暂时只作为 dashboard 入口开关，不再代表具体业务权限。`is_reviewer` 在迁移完成后可删除。
+`is_active`、`is_staff`、`is_superuser` 保留 Django 原生语义；`is_dashboard_user` 只作为 dashboard 入口开关，不代表具体业务权限。旧 `is_reviewer` 已在 Stage 8 删除。
 
 ### 2.1 App 职责边界
 
@@ -250,7 +256,7 @@ flowchart LR
 
     SU -->|建立或复核| MEMBER["BoardMembership"]
     SU -->|独占新增 / 删除| BOARD["Board<br/>新板块意味着新前端代码"]
-    MANAGER["Board Manager"] -->|仅管理自己的 Board| MEMBER
+    MANAGER["Board Manager"] -->|仅审批自己 Board 的普通角色申请| MEMBER
     MEMBER --> ROLE["板块角色与作用域<br/>board + user + role + is_active"]
 
     GLOBAL --> POLICY["boards/policies.py"]
@@ -264,7 +270,7 @@ flowchart LR
 职责边界：
 
 - superuser 维护 Group、Group 中的 Permission，以及用户的全局 Group 归属。
-- Manager 只能在自己管理的 Board 中增删 Membership，不能分配 Group、`user_permissions`、`is_staff` 或 `is_superuser`。
+- Manager 只能在自己管理的 Board 中审批 Contributor、Editor、Reviewer 的申请；当前不能直接新建、停用、恢复或删除 Membership，也不能分配 Group、`user_permissions`、`is_staff` 或 `is_superuser`。
 - Group 变化只影响全局职责；Membership 变化只影响指定 Board 及其关联的 Post / Comment。
 - 两类配置都只提供 Policy 输入，不能绕过 Policy 直接授权对象操作。
 
@@ -339,7 +345,7 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 
 首期不建议建立 `CodingEditors`、`MusicEditors` 这类组合 Group。Board 增多后会形成“板块数 × 角色数”的 Group 膨胀，也容易发生 Group 与 Membership 状态漂移。
 
-## 8. 推荐迁移顺序
+## 8. 已完成的迁移顺序（历史基线）
 
 1. 为 Board、Blogs、comment、security 增加业务 Permission。
 2. 新建 `BoardMembership` 和数据迁移。
@@ -382,11 +388,12 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 | ✅ | dashboard 用户可修改全部现有 Board | Stage 4 已按 Manager Membership 限定 queryset；slug/category/is_active 只允许 superuser 修改 |
 | ✅ | 普通 View/API 与遗留状态动作读取全局旗标 | Stage 5 已改调 Board Policy/Service，并固定跨 Board、staff 旁路与禁止自审测试 |
 | 🟡 中 | Board 与 Post 仅通过 Category 间接关联 | 第一阶段封装 `board_for_post()`；未来按产品关系显式建模 |
-| 🟡 中 | `/super_admin/` 仍采用 Django 默认 `is_staff` 入口语义 | 当前仅 superuser 创建流程授予 `is_staff`；引入非 superuser staff 前，需确保 Board 模型入口仍调用 Policy 或显式限制为 superuser |
+| ✅ | `/super_admin/` 曾采用 Django 默认 `is_staff` 入口语义 | H0 已替换为 active-superuser-only `SuperuserAdminSite`；staff-only 账号无法建立系统后台 Session |
 | ✅ | View/API 权限判断分散 | Admin、普通 View、上传、修订端点和只读 API 均已收敛到 `boards.policies` |
 | ✅ | BoardMembership 自动审批 | Stage 6b 已用 BoardAccessRequest/审批 Service 自动创建、变更或恢复 Membership |
 | ✅ | 角色矩阵、ORM Policy 与跨入口拒绝路径已有测试 | Stage 4–5 新增 17 个测试；加入手测账号/导航契约后完整测试集 70 个通过 |
 | ✅ | Board 权限申请只检查长期 `VerifiedUsers`，未要求本次敏感操作的短时邮箱确认 | 已复用 accounts 通用邮箱挑战：purpose/用户/Session 隔离，10 分钟授权、共享发送限流、失败锁定；成功提交后立即消费 Board grant，改密 grant 不可互用 |
+| ✅ 已实现 | BoardMembership 日常全生命周期入口 | Devenir `/dashboard/memberships/` 已提供直接授予、角色变更、停用/恢复、Manager 原子交接和事件时间线；Dashboard 长期 grant 只负责进入，所有写操作仍要求一次性 TOTP step-up；super_admin 仅保留全验证 break-glass |
 | 🟡 中 | Board Manager 缺少所属板块文章与专属内容的统一管理入口 | 在业务路由建立 Board-scoped 管理页并复用 Policy；不得为此重新开放 dashboard |
 
 ## 12. accounts_linear
@@ -405,8 +412,8 @@ Django Admin 的全局账号和审计模块可以使用 Group Permission 决定�
 | 5 ✅ | 接入审核 action、上传接口、普通 View/API | 2026-07-19 已完成；状态 Service 逐对象校验，API 暂定只读并明确拒绝写方法 |
 | 6a ✅ | accounts 创建全局 Group 并迁移全局身份 | VerifiedUsers、UserManagers、SiteOperators 已绑定精确 Permission 并接入工作台边界 |
 | 6b ✅ | boards 实现 BoardAccessRequest、审批与 Membership 迁移 | Manager/superuser 审批边界生效，用户无需手工勾选权限 |
-| 7 🔄 | 停止读取 `is_reviewer`，完成一次等价完整验收 | 已移除 Admin 分配/展示、superuser 默认赋值与测试账号写入；自动回归已通过，待用户完成本地角色流程手测 |
-| 8 | 删除 `is_reviewer`；单独评估 `is_dashboard_user` | 迁移可回滚，文档与权限矩阵同步更新 |
+| 7 ✅ | 停止读取 `is_reviewer`，完成一次等价完整验收 | Admin、初始化和全部授权入口已停止读取；角色流程与自动回归无旧旗标依赖 |
+| 8 ✅ | 删除 `is_reviewer`；单独保留 `is_dashboard_user` | `0011_remove_myuser_is_reviewer` 删除 schema 字段，字段缺失契约测试已加入；dashboard 入口旗标不承载业务角色 |
 
 ### 12.1 阶段 0 冻结结果
 
@@ -495,7 +502,7 @@ Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。�
 - 数据迁移幂等创建 `VerifiedUsers`、`UserManagers`、`SiteOperators`，并使用 `Group.permissions.set()` 固定每组的精确权限集合。
 - active 旧账号迁入 `VerifiedUsers`；active 非 superuser staff 收敛到 `UserManagers`；不把遗留 `is_reviewer` 猜测为 `SiteOperators`。
 - `UserManagers` 通过 `/review/accounts/` 启停普通账号，但不能进入 `/dashboard/`，不能新增、删除、重发邀请、操作 staff/dashboard/superuser 或修改 Group/Permission。
-- `SiteOperators` 可进入工作台查看和运行 HMAC 完整性审计，但不能获得账号、Board 或文章权限。
+- `SiteOperators` 通过 `/operations/security/` 查看和运行 HMAC 完整性审计，不进入 `/dashboard/`，也不获得账号、Board 或文章权限。
 - Group Permission 只授予对应业务路由能力；任何 Group 都不能授予 `/dashboard/` 外壳或替代 BoardMembership。
 
 ### 12.7 阶段 6b 实现结果
@@ -505,7 +512,7 @@ Board 新增和删除由 superuser 独占，不建立 `BoardCreators` Group。�
 - `boards.services` 在数据库事务与行锁内处理审批。通过后创建或更新唯一的 `BoardMembership`，驳回不修改 Membership，重复审批被拒绝；事务提交后以 MongoDB HMAC 日志记录操作者、申请人、Board、原角色、目标角色与结果。
 - 本 Board Manager 只能审批 Contributor、Editor、Reviewer，不能自审、跨 Board 审批、授予 Manager、恢复停用 Membership 或变更已有 Manager；后两类操作与 Manager 申请只允许 superuser。
 - Manager Membership 只获得所属 Board 的 Policy 权限与审核中心相应入口，不获得 `/dashboard/` 外壳，也不会因此获得账号管理、安全审计或全局 Group 管理权限。
-- `/super_admin/` 与 `/dashboard/` 的申请记录均为只读详情，只能通过调用同一审批 Service 的批量 action 改变状态，避免 Admin 表单直接写 Membership。
+- Board 权限申请统一在 `/review/boards/` 调用同一审批 Service；`/super_admin/` 只保留最高权限观察和应急能力，`/dashboard/` 不再承载申请审批。
 - Stage 6b 新增 16 个申请、越权、幂等、回滚和 queryset 隔离测试；完整测试集 179 项通过，Django system check 为 0。
 
 ```mermaid
@@ -531,17 +538,92 @@ sequenceDiagram
     Service-->>Audit: 事务提交后记录审核结果
 ```
 
-当前处于 **阶段 7：`is_reviewer` 零授权读取验收期**。字段仍保留在模型和数据库中以支持可回滚验证，模型层敏感字段保护也暂时保留；它不再出现在 Admin 中，也不由 superuser/测试账号初始化流程赋值。完成一次生产等价的本地/预发布角色流程验收并确认无依赖后，即可进入 Stage 8，不要求先部署到服务器。
+`accounts_linear` 已完成 **阶段 8**：`is_reviewer` 不再存在于当前模型或数据库 schema。历史迁移 `0002_add_is_reviewer` 必须保留，以支持旧数据库沿迁移图升级；新迁移 `0011_remove_myuser_is_reviewer` 承担最终删除。
 
-### 12.8 Stage 7 等价完整验收
+### 12.8 Stage 7–8 完成记录
 
-Stage 7 不能只凭自动测试立即关闭，但不要求先部署到服务器。用户可在当前本地数据库或预发布环境中，至少完整覆盖一次账号创建、Board 申请/审批、投稿、审核、评论管理和双后台登录流程。
+Stage 7 的等价流程与代码审计已经完成，Stage 8 删除迁移已建立。后续验收继续覆盖账号创建、Board 申请/审批、投稿、审核、评论管理和双后台登录，但不再保留旧字段作为回退授权源。
 
-- `/super_admin/` 不再展示或分配 `is_reviewer`；新建 superuser 和测试账号不再写入它。
-- `is_reviewer=True` 的历史账号在没有 Group/Membership 时仍无法进入工作台或获得 Board/审计权限。
+- `/super_admin/`、初始化命令和测试账号均不再展示、分配或写入 `is_reviewer`。
+- 当前 `MyUser` 模型字段集合明确不包含 `is_reviewer`。
 - 所有 Board 操作继续由 `BoardMembership`、Policy 和 Service 决策；代码审计中不存在旧旗标授权读取。
-- 观察期间不得手工清空历史字段值来伪造成功；Stage 8 删除前保留数据用于发现遗漏依赖。
-- 若这轮等价完整流程无回归且日志无相关授权异常，再创建可回滚的 Stage 8 schema migration；`is_dashboard_user` 仍单独评估。
+- `is_dashboard_user` 继续只控制 Dashboard 外壳入口，并与 Board 角色分开评估。
+
+### 12.9 membership_admin_linear：Dashboard Membership 全生命周期
+
+#### 12.9.1 当前事实与缺口
+
+截至 2026-08-03，`BoardMembership` 已注册到 `/super_admin/`，但 `BoardMembershipObservationAdmin` 的新增、修改和删除权限均返回 False，所有字段也只读。这不是迁移或注册遗漏，而是 Stage 2 为防止 Admin 绕过 Policy/Service 而保留的观察模式。
+
+Stage 6b 的申请审批可以创建、变更或恢复 Membership，普通非 Manager 成员也可在短时邮箱验证后自助停用自己。M1/M2 已补齐下列日常站务入口，并继续禁止通用 ModelAdmin CRUD：
+
+- 首位 Manager 或应急成员的直接授予；
+- Manager 的停用、降级与交接；
+- Dashboard 授权管理者主动调整现有角色、停用成员或恢复停用成员；
+- 无用户申请时的紧急纠错；
+- 将上述动作作为结构化、可查询且不会因 Mongo 暂时不可用而丢失的领域历史。
+
+#### 12.9.2 目标状态机
+
+```mermaid
+stateDiagram-v2
+    [*] --> Absent: 尚无 Membership
+    Absent --> Active: 申请批准 / Dashboard 直接授予
+    Active --> Active: 申请批准变更 / Dashboard 调整角色
+    Active --> Inactive: 成员自助退出 / Dashboard 停用
+    Inactive --> Active: 申请批准恢复 / Dashboard 恢复
+    Active --> Active: Dashboard 原子完成 Manager 交接
+    Inactive --> [*]: 仅随 Board/User 删除级联，不提供人工删除
+```
+
+已批准或已驳回的 `BoardAccessRequest` 永不改写为“撤回”；退出和管理员撤销都只改变稳定 Membership 的 active 状态，并新增事件。停用时保留原角色，恢复时必须显式确认恢复后的角色。
+
+#### 12.9.3 Dashboard 日常操作矩阵
+
+| 操作 | 入口 | 关键约束 | 结果 |
+|---|---|---|---|
+| 直接授予 | Devenir `/dashboard/memberships/grant/` | active Board、active 非 superuser 用户；无同 Board pending 申请；原因必填 | 新建 active Membership + `granted` 事件 |
+| 调整角色 | Membership 对象页 | active Membership；新旧角色不同；无 pending 申请；原因必填 | 原记录更新 + `role_changed` 事件 |
+| 停用 | Membership 对象页 | active Membership；无 pending 申请；原因必填 | `is_active=False` + `deactivated` 事件 |
+| 恢复 | Membership 对象页 | inactive Membership；active Board/用户；无 pending 申请；明确目标角色与原因 | `is_active=True` + `reactivated` 事件 |
+| Manager 交接 | 专用确认页 | 新旧成员、同一 Board、目标用户有效、无相关 pending；原因必填 | 单事务内先授予/晋升新 Manager，再降级或停用旧 Manager |
+| 查看历史 | `/dashboard/memberships/events/` 或单 Membership 历史 | 具备日常管理资格与 privileged Session | 按时间、类型、来源、Board 和快照文本筛选关系型事件 |
+
+不提供通用批量写操作，也不开放 Django 默认 `add/change/delete` 表单。Membership 管理使用第一方 Django View + Template + htmx 的 Devenir 页面，每个按钮提交到命名明确的业务 URL，再由 `boards.services` 执行。`/review/`、`UserManagers`、`SiteOperators` 和普通 Board Manager 均不能调用全站 Membership 管理 Service。
+
+日常写操作的服务端资格必须同时满足：active `is_dashboard_user`、独立 `boards.manage_all_board_memberships` Permission、有效 privileged Session，以及为本次操作签发的新鲜 TOTP step-up grant。grant 绑定用户、Session、purpose 和目标操作，最长 5 分钟且成功后立即消费；仅隐藏按钮、邮箱验证码或仍然有效的普通登录 Session 都不能代替它。superuser 即使能进入 Dashboard，也必须遵守同一日常写操作验证，不因 `is_superuser` 自动跳过 step-up。
+
+`/super_admin/` 不承载日常 Membership CRUD。它只保留只读观察，以及“无接替者时强制停用最后一名 Manager”“修复不可能由正常状态机产生的数据异常”等 break-glass 动作；执行前必须已经完成 TLS 1.3 mTLS、Django `ClientCertificateBinding`、账号密码和 TOTP 全验证，并继续要求高风险二次确认与原因。
+
+#### 12.9.4 一致性与冲突规则
+
+1. 所有日常写操作验证 actor 的 dashboard 身份、独立 Permission、privileged Session 和一次性 TOTP step-up；break-glass 另验证 active superuser 与完整证书链。在 `transaction.atomic()` 内对 Membership、相关 pending 申请和交接双方记录使用行锁，不能只依赖按钮是否可见。
+2. 同一用户与 Board 存在 pending `BoardAccessRequest` 时 fail closed，先批准或驳回该申请；不得让后台修改与旧申请竞态并在之后意外覆盖新状态。
+3. 申请批准、成员自助退出、Dashboard 日常操作和 super_admin break-glass 最终复用同一 Membership 状态变更内核，避免多套更新规则漂移。
+4. superuser 本身通过 Policy 的应急路径访问全部 Board，不为其创建误导性的 Membership；staff、dashboard 身份与 Board 角色仍可正交叠加。
+5. 不允许相同角色/状态的空操作；不允许向 inactive Board 或 inactive 用户授予/恢复，但允许通过 Dashboard 或 break-glass 停用其现有 Membership。
+6. Membership 不提供人工物理删除。Board/User 的既有级联删除行为暂不改变，但事件必须保留 Board、用户、角色和操作者快照，避免外键删除后审计语义丢失。
+7. Dashboard 日常停用不得制造零 Manager 状态，必须使用原子 Manager 交接；只有完成全验证的 superuser break-glass 才能在明确确认后强制停用最后一名 Manager。
+8. Membership 管理不复用 Board 申请的邮箱 grant。Dashboard 写操作使用新鲜 TOTP step-up；super_admin break-glass 使用 mTLS + Django 证书绑定 + 密码 + TOTP 全验证，两条 grant/purpose 不得互用。
+
+#### 12.9.5 关系型事件与 Mongo HMAC 镜像
+
+已新增并迁移 append-only `BoardMembershipEvent`，保存 event type、Membership 可空引用、Board/User/角色/active 状态前后快照、actor 可空引用、来源（申请审批、自助退出、dashboard、super_admin break-glass、系统迁移）、原因、关联 `BoardAccessRequest` 和创建时间。
+
+事件必须与 Membership 变更在同一关系型事务中写入；任何一方失败都整体回滚。事务提交后再以 `transaction.on_commit()` 镜像到 MongoDB HMAC 日志。Mongo 写入仍是 best effort，但关系型事件是业务历史的可靠基线；Mongo 负责防篡改自我实践和跨日志完整性核验，不再是直接管理动作的唯一记录。
+
+`BoardMembershipEvent` 的 Django Admin 观察入口只允许 superuser 查看，禁止新增、修改和删除；`BoardMembership.updated_at` 已落地，供观察最近变更时间，历史角色不能从该字段推导，必须读取事件。具备全站 Membership 管理资格的 dashboard 用户可在 Devenir 事件时间线查看全局或单 Membership 历史；页面读取快照，因此关联对象删除后事件语义仍可显示。
+
+#### 12.9.6 分阶段实现与验收
+
+| 阶段 | 状态 | 工作 | 验收标准 |
+|---:|---|---|---|
+| M0 | ✅ 历史设计基线 | 冻结状态机、Dashboard 日常操作、TOTP step-up、super_admin 全验证与审计边界 | 后续 M1–M3 已实现；本行只保留设计追溯，不代表当前功能仍处于规划 |
+| M1 | ✅ 代码完成 | 新增 `BoardMembershipEvent`、`updated_at`、统一状态变更 Service 与迁移 | 关系型事件与状态同事务；行锁、回滚、pending 冲突、无操作拒绝、快照保留和事件不可变测试通过 |
+| M2 | ✅ 代码完成 | Devenir Dashboard Membership 列表与五类写操作、独立 Permission、privileged Session 复核及一次性 TOTP step-up | 默认 CRUD 仍关闭；目标/动作/用户/Session 绑定和单次消费测试通过；最后一名 Manager、pending 竞态与非法状态 fail closed |
+| M3 | ✅ 代码 / 🟡 PostgreSQL 待验 | 事件时间线、统一 Manager 连续性约束及全验证 super_admin break-glass 已实现；PostgreSQL 双请求竞争测试已提供 | 56 项 M3 定向回归通过；SQLite 明确跳过行锁用例，需在 PostgreSQL CI/预发布运行后关闭并发验收 |
+
+`/super_admin/boards/boardmembership/` 必须永久保持默认 CRUD 只读；不得解除 `readonly_fields`、把 `has_change_permission()` 改为 True，或让 dashboard 复用 ModelAdmin 表单。break-glass 只能是命名明确、全验证、单对象且追加事件的例外 URL。
 
 ## 13. 参考依据
 

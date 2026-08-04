@@ -46,6 +46,7 @@ H3_SETTINGS = {
     "MFA_CHALLENGE_MAX_ATTEMPTS": 5,
     "MFA_CHALLENGE_COOLDOWN_SECONDS": 900,
     "MFA_PRIVILEGED_SESSION_TTL_SECONDS": 900,
+    "MFA_SUPER_ADMIN_IDLE_TTL_SECONDS": 300,
     "LOG_HMAC_KEY": os.urandom(32),
     "PASSWORD_HASHERS": ["django.contrib.auth.hashers.MD5PasswordHasher"],
 }
@@ -308,8 +309,56 @@ class H3AdminAuthenticationTest(TestCase):
             session[PRIVILEGED_KEY]["certificate_binding_id"],
             str(self.binding.pk),
         )
+        self.assertTrue(session.get_expire_at_browser_close())
         admin = self.client.get(reverse("admin:index"), **self.headers)
         self.assertEqual(admin.status_code, 200)
+
+    def test_system_admin_privilege_expires_after_five_minutes_idle(self):
+        self._login(self.headers)
+        step, code = self._fresh_step_and_code()
+        with patch("accounts.authn.mfa_services._matching_step", return_value=step):
+            self.client.post(
+                reverse("accounts:mfa-challenge"),
+                {"action": "totp", "code": code},
+                **self.headers,
+            )
+        session = self.client.session
+        session[PRIVILEGED_KEY]["last_seen_at"] = (
+            timezone.now() - timedelta(minutes=6)
+        ).timestamp()
+        session.save()
+
+        response = self.client.get(reverse("admin:index"), **self.headers)
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:mfa-challenge"),
+            fetch_redirect_response=False,
+        )
+        self.assertIn(PENDING_KEY, self.client.session)
+
+    def test_system_admin_activity_refreshes_idle_timestamp(self):
+        self._login(self.headers)
+        step, code = self._fresh_step_and_code()
+        with patch("accounts.authn.mfa_services._matching_step", return_value=step):
+            self.client.post(
+                reverse("accounts:mfa-challenge"),
+                {"action": "totp", "code": code},
+                **self.headers,
+            )
+        session = self.client.session
+        previous = (timezone.now() - timedelta(minutes=4)).timestamp()
+        session[PRIVILEGED_KEY]["last_seen_at"] = previous
+        session.save()
+
+        self.assertEqual(
+            self.client.get(reverse("admin:index"), **self.headers).status_code,
+            200,
+        )
+        self.assertGreater(
+            self.client.session[PRIVILEGED_KEY]["last_seen_at"],
+            previous,
+        )
 
     def test_direct_admin_header_spoof_and_revocation_are_rejected(self):
         spoofed = dict(self.headers)

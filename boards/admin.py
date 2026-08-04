@@ -2,20 +2,29 @@
 
 Board 与 Board Index 内容模型全部注册到默认 admin.site（= SuperuserAdminSite，
 /super_admin/），仅 superuser 可维护。dashboard (/dashboard/) 不再暴露任何板块
-内容管理入口。BoardAccessRequest 保留双注册（dashboard 供板块 Manager 审核本板
-申请，super_admin 供站长全局审核）。
+内容管理入口。BoardAccessRequest 的日常审核已迁到 /review/；super_admin 仅保留
+全局观察与应急入口。
 """
 
+from django.conf import settings
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.shortcuts import get_object_or_404, redirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters
 from django.utils.html import format_html
 
-from PowerAdapterBlogs.cus_site import custom_site
+from boards.admin_forms import MembershipBreakGlassDeactivateForm
+from boards.membership_step_up import MembershipStepUpError, issue_membership_step_up
 from boards.models import (
     AppleRecord,
     Board,
     BoardAccessRequest,
     BoardMembership,
+    BoardMembershipEvent,
     CodingExperiment,
     CodingPrinciple,
     CodingProject,
@@ -28,8 +37,13 @@ from boards.policies import (
     can_manage_board_members,
 )
 from boards.services import (
+    MEMBERSHIP_ACTION_BREAK_GLASS_DEACTIVATE,
     approve_board_access_request,
+    break_glass_deactivate_last_manager,
+    membership_break_glass_confirmation,
+    membership_break_glass_target,
     reject_board_access_request,
+    require_membership_break_glass_context,
 )
 
 
@@ -113,12 +127,20 @@ class BoardAdmin(admin.ModelAdmin):
 class BoardMembershipObservationAdmin(admin.ModelAdmin):
     """Super-admin-only, read-only observation of Board memberships.
 
-    Membership writes will be introduced through the reviewed approval flow in
-    a later accounts_linear stage. Keeping this view off ``custom_site`` avoids
-    exposing cross-Board membership data before scoped querysets exist.
+    Normal writes go through reviewed workflow services and the Devenir
+    Dashboard. The sole custom write URL is the fully verified break-glass
+    exception; it does not enable ModelAdmin CRUD.
     """
 
-    list_display = ["board", "user", "role", "is_active", "created_by", "created_at"]
+    list_display = [
+        "board",
+        "user",
+        "role",
+        "is_active",
+        "created_by",
+        "created_at",
+        "updated_at",
+    ]
     list_filter = ["board", "role", "is_active"]
     search_fields = ["board__name", "board__slug", "user__username", "user__email"]
     list_select_related = ["board", "user", "created_by"]
@@ -130,7 +152,161 @@ class BoardMembershipObservationAdmin(admin.ModelAdmin):
         "is_active",
         "created_by",
         "created_at",
+        "updated_at",
+        "break_glass_control",
     ]
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                "<path:object_id>/break-glass-deactivate/",
+                self.admin_site.admin_view(self.break_glass_deactivate_view),
+                name="boards_boardmembership_break_glass_deactivate",
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    @admin.display(description="应急操作")
+    def break_glass_control(self, obj):
+        if obj is None:
+            return "—"
+        if not (
+            settings.MFA_ENFORCEMENT_ENABLED
+            and settings.MTLS_ENFORCEMENT_ENABLED
+        ):
+            return "MFA/mTLS 生产强制未同时开启，应急写入口保持关闭。"
+        if not obj.is_active or obj.role != BoardMembership.Role.MANAGER:
+            return "仅有效 Manager 可进入应急停用确认。"
+        if BoardMembership.objects.filter(
+            board_id=obj.board_id,
+            role=BoardMembership.Role.MANAGER,
+            is_active=True,
+        ).exclude(pk=obj.pk).exists():
+            return "该 Board 仍有其他 Manager，请使用 Dashboard 正常停用或交接。"
+        url = reverse(
+            "admin:boards_boardmembership_break_glass_deactivate",
+            args=(obj.pk,),
+        )
+        return format_html(
+            '<a class="button" href="{}">全验证 Break-glass 停用</a>',
+            url,
+        )
+
+    @method_decorator(never_cache)
+    @method_decorator(sensitive_post_parameters("code"))
+    def break_glass_deactivate_view(self, request, object_id):
+        membership = get_object_or_404(
+            BoardMembership.objects.select_related("board", "user"),
+            pk=object_id,
+        )
+        if not self.has_view_permission(request, membership):
+            raise PermissionDenied
+        binding = require_membership_break_glass_context(
+            request=request,
+            actor=request.user,
+        )
+        confirmation_phrase = membership_break_glass_confirmation(membership)
+        if request.method == "POST":
+            form = MembershipBreakGlassDeactivateForm(request.POST)
+            if form.is_valid():
+                target = membership_break_glass_target(
+                    membership=membership,
+                    binding=binding,
+                )
+                try:
+                    capability = issue_membership_step_up(
+                        request=request,
+                        action=MEMBERSHIP_ACTION_BREAK_GLASS_DEACTIVATE,
+                        target=target,
+                        code=form.cleaned_data["code"],
+                    )
+                    break_glass_deactivate_last_manager(
+                        request=request,
+                        actor=request.user,
+                        membership=membership,
+                        reason=form.cleaned_data["reason"],
+                        confirmation=form.cleaned_data["confirmation"],
+                        capability=capability,
+                    )
+                except MembershipStepUpError:
+                    form.add_error(
+                        "code",
+                        "动态验证码无效、已使用、已过期或已进入冷却。",
+                    )
+                except ValidationError as exc:
+                    form.add_error(None, exc)
+                else:
+                    messages.warning(
+                        request,
+                        "最后一名 Manager 已通过 break-glass 停用；该 Board 当前没有 Manager。",
+                    )
+                    return redirect("admin:boards_boardmembership_changelist")
+        else:
+            form = MembershipBreakGlassDeactivateForm()
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "original": membership,
+            "title": "全验证 Break-glass：停用最后一名 Manager",
+            "form": form,
+            "confirmation_phrase": confirmation_phrase,
+            "back_url": reverse(
+                "admin:boards_boardmembership_change",
+                args=(membership.pk,),
+            ),
+        }
+        return TemplateResponse(
+            request,
+            "admin/boards/boardmembership/break_glass_deactivate.html",
+            context,
+        )
+
+    def has_module_permission(self, request):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(BoardMembershipEvent)
+class BoardMembershipEventObservationAdmin(admin.ModelAdmin):
+    """Append-only Membership history; super-admin observation only."""
+
+    list_display = [
+        "created_at",
+        "board_slug_snapshot",
+        "username_snapshot",
+        "event_type",
+        "source",
+        "previous_role",
+        "new_role",
+        "actor_username_snapshot",
+    ]
+    list_filter = ["event_type", "source", "board_slug_snapshot"]
+    search_fields = [
+        "board_slug_snapshot",
+        "username_snapshot",
+        "actor_username_snapshot",
+        "reason",
+    ]
+    list_select_related = [
+        "membership",
+        "board",
+        "user",
+        "actor",
+        "access_request",
+    ]
+    ordering = ["-created_at", "-pk"]
+    readonly_fields = [field.name for field in BoardMembershipEvent._meta.fields]
 
     def has_module_permission(self, request):
         return request.user.is_active and request.user.is_superuser

@@ -6,6 +6,38 @@ so that model-layer security checks can identify the acting user.
 from .thread_local import set_current_user, clear_current_user
 
 
+class PrivilegedSingleSessionMiddleware:
+    """Invalidate older superuser/dashboard sessions after a newer login."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from urllib.parse import urlencode
+
+        from django.contrib.auth import logout
+        from django.shortcuts import redirect
+        from django.urls import reverse
+
+        from .signals import (
+            PRIVILEGED_SESSION_VERSION_KEY,
+            requires_privileged_single_session,
+        )
+
+        user = request.user
+        if not requires_privileged_single_session(user):
+            return self.get_response(request)
+
+        current_version = request.session.get(PRIVILEGED_SESSION_VERSION_KEY)
+        if current_version == user.privileged_session_version:
+            return self.get_response(request)
+
+        target = request.get_full_path()
+        logout(request)
+        login_url = reverse("accounts:login")
+        return redirect(f"{login_url}?{urlencode({'next': target})}")
+
+
 class MtlsAdminMiddleware:
     """Require a trusted, bound client certificate for the system AdminSite."""
 
@@ -50,6 +82,7 @@ class MfaPrivilegeMiddleware:
     recovery_paths = {
         "/accounts/security/mfa/",
         "/accounts/security/mfa/confirm/",
+        "/accounts/security/mfa/verify-email/",
         "/accounts/logout/",
     }
 
@@ -64,6 +97,7 @@ class MfaPrivilegeMiddleware:
 
         from .authn.mfa_session import (
             active_mfa_device,
+            dashboard_session_is_valid,
             issue_pending_challenge,
             mfa_required_for_user,
             privileged_session_is_valid,
@@ -85,11 +119,13 @@ class MfaPrivilegeMiddleware:
             return self.get_response(request)
         if not request.user.is_authenticated or not mfa_required_for_user(request.user):
             return self.get_response(request)
+        is_super_admin_path = request.path.startswith("/super_admin/")
         require_certificate = (
-            settings.MTLS_ENFORCEMENT_ENABLED
-            and request.path.startswith("/super_admin/")
+            settings.MTLS_ENFORCEMENT_ENABLED and is_super_admin_path
         )
-        if privileged_session_is_valid(
+        if not is_super_admin_path and dashboard_session_is_valid(request):
+            return self.get_response(request)
+        if is_super_admin_path and privileged_session_is_valid(
             request,
             require_certificate=require_certificate,
         ):

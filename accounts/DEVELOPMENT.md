@@ -2,12 +2,20 @@
 
 > **文档权重**：85（accounts 当前实现与模块 TODO）
 
-> **2026-07-29 Stage 7 入口边界**：账号、板块权限、稿件、评论审核统一从 `/review/` 进入；UserManager 与 Board Manager 不再因此进入 Django Dashboard。`/dashboard/` 仅供 active `is_dashboard_user`/superuser 日常运维，启用 `MFA_ENFORCEMENT_ENABLED` 后 `dashboard_user` 也必须完成 TOTP；`/super_admin/` 为低频最高权限入口。
+> **2026-08-02 Stage 7 入口边界**：账号、板块权限、稿件、评论审核统一从 `/review/` 进入；UserManager 与 Board Manager 不再因此进入 Django Dashboard。`/dashboard/` 仅供 active `is_dashboard_user`/superuser 日常运维，并以 `DASHBOARD_MODEL_ALLOWLIST` 拒绝未审查的模型注册；启用 `MFA_ENFORCEMENT_ENABLED` 后 `dashboard_user` 也必须完成 TOTP。`/super_admin/` 为低频最高权限入口。
+
+> **2026-08-03 特权 Session 边界**：superuser 与显式 `dashboard_user` 只保留最新一次成功登录；新浏览器完成密码及必要的 MFA 后递增账号会话版本，旧浏览器下一请求即退出。普通用户不受单会话限制。
+
+> **2026-08-03 Membership step-up**：显式 dashboard 用户已纳入 TOTP 自助绑定资格；`/dashboard/memberships/` 在 privileged Session 之上，为每次写操作额外校验新鲜 TOTP 并签发一次性目标绑定 capability。
+
+> **2026-08-03 MFA 绑定/撤销闸门**：首次及撤销后重新绑定必须先完成 purpose 隔离的邮箱挑战；active 设备不重复要求邮件。自助撤销必须同时提交当前密码与防重放的新鲜 TOTP，邮件不作为登录 MFA 因素。
+
+> **2026-08-04 双后台时效边界**：Dashboard 可选当前 Session 信任 7 天；super_admin 只接受证书绑定的短时 grant，绝对 15 分钟、闲置 5 分钟并使用浏览器会话 Cookie。单个标签页关闭不参与验证；Membership break-glass 等高危自定义动作继续要求操作级新鲜 TOTP。
 > **模块**: `accounts/`  
 > **职责**: 自定义用户模型、认证、账号状态、全局 Group 编排与用户安全；不拥有 Board Policy
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-07-29 — purpose 隔离的通用邮箱挑战接入 Board 权限申请
+> **最后更新**: 2026-08-04 — Dashboard 7 天信任与安全导航入口
 
 ---
 
@@ -15,6 +23,9 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-03 | v3.26 | 修正 dashboard 用户必须 MFA 却不能自助绑定 TOTP 的资格矛盾；Membership M2 复用现有防重放与限流服务签发一次性操作 capability |
+| 2026-08-04 | v3.28 | super_admin 增加 5 分钟闲置超时与浏览器关闭失效；Dashboard 长期 grant 接入 Membership 列表及操作级 step-up；`run.py` 成为本地默认完整 MFA/mTLS 入口 |
+| 2026-08-04 | v3.27 | Dashboard challenge 可选当前 Session 信任 7 天；super_admin 仍只接受 mTLS 绑定的 15 分钟 TOTP privileged Session；导航按资格显示 MFA 与独立管理域名入口 |
 | 2026-07-29 | v3.25 | 将改密验证码泛化为 purpose + 用户 + Session 隔离的账号邮箱挑战；密码修改与 Board 申请授权互不复用，账号级发送冷却/小时上限共享；Board 授权提交成功即消费 |
 | 2026-07-29 | v3.24 | H3 安全检查点提交前验证：Ruff、迁移一致性与全项目 250 项测试通过；生产强制开关仍保持关闭 |
 | 2026-07-29 | v3.23 | OpenSSL 4.0.1 开发 CA 实测通过：clientAuth 叶证书、链验证、PKCS#12、撤销、CRL 重发及 error 23 拒绝；Nginx/浏览器仍待验收 |
@@ -141,9 +152,9 @@ flowchart TD
 
 **核心设计原则**：
 - **App 边界**：accounts 回答全局身份与职责；boards 回答指定 Board 内可以执行的动作
-- **Board 权限迁移状态**：Stage 0–6b 已落地；Stage 7 正在观察遗留字段零授权读取，Stage 8 尚未删除字段
+- **Board 权限迁移状态**：Stage 0–8 已落地；遗留 `is_reviewer` 已从当前模型与 schema 删除
 - **单一事实来源**：Contributor / Editor / Reviewer / Manager 不写入 Group；BoardMembership + Policy 跨 App 控制 Post 与 Comment
-- **全局旗标边界**：`is_active` / `is_dashboard_user` / `is_staff` / `is_superuser` 只表达账号或入口状态；`is_reviewer` 为待删除遗留字段，不再代表 Board 角色
+- **全局旗标边界**：`is_active` / `is_dashboard_user` / `is_staff` / `is_superuser` 只表达账号或入口状态；Board 角色只存在于 `BoardMembership`
 - **纵深防御**：4 层防护，模型层是最后一道防线
 - **双 Admin 注册**：同一 `MyUserAdmin` 注册到 superuser-only 的 `admin.site` 和 Board 工作台 `custom_site`，使用不同入口边界
 - **审核工作流**：编辑者写草稿 → 提交审核 → 审核者通过/驳回，所有变更自动产生 PostRevision 快照
@@ -200,7 +211,7 @@ flowchart TD
 
 ---
 
-## 3. 五旗权限模型
+## 3. 账号状态字段与业务角色分离
 
 `is_dashboard_user` 只控制自定义 `/dashboard/` 运维外壳入口，不等于账号审核、Board CRUD
 或跨 App 对象权限。Board 角色测试账号需要该入口旗标才能使用工作台，但具体模块和对象继续执行
@@ -219,7 +230,6 @@ flowchart TD
 │                                                      │
 │  is_active         账号启用（可登录）                   │
 │  is_dashboard_user 可访问 /dashboard/ (CustomSite)     │
-│  is_reviewer       遗留审核旗标（业务入口已停止读取）      │  ← Stage 7 观察，Stage 8 删除
 │  is_staff          Django 兼容旗标，不单独授予后台入口      │
 │  is_superuser      拥有所有模型层特权                    │
 │                                                      │
@@ -402,7 +412,7 @@ sequenceDiagram
 ├──────────────────────────────────────────────────┤
 │  Layer 3: Model.save() 字段回滚                    │
 │  - SENSITIVE_FIELDS = {is_superuser, is_staff,    │ ← 最后一道防线
-│    is_dashboard_user, is_reviewer}                │
+│    is_dashboard_user, privileged_session_version} │
 │  - 检测变更 → 回滚到旧值 → SECURITY WARNING 日志    │
 ├──────────────────────────────────────────────────┤
 │  Layer 4: pre_save/pre_delete 信号拦截             │
@@ -443,7 +453,10 @@ class RequestUserMiddleware:
 
 ```python
 # models.py
-SENSITIVE_FIELDS = {'is_superuser', 'is_staff', 'is_dashboard_user', 'is_reviewer'}
+SENSITIVE_FIELDS = {
+    'is_superuser', 'is_staff', 'is_dashboard_user',
+    'privileged_session_version',
+}
 
 def save(self, *args, **kwargs):
     requesting_user = get_current_user()
@@ -459,10 +472,10 @@ def save(self, *args, **kwargs):
 ```
 
 **设计考虑**：
-- 使用 `.only()` 减少查询开销（只取 4 个布尔字段）
+- 使用 `.only()` 减少查询开销（只取敏感状态字段）
 - 回滚而非抛异常 — 静默拒绝，避免 `PermissionDenied` 在非 HTTP 上下文崩溃
 - 每次修改都查询旧值，这是 O(1) 的性能代价换取安全
-- `is_reviewer` 仅为 Stage 7 可回滚观察保留在敏感字段集合中；Admin 已不展示或授予，任何授权逻辑不得读取它
+- Reviewer/Manager 不属于账号敏感字段，统一由 `BoardMembership` 的事务 Service 与 Policy 管理
 
 ---
 
@@ -484,12 +497,12 @@ class CusMyUserAdmin(MyUserAdmin):
 
 两个 Admin 共享同一个 `MyUserAdmin` 类；系统入口由 `SuperuserAdminSite` 先拒绝非 superuser，工作台中的账号模块在 Stage 6 前也只向 active superuser 开放。
 
-### 6.2 动态字段权限（Stage 7 当前状态）
+### 6.2 动态字段权限（当前状态）
 
 | 方法 | superuser 行为 | dashboard 行为 (CusMyUserAdmin) |
 |------|---------------|------------|
-| `get_readonly_fields()` | 显式展示字段可编辑 | 除 `is_active` 外全部只读；`is_reviewer` 不展示 |
-| `get_fieldsets()` | 基本信息/全局权限/其他；不展示 `is_reviewer` | 1 个字段集「用户审核」 |
+| `get_readonly_fields()` | 显式展示字段可编辑 | 除 `is_active` 外全部只读 |
+| `get_fieldsets()` | 基本信息/全局权限/其他 | 1 个字段集「用户审核」 |
 | `has_change_permission()` | ✅ | ✅ (仅 is_active；不可编辑 superuser) |
 | `has_delete_permission()` | ✅ | ❌ |
 | `has_add_permission()` | ✅ | ❌ |
@@ -584,7 +597,6 @@ erDiagram
         bool is_cert_verified "遗留字段，H3 不读取"
         datetime date_joined "auto_now_add"
         bool is_active "账号启用"
-        bool is_reviewer "遗留数据；Stage 7 无授权效果"
         bool is_dashboard_user "dashboard 入口"
         bool is_staff "super_admin 入口"
         bool is_superuser "模型层特权"
@@ -643,8 +655,8 @@ erDiagram
 | Profile 与密码修改 | ✅ F1 | `UserProfile` 默认私密；公开页仅列公开已发布文章；Profile 改密入口以 `restart=1` 强制开启新邮箱验证（10 分钟、60 秒冷却、每小时 3 封、最多错 5 次），随后仍校验旧密码并保留当前 Session。 |
 | 双后台入口边界 | ✅ H0 | `/super_admin/` 只接受 active superuser；`/dashboard/` 接受 active dashboard 用户或 superuser；staff-only 不能获得系统后台 Session。 |
 | 固定全局 Group | ✅ Stage 6a | VerifiedUsers 仅可申请 Board 权限；UserManagers 受限管理账号；SiteOperators 查看并运行完整性审计。 |
-| 特权账户 TOTP | ✅ H2 代码 / ⏸ 生产开关 | active superuser 与 active Board Manager 的绑定、恢复、登录 challenge 和短时特权 Session 已实现；真实 Microsoft Authenticator、离线恢复材料及 break-glass 演练完成前保持 `MFA_ENFORCEMENT_ENABLED=false`。 |
-| 系统后台 mTLS | ✅ H3 应用与运维骨架 / ⏸ 边界部署 | TLS 1.3 私有 CA 证书映射、可信代理、证书绑定 Session、撤销、profile 拒绝与运维模板已实现；独立 Nginx vhost、CRL、真实浏览器握手及 break-glass 仍需人工验收。 |
+| 特权账户 TOTP | ✅ H2/M2 代码 / ⏸ 生产开关 | 绑定、邮箱闸门、恢复、撤销、登录 challenge、Dashboard 7 天 grant、SU 15/5 分钟时效和 Membership 一次性 step-up 已实现；生产仍需恢复材料与 break-glass 演练。 |
+| 系统后台 mTLS | ✅ H3 应用 / 🟡 本地边缘实测 | 本地独立 Nginx vhost、Chrome 客户端证书、TLS 1.3、无证书拒绝与 Django 证书映射已通过；`run.py` 默认开启本地完整链，真实 CRL/吊销和 break-glass 仍需人工验收。 |
 
 ---
 
@@ -707,6 +719,7 @@ LOG_HMAC_KEY = "..."  # 用于 security 模块 HMAC，不影响 accounts
 
 **新增迁移文件**：
 - `accounts/migrations/0002_add_is_reviewer.py` — MyUser 添加 `is_reviewer` 字段
+- `accounts/migrations/0011_remove_myuser_is_reviewer.py` — Stage 8 删除遗留字段；历史 `0002` 仍须保留
 - `Blogs/migrations/0006_add_post_status_and_permissions.py` — Post 新增 DRAFT/REVIEW 状态 + 自定义权限
 
 **执行**：
@@ -717,6 +730,6 @@ python manage.py migrate Blogs
 
 **历史向后兼容说明（仅描述 v3.0；不得作为当前授权指南）**：
 - `STATUS_NORMAL=1` 和 `STATUS_DELETE=0` 值不变，存量文章不受影响
-- `is_reviewer` 当时默认为 False；当前已进入 Stage 7 零授权读取观察期
+- `is_reviewer` 当时默认为 False；当前已由 Stage 8 迁移删除，不能再作为任何授权输入
 - 现有 superuser 自动获得所有自定义权限（Django 默认行为）
 - 自定义 permissions 不会自动授予现有用户，需手动分配或通过 group 管理

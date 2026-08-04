@@ -128,7 +128,23 @@ class MfaRecoveryForm(forms.Form):
 
 
 class MfaRevokeForm(forms.Form):
+    code = forms.CharField(
+        label="动态验证码",
+        min_length=6,
+        max_length=6,
+        strip=True,
+        widget=forms.TextInput(
+            attrs={"inputmode": "numeric", "autocomplete": "one-time-code"}
+        ),
+    )
     current_password = forms.CharField(
         label="当前密码",
         widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
+
+
+class MfaChallengeTotpForm(TotpCodeForm):
+    remember_dashboard = forms.BooleanField(
+        required=False,
+        label="在当前浏览器中 7 天内免重复验证工作台 TOTP",
     )

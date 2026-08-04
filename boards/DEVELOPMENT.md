@@ -5,7 +5,7 @@
 > **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及板块申请审批
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-08-03 — Membership M3 事件时间线、Manager 连续性与全验证 break-glass 完成
+> **最后更新**: 2026-08-04 — Board Index 专属内容闭环第一阶段完成
 
 ---
 
@@ -13,6 +13,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-04 | v3.2 | 合并 Music/Coding Devenir 前端；补齐 Skate Clip CRUD、Policy 派生的全站/Index 管理入口、板块色主题、统一通知与删除回归修复；相关定向回归与 Django system check 通过 |
+| 2026-08-04 | v3.1 | Board Index 闭环第一阶段：Music 排行/封面/外链字段与 Spotify 本地聚合导入；Coding 项目类型、仓库/演示链接与封面；Music/Coding Manager CRUD 后端和 Padif local-only 入口契约。31 项定向测试通过 |
 | 2026-08-03 | v3.0 | `membership_admin_linear` M3：新增全局/单成员不可变事件时间线；统一阻止最后 Manager 的停用和降级；增加 mTLS + 证书绑定 privileged Session + 新鲜 TOTP + 精确短语的 super_admin break-glass。56 项定向测试通过，PostgreSQL 行锁用例因本地 SQLite 明确跳过 |
 | 2026-08-03 | v2.9 | `membership_admin_linear` M2：新增 `/dashboard/memberships/` 筛选列表及授予、改角色、停用、恢复、Manager 原子交接；写操作要求独立 Permission、privileged Session、原因和一次性目标绑定 TOTP capability；22 项 M2/MFA 定向测试通过 |
 | 2026-08-03 | v2.8 | `membership_admin_linear` M1：新增 append-only `BoardMembershipEvent`、Membership `updated_at`、迁移和只读事件 Admin；审批/自助退出接入统一事务内核与 Mongo HMAC 镜像，39 项定向测试通过 |
@@ -65,6 +67,8 @@ boards/
 ├── apps.py              # BoardsConfig
 ├── models.py            # Board / BoardMembership / BoardAccessRequest + Board Index 内容模型（SkateHomie/SkateClip、Music Spotify/Apple、Coding Project/Principle/Experiment）
 ├── board_index.py       # assemble_context 分派（ASSEMBLERS + 三板 assemble_*）
+├── content_forms.py     # Skate/Music/Coding 专属内容表单与周期/链接校验
+├── content_views.py     # Manager-scoped 专属内容 CRUD 与 Padif local-only shell
 ├── admin.py             # BoardAdmin + Membership 只读观察入口 + Board Index 内容模型（superuser）
 ├── views.py             # boards_context 上下文处理器 + BoardIndexView / HomieLineView
 ├── access_rules.py      # Board 角色动作矩阵与纯拒绝规则（无 ORM）
@@ -76,10 +80,13 @@ boards/
 │   ├── test_admin_scope.py   # 阶段 4 Dashboard 隔离与阶段 5 action 测试
 │   ├── test_stage5_runtime.py # 阶段 5 View/Upload/API/Service 测试
 │   ├── test_board_index_models.py  # Board Index 内容模型行为测试
-│   └── test_board_index_views.py   # BoardIndexView / HomieLineView 分派与渲染测试
+│   ├── test_board_index_views.py   # BoardIndexView / HomieLineView 分派与渲染测试
+│   ├── test_board_content_management.py # 内容工作区允许/拒绝与 provider 隔离
+│   └── test_spotify_import.py # Spotify 聚合导入与幂等性
 ├── management/
 │   └── commands/
 │       ├── seed_boards.py   # 板块种子数据命令
+│       ├── import_spotify_export.py # 本地导出 → 年度聚合，不保存原始历史
 │       └── seed_permission_test_users.py # 本地角色测试账号
 └── DEVELOPMENT.md       # 本文档
 ```
@@ -146,8 +153,8 @@ Board Index 三页（skateboard / music / coding）的内容模型也位于 `boa
 | 组 | 模型 | 所属板块（固定） |
 |----|------|------------------|
 | Skateboard | `SkateHomie`（成员节点）、`SkateClip`（动作片段） | skateboard |
-| Music | `MusicRecordBase`（抽象）+ `SpotifyRecord` / `AppleRecord`（平铺，按 (year, month) 分组重建快照视图） | music |
-| Coding | `CodingProject`、`CodingPrinciple`、`CodingExperiment` | coding |
+| Music | `MusicRecordBase`（抽象）+ `SpotifyRecord` / `AppleRecord`（平铺，增加 rank/play_count/minutes/cover/external_url，按 (year, month) 分组） | music |
+| Coding | `CodingProject`（GitHub/local_tool/external、仓库/演示链接、封面/精选）、`CodingPrinciple`、`CodingExperiment` | coding |
 
 **关键约束（2026-07-28 用户决策）**：内容模型的 `board` 外键**不由人工选择**，而是由模型类型固定——每个内容模型声明 `BOARD_SLUG` 类属性，`board` 字段的 `default` 通过 `_board_default(slug)` → `_board_for_slug(slug)` 按 slug 自动解析对应 `Board`；`FixedBoardContentModel` 同时在 `clean()` 与 `save()` 层拒绝错误 slug 的 Board，Admin 中 `SuperuserBoardContentAdmin.exclude = ("board",)` 统一隐藏该字段。普通 ORM/脚本写入无法再绕过该归属约束；`bulk_create()` 等绕过 Model `save()` 的批量入口仍不得用于这些内容模型。
 
@@ -254,9 +261,9 @@ Stage 6a 已创建 `boards.apply_board_access` 并只授予 `VerifiedUsers`。�
 
 Stage 5 已恢复审核/发布/驳回和评论 action，但每个对象都会在事务 Service 或审核 Service 中重新校验 Policy，不再批量直写状态。Stage 6a 已初始化固定全局 Group；Stage 6b 已通过 `/boards/access/`、`BoardAccessRequest` 和审批 Service 自动写入 Membership。Stage 7 已确认全部业务授权不读取遗留 `is_reviewer`，Stage 8 已从 accounts schema 删除该字段；Board 角色只以 Membership + Policy 为事实来源。
 
-当前日常 Membership 写路径已经统一：申请审批、自助退出和 Dashboard 管理都会在同一事务内更新稳定 Membership 并追加 `BoardMembershipEvent`，提交后再 best-effort 镜像 Mongo HMAC。super_admin break-glass 尚不存在；M3 必须复用同一状态变更内核，不得直接调用 `BoardMembership.save()` 构造旁路。
+当前日常 Membership 写路径已经统一：申请审批、自助退出和 Dashboard 管理都会在同一事务内更新稳定 Membership 并追加 `BoardMembershipEvent`，提交后再 best-effort 镜像 Mongo HMAC。super_admin break-glass 已完成并复用同一状态变更内核；不得直接调用 `BoardMembership.save()` 构造旁路。
 
-Board 独立 Index 视觉在 `codex/board-index-k3` 并行推进，K3 仅修改 Devenir 专用模板/CSS/展示脚本；路由、QuerySet、Policy 与上下文组装仍由 boards 后端所有。本地 HANDOFF 仅用于临时交接，不进入 Git；长期边界以本节和 V2 指南为准。
+Board 独立 Index 的 Music/Coding 前端已由受限 K3 分支完成并合并；路由、QuerySet、Policy 与上下文组装继续由 boards 后端所有。本地 HANDOFF 仅用于临时交接，不进入 Git；长期边界以本节和 V2 指南为准。
 
 板块权限申请与审批属于 boards：accounts 只确认用户已登录、激活和完成邮箱验证，boards 负责申请的目标 Board、目标角色、审批人边界、结果及 Membership 更新。
 
@@ -312,9 +319,10 @@ index.html
 - **分派**：`boards/board_index.py` 的 `ASSEMBLERS`（`{"skateboard": assemble_skateboard, ...}`）+ 三板 `assemble_*` 函数组装上下文；`BOARD_TEMPLATES` 给出每板模板。
 - **路由/视图**：`boards/views.py` 的 `BoardIndexView`（`/boards/<slug>/`，按 slug 分派 + 404 未知/下线板块）与 `HomieLineView`（htmx 端点 `/boards/<slug>/homie/<node_index>/`，返回 `_selected_line.html` 片段）。两者属于公开展示面，不要求 BoardMembership；QuerySet 仍必须过滤非公开内容，例如 `SkateClip.is_public=False`。
 - **展示/参与边界**：Membership 不控制 Index 的浏览资格，只控制投稿、编辑、审核、评论管理、成员管理和专属内容维护。公开文章入口、参与 CTA、未来受保护动作的 REFUSE 行为及 K3/Codex 边界以本地 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md` 为准。
-- **Admin**：`SuperuserBoardContentAdmin` 注册 7 个内容模型于 `admin.site`（= `SuperuserAdminSite`，`/super_admin/`），仅 superuser 可维护；`BoardAdmin` 亦仅 superuser；`board` 字段已从表单隐藏（见 §2）。dashboard（`/dashboard/`）不再暴露任何板块内容管理入口。
-- **迁移**：`boards/migrations/0005_board_index_content.py`（10 个 CreateModel + 唯一约束 `unique_homie_node_per_board`）。
-- **测试**：`boards/tests/test_board_index_models.py`（7）+ `test_board_index_views.py`（8）= 15 项全绿；`manage.py test boards` 全量 89 项通过。
+- **管理入口**：`SuperuserBoardContentAdmin` 继续为 `/super_admin/` 应急入口；Skate Clip、Music Spotify/Apple 与 Coding Project 已提供 `/boards/manage/...` 业务 CRUD，只接受对应 Board 的 active Manager 或 active superuser，并将 QuerySet 固定到模型所属 Board。主页桌面 mega menu、移动端二级菜单和各 Board Index 的快捷入口均由同一 Policy 派生；隐藏链接不代替服务端鉴权。Dashboard 不注册这些内容模型。
+- **迁移**：初始内容模型位于 `0005_board_index_content.py`；Music/Coding 闭环字段位于 `0012_music_and_coding_index_contract.py`。
+- **交互**：三类管理页复用 Devenir `manage.css`，以 Board `glitch_color` 作为强调色；成功通知固定显示在导航栏下并自动消失。删除视图显式使用空 `Form`，避免模型表单因无字段 POST 静默失败。
+- **测试**：模型、公开 Index、Spotify 导入及专属内容管理均有定向回归；本阶段最后一轮 10 项内容管理测试与 Django system check 通过。
 
 当前公开展示与参与边界见本地、git-ignored 的 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（84）。早期后端详细设计、决策记录与模型背景见本地 `boards/guide/`：
 
@@ -331,13 +339,13 @@ index.html
 2. **`SkateHomie.avatar` 图片校验与存储策略（黄色）**：本地公开图片约束未定，参考 `docs/guides/BLOG_FOUNDATION_GUIDE.md`（本地）。
 3. **`CodingProject.status` / experiment 取值表（黄色）**：状态枚举与展示文案未定。
 4. **`SkateHomie.call_sign` 与 `name` 展示区分规则（绿色）**：未定。
-5. **Music 叙事区数据建模（绿色）**：Yearly 大数字 / Monthly bars / Companion / Gravity / Cross-Scale 仍静态 mock，仅 archive 与 hero 日期已数据驱动；若需全量数据驱动需更丰富快照建模。
+5. **Music 排行与月度总结（✅ 第一阶段完成）**：Spotify 年度总量/艺人/歌曲排行和 Apple 月度总量/艺人/歌曲排行已接入 Devenir 页面；封面/外链可手工维护，不复制 Apple 品牌播放器。
 6. **mock 降级清理决策（绿色）**：后端已接线，决定是否保留模板 `{% empty %}` mock 分支。
 
 7. **板块申请复用 accounts 短时邮箱验证（✅ 已完成）**：`/accounts/security/email/board-access/` 复用 accounts 通用邮箱挑战；验证码按 purpose + 用户 + Session 隔离，60 秒冷却和每小时发送上限按账号共享，错误次数受限。验证成功签发 10 分钟 Board 专用 Session grant，申请成功立即消费；密码修改 grant/code 不可复用，目标路由由服务端固定，不接收外部 `next`。
 8. **Board Index 接入文章入口与文章流（🟡 中）**：三个 Index 当前只组装各自专属模型，没有按 `Board.category` 取得公开 `Post`，模板也没有“查看本板块文章/参与板块”入口。已确定先由 K3 按本地 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md` 完成纯前端和 empty state，且不得修改后端；完成后由 Codex 统一复用 Blogs 的公开文章 QuerySet，提供参与状态上下文、申请预选与受保护动作 REFUSE，禁止在 Index 复制授权规则。
 9. **Skateboard Clip 固定展示编排（🟡 部分完成）**：公开 Index 当前由后端生成 `clip_groups`，每 5 条按 2 个 `9:16` + 3 个 `16:9` 展示。两条竖屏共用一个 box，中央信息区宽于两侧媒体，并分为左上/右下两层分别展示两条 Clip 的完整信息；不足 5 条时按现有条数安全降级，移动端转为单列。`/boards/skateboard/clips/` 是按拍摄时间倒序、仅含公开内容的分页浏览入口，不是管理页。后续仍需增加受控方向/比例字段与上传校验，不能永久用展示位置代替媒体元数据。
-10. **各 Board 的内容管理工作区（🟡 中）**：当前 7 个专属内容模型仅在 `/super_admin/` 对 superuser 开放，Board Manager 无法维护自己的文章、Skate Clip、Music 记录或 Coding 内容。后续在独立业务路由提供按 Membership/Policy 限定的板块工作区，不重新开放 `/dashboard/`；每种模型先冻结 Manager/Editor 的 queryset、字段、创建/修改/删除边界和审计要求，Board 创建及前端代码绑定仍为 superuser-only。
+10. **各 Board 的内容管理工作区（🟡 主体完成）**：Skate Clip、Music Spotify/Apple 与 Coding Project 已有 Devenir 业务 CRUD，服务端仅允许对应 Board Manager/superuser，且 provider 与对象 QuerySet 隔离；可管理入口由 Policy 同步注入全站菜单和 Board Index。Coding Principle/Experiment 与 Board-scoped 文章统一入口仍待实现。Board 创建及前端代码绑定继续为 superuser-only。
 
 板块权限页同时展示当前 active Membership。非 Manager 成员可在复用邮箱短时验证后自助退出；实现只把 `is_active` 设为 False，保留审批记录，并以 Mongo+HMAC 记录退出事件。Manager 退出和存在待审核申请的情况均 fail closed。
 

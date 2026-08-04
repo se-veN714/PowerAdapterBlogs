@@ -265,14 +265,71 @@
             position: relative; z-index: 1; min-height: 60vh;
             padding: 2rem 0 4rem;
         }
-        .flash-messages { margin-bottom: 1.5rem; }
+        .flash-messages {
+            position: fixed;
+            top: 5.25rem;
+            left: 50%;
+            z-index: 1200;
+            width: min(calc(100% - 2rem), 48rem);
+            margin: 0;
+            display: grid;
+            gap: 0.5rem;
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
         .flash-message {
-            padding: 0.8rem 1rem; border: 1px solid var(--border);
-            background: var(--bg-elevated); color: var(--text-secondary);
-            font-family: var(--font-mono); font-size: 0.82rem;
+            position: relative;
+            padding: 0.9rem 1.1rem 0.9rem 1.35rem;
+            border: 1px solid var(--border);
+            border-left-width: 3px;
+            background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+            color: var(--text-secondary);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
+            backdrop-filter: blur(8px);
+            font-family: var(--font-mono);
+            font-size: 0.86rem;
+            letter-spacing: 0.04em;
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.28s ease, transform 0.28s ease;
+        }
+        .flash-message.is-leaving {
+            opacity: 0;
+            transform: translateY(-0.65rem);
         }
         .flash-message.success {
-            border-color: var(--accent-deep); color: var(--accent);
+            border-color: color-mix(
+                in srgb,
+                var(--glitch-c, var(--accent)) 55%,
+                transparent
+            );
+            color: var(--glitch-c, var(--accent));
+            background:
+                linear-gradient(
+                    90deg,
+                    color-mix(
+                        in srgb,
+                        var(--glitch-c, var(--accent)) 10%,
+                        transparent
+                    ),
+                    transparent 42%
+                ),
+                color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+        }
+        .flash-message.success::before {
+            content: '✓';
+            margin-right: 0.65rem;
+            color: var(--glitch-c, var(--accent));
+        }
+        .flash-message.error {
+            border-color: var(--error-accent);
+            color: var(--error-accent);
+        }
+        @media (max-width: 900px) {
+            .flash-messages { top: 4.75rem; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .flash-message { transition: none; }
         }
 
         /* ===== Footer ===== */
@@ -364,7 +421,13 @@
                                 {% if can_access_moderation_center %}<a href="{% url 'moderation:hub' %}">审核中心</a>{% endif %}
                             </section>
                             {% endif %}
-                            {% if can_access_dashboard or can_access_security_operations or user.is_superuser or perms.boards.apply_board_access or can_manage_mfa %}
+                            {% if board_management_links or can_access_dashboard or can_access_security_operations or user.is_superuser or perms.boards.apply_board_access or can_manage_mfa %}
+                            {% if board_management_links %}
+                            <section class="nav-menu-group">
+                                <p class="nav-menu-label">板块管理</p>
+                                {% for link in board_management_links %}<a href="{{ link.url }}">{{ link.label }}</a>{% endfor %}
+                            </section>
+                            {% endif %}
                             <section class="nav-menu-group">
                                 <p class="nav-menu-label">管理与权限</p>
                                 {% if can_access_dashboard %}<a href="{% url 'cus_admin:index' %}">工作台</a>{% endif %}
@@ -426,10 +489,14 @@
                 </div>
             </details>
             {% endif %}
-            {% if can_access_dashboard or can_access_security_operations or user.is_superuser or perms.boards.apply_board_access or can_manage_mfa %}
+            {% if board_management_links or can_access_dashboard or can_access_security_operations or user.is_superuser or perms.boards.apply_board_access or can_manage_mfa %}
             <details>
                 <summary>管理与权限</summary>
                 <div class="sidebar-submenu">
+                    {% if board_management_links %}
+                    <p class="sidebar-submenu-label">板块管理</p>
+                    {% for link in board_management_links %}<a href="{{ link.url }}">{{ link.label }}</a>{% endfor %}
+                    {% endif %}
                     {% if can_access_dashboard %}<a href="{% url 'cus_admin:index' %}">工作台</a>{% endif %}
                     {% if can_access_dashboard and perms.boards.manage_all_board_memberships %}<a href="{% url 'board-dashboard:memberships' %}">成员管理</a>{% endif %}
                     {% if can_access_security_operations %}<a href="{% url 'operations:security' %}">安全运维</a>{% endif %}
@@ -512,7 +579,7 @@
 {% block extra_js %}{% endblock %}
 
 <!-- ===== Global JS ===== -->
-<script src="{% static 'js/main.js' %}?v=20260729.1"></script>
+<script src="{% static 'js/main.js' %}?v=20260804.1"></script>
 
 </body>
 </html>

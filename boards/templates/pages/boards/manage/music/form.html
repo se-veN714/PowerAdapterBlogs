@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Music Record · PowerAdapter{% endblock %}
+{% block content %}
+<main class="container">
+  <h1>{{ provider|upper }} MUSIC RECORD</h1>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">保存</button>
+  </form>
+</main>
+{% endblock %}

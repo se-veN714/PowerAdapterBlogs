@@ -76,7 +76,7 @@ sequenceDiagram
 
 生产运维入口采用 Tailscale：管理员或 Agent 先进入受控 Tailnet，再以专用非 root 账号通过 SSH key 登录并按需 `sudo`。公网安全组不得为临时 Agent 出口长期开放 SSH，也不得通过放宽云主机安全地区/IP 白名单消除告警；云控制台仅作为 break-glass。Tailscale 负责运维网络入口，不能替代 `/super_admin/` 的 TLS 1.3 mTLS、Django 密码和 TOTP 身份验证。
 
-BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。剩余缺口按风险排队：🟡 三个 Board Index 接入按 Policy 过滤的文章入口/文章流；🟡 Skateboard Clip 增加受控方向/比例字段与上传校验；🟡 在业务路由为各 Board 提供仅管理所属文章和专属内容的工作区，不重新开放 Dashboard。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
+BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。Board Index 专属内容闭环第一阶段已完成：Music 增加 Spotify/Apple 排行、封面与外链字段，并可从本地 Spotify 导出幂等聚合；Coding Project 支持 GitHub、本地工具和外部链接；Skate Clip、Music 与 Coding 均已有按对应 Board Manager Policy 隔离的 Devenir CRUD。主页功能菜单和各 Board Index 只向可管理该板块的账号暴露快捷入口，服务端仍逐请求裁决，Padif 固定为无服务端写入的本地浏览器工具。剩余缺口按风险排队：🟡 三个 Board Index 接入公开文章入口/文章流；🟡 Skateboard Clip 增加受控方向/比例字段与上传校验；🟡 Coding Principle/Experiment 纳入业务管理工作区。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
 
 Board Index 的访问边界已重新冻结：`/boards/<slug>/` 及其纯展示 htmx 片段是个人站的公开陈列面，不要求 BoardMembership；Membership 只保护投稿、编辑、审核、评论管理、成员管理和专属内容维护等动作。Index 后续先由 K3 补齐对应 Category 的公开文章入口与参与 CTA，且不得修改后端；前端完成后再由后端接入公开文章 QuerySet、申请预选及受保护动作的 403/REFUSE 流程。详细矩阵和前后端契约见 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（本地，git-ignored）。
 

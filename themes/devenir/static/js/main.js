@@ -5,6 +5,22 @@
 
 document.addEventListener('DOMContentLoaded', function () {
 
+    // ===== Flash messages =====
+    // Success notices are brief; warnings/errors remain longer so users have
+    // enough time to read them. Django messages remain the source of truth.
+    document.querySelectorAll('.flash-message').forEach(function (message) {
+        const isAttentionMessage = message.classList.contains('error')
+            || message.classList.contains('warning');
+        const visibleFor = isAttentionMessage ? 8000 : 4500;
+
+        window.setTimeout(function () {
+            message.classList.add('is-leaving');
+            window.setTimeout(function () {
+                message.remove();
+            }, 320);
+        }, visibleFor);
+    });
+
     // ===== Post Stream htmx lifecycle =====
     // Category/search/pagination keep their canonical URLs while htmx swaps the
     // shared server-rendered stream fragment. The listeners only synchronize

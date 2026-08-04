@@ -493,8 +493,10 @@ class SpotifyRecordAdmin(SuperuserBoardContentAdmin):
         "year",
         "month",
         "kind",
+        "rank",
         "label",
-        "value",
+        "minutes",
+        "play_count",
         "display_order",
         "updated_at",
     ]
@@ -511,8 +513,10 @@ class AppleRecordAdmin(SuperuserBoardContentAdmin):
         "year",
         "month",
         "kind",
+        "rank",
         "label",
-        "value",
+        "minutes",
+        "play_count",
         "display_order",
         "updated_at",
     ]
@@ -523,8 +527,17 @@ class AppleRecordAdmin(SuperuserBoardContentAdmin):
 
 @admin.register(CodingProject)
 class CodingProjectAdmin(SuperuserBoardContentAdmin):
-    list_display = ["index", "name", "year", "status", "is_active", "order"]
-    list_filter = ["status", "is_active"]
+    list_display = [
+        "index",
+        "name",
+        "project_type",
+        "year",
+        "status",
+        "is_featured",
+        "is_active",
+        "order",
+    ]
+    list_filter = ["project_type", "status", "is_featured", "is_active"]
     search_fields = ["name", "stack"]
     ordering = ["order"]
 

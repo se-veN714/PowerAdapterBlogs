@@ -86,7 +86,7 @@
     font-family: var(--font-mono);
     font-size: clamp(1.8rem, 3.5vw, 3rem);
     font-weight: 700;
-    color: rgb(235, 240, 235);
+    color: var(--board-accent, rgb(235, 240, 235));
     margin-bottom: 1.5rem;
     letter-spacing: -0.02em;
     line-height: 1.15;
@@ -107,7 +107,7 @@
     font-family: var(--font-mono);
     font-size: 0.85rem;
     font-weight: 500;
-    color: #4ed7af;
+    color: var(--board-accent, #4ed7af);
     text-decoration: none;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -116,7 +116,7 @@
 }
 
 .editorial-content .editorial-link:hover {
-    color: rgb(216, 255, 225);
+    color: color-mix(in srgb, var(--board-accent, #4ed7af) 72%, white);
 }
 
 .editorial-content .editorial-link .link-arrow {

@@ -170,11 +170,58 @@ def _archive_rows(groups):
         primary = next((e for e in entries if e.kind == "total"), None)
         if primary is None and entries:
             primary = entries[0]
-        value = f"{primary.value} {primary.unit}".strip() if primary else ""
+        if primary and primary.minutes is not None:
+            value = f"{primary.minutes:,} MIN"
+        else:
+            value = f"{primary.value} {primary.unit}".strip() if primary else ""
         tags = " / ".join(e.label for e in entries if e.kind == "tag") if entries else ""
         label = f"{g.year}.{g.month:02d}" if g.month else str(g.year)
         rows.append({"label": label, "value": value, "tags": tags, "period": label})
     return rows
+
+
+def _cover_url(record):
+    return record.cover.url if record.cover else ""
+
+
+def _minutes(record):
+    if record.minutes is not None:
+        return record.minutes
+    return _safe_int(record.value)
+
+
+def _artist_rows(records, *kinds):
+    selected = [record for record in records if record.kind in kinds]
+    selected.sort(key=lambda record: (record.rank or record.display_order, record.pk))
+    return [
+        {
+            "rank": record.rank or index,
+            "name": record.label,
+            "minutes_display": f"{_minutes(record):,}" if _minutes(record) else "",
+            "plays": record.play_count,
+            "tag": record.value2 or (record.value if record.kind == "period_artist" else ""),
+            "cover_url": _cover_url(record),
+            "external_url": record.external_url,
+        }
+        for index, record in enumerate(selected, start=1)
+    ]
+
+
+def _track_rows(records):
+    selected = [record for record in records if record.kind == "top_track"]
+    selected.sort(key=lambda record: (record.rank or record.display_order, record.pk))
+    return [
+        {
+            "rank": record.rank or index,
+            "title": record.label,
+            "artist": record.value,
+            "plays": record.play_count,
+            "minutes_display": f"{_minutes(record):,}" if _minutes(record) else "",
+            "cover_url": _cover_url(record),
+            "external_url": record.external_url,
+        }
+        for index, record in enumerate(selected, start=1)
+    ]
 
 
 def assemble_music(board):
@@ -219,19 +266,51 @@ def assemble_music(board):
     if latest_spotify is not None:
         entries = latest_spotify.records
         total = next((e for e in entries if e.kind == "total"), None)
-        total_str = f"{total.value} {total.unit}".strip() if total else ""
-        core = sorted(
-            (e for e in entries if e.kind == "core_artist"),
-            key=lambda e: _safe_int(e.value),
+        total_str = (
+            f"{_minutes(total):,} MIN" if total and _minutes(total)
+            else f"{total.value} {total.unit}".strip() if total else ""
         )
-        core_artists = [{"rank": i + 1, "name": e.label}
-                        for i, e in enumerate(core)]
+        core = sorted(
+            (e for e in entries if e.kind in {"core_artist", "top_artist"}),
+            key=lambda e: e.rank or _safe_int(e.value),
+        )
+        core_artists = [
+            {"rank": entry.rank or index, "name": entry.label}
+            for index, entry in enumerate(core, start=1)
+        ]
         tags = " / ".join(e.label for e in entries if e.kind == "tag")
         yearly = {
             "year": latest_spotify.year,
             "total": total_str,
             "core_artists": core_artists,
             "tags": tags,
+        }
+
+    spotify_top_artists = (
+        _artist_rows(latest_spotify.records, "top_artist", "core_artist")
+        if latest_spotify else []
+    )
+    spotify_top_tracks = (
+        _track_rows(latest_spotify.records) if latest_spotify else []
+    )
+    spotify_summary = None
+    if latest_spotify is not None:
+        entries = latest_spotify.records
+        total = next((entry for entry in entries if entry.kind == "total"), None)
+        unique_artists = next(
+            (entry for entry in entries if entry.kind == "unique_artists"), None
+        )
+        unique_tracks = next(
+            (entry for entry in entries if entry.kind == "unique_tracks"), None
+        )
+        spotify_summary = {
+            "year": latest_spotify.year,
+            "minutes_display": f"{_minutes(total):,}" if total else "",
+            "unique_artists": _safe_int(unique_artists.value) if unique_artists else None,
+            "unique_tracks": _safe_int(unique_tracks.value) if unique_tracks else None,
+            "tags": " / ".join(
+                entry.label for entry in entries if entry.kind == "tag"
+            ),
         }
 
     # 月度柱状：来自 Apple 组（按时间升序，pct 相对最高）
@@ -242,7 +321,7 @@ def assemble_music(board):
         minutes = []
         for g in ordered:
             t = next((e for e in g.records if e.kind == "total"), None)
-            minutes.append(_safe_int(t.value) if t else 0)
+            minutes.append(_minutes(t) if t else 0)
         max_min = max(minutes) if minutes else 1
         for g, m in zip(ordered, minutes):
             monthly_bars.append({
@@ -258,8 +337,53 @@ def assemble_music(board):
             monthly_current = {
                 "label": current_period_label,
                 "minutes_display": (
-                    "{:,}".format(_safe_int(cur.value)) if cur else "0"),
+                    "{:,}".format(_minutes(cur)) if cur else "0"),
             }
+
+
+    apple_months = [
+        {
+            "year": group.year,
+            "month": group.month,
+            "label": f"{group.year}.{group.month:02d}" if group.month else str(group.year),
+            "minutes": next(
+                (
+                    _minutes(record)
+                    for record in group.records
+                    if record.kind == "total"
+                ),
+                0,
+            ),
+            "minutes_display": "{:,}".format(
+                next(
+                    (
+                        _minutes(record)
+                        for record in group.records
+                        if record.kind == "total"
+                    ),
+                    0,
+                )
+            ),
+            "is_current": group is latest_apple,
+        }
+        for group in sorted(apple_groups, key=lambda item: (item.year, item.month or 0))
+    ]
+    apple_current = None
+    if latest_apple is not None:
+        total = next(
+            (record for record in latest_apple.records if record.kind == "total"),
+            None,
+        )
+        apple_current = {
+            "label": current_period_label,
+            "minutes_display": f"{_minutes(total):,}" if total else "0",
+            "top_artists": _artist_rows(
+                latest_apple.records,
+                "top_artist",
+                "period_artist",
+            ),
+            "top_tracks": _track_rows(latest_apple.records),
+        }
 
     # 跨尺度关系 / 常伴 / 近期引力：平铺过滤（编辑性条目仅挂在最新周期）
     cross_scale = [
@@ -286,8 +410,13 @@ def assemble_music(board):
         "current_period_label": current_period_label,
         "current_period_artists": current_period_artists,
         "yearly": yearly,
+        "spotify_summary": spotify_summary,
+        "spotify_top_artists": spotify_top_artists,
+        "spotify_top_tracks": spotify_top_tracks,
         "monthly_bars": monthly_bars,
         "monthly_current": monthly_current,
+        "apple_months": apple_months,
+        "apple_current": apple_current,
         "cross_scale": cross_scale,
         "companion": companion,
         "gravity": gravity,
@@ -299,9 +428,33 @@ def assemble_music(board):
 
 def assemble_coding(board):
     """组装 Coding Index 上下文：项目 / 原则 / 实验。"""
-    projects = list(
+    project_records = list(
         CodingProject.objects.filter(board=board, is_active=True).order_by("order", "pk")
     )
+    projects = []
+    for project in project_records:
+        repository_url = project.repository_url
+        demo_url = project.demo_url
+        if project.project_type == CodingProject.ProjectType.GITHUB:
+            repository_url = repository_url or project.url
+        elif project.project_type == CodingProject.ProjectType.EXTERNAL:
+            demo_url = demo_url or project.url
+        projects.append(
+            {
+                "index": project.index,
+                "name": project.name,
+                "description": project.description,
+                "stack": project.stack,
+                "year": project.year,
+                "status": project.status,
+                "project_type": project.project_type,
+                "repository_url": repository_url,
+                "demo_url": demo_url,
+                "cover_url": _cover_url(project),
+                "is_featured": project.is_featured,
+                "url": repository_url or demo_url,
+            }
+        )
     principles = list(
         CodingPrinciple.objects.filter(board=board).order_by("order", "pk")
     )

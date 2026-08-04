@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Skateboard Clip · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles"><p class="bm-kicker">MANAGE / SKATEBOARD</p><h1 class="bm-title">DELETE CLIP</h1></div>
+            <a class="bm-btn" href="{% url 'boards:skate-manage-list' %}">&larr; BACK TO LIST</a>
+        </header>
+        <div class="bm-danger" role="alertdialog" aria-labelledby="bm-danger-title" aria-describedby="bm-danger-warn">
+            <p class="bm-danger__kicker">DESTRUCTIVE ACTION</p>
+            <h2 class="bm-danger__title" id="bm-danger-title">确认删除这个片段？</h2>
+            <div class="bm-danger__summary"><span><strong>{{ object.homie.name }} · {{ object.title }}</strong></span><span>{{ object.spot|default:"—" }} · {{ object.get_status_display|upper }}</span></div>
+            <p class="bm-danger__warn" id="bm-danger-warn">删除后无法在管理界面恢复。若只是不希望公开展示，请编辑并关闭“公开”。</p>
+            <form method="post" action="{% url 'boards:skate-manage-delete' pk=object.pk %}">{% csrf_token %}<div class="bm-danger__actions"><button class="bm-btn bm-btn--danger" type="submit">CONFIRM DELETE</button><a class="bm-btn" href="{% url 'boards:skate-manage-list' %}">CANCEL</a></div></form>
+        </div>
+    </div>
+</div>
+{% endblock %}

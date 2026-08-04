@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Coding Projects · PowerAdapter{% endblock %}
+{% block content %}
+<main class="container">
+  <h1>CODING PROJECTS</h1>
+  <p><a href="{% url 'boards:coding-manage-create' %}">新增项目</a></p>
+  <ul>
+    {% for project in records %}
+      <li>{{ project.name }} / {{ project.get_project_type_display }}
+        <a href="{% url 'boards:coding-manage-update' project.pk %}">编辑</a>
+        <a href="{% url 'boards:coding-manage-delete' project.pk %}">删除</a>
+      </li>
+    {% empty %}<li>暂无项目。</li>{% endfor %}
+  </ul>
+</main>
+{% endblock %}

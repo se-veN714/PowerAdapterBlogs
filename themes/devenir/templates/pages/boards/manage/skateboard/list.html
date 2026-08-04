@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Skateboard Clips · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles">
+                <p class="bm-kicker">MANAGE / SKATEBOARD</p>
+                <h1 class="bm-title">CLIP ARCHIVE</h1>
+                <p class="bm-sub">管理成员片段、公开状态与 Index 展示顺序。</p>
+            </div>
+            <a class="bm-btn bm-btn--primary" href="{% url 'boards:skate-manage-create' %}">+ NEW CLIP</a>
+        </header>
+
+        <form class="bm-filters" method="get" action="{% url 'boards:skate-manage-list' %}" role="search" aria-label="筛选滑板片段">
+            <div class="bm-filters__field">
+                <label for="bm-f-homie">HOMIE</label>
+                <select id="bm-f-homie" name="homie">
+                    <option value="">全部</option>
+                    {% for homie in homies %}
+                    <option value="{{ homie.pk }}"{% if filters.homie == homie.pk|stringformat:'s' %} selected{% endif %}>{{ homie.node_index|stringformat:"02d" }} · {{ homie.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="bm-filters__field">
+                <label for="bm-f-status">STATUS</label>
+                <select id="bm-f-status" name="status">
+                    <option value="">全部</option>
+                    <option value="landed"{% if filters.status == 'landed' %} selected{% endif %}>LANDED</option>
+                    <option value="unfinished"{% if filters.status == 'unfinished' %} selected{% endif %}>UNFINISHED</option>
+                    <option value="wip"{% if filters.status == 'wip' %} selected{% endif %}>WIP</option>
+                    <option value="failed"{% if filters.status == 'failed' %} selected{% endif %}>FAILED</option>
+                </select>
+            </div>
+            <div class="bm-filters__field">
+                <label for="bm-f-visibility">VISIBILITY</label>
+                <select id="bm-f-visibility" name="visibility">
+                    <option value="">全部</option>
+                    <option value="public"{% if filters.visibility == 'public' %} selected{% endif %}>PUBLIC</option>
+                    <option value="private"{% if filters.visibility == 'private' %} selected{% endif %}>PRIVATE</option>
+                </select>
+            </div>
+            <div class="bm-filters__field bm-filters__query">
+                <label for="bm-f-q">SEARCH</label>
+                <input id="bm-f-q" type="search" name="query" value="{{ filters.query }}" placeholder="动作 / 地点 / 备注">
+            </div>
+            <button class="bm-btn" type="submit">APPLY</button>
+        </form>
+
+        {% if records %}
+        <div class="bm-table bm-table--skate" role="table" aria-label="Skateboard clips">
+            <div class="bm-row bm-row--head" role="row">
+                <span role="columnheader">ORDER</span><span role="columnheader">HOMIE</span><span role="columnheader">CLIP</span><span role="columnheader">SPOT</span><span role="columnheader">STATUS</span><span role="columnheader">PUBLIC</span><span role="columnheader">ACTIONS</span>
+            </div>
+            {% for record in records %}
+            <div class="bm-row" role="row">
+                <span class="bm-cell bm-cell--accent" role="cell">{{ record.order|stringformat:"02d" }}</span>
+                <span class="bm-cell bm-cell--strong bm-cell--collapse" role="cell">{{ record.homie.name }}</span>
+                <span class="bm-cell bm-cell--strong" role="cell">{{ record.title }}<span class="bm-cell__sub">{{ record.homie.name }} · {{ record.get_category_display|default:"—" }}{% if record.filmed_at %} · {{ record.filmed_at|date:"Y.m.d" }}{% endif %}</span></span>
+                <span class="bm-cell bm-cell--collapse" role="cell">{{ record.spot|default:"—" }}</span>
+                <span class="bm-cell bm-cell--collapse" role="cell"><span class="bm-tag">{{ record.get_status_display|upper }}</span></span>
+                <span class="bm-cell bm-cell--collapse" role="cell">{% if record.is_public %}<span class="bm-tag bm-tag--accent">YES</span>{% else %}<span class="bm-tag bm-tag--off">NO</span>{% endif %}</span>
+                <span class="bm-actions" role="cell"><a href="{% url 'boards:skate-manage-update' pk=record.pk %}">EDIT</a><a class="bm-actions__delete" href="{% url 'boards:skate-manage-delete' pk=record.pk %}">DELETE</a></span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if records.paginator.num_pages > 1 %}
+        <nav class="bm-pager" aria-label="分页">
+            <span>PAGE {{ records.number }} / {{ records.paginator.num_pages }}</span>
+            <span class="bm-pager__links">
+                {% if records.has_previous %}<a class="bm-btn" href="?page={{ records.previous_page_number }}&homie={{ filters.homie|urlencode }}&status={{ filters.status|urlencode }}&visibility={{ filters.visibility|urlencode }}&query={{ filters.query|urlencode }}">&larr; PREV</a>{% endif %}
+                {% if records.has_next %}<a class="bm-btn" href="?page={{ records.next_page_number }}&homie={{ filters.homie|urlencode }}&status={{ filters.status|urlencode }}&visibility={{ filters.visibility|urlencode }}&query={{ filters.query|urlencode }}">NEXT &rarr;</a>{% endif %}
+            </span>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="bm-empty"><strong>NO CLIPS</strong>当前筛选条件下没有片段。<a href="{% url 'boards:skate-manage-list' %}">清除筛选</a></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

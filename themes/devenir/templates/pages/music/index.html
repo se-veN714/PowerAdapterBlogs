@@ -26,6 +26,7 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/music/music.css' %}">
+<link rel="stylesheet" href="{% static 'css/boards/board-common.css' %}">
 {# 数据驱动：本板块 glitch 颜色来自 Board.glitch_color（seed_boards 写入库），供 music.css 派生全部强调色 #}
 <style>:root{--glitch-c:{{ board.glitch_color }};}</style>
 {% endblock %}
@@ -109,6 +110,7 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
 {% endblock %}
 
 {% block content %}
+{% include 'pages/boards/_board_manage_entry.html' %}
 <article class="music-page">
     <div class="container music-dashboard">
         <!-- LEFT COLUMN · SPOTIFY / ANNUAL -->

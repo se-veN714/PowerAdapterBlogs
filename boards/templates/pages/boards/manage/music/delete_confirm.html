@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Delete Music Record · PowerAdapter{% endblock %}
+{% block content %}
+<main class="container">
+  <h1>确认删除音乐记录</h1>
+  <p>{{ object }}</p>
+  <form method="post">{% csrf_token %}<button type="submit">确认删除</button></form>
+</main>
+{% endblock %}

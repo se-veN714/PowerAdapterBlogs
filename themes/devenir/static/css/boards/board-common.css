@@ -6,9 +6,48 @@
    无注入时兜底 --accent-primary。本文件不重新定义任何色值。
    ============================================================ */
 
+.bd-manage,
 .bd-posts,
 .bd-cta,
 .bd-refuse { --glitch-c: var(--accent-primary); }
+
+/* ---------- 有权限用户的板块内容管理入口 ---------- */
+
+.bd-manage { padding: 2rem 0 0; }
+.bd-manage-band {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    border: 1px solid var(--fragment-border);
+    border-left: 2px solid var(--glitch-c);
+    background: color-mix(in srgb, var(--glitch-c) 4%, var(--bg-secondary));
+    padding: 1.25rem 1.5rem;
+}
+.bd-manage-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    color: var(--glitch-c);
+}
+.bd-manage-copy {
+    margin-top: 0.35rem;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.6;
+}
+.bd-manage-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.65rem;
+}
+
+@media (max-width: 720px) {
+    .bd-manage-band { align-items: stretch; flex-direction: column; }
+    .bd-manage-actions { justify-content: flex-start; }
+    .bd-manage-actions .bd-btn { width: 100%; justify-content: space-between; }
+}
 
 /* ---------- 公开文章区 ---------- */
 

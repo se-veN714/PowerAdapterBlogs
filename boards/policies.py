@@ -152,6 +152,11 @@ def can_manage_board_members(user, board: Board) -> bool:
     return _allows(user, board, BoardAction.MANAGE_BOARD_MEMBERS)
 
 
+def can_manage_board_content(user, board: Board) -> bool:
+    """Manage code-backed Board Index content without changing Board structure."""
+    return _allows(user, board, BoardAction.CHANGE_BOARD_SETTINGS)
+
+
 def can_access_board_admin(user) -> bool:
     if _is_active_superuser(user):
         return True

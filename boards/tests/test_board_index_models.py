@@ -186,6 +186,24 @@ class MusicModelTests(TestCase):
         )
         self.assertEqual(labels, ["HEIGHT", "TOP TRACK"])
 
+    def test_music_ranking_metadata_is_optional_and_structured(self):
+        record = SpotifyRecord.objects.create(
+            board=self.board,
+            title="2025",
+            year=2025,
+            label="Track",
+            value="Artist",
+            kind="top_track",
+            rank=1,
+            play_count=7,
+            minutes=42,
+            external_url="https://open.spotify.com/track/example",
+        )
+
+        self.assertEqual(record.rank, 1)
+        self.assertEqual(record.play_count, 7)
+        self.assertEqual(record.minutes, 42)
+
 
 class CodingModelTests(TestCase):
     def setUp(self):
@@ -212,3 +230,16 @@ class CodingModelTests(TestCase):
             board=self.board, date="2026-08-01", title="later"
         )
         self.assertEqual(CodingExperiment.objects.first().title, "later")
+
+    def test_coding_project_supports_link_types(self):
+        project = CodingProject.objects.create(
+            board=self.board,
+            index=2,
+            name="PAdif",
+            project_type=CodingProject.ProjectType.LOCAL_TOOL,
+            demo_url="https://example.test/padif/",
+            is_featured=True,
+        )
+
+        self.assertEqual(project.project_type, "local_tool")
+        self.assertTrue(project.is_featured)

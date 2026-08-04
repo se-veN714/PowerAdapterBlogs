@@ -13,6 +13,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from boards.models import (
+    AppleRecord,
     Board,
     CodingExperiment,
     CodingPrinciple,
@@ -181,6 +182,66 @@ class BoardIndexDispatchTests(TestCase):
         self.assertIn("32,481 MIN", content)
         self.assertIn("POST-ROCK", content)
 
+    def test_music_exposes_ranked_spotify_and_apple_contract(self):
+        board = _board("music")
+        SpotifyRecord.objects.create(
+            board=board,
+            title="Spotify Wrapped 2025",
+            year=2025,
+            label="Artist A",
+            value="120",
+            kind="top_artist",
+            rank=1,
+            play_count=8,
+            minutes=120,
+            display_order=1,
+        )
+        SpotifyRecord.objects.create(
+            board=board,
+            title="Spotify Wrapped 2025",
+            year=2025,
+            label="Track A",
+            value="Artist A",
+            kind="top_track",
+            rank=1,
+            play_count=4,
+            minutes=20,
+            display_order=1,
+        )
+        AppleRecord.objects.create(
+            board=board,
+            title="Apple Music 2026.07",
+            scope="monthly",
+            year=2026,
+            month=7,
+            label="TOTAL MINUTES",
+            value="4720",
+            kind="total",
+            minutes=4720,
+        )
+        AppleRecord.objects.create(
+            board=board,
+            title="Apple Music 2026.07",
+            scope="monthly",
+            year=2026,
+            month=7,
+            label="Artist B",
+            kind="top_artist",
+            rank=1,
+            minutes=1181,
+            display_order=1,
+        )
+
+        response = self.client.get(reverse("boards:index", args=["music"]))
+
+        self.assertEqual(response.context["spotify_top_artists"][0]["name"], "Artist A")
+        self.assertEqual(response.context["spotify_top_tracks"][0]["plays"], 4)
+        self.assertEqual(response.context["apple_current"]["minutes_display"], "4,720")
+        self.assertEqual(
+            response.context["apple_current"]["top_artists"][0]["name"],
+            "Artist B",
+        )
+
     def test_coding_renders_lists_data_driven(self):
         board = _board("coding")
         CodingProject.objects.create(
@@ -209,3 +270,26 @@ class BoardIndexDispatchTests(TestCase):
         self.assertIn("MONITOR", content)
         self.assertIn("NEED BEFORE FRAMEWORK", content)
         self.assertIn("HTMX partial refresh", content)
+
+    def test_coding_exposes_repository_and_demo_link_contract(self):
+        board = _board("coding")
+        CodingProject.objects.create(
+            board=board,
+            index=1,
+            name="Repository",
+            project_type=CodingProject.ProjectType.GITHUB,
+            repository_url="https://github.com/example/repository",
+            demo_url="https://example.test/demo",
+            is_featured=True,
+        )
+
+        response = self.client.get(reverse("boards:index", args=["coding"]))
+
+        project = response.context["projects"][0]
+        self.assertEqual(project["project_type"], "github")
+        self.assertEqual(
+            project["repository_url"],
+            "https://github.com/example/repository",
+        )
+        self.assertEqual(project["demo_url"], "https://example.test/demo")
+        self.assertTrue(project["is_featured"])

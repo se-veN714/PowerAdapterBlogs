@@ -4,6 +4,15 @@
 
 ## [2026-08-04]
 
+### Board Index 专属内容闭环第一阶段
+
+- Music 平铺 Record 增加排行、播放次数、收听分钟、封面和外链；Coding Project 增加 GitHub/local-only/external 类型、仓库/演示链接、封面和精选状态。
+- 新增 Spotify 本地导出聚合命令，只写入 Wrapped 年度总量与艺人/歌曲排行，不持久化原始播放历史；本地 2025 导出已生成 13 条可读聚合记录，导出中不可展示的 `spotify:concept:*` 标识不会写入页面数据。
+- Music Spotify/Apple 与 Coding Project 新增按 Board Manager Policy 隔离的业务 CRUD 后端；Padif 固定为浏览器本地存储/JSON 导入导出方向，不调用 Django 写接口。
+- 合并 Music/Coding Devenir 页面，补齐 Skate Clip CRUD；主页功能菜单与各 Board Index 根据可管理板块显示快捷入口，所有写路由继续执行服务端 Policy。
+- 管理页统一字号、表格网格与 Board 强调色；删除成功后显示位于固定导航下方、数秒自动消失的 Devenir 通知，并修复 DeleteView 因模型表单无字段 POST 而静默失败的问题。
+- Ruff、迁移漂移和前序 31 项 Board Index/导入/权限定向测试通过；合并后的 Index/内容管理回归与 Django system check 继续通过。
+
 ### accounts_linear Stage 8 完成
 
 - 全局审计确认运行时授权、审核入口、MFA 与 Board Policy 均不再读取遗留 `MyUser.is_reviewer`；删除模型字段与敏感字段兼容保护。

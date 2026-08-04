@@ -1,0 +1,17 @@
+{% if board_manage_links %}
+<section class="bd-manage" style="--glitch-c:{{ board.glitch_color }}" aria-label="{{ board.name }} 内容管理">
+    <div class="container">
+        <div class="bd-manage-band reveal">
+            <div>
+                <p class="bd-manage-kicker">BOARD CONTROL / {{ board.slug|upper }}</p>
+                <p class="bd-manage-copy">你拥有该板块的内容管理权限，可从这里进入 CRUD 工作区。</p>
+            </div>
+            <nav class="bd-manage-actions" aria-label="{{ board.name }} 管理入口">
+                {% for link in board_manage_links %}
+                <a class="bd-btn" href="{{ link.url }}">{{ link.label }}<span class="bd-btn-arrow" aria-hidden="true">→</span></a>
+                {% endfor %}
+            </nav>
+        </div>
+    </div>
+</section>
+{% endif %}

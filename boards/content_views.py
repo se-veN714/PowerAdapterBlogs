@@ -1,0 +1,334 @@
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
+from django.db.models import Q
+from django.forms import Form, modelform_factory
+from django.urls import reverse
+from django.views.generic import CreateView, DeleteView, ListView, TemplateView, UpdateView
+
+from boards.content_forms import CodingProjectForm, MusicRecordForm, SkateClipForm
+from boards.models import (
+    AppleRecord,
+    Board,
+    CodingProject,
+    SkateClip,
+    SpotifyRecord,
+)
+from boards.policies import can_manage_board_content
+
+
+MUSIC_MODELS = {
+    "spotify": SpotifyRecord,
+    "apple": AppleRecord,
+}
+
+
+class BoardContentManagerMixin(LoginRequiredMixin):
+    board_slug = None
+    board = None
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        try:
+            self.board = Board.objects.get(slug=self.board_slug, is_active=True)
+        except Board.DoesNotExist as exc:
+            raise PermissionDenied("目标板块不可用。") from exc
+        if not can_manage_board_content(request.user, self.board):
+            raise PermissionDenied("当前账号没有该板块的内容管理权限。")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["board"] = self.board
+        return context
+
+
+class MusicModelMixin(BoardContentManagerMixin):
+    board_slug = "music"
+    provider = None
+    form_class = MusicRecordForm
+
+    def dispatch(self, request, *args, **kwargs):
+        self.provider = kwargs.get("provider")
+        if self.provider not in MUSIC_MODELS:
+            raise PermissionDenied("未知音乐数据来源。")
+        self.model = MUSIC_MODELS[self.provider]
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return self.model.objects.filter(board=self.board)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["provider"] = self.provider
+        return context
+
+    def get_success_url(self):
+        return reverse("boards:music-manage-list", args=[self.provider])
+
+
+class MusicRecordListView(MusicModelMixin, ListView):
+    template_name = "pages/boards/manage/music/list.html"
+    context_object_name = "records"
+    paginate_by = 30
+
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by(
+            "-year",
+            "-month",
+            "display_order",
+            "pk",
+        )
+        query = self.request.GET.get(
+            "query",
+            self.request.GET.get("q", ""),
+        ).strip()
+        year = self.request.GET.get("year", "").strip()
+        month = self.request.GET.get("month", "").strip()
+        kind = self.request.GET.get("kind", "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(title__icontains=query)
+                | Q(label__icontains=query)
+                | Q(value__icontains=query)
+            )
+        if year.isdigit():
+            queryset = queryset.filter(year=int(year))
+        if month.isdigit():
+            queryset = queryset.filter(month=int(month))
+        if kind:
+            queryset = queryset.filter(kind=kind)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["records"] = context["page_obj"]
+        context["filters"] = {
+            "query": self.request.GET.get(
+                "query",
+                self.request.GET.get("q", ""),
+            ),
+            "year": self.request.GET.get("year", ""),
+            "month": self.request.GET.get("month", ""),
+            "kind": self.request.GET.get("kind", ""),
+        }
+        context["can_create"] = True
+        return context
+
+
+class MusicRecordCreateView(MusicModelMixin, CreateView):
+    template_name = "pages/boards/manage/music/form.html"
+
+    def get_form_class(self):
+        return modelform_factory(self.model, form=MusicRecordForm)
+
+    def form_valid(self, form):
+        form.instance.board = self.board
+        messages.success(self.request, "音乐记录已创建。")
+        return super().form_valid(form)
+
+
+class MusicRecordUpdateView(MusicModelMixin, UpdateView):
+    template_name = "pages/boards/manage/music/form.html"
+
+    def get_form_class(self):
+        return modelform_factory(self.model, form=MusicRecordForm)
+
+    def form_valid(self, form):
+        form.instance.board = self.board
+        messages.success(self.request, "音乐记录已更新。")
+        return super().form_valid(form)
+
+
+class MusicRecordDeleteView(MusicModelMixin, DeleteView):
+    template_name = "pages/boards/manage/music/delete_confirm.html"
+    form_class = Form
+
+    def form_valid(self, form):
+        messages.success(self.request, "音乐记录已删除。")
+        return super().form_valid(form)
+
+
+class SkateClipMixin(BoardContentManagerMixin):
+    board_slug = "skateboard"
+    model = SkateClip
+    form_class = SkateClipForm
+
+    def get_queryset(self):
+        return (
+            SkateClip.objects.filter(homie__board=self.board)
+            .select_related("homie")
+        )
+
+    def get_success_url(self):
+        return reverse("boards:skate-manage-list")
+
+
+class SkateClipManageListView(SkateClipMixin, ListView):
+    template_name = "pages/boards/manage/skateboard/list.html"
+    context_object_name = "records"
+    paginate_by = 30
+
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by(
+            "homie__node_index",
+            "order",
+            "pk",
+        )
+        query = self.request.GET.get("query", "").strip()
+        homie = self.request.GET.get("homie", "").strip()
+        status = self.request.GET.get("status", "").strip()
+        visibility = self.request.GET.get("visibility", "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(title__icontains=query)
+                | Q(spot__icontains=query)
+                | Q(notes__icontains=query)
+            )
+        if homie.isdigit():
+            queryset = queryset.filter(homie_id=int(homie))
+        if status:
+            queryset = queryset.filter(status=status)
+        if visibility == "public":
+            queryset = queryset.filter(is_public=True)
+        elif visibility == "private":
+            queryset = queryset.filter(is_public=False)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["records"] = context["page_obj"]
+        context["homies"] = self.board.homies.order_by("node_index", "pk")
+        context["filters"] = {
+            "query": self.request.GET.get("query", ""),
+            "homie": self.request.GET.get("homie", ""),
+            "status": self.request.GET.get("status", ""),
+            "visibility": self.request.GET.get("visibility", ""),
+        }
+        context["can_create"] = True
+        return context
+
+
+class SkateClipCreateView(SkateClipMixin, CreateView):
+    template_name = "pages/boards/manage/skateboard/form.html"
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields["homie"].queryset = self.board.homies.order_by(
+            "node_index",
+            "pk",
+        )
+        return form
+
+    def form_valid(self, form):
+        messages.success(self.request, "滑板片段已创建。")
+        return super().form_valid(form)
+
+
+class SkateClipUpdateView(SkateClipMixin, UpdateView):
+    template_name = "pages/boards/manage/skateboard/form.html"
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields["homie"].queryset = self.board.homies.order_by(
+            "node_index",
+            "pk",
+        )
+        return form
+
+    def form_valid(self, form):
+        messages.success(self.request, "滑板片段已更新。")
+        return super().form_valid(form)
+
+
+class SkateClipDeleteView(SkateClipMixin, DeleteView):
+    template_name = "pages/boards/manage/skateboard/delete_confirm.html"
+    form_class = Form
+
+    def form_valid(self, form):
+        messages.success(self.request, "滑板片段已删除。")
+        return super().form_valid(form)
+
+
+class CodingProjectMixin(BoardContentManagerMixin):
+    board_slug = "coding"
+    model = CodingProject
+    form_class = CodingProjectForm
+
+    def get_queryset(self):
+        return CodingProject.objects.filter(board=self.board)
+
+    def get_success_url(self):
+        return reverse("boards:coding-manage-list")
+
+
+class CodingProjectListView(CodingProjectMixin, ListView):
+    template_name = "pages/boards/manage/coding/list.html"
+    context_object_name = "records"
+    paginate_by = 30
+
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by("order", "pk")
+        query = self.request.GET.get(
+            "query",
+            self.request.GET.get("q", ""),
+        ).strip()
+        project_type = self.request.GET.get("project_type", "").strip()
+        year = self.request.GET.get("year", "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(stack__icontains=query)
+            )
+        if project_type in CodingProject.ProjectType.values:
+            queryset = queryset.filter(project_type=project_type)
+        if year.isdigit():
+            queryset = queryset.filter(year=int(year))
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["records"] = context["page_obj"]
+        context["filters"] = {
+            "query": self.request.GET.get(
+                "query",
+                self.request.GET.get("q", ""),
+            ),
+            "project_type": self.request.GET.get("project_type", ""),
+            "year": self.request.GET.get("year", ""),
+        }
+        context["can_create"] = True
+        return context
+
+
+class CodingProjectCreateView(CodingProjectMixin, CreateView):
+    template_name = "pages/boards/manage/coding/form.html"
+
+    def form_valid(self, form):
+        form.instance.board = self.board
+        messages.success(self.request, "项目已创建。")
+        return super().form_valid(form)
+
+
+class CodingProjectUpdateView(CodingProjectMixin, UpdateView):
+    template_name = "pages/boards/manage/coding/form.html"
+
+    def form_valid(self, form):
+        form.instance.board = self.board
+        messages.success(self.request, "项目已更新。")
+        return super().form_valid(form)
+
+
+class CodingProjectDeleteView(CodingProjectMixin, DeleteView):
+    template_name = "pages/boards/manage/coding/delete_confirm.html"
+    form_class = Form
+
+    def form_valid(self, form):
+        messages.success(self.request, "项目已删除。")
+        return super().form_valid(form)
+
+
+class PadifLocalView(TemplateView):
+    template_name = "pages/coding/padif_local.html"

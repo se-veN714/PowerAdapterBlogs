@@ -17,6 +17,8 @@
 """
 
 import functools
+from pathlib import Path
+import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -43,6 +45,15 @@ def _board_default(slug):
     返回 functools.partial 而非 lambda，因为 Django 迁移序列化器无法序列化 lambda。
     """
     return functools.partial(_board_for_slug, slug)
+
+
+def board_content_cover_upload_to(instance, filename):
+    """Store uploaded Board artwork under a random server-side filename."""
+    extension = Path(filename).suffix.lower()
+    if extension not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+        extension = ".upload"
+    model_name = instance._meta.model_name
+    return f"boards/{instance.BOARD_SLUG}/{model_name}/{uuid.uuid4().hex}{extension}"
 
 
 class FixedBoardContentModel(models.Model):
@@ -616,6 +627,28 @@ class MusicRecordBase(FixedBoardContentModel):
     unit = models.CharField(max_length=16, blank=True, verbose_name="单位")
     kind = models.CharField(max_length=32, blank=True, verbose_name="类型")
     note = models.TextField(blank=True, verbose_name="注记")
+    rank = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="排名",
+    )
+    play_count = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="播放次数",
+    )
+    minutes = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="收听分钟",
+    )
+    cover = models.ImageField(
+        upload_to=board_content_cover_upload_to,
+        validators=[validate_uploaded_image],
+        blank=True,
+        verbose_name="封面",
+    )
+    external_url = models.URLField(blank=True, verbose_name="外部链接")
     display_order = models.PositiveSmallIntegerField(default=0, verbose_name="排序")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
@@ -652,6 +685,11 @@ class CodingProject(FixedBoardContentModel):
 
     BOARD_SLUG = "coding"
 
+    class ProjectType(models.TextChoices):
+        GITHUB = "github", "GitHub 项目"
+        LOCAL_TOOL = "local_tool", "本地浏览器工具"
+        EXTERNAL = "external", "外部项目"
+
     board = models.ForeignKey(
         Board,
         on_delete=models.CASCADE,
@@ -666,7 +704,26 @@ class CodingProject(FixedBoardContentModel):
     stack = models.CharField(max_length=128, blank=True, verbose_name="技术栈")
     year = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="年份")
     status = models.CharField(max_length=32, blank=True, verbose_name="状态")
-    url = models.URLField(blank=True, verbose_name="链接")
+    project_type = models.CharField(
+        max_length=16,
+        choices=ProjectType.choices,
+        default=ProjectType.GITHUB,
+        verbose_name="项目类型",
+    )
+    repository_url = models.URLField(blank=True, verbose_name="仓库链接")
+    demo_url = models.URLField(blank=True, verbose_name="演示链接")
+    url = models.URLField(
+        blank=True,
+        verbose_name="兼容主链接",
+        help_text="历史数据兼容字段；新数据优先填写仓库链接或演示链接。",
+    )
+    cover = models.ImageField(
+        upload_to=board_content_cover_upload_to,
+        validators=[validate_uploaded_image],
+        blank=True,
+        verbose_name="封面",
+    )
+    is_featured = models.BooleanField(default=False, verbose_name="精选")
     is_active = models.BooleanField(default=True, verbose_name="展示")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="排序")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")

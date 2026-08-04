@@ -119,7 +119,7 @@
 
 <!-- ===== Editorial Sections (dynamic from boards) ===== -->
 {% for board in boards %}
-<section class="editorial-section editorial-glitch" id="{{ board.slug }}" data-scramble="title,body" data-scramble-set="{{ board.slug|slice:':4' }}">
+<section class="editorial-section editorial-glitch" id="{{ board.slug }}" data-scramble="title,body" data-scramble-set="{{ board.slug|slice:':4' }}" style="--board-accent:{{ board.glitch_color }}">
     <div class="editorial-number">
         <span class="number-text">{{ forloop.counter|stringformat:"02d" }}</span>
         <div class="editorial-metadata">

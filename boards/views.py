@@ -31,10 +31,42 @@ from boards.models import (
     SkateHomie,
 )
 from boards.policies import (
+    boards_manageable_by,
     can_access_post_admin,
     can_create_post_in_any_board,
 )
 from boards.services import submit_board_access_request, withdraw_board_membership
+
+
+BOARD_MANAGEMENT_DESTINATIONS = {
+    "skateboard": (
+        ("Skateboard · Clips", "boards:skate-manage-list", ()),
+    ),
+    "music": (
+        ("Music · Spotify", "boards:music-manage-list", ("spotify",)),
+        ("Music · Apple Music", "boards:music-manage-list", ("apple",)),
+    ),
+    "coding": (
+        ("Coding · Projects", "boards:coding-manage-list", ()),
+    ),
+}
+
+
+def board_management_links(user, boards):
+    """Return only management destinations authorized by Board Policy."""
+    manageable_slugs = set(
+        boards_manageable_by(user, boards).values_list("slug", flat=True)
+    )
+    return [
+        {
+            "board_slug": slug,
+            "label": label,
+            "url": reverse(url_name, args=args),
+        }
+        for slug, destinations in BOARD_MANAGEMENT_DESTINATIONS.items()
+        if slug in manageable_slugs
+        for label, url_name, args in destinations
+    ]
 
 
 class BoardAccessRequestView(
@@ -154,6 +186,10 @@ class BoardIndexView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["board"] = self.board
         context.update(ASSEMBLERS[self.board.slug](self.board))
+        context["board_manage_links"] = board_management_links(
+            self.request.user,
+            Board.objects.filter(pk=self.board.pk),
+        )
         return context
 
 
@@ -225,6 +261,7 @@ def boards_context(request):
 
     return {
         "boards": boards,
+        "board_management_links": board_management_links(request.user, boards),
         "can_create_board_post": can_create_post_in_any_board(request.user),
         "can_access_review_workspace": can_access_post_admin(request.user),
         "can_access_dashboard": has_dashboard_access(request.user),

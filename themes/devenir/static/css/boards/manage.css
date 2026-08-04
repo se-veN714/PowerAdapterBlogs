@@ -34,7 +34,7 @@
 .bm-head__titles { display: grid; gap: 0.4rem; }
 .bm-kicker {
     font-family: var(--font-mono);
-    font-size: 0.62rem;
+    font-size: 0.68rem;
     letter-spacing: 0.22em;
     color: var(--bm-accent);
     text-transform: uppercase;
@@ -49,7 +49,7 @@
 .bm-title span { color: var(--bm-text-dim); font-weight: 400; }
 .bm-sub {
     font-family: var(--font-mono);
-    font-size: 0.66rem;
+    font-size: 0.74rem;
     letter-spacing: 0.12em;
     color: var(--bm-text-dim);
 }
@@ -64,7 +64,7 @@
 }
 .bm-tab {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.74rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     text-decoration: none;
@@ -105,7 +105,7 @@
 }
 .bm-filters__field label {
     font-family: var(--font-mono);
-    font-size: 0.56rem;
+    font-size: 0.64rem;
     letter-spacing: 0.16em;
     color: var(--bm-text-dim);
     text-transform: uppercase;
@@ -116,7 +116,7 @@
     border: 1px solid var(--bm-border);
     color: var(--bm-text);
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.84rem;
     padding: 0.5rem 0.65rem;
     min-height: 40px;
     min-width: 7rem;
@@ -133,7 +133,7 @@
 /* ---------- 按钮 ---------- */
 .bm-btn {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.74rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     text-decoration: none;
@@ -184,19 +184,20 @@
 .bm-table {
     border: 1px solid var(--bm-border);
     background: var(--bm-surface);
+    overflow-x: auto;
 }
 .bm-row {
     display: grid;
     grid-template-columns: var(--bm-cols, 3rem 1.4fr repeat(4, minmax(4.5rem, 0.6fr)) auto);
     gap: 1rem;
     align-items: center;
-    padding: 0.85rem 1.25rem;
+    padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--bm-border);
     font-family: var(--font-mono);
 }
 .bm-row:last-child { border-bottom: none; }
 .bm-row--head {
-    font-size: 0.56rem;
+    font-size: 0.64rem;
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--bm-text-dim);
@@ -204,14 +205,14 @@
     padding-top: 0.7rem;
     padding-bottom: 0.7rem;
 }
-.bm-cell { min-width: 0; font-size: 0.74rem; color: var(--bm-text-muted); }
-.bm-cell--strong { color: var(--bm-text); font-weight: 700; font-size: 0.8rem; }
+.bm-cell { min-width: 0; font-size: 0.82rem; color: var(--bm-text-muted); }
+.bm-cell--strong { color: var(--bm-text); font-weight: 700; font-size: 0.9rem; }
 .bm-cell--accent { color: var(--bm-accent); font-weight: 700; }
 .bm-cell--dim { color: var(--bm-text-dim); font-size: 0.66rem; }
 .bm-cell__sub {
     display: block;
     margin-top: 0.2rem;
-    font-size: 0.6rem;
+    font-size: 0.68rem;
     letter-spacing: 0.06em;
     color: var(--bm-text-dim);
     white-space: nowrap;
@@ -220,7 +221,7 @@
 }
 .bm-tag {
     display: inline-block;
-    font-size: 0.56rem;
+    font-size: 0.62rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     border: 1px solid var(--bm-border);
@@ -238,16 +239,25 @@
 }
 .bm-actions a {
     font-family: var(--font-mono);
-    font-size: 0.6rem;
+    font-size: 0.68rem;
     letter-spacing: 0.1em;
     text-decoration: none;
     color: var(--bm-text-muted);
     border: 1px solid var(--bm-border);
     padding: 0.4rem 0.65rem;
-    min-height: 36px;
+    min-height: 40px;
     display: inline-flex;
     align-items: center;
     transition: color 0.2s, border-color 0.2s;
+}
+
+/* 每一行都是独立 grid；最后一列必须固定宽度，否则表头的 ACTIONS
+   与两枚操作按钮会分别参与 auto 计算，导致前面所有列发生错位。 */
+.bm-table--skate .bm-row {
+    grid-template-columns:
+        4rem minmax(7rem, 0.8fr) minmax(13rem, 1.6fr)
+        minmax(9rem, 1fr) 7rem 6rem 9.5rem;
+    min-width: 64rem;
 }
 .bm-actions a:hover,
 .bm-actions a:focus-visible {
@@ -425,6 +435,10 @@
 /* ---------- 响应式 ---------- */
 @media (max-width: 900px) {
     .bm-row { grid-template-columns: 2.5rem 1fr auto; gap: 0.75rem; }
+    .bm-table--skate .bm-row {
+        grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+        min-width: 0;
+    }
     .bm-row--head { display: none; }
     .bm-cell--collapse { display: none; }
     .bm-group__grid { grid-template-columns: 1fr; }

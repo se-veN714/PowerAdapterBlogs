@@ -43,6 +43,7 @@ board.glitch_color 由后端 Board 模型提供（skateboard 种子值 #ff4d5e�
 {% endblock %}
 
 {% block content %}
+{% include 'pages/boards/_board_manage_entry.html' %}
 <section class="sk-constellation-section" data-glitch-color="{{ board.glitch_color }}" aria-label="Crew constellation">
     <div class="container">
         <div class="sk-constellation-section__head reveal">

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Music Records · PowerAdapter{% endblock %}
+{% block content %}
+<main class="container">
+  <h1>{{ provider|upper }} MUSIC RECORDS</h1>
+  <p><a href="{% url 'boards:music-manage-create' provider %}">新增记录</a></p>
+  <ul>
+    {% for record in records %}
+      <li>
+        {{ record.year }}{% if record.month %}.{{ record.month }}{% endif %}
+        / {{ record.kind }} / {{ record.label }}
+        <a href="{% url 'boards:music-manage-update' provider record.pk %}">编辑</a>
+        <a href="{% url 'boards:music-manage-delete' provider record.pk %}">删除</a>
+      </li>
+    {% empty %}<li>暂无记录。</li>{% endfor %}
+  </ul>
+</main>
+{% endblock %}

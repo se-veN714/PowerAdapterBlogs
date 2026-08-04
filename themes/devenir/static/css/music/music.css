@@ -219,22 +219,27 @@
 }
 .music-dashboard {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 2rem;
     align-items: start;
 }
 .music-col {
     display: grid;
     gap: 2rem;
+    min-width: 0; /* grid item 防溢出：内容 min-content 不撑破轨道 */
 }
+.music-col > .music-card { min-width: 0; }
+.music-card__head > .music-card__title { min-width: 0; }
 
 /* ============ Yearly Overview ============ */
 .music-yearly__main {
     display: grid;
-    grid-template-columns: 1fr 1.2fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
     gap: 1.5rem;
     align-items: start;
 }
+.music-yearly__figures,
+.music-yearly__chart { min-width: 0; }
 .music-yearly__year {
     font-family: var(--font-sans);
     font-size: clamp(3rem, 8vw, 5.5rem);
@@ -518,6 +523,10 @@
     color: var(--music-text-muted);
 }
 .music-archive__link {
+    /* button 元素重置（原为 a[href="#"]，契约禁止占位链接） */
+    background: transparent;
+    cursor: pointer;
+    font-family: var(--font-mono);
     font-size: 0.62rem;
     letter-spacing: 0.08em;
     color: var(--music-text-muted);
@@ -546,20 +555,327 @@
     padding-top: 0.5rem;
 }
 
+/* ============ 空态行（quiet empty state） ============ */
+.music-empty-line {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    color: var(--music-text-dark);
+    padding: 0.5rem 0;
+}
+
+/* ============ 封面缩略（img 版与字体回退共用占位尺寸） ============ */
+.music-thumb--img {
+    object-fit: cover;
+    display: block;
+}
+.music-thumb--sm { flex-basis: 36px; width: 36px; height: 36px; font-size: 0.62rem; }
+
+/* ============ Yearly 次级指标 ============ */
+.music-yearly__stats {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--music-border);
+    display: flex;
+    gap: 2rem;
+    font-family: var(--font-mono);
+}
+.music-yearly__stats div { display: grid; gap: 0.2rem; }
+.music-yearly__stats dt {
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    color: var(--music-text-dark);
+}
+.music-yearly__stats dd {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--music-text);
+}
+
+/* ============ 行列表（Top Artists / Top Tracks） ============ */
+.music-rows {
+    list-style: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+}
+.music-row {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--music-border);
+}
+.music-row:last-child { border-bottom: none; padding-bottom: 0; }
+.music-row:first-child { padding-top: 0; }
+.music-row__rank {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--music-accent);
+    min-width: 1.6rem;
+    letter-spacing: 0.05em;
+}
+.music-row__main { min-width: 0; flex: 1; }
+.music-row__name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--music-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.music-row__sub {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    color: var(--music-text-muted);
+    margin-top: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.music-row__link {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--music-border);
+    border-radius: var(--music-radius);
+    color: var(--music-text-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s, border-color 0.2s, transform 0.2s;
+}
+.music-row__link:hover,
+.music-row__link:focus-visible {
+    color: var(--music-accent);
+    border-color: var(--music-accent-soft);
+    transform: translateX(2px);
+    outline: none;
+}
+
+/* ============ 月份条（Month Index） ============ */
+.music-chips {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+.music-chip {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--music-border);
+    border-radius: var(--music-radius);
+    background: var(--music-surface-soft);
+    min-width: 5.4rem;
+    transition: border-color 0.25s, box-shadow 0.25s;
+}
+.music-chip__label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--music-text-muted);
+}
+.music-chip__min {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    color: var(--music-text-dark);
+}
+.music-chip.is-current {
+    border-color: var(--music-accent-soft);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--glitch-c) 10%, transparent);
+}
+.music-chip.is-current .music-chip__label { color: var(--music-accent); }
+.music-chip.is-current .music-chip__min { color: var(--music-text-muted); }
+
+/* ============ Current Month 层级（参考 Apple 月度信息层级，Devenir 化） ============ */
+.music-current__figure {
+    display: flex;
+    align-items: baseline;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+.music-current__minutes {
+    font-family: var(--font-sans);
+    font-size: clamp(2.6rem, 5.5vw, 4.2rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--music-accent);
+}
+.music-current__unit {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    color: var(--music-text-muted);
+}
+.music-current__section-label {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    color: var(--music-text-dark);
+    margin-bottom: 0.9rem;
+}
+
+/* ============ 艺人大卡（Top 5 · 月度） ============ */
+.music-artcards {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.9rem;
+}
+.music-artcard {
+    position: relative;
+    min-width: 0;
+    border: 1px solid var(--music-border);
+    border-radius: var(--music-radius);
+    background: var(--music-surface-soft);
+    padding: 0.8rem;
+    display: grid;
+    gap: 0.7rem;
+    align-content: start;
+    transition: border-color 0.25s, box-shadow 0.25s;
+}
+.music-artcard__body { min-width: 0; }
+.music-artcard:hover {
+    border-color: var(--music-accent-deep);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--glitch-c) 8%, transparent);
+}
+.music-artcard__rank {
+    position: absolute;
+    top: 0.55rem;
+    left: 0.7rem;
+    z-index: 2;
+    font-family: var(--font-sans);
+    font-size: 1.9rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--music-accent);
+    text-shadow: 0 0 14px color-mix(in srgb, var(--glitch-c) 35%, transparent);
+}
+.music-artcard__cover,
+.music-artcard__fallback {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: var(--music-radius);
+    border: 1px solid var(--music-border);
+    display: block;
+}
+.music-artcard__cover { object-fit: cover; }
+.music-artcard__fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(circle at 30% 30%, var(--music-accent-deep), transparent 70%),
+        var(--music-surface);
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--music-accent);
+}
+.music-artcard__name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--music-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.music-artcard__min {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    color: var(--music-text-muted);
+    margin-top: 0.25rem;
+}
+.music-artcard__link {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--music-border);
+    border-radius: var(--music-radius);
+    background: color-mix(in srgb, var(--music-bg) 72%, transparent);
+    color: var(--music-text-muted);
+    text-decoration: none;
+    font-size: 0.75rem;
+    transition: color 0.2s, border-color 0.2s;
+}
+.music-artcard__link:hover,
+.music-artcard__link:focus-visible {
+    color: var(--music-accent);
+    border-color: var(--music-accent-soft);
+    outline: none;
+}
+
+/* ============ 曲目密排（Top 15 · 月度） ============ */
+.music-trackgrid {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem 1.2rem;
+}
+.music-trackcell {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--music-border);
+    min-width: 0;
+}
+.music-trackcell__main { min-width: 0; flex: 1; }
+.music-trackcell__title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--music-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.music-trackcell__title .music-row__rank { min-width: 0; margin-right: 0.35rem; }
+.music-trackcell__sub {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+    color: var(--music-text-muted);
+    margin-top: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.music-trackcell .music-row__link { width: 34px; height: 34px; font-size: 0.72rem; }
+
 /* ============ Responsive ============ */
 @media (max-width: 1199px) {
     .music-hero__grid { grid-template-columns: 1fr 1fr; gap: 2rem; }
     .music-hero__visual { grid-column: 1 / -1; order: 2; min-height: 200px; }
     .music-hero__intro { order: 1; }
     .music-hero__period { order: 3; }
-    .music-yearly__main { grid-template-columns: 1fr; }
+    .music-yearly__main { grid-template-columns: minmax(0, 1fr); }
     .music-dashboard { gap: 1.5rem; }
     .music-col { gap: 1.5rem; }
+    .music-artcards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .music-trackgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
-    .music-dashboard { grid-template-columns: 1fr; }
+    .music-dashboard { grid-template-columns: minmax(0, 1fr); }
     .music-archive__row { grid-template-columns: 4rem 1fr auto; gap: 0.75rem; }
     .music-archive__tags { grid-column: 2 / 3; grid-row: 2; }
+    .music-artcards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 768px) {
     .music-hero { padding: 6rem 0 2.5rem; }
@@ -589,6 +905,8 @@
     .music-archive__note { grid-column: 1 / -1; }
     .music-monthly__bars li { grid-template-columns: 2.5rem 1fr 5rem; gap: 0.5rem; }
     .music-monthly__current-artists { gap: 0.75rem; }
+    .music-trackgrid { grid-template-columns: 1fr; }
+    .music-current__minutes { font-size: 2.6rem; }
 }
 @media (max-width: 480px) {
     .music-card__hint { width: 100%; margin-left: 0; }
@@ -597,13 +915,24 @@
     .music-monthly__bars li { grid-template-columns: 2.5rem 1fr 4.5rem; }
     .music-monthly__min { font-size: 0.58rem; }
     .music-monthly__current-artists li { flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+    .music-artcards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+    .music-artcard__rank { font-size: 1.5rem; }
+    .music-chips { gap: 0.45rem; }
+    .music-chip { min-width: calc(50% - 0.45rem); padding: 0.55rem 0.7rem; }
+    .music-row__sub { white-space: normal; }
 }
 
 /* ============ Reduced motion ============ */
 @media (prefers-reduced-motion: reduce) {
     .music-card,
     .music-archive__link,
+    .music-row__link,
+    .music-artcard,
+    .music-artcard__link,
+    .music-chip,
     .music-monthly__fill { transition: none; }
     .music-archive__link:hover,
-    .music-archive__link:focus-visible { transform: none; }
+    .music-archive__link:focus-visible,
+    .music-row__link:hover,
+    .music-row__link:focus-visible { transform: none; }
 }

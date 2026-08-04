@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Boards Manage — Music 记录删除确认（in-page Devenir 面板，绝不 window.confirm）。
+
+契约：provider / object（待删除记录）。
+POST 到 boards:music-manage-delete(provider, pk)；取消返回 list。
+{% endcomment %}
+
+{% block title %}Delete Music Record · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles">
+                <p class="bm-kicker">MANAGE / MUSIC / {{ provider|upper }}</p>
+                <h1 class="bm-title">DELETE RECORD</h1>
+            </div>
+            <a class="bm-btn" href="{% url 'boards:music-manage-list' provider=provider %}">&larr; BACK TO LIST</a>
+        </header>
+
+        <div class="bm-danger" role="alertdialog" aria-labelledby="bm-danger-title" aria-describedby="bm-danger-warn">
+            <p class="bm-danger__kicker">DESTRUCTIVE ACTION</p>
+            <h2 class="bm-danger__title" id="bm-danger-title">确认删除这条记录？</h2>
+
+            <div class="bm-danger__summary">
+                <span><strong>{{ object.title }}</strong></span>
+                <span>{{ object.year }}{% if object.month %}.{{ object.month|stringformat:"02d" }}{% endif %} · {{ object.scope|upper }} · {{ object.kind|default:"—" }}</span>
+                <span>{{ object.label }} = {{ object.value }}{% if object.unit %} {{ object.unit }}{% endif %}</span>
+            </div>
+
+            <p class="bm-danger__warn" id="bm-danger-warn">
+                删除后该条目将<em>立即从公开 Music Index 消失</em>，且不可在管理界面内恢复。
+                若只是数据过期，建议改用 EDIT 修正，而不是删除。
+            </p>
+
+            <form method="post" action="{% url 'boards:music-manage-delete' provider=provider pk=object.pk %}">
+                {% csrf_token %}
+                <div class="bm-danger__actions">
+                    <button class="bm-btn bm-btn--danger" type="submit">CONFIRM DELETE</button>
+                    <a class="bm-btn" href="{% url 'boards:music-manage-list' provider=provider %}">CANCEL</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

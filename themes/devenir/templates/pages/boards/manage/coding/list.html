@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Boards Manage — Coding 项目列表（Devenir 管理壳，待后端授权接线）。
+
+契约（.agents/BOARD_MUSIC_CODING_K3_HANDOFF.md §7；路由名冻结，由协调后端分支提供）：
+    records   paginated projects（page_obj 惯例）
+    filters   query / project_type / year（GET 回显）
+    can_create bool
+路由：boards:coding-manage-list / -create / -update(pk) / -delete(pk)
+{% endcomment %}
+
+{% block title %}Coding Projects · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles">
+                <p class="bm-kicker">MANAGE / CODING</p>
+                <h1 class="bm-title">CODING PROJECTS</h1>
+                <p class="bm-sub">公开 Index 只读；此处的变更经后端授权后写入档案。</p>
+            </div>
+            {% if can_create %}
+            <a class="bm-btn bm-btn--primary" href="{% url 'boards:coding-manage-create' %}">+ NEW PROJECT</a>
+            {% else %}
+            <span class="bm-btn is-disabled" aria-disabled="true" title="当前账号无新建权限">+ NEW PROJECT</span>
+            {% endif %}
+        </header>
+
+        <form class="bm-filters" method="get" action="{% url 'boards:coding-manage-list' %}" role="search" aria-label="筛选项目">
+            <div class="bm-filters__field">
+                <label for="bm-f-type">TYPE</label>
+                <select id="bm-f-type" name="project_type">
+                    <option value=""{% if not filters.project_type %} selected{% endif %}>全部</option>
+                    <option value="github"{% if filters.project_type == 'github' %} selected{% endif %}>GITHUB</option>
+                    <option value="local_tool"{% if filters.project_type == 'local_tool' %} selected{% endif %}>LOCAL TOOL</option>
+                    <option value="external"{% if filters.project_type == 'external' %} selected{% endif %}>EXTERNAL</option>
+                </select>
+            </div>
+            <div class="bm-filters__field">
+                <label for="bm-f-year">YEAR</label>
+                <input id="bm-f-year" type="number" name="year" value="{{ filters.year }}" min="2000" max="2100" placeholder="全部">
+            </div>
+            <div class="bm-filters__field bm-filters__query">
+                <label for="bm-f-q">SEARCH</label>
+                <input id="bm-f-q" type="search" name="query" value="{{ filters.query }}" placeholder="项目名 / 技术栈 / 简述">
+            </div>
+            <button class="bm-btn" type="submit">APPLY</button>
+        </form>
+
+        {% if records %}
+        <div class="bm-table" role="table" aria-label="Coding projects">
+            <div class="bm-row bm-row--head" role="row" style="--bm-cols:3rem 1.6fr 6.5rem 4.5rem 7rem 7.5rem auto;">
+                <span role="columnheader">#</span>
+                <span role="columnheader">NAME</span>
+                <span role="columnheader">TYPE</span>
+                <span role="columnheader">YEAR</span>
+                <span role="columnheader">STATUS</span>
+                <span role="columnheader">FLAGS</span>
+                <span role="columnheader">ACTIONS</span>
+            </div>
+            {% for record in records %}
+            <div class="bm-row" role="row" style="--bm-cols:3rem 1.6fr 6.5rem 4.5rem 7rem 7.5rem auto;">
+                <span class="bm-cell bm-cell--accent" role="cell">{{ record.index|stringformat:"02d" }}</span>
+                <span class="bm-cell bm-cell--strong" role="cell">
+                    {{ record.name }}
+                    <span class="bm-cell__sub">{{ record.stack }}{% if record.repository_url %} · REPO{% endif %}{% if record.demo_url %} · DEMO{% endif %}</span>
+                </span>
+                <span class="bm-cell bm-cell--collapse" role="cell">
+                    <span class="bm-tag">{% if record.project_type == 'github' %}GITHUB{% elif record.project_type == 'local_tool' %}LOCAL TOOL{% else %}EXTERNAL{% endif %}</span>
+                </span>
+                <span class="bm-cell bm-cell--collapse" role="cell">{{ record.year|default:"—" }}</span>
+                <span class="bm-cell bm-cell--collapse" role="cell">{{ record.status|upper|default:"—" }}</span>
+                <span class="bm-cell bm-cell--collapse" role="cell">
+                    {% if record.is_featured %}<span class="bm-tag bm-tag--accent">FEATURED</span>{% endif %}
+                    {% if record.is_active %}<span class="bm-tag">ACTIVE</span>{% else %}<span class="bm-tag bm-tag--off">HIDDEN</span>{% endif %}
+                </span>
+                <span class="bm-actions" role="cell">
+                    <a href="{% url 'boards:coding-manage-update' pk=record.pk %}">EDIT</a>
+                    <a class="bm-actions__delete" href="{% url 'boards:coding-manage-delete' pk=record.pk %}">DELETE</a>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if records.paginator.num_pages > 1 %}
+        <nav class="bm-pager" aria-label="分页">
+            <span>PAGE {{ records.number }} / {{ records.paginator.num_pages }}</span>
+            <span class="bm-pager__links">
+                {% if records.has_previous %}
+                <a class="bm-btn" href="?page={{ records.previous_page_number }}&project_type={{ filters.project_type|urlencode }}&year={{ filters.year|urlencode }}&query={{ filters.query|urlencode }}">&larr; PREV</a>
+                {% endif %}
+                {% if records.has_next %}
+                <a class="bm-btn" href="?page={{ records.next_page_number }}&project_type={{ filters.project_type|urlencode }}&year={{ filters.year|urlencode }}&query={{ filters.query|urlencode }}">NEXT &rarr;</a>
+                {% endif %}
+            </span>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="bm-empty">
+            <strong>NO PROJECTS</strong>
+            {% if filters.query or filters.project_type or filters.year %}
+            当前筛选条件下没有项目。<a href="{% url 'boards:coding-manage-list' %}">清除筛选</a>
+            {% else %}
+            还没有项目记录。{% if can_create %}从右上角新建第一个。{% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

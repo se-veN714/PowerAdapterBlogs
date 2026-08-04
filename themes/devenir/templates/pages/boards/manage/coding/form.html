@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Boards Manage — Coding 项目表单（create / update 共用，Devenir 管理壳）。
+
+契约（.agents/BOARD_MUSIC_CODING_K3_HANDOFF.md §7）：
+    form（Django Form）/ object（update 时存在）
+字段：index, name, description, stack, year, status, project_type,
+      repository_url, demo_url, cover, is_featured, is_active, order
+标准 Django form 渲染 + CSRF；cover 可能为文件字段 → multipart。
+{% endcomment %}
+
+{% block title %}{% if object %}Edit{% else %}New{% endif %} Coding Project · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles">
+                <p class="bm-kicker">MANAGE / CODING</p>
+                <h1 class="bm-title">{% if object %}EDIT PROJECT <span>/ {{ object.name|upper }}</span>{% else %}NEW PROJECT{% endif %}</h1>
+                {% if object %}<p class="bm-sub">修改会直接影响公开 Coding Index 的呈现。</p>{% endif %}
+            </div>
+            <a class="bm-btn" href="{% url 'boards:coding-manage-list' %}">&larr; BACK TO LIST</a>
+        </header>
+
+        <form class="bm-form" method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="bm-form__errors-top" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <fieldset class="bm-group">
+                <legend class="bm-group__legend">01 / IDENTITY</legend>
+                <div class="bm-group__grid">
+                    <div class="bm-field">
+                        {{ form.index.label_tag }}
+                        {{ form.index }}
+                        {% if form.index.errors %}<ul class="bm-field__errors">{{ form.index.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.name.label_tag }}
+                        {{ form.name }}
+                        {% if form.name.errors %}<ul class="bm-field__errors">{{ form.name.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field bm-field--wide">
+                        {{ form.description.label_tag }}
+                        {{ form.description }}
+                        {% if form.description.errors %}<ul class="bm-field__errors">{{ form.description.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.stack.label_tag }}
+                        {{ form.stack }}
+                        {% if form.stack.errors %}<ul class="bm-field__errors">{{ form.stack.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.year.label_tag }}
+                        {{ form.year }}
+                        {% if form.year.errors %}<ul class="bm-field__errors">{{ form.year.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.status.label_tag }}
+                        {{ form.status }}
+                        {% if form.status.errors %}<ul class="bm-field__errors">{{ form.status.errors }}</ul>{% endif %}
+                        {% if form.status.help_text %}<p class="bm-field__help">{{ form.status.help_text }}</p>{% endif %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="bm-group">
+                <legend class="bm-group__legend">02 / LINKS &amp; TYPE</legend>
+                <div class="bm-group__grid">
+                    <div class="bm-field">
+                        {{ form.project_type.label_tag }}
+                        {{ form.project_type }}
+                        {% if form.project_type.errors %}<ul class="bm-field__errors">{{ form.project_type.errors }}</ul>{% endif %}
+                        {% if form.project_type.help_text %}<p class="bm-field__help">{{ form.project_type.help_text }}</p>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.repository_url.label_tag }}
+                        {{ form.repository_url }}
+                        {% if form.repository_url.errors %}<ul class="bm-field__errors">{{ form.repository_url.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.demo_url.label_tag }}
+                        {{ form.demo_url }}
+                        {% if form.demo_url.errors %}<ul class="bm-field__errors">{{ form.demo_url.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.cover.label_tag }}
+                        {{ form.cover }}
+                        {% if form.cover.errors %}<ul class="bm-field__errors">{{ form.cover.errors }}</ul>{% endif %}
+                        {% if form.cover.help_text %}<p class="bm-field__help">{{ form.cover.help_text }}</p>{% endif %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="bm-group">
+                <legend class="bm-group__legend">03 / VISIBILITY &amp; ORDERING</legend>
+                <div class="bm-group__grid">
+                    <div class="bm-field">
+                        {{ form.is_featured.label_tag }}
+                        {{ form.is_featured }}
+                        {% if form.is_featured.errors %}<ul class="bm-field__errors">{{ form.is_featured.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.is_active.label_tag }}
+                        {{ form.is_active }}
+                        {% if form.is_active.errors %}<ul class="bm-field__errors">{{ form.is_active.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.order.label_tag }}
+                        {{ form.order }}
+                        {% if form.order.errors %}<ul class="bm-field__errors">{{ form.order.errors }}</ul>{% endif %}
+                        {% if form.order.help_text %}<p class="bm-field__help">{{ form.order.help_text }}</p>{% endif %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="bm-form__actions">
+                <button class="bm-btn bm-btn--primary" type="submit">{% if object %}SAVE CHANGES{% else %}CREATE PROJECT{% endif %}</button>
+                <a class="bm-btn" href="{% url 'boards:coding-manage-list' %}">CANCEL</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

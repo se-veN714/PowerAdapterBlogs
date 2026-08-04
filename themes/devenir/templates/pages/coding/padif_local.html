@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Padif — LOCAL BROWSER WORKSPACE（纯前端文档版本工作区）。
+
+硬约束（.agents/BOARD_MUSIC_CODING_K3_HANDOFF.md §8）：
+- 不请求任何 Padif 服务器端点；不对 Django 发起 POST/PUT/PATCH/DELETE/fetch/HTMX。
+- 无认证 token、无 CSRF token、无服务器持久化。
+- 文档与版本仅存于 localStorage；JSON 导出/导入由用户控制备份与迁移。
+- 用户文本渲染只用 textContent/createElement，绝不 innerHTML。
+结构概念借鉴原始静态实现（.local/padif/web/）：文档列表 / 版本 / 差异预览。
+{% endcomment %}
+
+{% block title %}Padif · Local Workspace · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/coding/padif.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="pd-page">
+    <div class="container">
+        <header class="pd-head">
+            <div class="pd-head__titles">
+                <p class="pd-kicker">PADIF / <span>LOCAL BROWSER WORKSPACE</span></p>
+                <h1 class="pd-title">文章版本工作区</h1>
+                <p class="pd-sub">句子级差异 · 本地建档 · 手动落版</p>
+            </div>
+            <div class="pd-head__actions">
+                <button type="button" class="pd-btn" id="pd-export">EXPORT JSON</button>
+                <label class="pd-btn pd-btn--file" id="pd-import-label" for="pd-import" tabindex="0">IMPORT JSON</label>
+                <input type="file" id="pd-import" accept="application/json,.json" hidden>
+            </div>
+        </header>
+
+        <div class="pd-notice" role="note">
+            <span class="pd-notice__tag" aria-hidden="true">LOCAL ONLY</span>
+            <p>
+                本工作区完全运行在浏览器本地：不联网、不上传、服务器不保存任何内容。
+                文档与版本仅写入本机 <code>localStorage</code>——<strong>清除站点数据将删除全部本地草稿</strong>，
+                请先用 EXPORT JSON 备份再清理。导入的 JSON 仅接受本工具导出的结构。
+            </p>
+        </div>
+
+        <div class="pd-status" id="pd-status" role="status" aria-live="polite" hidden></div>
+
+        <section class="pd-import-confirm" id="pd-import-confirm" role="alertdialog" aria-modal="true" aria-labelledby="pd-import-title" aria-describedby="pd-import-summary" hidden>
+            <p class="pd-kicker">IMPORT / DESTRUCTIVE LOCAL ACTION</p>
+            <h2 class="pd-import-confirm__title" id="pd-import-title">替换当前本地工作区？</h2>
+            <p id="pd-import-summary"></p>
+            <p>覆盖后无法从服务器恢复。若当前内容尚未备份，请先取消并使用 EXPORT JSON。</p>
+            <div class="pd-row">
+                <button type="button" class="pd-btn pd-btn--danger" id="pd-import-confirm-btn">REPLACE WORKSPACE</button>
+                <button type="button" class="pd-btn" id="pd-import-cancel-btn">CANCEL</button>
+            </div>
+        </section>
+
+        <noscript>
+            <div class="pd-notice pd-notice--warn">
+                <p>本工具完全由浏览器本地 JavaScript 驱动（不发起任何网络请求）。当前 JavaScript 被禁用，无法使用。</p>
+            </div>
+        </noscript>
+
+        <div class="pd-layout">
+            <!-- 左栏：新建 + 文档列表 -->
+            <div class="pd-col-left">
+                <section class="pd-panel" aria-labelledby="pd-new-title">
+                    <h2 class="pd-panel__h" id="pd-new-title">新建文档</h2>
+                    <div class="pd-field">
+                        <label for="pd-new-doc-title">标题</label>
+                        <input type="text" id="pd-new-doc-title" maxlength="120" placeholder="例如：氧潮·第三章草稿">
+                    </div>
+                    <div class="pd-field">
+                        <label for="pd-new-doc-body">初始内容（作为 v1 快照）</label>
+                        <textarea id="pd-new-doc-body" rows="6" placeholder="粘贴或书写第一版内容…"></textarea>
+                    </div>
+                    <button type="button" class="pd-btn pd-btn--primary" id="pd-create-doc">建档</button>
+                </section>
+
+                <section class="pd-panel" aria-labelledby="pd-docs-title">
+                    <h2 class="pd-panel__h" id="pd-docs-title">文档 <span class="pd-count" id="pd-doc-count">0</span></h2>
+                    <ul class="pd-doclist" id="pd-doclist" role="list"></ul>
+                    <p class="pd-empty" id="pd-doclist-empty">还没有本地文档。从上方建档，或导入之前导出的 JSON。</p>
+                </section>
+            </div>
+
+            <!-- 右栏：编辑 / 版本 / 差异 -->
+            <div class="pd-col-right">
+                <section class="pd-panel" id="pd-editor-panel" aria-labelledby="pd-editor-title" hidden>
+                    <h2 class="pd-panel__h" id="pd-editor-title">编辑 · <span id="pd-current-title">—</span></h2>
+                    <div class="pd-field">
+                        <label for="pd-editor-body">当前内容</label>
+                        <textarea id="pd-editor-body" rows="10"></textarea>
+                    </div>
+                    <div class="pd-commit">
+                        <div class="pd-field pd-commit__msg">
+                            <label for="pd-commit-msg">版本说明（必填）</label>
+                            <input type="text" id="pd-commit-msg" maxlength="200" placeholder="这次改了什么">
+                        </div>
+                        <div class="pd-field">
+                            <label for="pd-commit-kind">级别</label>
+                            <select id="pd-commit-kind">
+                                <option value="patch">patch · 措辞润色</option>
+                                <option value="minor">minor · 成段增删</option>
+                                <option value="major">major · 结构大改</option>
+                            </select>
+                        </div>
+                        <button type="button" class="pd-btn pd-btn--primary" id="pd-commit-btn">提交版本</button>
+                    </div>
+                    <p class="pd-hint">提交会把上方文本框的内容落为一个新版本快照；旧版本永远保留，可随时对比。</p>
+                </section>
+
+                <section class="pd-panel" id="pd-versions-panel" aria-labelledby="pd-versions-title" hidden>
+                    <h2 class="pd-panel__h" id="pd-versions-title">版本 <span class="pd-count" id="pd-version-count">0</span></h2>
+                    <p class="pd-hint">勾选任意两个版本进行句子级对比。</p>
+                    <ul class="pd-verlist" id="pd-verlist" role="list"></ul>
+                    <div class="pd-row">
+                        <button type="button" class="pd-btn" id="pd-diff-btn" disabled>对比所选版本</button>
+                        <button type="button" class="pd-btn pd-btn--danger" id="pd-delete-doc">删除本文档</button>
+                    </div>
+                </section>
+
+                <section class="pd-panel" id="pd-diff-panel" aria-labelledby="pd-diff-title" hidden>
+                    <h2 class="pd-panel__h" id="pd-diff-title">差异 · <span id="pd-diff-label">—</span></h2>
+                    <p class="pd-legend" aria-hidden="true">
+                        <span class="pd-sw pd-sw--ins">新增</span>
+                        <span class="pd-sw pd-sw--del">删除</span>
+                        <span class="pd-sw pd-sw--rep">改写</span>
+                        <span class="pd-sw pd-sw--eq">未变</span>
+                    </p>
+                    <p class="pd-stats" id="pd-diff-stats"></p>
+                    <div class="pd-diff" id="pd-diff-body" tabindex="0" aria-label="版本差异"></div>
+                </section>
+
+                <p class="pd-empty" id="pd-right-empty">从左侧选择一篇文档开始。</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/coding/padif.js' %}"></script>
+{% endblock %}

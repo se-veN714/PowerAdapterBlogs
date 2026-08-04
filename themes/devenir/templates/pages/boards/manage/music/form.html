@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+Boards Manage — Music 记录表单（create / update 共用，Devenir 管理壳）。
+
+契约（.agents/BOARD_MUSIC_CODING_K3_HANDOFF.md §5）：
+    provider / form（Django Form）/ object（update 时存在）
+字段分组：period（scope/year/month）→ ranking & content（kind/title/label/value/
+value2/unit/rank/play_count/minutes/note）→ media & link（cover/external_url）→
+ordering（display_order）。
+标准 Django form 渲染 + CSRF；cover 可能为文件字段 → multipart。
+{% endcomment %}
+
+{% block title %}{% if object %}Edit{% else %}New{% endif %} Music Record · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles">
+                <p class="bm-kicker">MANAGE / MUSIC / {{ provider|upper }}</p>
+                <h1 class="bm-title">{% if object %}EDIT RECORD <span>/ #{{ object.pk }}</span>{% else %}NEW RECORD{% endif %}</h1>
+                {% if object %}<p class="bm-sub">{{ object.title }} — 修改会直接影响公开档案的呈现。</p>{% endif %}
+            </div>
+            <a class="bm-btn" href="{% url 'boards:music-manage-list' provider=provider %}">&larr; BACK TO LIST</a>
+        </header>
+
+        <form class="bm-form" method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="bm-form__errors-top" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <fieldset class="bm-group">
+                <legend class="bm-group__legend">01 / PERIOD</legend>
+                <div class="bm-group__grid">
+                    <div class="bm-field">
+                        {{ form.scope.label_tag }}
+                        {{ form.scope }}
+                        {% if form.scope.errors %}<ul class="bm-field__errors">{{ form.scope.errors }}</ul>{% endif %}
+                        {% if form.scope.help_text %}<p class="bm-field__help">{{ form.scope.help_text }}</p>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.year.label_tag }}
+                        {{ form.year }}
+                        {% if form.year.errors %}<ul class="bm-field__errors">{{ form.year.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.month.label_tag }}
+                        {{ form.month }}
+                        {% if form.month.errors %}<ul class="bm-field__errors">{{ form.month.errors }}</ul>{% endif %}
+                        {% if form.month.help_text %}<p class="bm-field__help">{{ form.month.help_text }}</p>{% endif %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="bm-group">
+                <legend class="bm-group__legend">02 / RANKING &amp; CONTENT</legend>
+                <div class="bm-group__grid">
+                    <div class="bm-field">
+                        {{ form.kind.label_tag }}
+                        {{ form.kind }}
+                        {% if form.kind.errors %}<ul class="bm-field__errors">{{ form.kind.errors }}</ul>{% endif %}
+                        {% if form.kind.help_text %}<p class="bm-field__help">{{ form.kind.help_text }}</p>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.rank.label_tag }}
+                        {{ form.rank }}
+                        {% if form.rank.errors %}<ul class="bm-field__errors">{{ form.rank.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field bm-field--wide">
+                        {{ form.title.label_tag }}
+                        {{ form.title }}
+                        {% if form.title.errors %}<ul class="bm-field__errors">{{ form.title.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.label.label_tag }}
+                        {{ form.label }}
+                        {% if form.label.errors %}<ul class="bm-field__errors">{{ form.label.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.value.label_tag }}
+                        {{ form.value }}
+                        {% if form.value.errors %}<ul class="bm-field__errors">{{ form.value.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.value2.label_tag }}
+                        {{ form.value2 }}
+                        {% if form.value2.errors %}<ul class="bm-field__errors">{{ form.value2.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.unit.label_tag }}
+                        {{ form.unit }}
+                        {% if form.unit.errors %}<ul class="bm-field__errors">{{ form.unit.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.play_count.label_tag }}
+                        {{ form.play_count }}
+                        {% if form.play_count.errors %}<ul class="bm-field__errors">{{ form.play_count.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.minutes.label_tag }}
+                        {{ form.minutes }}
+                        {% if form.minutes.errors %}<ul class="bm-field__errors">{{ form.minutes.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="bm-field bm-field--wide">
+                        {{ form.note.label_tag }}
+                        {{ form.note }}
+                        {% if form.note.errors %}<ul class="bm-field__errors">{{ form.note.errors }}</ul>{% endif %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="bm-group">
+                <legend class="bm-group__legend">03 / MEDIA &amp; LINK</legend>
+                <div class="bm-group__grid">
+                    <div class="bm-field">
+                        {{ form.cover.label_tag }}
+                        {{ form.cover }}
+                        {% if form.cover.errors %}<ul class="bm-field__errors">{{ form.cover.errors }}</ul>{% endif %}
+                        {% if form.cover.help_text %}<p class="bm-field__help">{{ form.cover.help_text }}</p>{% endif %}
+                    </div>
+                    <div class="bm-field">
+                        {{ form.external_url.label_tag }}
+                        {{ form.external_url }}
+                        {% if form.external_url.errors %}<ul class="bm-field__errors">{{ form.external_url.errors }}</ul>{% endif %}
+                        {% if form.external_url.help_text %}<p class="bm-field__help">{{ form.external_url.help_text }}</p>{% endif %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="bm-group">
+                <legend class="bm-group__legend">04 / ORDERING</legend>
+                <div class="bm-group__grid">
+                    <div class="bm-field">
+                        {{ form.display_order.label_tag }}
+                        {{ form.display_order }}
+                        {% if form.display_order.errors %}<ul class="bm-field__errors">{{ form.display_order.errors }}</ul>{% endif %}
+                        {% if form.display_order.help_text %}<p class="bm-field__help">{{ form.display_order.help_text }}</p>{% endif %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="bm-form__actions">
+                <button class="bm-btn bm-btn--primary" type="submit">{% if object %}SAVE CHANGES{% else %}CREATE RECORD{% endif %}</button>
+                <a class="bm-btn" href="{% url 'boards:music-manage-list' provider=provider %}">CANCEL</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

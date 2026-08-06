@@ -2,7 +2,23 @@
 
 > **文档权重**：60（历史变更记录；不覆盖当前架构文档）
 
+## [2026-08-06]
+
+### Board Index 文档一致性收尾
+
+- 在修复夹具后的最终工作树重跑 47 项 Board Index/Policy/文章运行时组合回归，连同 Django check、Ruff 与 `git diff --check` 全部通过；`git ls-files "*HANDOFF*"` 为空。
+- 通过 `run.py --plain` + Playwright 在桌面 1264 与移动 390 两种 viewport 下渲染三个 Board Index：所有 `documentElement.scrollWidth == innerWidth`、无横向溢出，`DISPATCHES / JOIN {Board} / 登录后申请 / 查看全部文章` 文本标记在 DOM 中确认，结构位置在 `</article>` 之后、page footer 之前。
+- V2GUIDE 第 81 段清理过时的"K3 补文章入口+后端接线"待办描述，改为已完成事实；仅保留 REFUSE 模板统一接入为真实剩余项。
+- 提交与推送尚未执行，等待用户明确授权。
+
 ## [2026-08-04]
+
+### Board Index 公开文章流
+
+- Skateboard、Music、Coding Index 统一展示各自 Category 最新 5 篇公开已发布文章，并链接 Category 完整列表；草稿和 staff-only 文章不会进入该展示 QuerySet。
+- 参与 CTA 由后端按匿名、可申请、待审核、有效成员和停用状态生成；Contributor/Editor/Manager 可进入安全预选 Category 的新文章页，Reviewer 进入带 Board 筛选的审核工作区。
+- Board 权限申请页支持由服务端校验的 Board 预选；模板不读取 Group、staff 或角色字符串推导业务权限。
+- 4 项新增文章流测试和 47 项 Board Index/Policy/文章运行时组合回归通过；Django system check 与 Ruff 通过。
 
 ### Board Index 专属内容闭环第一阶段
 

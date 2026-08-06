@@ -9,12 +9,17 @@
 
 import datetime
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
 
+from Blogs.models import Category, Post
 from boards.models import (
     AppleRecord,
     Board,
+    BoardAccessRequest,
+    BoardMembership,
     CodingExperiment,
     CodingPrinciple,
     CodingProject,
@@ -24,8 +29,13 @@ from boards.models import (
 )
 
 
-def _board(slug, name="Board", active=True):
-    return Board.objects.create(slug=slug, name=name, is_active=active)
+def _board(slug, name="Board", active=True, **kwargs):
+    return Board.objects.create(
+        slug=slug,
+        name=name,
+        is_active=active,
+        **kwargs,
+    )
 
 
 class BoardIndexDispatchTests(TestCase):
@@ -293,3 +303,133 @@ class BoardIndexDispatchTests(TestCase):
         )
         self.assertEqual(project["demo_url"], "https://example.test/demo")
         self.assertTrue(project["is_featured"])
+
+
+class BoardIndexArticleFlowTests(TestCase):
+    def setUp(self):
+        self.author = get_user_model().objects.create_user(
+            username="board-author",
+            email="board-author@example.test",
+            password="test-pass-123",
+            is_active=True,
+        )
+        self.category = Category.objects.create(
+            name="Coding Dispatches",
+            owner=self.author,
+        )
+        self.board = _board(
+            "coding",
+            name="Coding",
+            category=self.category,
+        )
+
+    def create_post(
+        self,
+        title,
+        *,
+        status=Post.STATUS_NORMAL,
+        visibility=Post.VISIBILITY_PUBLIC,
+    ):
+        return Post.objects.create(
+            title=title,
+            slug=title.lower().replace(" ", "-"),
+            content="Body",
+            status=status,
+            visibility=visibility,
+            category=self.category,
+            owner=self.author,
+        )
+
+    def test_index_uses_public_post_queryset_and_renders_shared_components(self):
+        self.create_post("Public Dispatch")
+        self.create_post("Private Draft", status=Post.STATUS_DRAFT)
+        self.create_post(
+            "Staff Dispatch",
+            visibility=Post.VISIBILITY_STAFF_ONLY,
+        )
+
+        response = self.client.get(reverse("boards:index", args=["coding"]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Public Dispatch")
+        self.assertNotContains(response, "Private Draft")
+        self.assertNotContains(response, "Staff Dispatch")
+        self.assertContains(response, "DISPATCHES")
+        self.assertContains(response, "JOIN CODING")
+        self.assertEqual(response.context["board_participation_state"], "anonymous")
+        self.assertEqual(
+            response.context["board_posts_url"],
+            reverse("Blogs:category_list", args=[self.category.pk]),
+        )
+
+    def test_contributor_cta_opens_post_form_with_safe_board_preselection(self):
+        contributor = get_user_model().objects.create_user(
+            username="coding-contributor",
+            email="coding-contributor@example.test",
+            password="test-pass-123",
+            is_active=True,
+        )
+        BoardMembership.objects.create(
+            board=self.board,
+            user=contributor,
+            role=BoardMembership.Role.CONTRIBUTOR,
+        )
+        self.client.force_login(contributor)
+
+        index_response = self.client.get(reverse("boards:index", args=["coding"]))
+
+        self.assertEqual(index_response.context["board_participation_state"], "member")
+        self.assertEqual(
+            index_response.context["board_participation_url"],
+            f'{reverse("Blogs:post_create")}?board=coding',
+        )
+        form_response = self.client.get(
+            index_response.context["board_participation_url"]
+        )
+        self.assertEqual(form_response.status_code, 200)
+        self.assertEqual(
+            form_response.context["form"].initial["category"],
+            self.category,
+        )
+
+    def test_pending_and_eligible_states_use_board_scoped_access_url(self):
+        applicant = get_user_model().objects.create_user(
+            username="board-applicant",
+            email="board-applicant@example.test",
+            password="test-pass-123",
+            is_active=True,
+        )
+        applicant.user_permissions.add(
+            Permission.objects.get(
+                codename="apply_board_access",
+                content_type__app_label="boards",
+            )
+        )
+        self.client.force_login(applicant)
+
+        eligible = self.client.get(reverse("boards:index", args=["coding"]))
+        self.assertEqual(eligible.context["board_participation_state"], "eligible")
+        access_response = self.client.get(
+            eligible.context["board_participation_url"]
+        )
+        self.assertEqual(access_response.context["form"].initial["board"], self.board)
+
+        BoardAccessRequest.objects.create(
+            board=self.board,
+            applicant=applicant,
+            requested_role=BoardMembership.Role.CONTRIBUTOR,
+        )
+        pending = self.client.get(reverse("boards:index", args=["coding"]))
+        self.assertEqual(pending.context["board_participation_state"], "pending")
+
+    def test_music_and_skateboard_indices_render_the_same_public_sections(self):
+        for slug, name in (("music", "Music"), ("skateboard", "Skateboard")):
+            with self.subTest(slug=slug):
+                category = Category.objects.create(
+                    name=f"{name} Dispatches",
+                    owner=self.author,
+                )
+                _board(slug, name=name, category=category)
+                response = self.client.get(reverse("boards:index", args=[slug]))
+                self.assertContains(response, "DISPATCHES")
+                self.assertContains(response, f"JOIN {name.upper()}")

@@ -684,6 +684,24 @@ class PostCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         kwargs["user"] = self.request.user
         return kwargs
 
+    def get_initial(self):
+        initial = super().get_initial()
+        board_slug = self.request.GET.get("board", "")[:64]
+        if not board_slug:
+            return initial
+        board = (
+            Board.objects.filter(
+                slug=board_slug,
+                is_active=True,
+                category__status=Category.STATUS_NORMAL,
+            )
+            .select_related("category")
+            .first()
+        )
+        if board is not None and can_create_post(self.request.user, board):
+            initial["category"] = board.category
+        return initial
+
     def form_valid(self, form):
         form.instance.owner = self.request.user
         form.instance.status = Post.STATUS_DRAFT

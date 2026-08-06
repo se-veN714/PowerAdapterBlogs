@@ -3,6 +3,8 @@
 将活跃的首页板块数据注入所有模板上下文，供 base.html / index.html 使用。
 """
 
+from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
@@ -14,6 +16,7 @@ from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import FormView, ListView, TemplateView
 
+from Blogs.models import Category, Post
 from PowerAdapterBlogs.base_admin import has_dashboard_access
 from accounts.services import (
     EMAIL_PURPOSE_BOARD_ACCESS,
@@ -33,7 +36,9 @@ from boards.models import (
 from boards.policies import (
     boards_manageable_by,
     can_access_post_admin,
+    can_create_post,
     can_create_post_in_any_board,
+    can_view_review_queue,
 )
 from boards.services import submit_board_access_request, withdraw_board_membership
 
@@ -69,6 +74,108 @@ def board_management_links(user, boards):
     ]
 
 
+def _url_with_query(url_name, *, query=None, kwargs=None):
+    url = reverse(url_name, kwargs=kwargs)
+    return f"{url}?{urlencode(query)}" if query else url
+
+
+def board_index_shared_context(request, board):
+    """Build the public post stream and Policy-derived participation CTA."""
+    category = board.category
+    category_is_public = bool(
+        category and category.status == Category.STATUS_NORMAL
+    )
+    if category_is_public:
+        board_posts = list(
+            Post.publicly_visible_posts()
+            .filter(category=category)
+            .select_related("category", "owner")
+            .order_by("-created_time", "-pk")[:5]
+        )
+        board_posts_url = reverse(
+            "Blogs:category_list",
+            kwargs={"category_id": category.pk},
+        )
+    else:
+        board_posts = []
+        board_posts_url = ""
+
+    user = request.user
+    board_url = reverse("boards:index", kwargs={"slug": board.slug})
+    if not user.is_authenticated:
+        participation = {
+            "state": "anonymous",
+            "url": _url_with_query(
+                "accounts:login",
+                query={"next": board_url},
+            ),
+            "label": "登录后申请",
+        }
+    else:
+        membership = BoardMembership.objects.filter(
+            board=board,
+            user=user,
+        ).first()
+        if user.is_superuser or (membership and membership.is_active):
+            if can_create_post(user, board):
+                participation_url = _url_with_query(
+                    "Blogs:post_create",
+                    query={"board": board.slug},
+                )
+                participation_label = "新建板块文章"
+            elif can_view_review_queue(user, board):
+                participation_url = _url_with_query(
+                    "Blogs:review_workspace",
+                    query={"board": board.slug},
+                )
+                participation_label = "进入稿件审核"
+            else:
+                participation_url = _url_with_query(
+                    "boards:access-requests",
+                    query={"board": board.slug},
+                )
+                participation_label = "查看板块权限"
+            participation = {
+                "state": "member",
+                "url": participation_url,
+                "label": participation_label,
+            }
+        elif BoardAccessRequest.objects.filter(
+            board=board,
+            applicant=user,
+            status=BoardAccessRequest.Status.PENDING,
+        ).exists():
+            participation = {
+                "state": "pending",
+                "url": _url_with_query(
+                    "boards:access-requests",
+                    query={"board": board.slug},
+                ),
+                "label": "查看申请进度",
+            }
+        elif membership and not membership.is_active:
+            participation = {"state": "suspended", "url": "", "label": ""}
+        elif user.has_perm("boards.apply_board_access"):
+            participation = {
+                "state": "eligible",
+                "url": _url_with_query(
+                    "boards:access-requests",
+                    query={"board": board.slug},
+                ),
+                "label": "申请板块权限",
+            }
+        else:
+            participation = {"state": "suspended", "url": "", "label": ""}
+
+    return {
+        "board_posts": board_posts,
+        "board_posts_url": board_posts_url,
+        "board_participation_state": participation["state"],
+        "board_participation_url": participation["url"],
+        "board_participation_label": participation["label"],
+    }
+
+
 class BoardAccessRequestView(
     LoginRequiredMixin,
     PermissionRequiredMixin,
@@ -81,6 +188,15 @@ class BoardAccessRequestView(
     permission_required = "boards.apply_board_access"
     raise_exception = True
     success_url = reverse_lazy("boards:access-requests")
+
+    def get_initial(self):
+        initial = super().get_initial()
+        board_slug = self.request.GET.get("board", "")[:64]
+        if board_slug:
+            board = Board.objects.filter(slug=board_slug, is_active=True).first()
+            if board is not None:
+                initial["board"] = board
+        return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -174,7 +290,7 @@ class BoardIndexView(TemplateView):
         if slug not in BOARD_TEMPLATES:
             raise Http404("Unknown board index slug")
         board = get_object_or_404(
-            Board.objects.filter(slug__in=BOARD_TEMPLATES),
+            Board.objects.filter(slug__in=BOARD_TEMPLATES).select_related("category"),
             slug=slug,
             is_active=True,
         )
@@ -186,6 +302,7 @@ class BoardIndexView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["board"] = self.board
         context.update(ASSEMBLERS[self.board.slug](self.board))
+        context.update(board_index_shared_context(self.request, self.board))
         context["board_manage_links"] = board_management_links(
             self.request.user,
             Board.objects.filter(pk=self.board.pk),

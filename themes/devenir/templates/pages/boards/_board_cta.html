@@ -3,7 +3,7 @@ Board — 参与板块 CTA（BOARD_CONTENT_VISIBILITY_GUIDE.md §5.1/§5.2 契�
 
 上下文契约（后端后续提供）：
     board                      当前 Board（必需）
-    board_participation_state  anonymous / eligible / pending / member
+    board_participation_state  anonymous / eligible / pending / member / suspended
     board_participation_url    登录、申请、申请进度或工作台入口（可空）
     board_participation_label  后端决定的 CTA 文案（可空，模板文案兜底）
 
@@ -24,6 +24,8 @@ Board — 参与板块 CTA（BOARD_CONTENT_VISIBILITY_GUIDE.md §5.1/§5.2 契�
                 <p class="bd-cta-copy">你的板块权限申请正在审核中。审核通过后，投稿、审核与维护入口将对你开放。</p>
                 {% elif board_participation_state == 'member' %}
                 <p class="bd-cta-copy">你已是该板块成员。进入工作台管理你的稿件与板块专属内容。</p>
+                {% elif board_participation_state == 'suspended' %}
+                <p class="bd-cta-copy">当前账号没有可用的板块参与资格，或原成员资格已停用。如需恢复，请联系站点管理员。</p>
                 {% else %}
                 <p class="bd-cta-copy">浏览无需权限。投稿、审核与维护专属内容需要板块成员身份——登录后即可申请。</p>
                 {% endif %}
@@ -47,6 +49,8 @@ Board — 参与板块 CTA（BOARD_CONTENT_VISIBILITY_GUIDE.md §5.1/§5.2 契�
                     {{ board_participation_label|default:"进入投稿/工作台" }}
                 </button>
                     {% endif %}
+                {% elif board_participation_state == 'suspended' %}
+                <button type="button" class="bd-btn" disabled>权限暂不可用</button>
                 {% else %}
                 <a class="bd-btn" href="{{ board_participation_url|default:bd_login_url }}">
                     {{ board_participation_label|default:"登录后申请" }}<span class="bd-btn-arrow" aria-hidden="true">→</span>

@@ -2,7 +2,7 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-08-04
+> **更新**: 2026-08-06
 > **状态**: Board Scope Stage 0–8 已完成，遗留 `is_reviewer` 已停止授权并通过 schema migration 删除；`/review/` 承载业务审核，`/operations/security/` 承载 SiteOperators 日志完整性核验，`/dashboard/` 仅供显式 `dashboard_user` 与 superuser 日常运维；生产 MFA/mTLS 开关仍默认关闭，本地 `run.py` 已默认开启完整验证并自动维护独立 Nginx 边缘
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
@@ -76,9 +76,9 @@ sequenceDiagram
 
 生产运维入口采用 Tailscale：管理员或 Agent 先进入受控 Tailnet，再以专用非 root 账号通过 SSH key 登录并按需 `sudo`。公网安全组不得为临时 Agent 出口长期开放 SSH，也不得通过放宽云主机安全地区/IP 白名单消除告警；云控制台仅作为 break-glass。Tailscale 负责运维网络入口，不能替代 `/super_admin/` 的 TLS 1.3 mTLS、Django 密码和 TOTP 身份验证。
 
-BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。Board Index 专属内容闭环第一阶段已完成：Music 增加 Spotify/Apple 排行、封面与外链字段，并可从本地 Spotify 导出幂等聚合；Coding Project 支持 GitHub、本地工具和外部链接；Skate Clip、Music 与 Coding 均已有按对应 Board Manager Policy 隔离的 Devenir CRUD。主页功能菜单和各 Board Index 只向可管理该板块的账号暴露快捷入口，服务端仍逐请求裁决，Padif 固定为无服务端写入的本地浏览器工具。剩余缺口按风险排队：🟡 三个 Board Index 接入公开文章入口/文章流；🟡 Skateboard Clip 增加受控方向/比例字段与上传校验；🟡 Coding Principle/Experiment 纳入业务管理工作区。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
+BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。Board Index 专属内容闭环第一阶段已完成：Music 增加 Spotify/Apple 排行、封面与外链字段，并可从本地 Spotify 导出幂等聚合；Coding Project 支持 GitHub、本地工具和外部链接；Skate Clip、Music 与 Coding 均已有按对应 Board Manager Policy 隔离的 Devenir CRUD。三个 Index 现已统一接入对应 Category 的公开已发布文章流和 Policy 派生参与 CTA；新建文章只在服务端确认当前 Board 创建权限后预选 Category，Reviewer 则进入带 Board 筛选的审核工作区。主页功能菜单和各 Board Index 只向可管理该板块的账号暴露快捷入口，服务端仍逐请求裁决，Padif 固定为无服务端写入的本地浏览器工具。剩余缺口按风险排队：🟡 Skateboard Clip 增加受控方向/比例字段与上传校验；🟡 Coding Principle/Experiment 纳入业务管理工作区。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
 
-Board Index 的访问边界已重新冻结：`/boards/<slug>/` 及其纯展示 htmx 片段是个人站的公开陈列面，不要求 BoardMembership；Membership 只保护投稿、编辑、审核、评论管理、成员管理和专属内容维护等动作。Index 后续先由 K3 补齐对应 Category 的公开文章入口与参与 CTA，且不得修改后端；前端完成后再由后端接入公开文章 QuerySet、申请预选及受保护动作的 403/REFUSE 流程。详细矩阵和前后端契约见 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（本地，git-ignored）。
+Board Index 的访问边界已重新冻结：`/boards/<slug>/` 及其纯展示 htmx 片段是个人站的公开陈列面，不要求 BoardMembership；Membership 只保护投稿、编辑、审核、评论管理、成员管理和专属内容维护等动作。三个 Index 已统一接入对应 Category 的 `Post.publicly_visible_posts()` 公开文章流（最新 5 篇，草稿、审核中、已下架与 `staff-only` 均不进入），并按服务端 Policy 派生参与 CTA（`anonymous / eligible / pending / member / suspended`）；新建文章由 `PostCreateView.get_initial()` 重新执行 `can_create_post()` 后再预选 Category，Reviewer 进入 `/Blogs/review/?board=<slug>`，Board 权限申请页同样支持服务端校验的 Board 预选。详细矩阵和前后端契约见 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（本地，git-ignored）。剩余收尾：所有受保护动作统一接入 REFUSE 模板。
 
 2026-07-29 的体验补丁已补齐 Board 申请提交后的 Devenir 中央确认层（一次性显示，明确“等待审核或联系管理员”），并新增 `/Blogs/review/` Board-scoped 稿件流程工作区。工作区只列出当前账号、当前 Board、当前状态真正允许执行的转换，将“草稿→提审”“审核中→通过/驳回”“已发布→下架”拆开；“可下架”栏支持 Board、Tag、作者和标题/摘要组合筛选，并以每批 8 篇的签名游标通过 htmx 懒加载，不执行传统分页总数 COUNT。它不替代后续按 Board 管理全部专属内容的完整工作区。
 

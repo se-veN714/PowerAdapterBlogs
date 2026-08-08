@@ -5,8 +5,7 @@ Board — 公开文章区（BOARD_CONTENT_VISIBILITY_GUIDE.md §5.1/§5.2 契约
     board           当前 Board（必需；glitch_color / name / category）
     board_posts     对当前访客公开的 Category 文章列表；为空 → 自然 empty state，
                     不渲染任何占位假数据
-    board_posts_url 对应 Category 文章列表 URL；缺失时回退 board.category 反解，
-                    再无则隐藏"查看全部"入口
+    board_posts_url 对应可公开访问的 Category 文章列表 URL；缺失时隐藏入口
 
 本组件只做展示与导航，不查询、不判断权限。
 {% endcomment %}
@@ -40,10 +39,6 @@ Board — 公开文章区（BOARD_CONTENT_VISIBILITY_GUIDE.md §5.1/§5.2 契约
 
         {% if board_posts_url %}
         <a class="bd-posts-more reveal" href="{{ board_posts_url }}">
-            查看全部文章<span class="bd-posts-more-arrow" aria-hidden="true">→</span>
-        </a>
-        {% elif board.category %}
-        <a class="bd-posts-more reveal" href="{% url 'Blogs:category_list' category_id=board.category.id %}">
             查看全部文章<span class="bd-posts-more-arrow" aria-hidden="true">→</span>
         </a>
         {% endif %}

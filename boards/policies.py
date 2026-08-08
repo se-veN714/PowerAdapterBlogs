@@ -187,6 +187,23 @@ def can_create_post(user, board: Board) -> bool:
     return _allows(user, board, BoardAction.CREATE_POST)
 
 
+def can_create_post_for_board_category(user, board: Board | None) -> bool:
+    """Return whether a Board has one usable Category the user may post to.
+
+    ``can_create_post()`` answers only the role/action question. Board Index
+    entry points also need a live, unambiguous Category mapping; otherwise a
+    new-post CTA would lead to a form that cannot safely preselect that Board.
+    """
+    if board is None or not board.is_active or not board.category_id:
+        return False
+    category = getattr(board, "category", None)
+    if category is None or category.status != category.STATUS_NORMAL:
+        return False
+    if Board.objects.filter(category_id=board.category_id).count() != 1:
+        return False
+    return can_create_post(user, board)
+
+
 def can_access_post_admin(user) -> bool:
     return _has_scoped_role(
         user,

@@ -392,6 +392,110 @@ class BoardIndexArticleFlowTests(TestCase):
             self.category,
         )
 
+    def test_inactive_category_hides_public_link_and_create_cta(self):
+        contributor = get_user_model().objects.create_user(
+            username="inactive-category-contributor",
+            email="inactive-category-contributor@example.test",
+            password="test-pass-123",
+            is_active=True,
+        )
+        BoardMembership.objects.create(
+            board=self.board,
+            user=contributor,
+            role=BoardMembership.Role.CONTRIBUTOR,
+        )
+        self.category.status = Category.STATUS_DELETE
+        self.category.save(update_fields=["status"])
+        self.client.force_login(contributor)
+
+        response = self.client.get(reverse("boards:index", args=["coding"]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["board_posts_url"])
+        self.assertNotContains(response, "查看全部文章")
+        self.assertEqual(response.context["board_participation_state"], "member")
+        self.assertNotEqual(
+            response.context["board_participation_url"],
+            f'{reverse("Blogs:post_create")}?board=coding',
+        )
+
+    def test_missing_category_does_not_offer_or_preselect_post_creation(self):
+        contributor = get_user_model().objects.create_user(
+            username="missing-category-contributor",
+            email="missing-category-contributor@example.test",
+            password="test-pass-123",
+            is_active=True,
+        )
+        BoardMembership.objects.create(
+            board=self.board,
+            user=contributor,
+            role=BoardMembership.Role.CONTRIBUTOR,
+        )
+        self.board.category = None
+        self.board.save(update_fields=["category"])
+        valid_category = Category.objects.create(
+            name="Music Dispatches",
+            owner=self.author,
+        )
+        valid_board = _board("music", name="Music", category=valid_category)
+        BoardMembership.objects.create(
+            board=valid_board,
+            user=contributor,
+            role=BoardMembership.Role.CONTRIBUTOR,
+        )
+        self.client.force_login(contributor)
+
+        index_response = self.client.get(reverse("boards:index", args=["coding"]))
+        form_response = self.client.get(
+            f'{reverse("Blogs:post_create")}?board=coding'
+        )
+
+        self.assertNotEqual(
+            index_response.context["board_participation_url"],
+            f'{reverse("Blogs:post_create")}?board=coding',
+        )
+        self.assertIsNone(form_response.context["form"].initial.get("category"))
+
+    def test_duplicate_category_mapping_does_not_offer_or_preselect_creation(self):
+        contributor = get_user_model().objects.create_user(
+            username="duplicate-category-contributor",
+            email="duplicate-category-contributor@example.test",
+            password="test-pass-123",
+            is_active=True,
+        )
+        BoardMembership.objects.create(
+            board=self.board,
+            user=contributor,
+            role=BoardMembership.Role.CONTRIBUTOR,
+        )
+        _board("music", name="Music", category=self.category)
+        valid_category = Category.objects.create(
+            name="Skateboard Dispatches",
+            owner=self.author,
+        )
+        valid_board = _board(
+            "skateboard",
+            name="Skateboard",
+            category=valid_category,
+        )
+        BoardMembership.objects.create(
+            board=valid_board,
+            user=contributor,
+            role=BoardMembership.Role.CONTRIBUTOR,
+        )
+        self.client.force_login(contributor)
+
+        index_response = self.client.get(reverse("boards:index", args=["coding"]))
+        form_response = self.client.get(
+            f'{reverse("Blogs:post_create")}?board=coding'
+        )
+
+        self.assertNotEqual(
+            index_response.context["board_participation_url"],
+            f'{reverse("Blogs:post_create")}?board=coding',
+        )
+        self.assertIsNone(form_response.context["form"].initial.get("category"))
+
     def test_pending_and_eligible_states_use_board_scoped_access_url(self):
         applicant = get_user_model().objects.create_user(
             username="board-applicant",

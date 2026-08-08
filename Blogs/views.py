@@ -46,6 +46,7 @@ from boards.policies import (
     board_for_post,
     can_access_post_admin,
     can_create_post,
+    can_create_post_for_board_category,
     can_create_post_in_any_board,
     can_edit_post,
     can_publish_post,
@@ -698,7 +699,10 @@ class PostCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             .select_related("category")
             .first()
         )
-        if board is not None and can_create_post(self.request.user, board):
+        if board is not None and can_create_post_for_board_category(
+            self.request.user,
+            board,
+        ):
             initial["category"] = board.category
         return initial
 

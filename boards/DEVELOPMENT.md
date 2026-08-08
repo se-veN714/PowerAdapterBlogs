@@ -345,7 +345,7 @@ index.html
 6. **mock 降级清理决策（绿色）**：后端已接线，决定是否保留模板 `{% empty %}` mock 分支。
 
 7. **板块申请复用 accounts 短时邮箱验证（✅ 已完成）**：`/accounts/security/email/board-access/` 复用 accounts 通用邮箱挑战；验证码按 purpose + 用户 + Session 隔离，60 秒冷却和每小时发送上限按账号共享，错误次数受限。验证成功签发 10 分钟 Board 专用 Session grant，申请成功立即消费；密码修改 grant/code 不可复用，目标路由由服务端固定，不接收外部 `next`。
-8. **Board Index 接入文章入口与文章流（✅ 后端闭环，待手工视觉验收）**：三个 Index 统一复用 `Post.publicly_visible_posts()`，每板只展示对应 `Board.category` 最新 5 篇公开已发布文章，不泄露草稿或 staff-only 内容；“查看全部”进入 Category 列表。参与 CTA 由后端根据匿名、可申请、待审核、有效成员和停用状态生成，不在模板推导角色。具备创建能力的成员进入带 `?board=<slug>` 的新文章页，服务端再次通过 Policy 校验后才预选 Category；Reviewer 进入带 Board 筛选的审核工作区。申请页同样支持安全预选 Board。REFUSE 模板已存在，后续受保护动作统一接入时不得复制此状态机。
+8. **Board Index 接入文章入口与文章流（✅ 已闭环）**：三个 Index 统一复用 `Post.publicly_visible_posts()`，每板只展示对应 `Board.category` 最新 5 篇公开已发布文章，不泄露草稿或 staff-only 内容；“查看全部”只在 Category 正常可访问时显示。参与 CTA 由后端根据匿名、可申请、待审核、有效成员和停用状态生成，不在模板推导角色。具备创建能力且 Board 拥有正常、唯一 Category 映射的成员进入带 `?board=<slug>` 的新文章页，服务端再次通过同一 Policy 校验后才预选 Category；Reviewer 进入带 Board 筛选的审核工作区。申请页同样支持安全预选 Board。桌面与移动端自动化视觉检查已完成；REFUSE 模板已存在，后续受保护动作统一接入时不得复制此状态机。
 9. **Skateboard Clip 固定展示编排（🟡 部分完成）**：公开 Index 当前由后端生成 `clip_groups`，每 5 条按 2 个 `9:16` + 3 个 `16:9` 展示。两条竖屏共用一个 box，中央信息区宽于两侧媒体，并分为左上/右下两层分别展示两条 Clip 的完整信息；不足 5 条时按现有条数安全降级，移动端转为单列。`/boards/skateboard/clips/` 是按拍摄时间倒序、仅含公开内容的分页浏览入口，不是管理页。后续仍需增加受控方向/比例字段与上传校验，不能永久用展示位置代替媒体元数据。
 10. **各 Board 的内容管理工作区（🟡 主体完成）**：Skate Clip、Music Spotify/Apple 与 Coding Project 已有 Devenir 业务 CRUD，服务端仅允许对应 Board Manager/superuser，且 provider 与对象 QuerySet 隔离；可管理入口由 Policy 同步注入全站菜单和 Board Index。Coding Principle/Experiment 与 Board-scoped 文章统一入口仍待实现。Board 创建及前端代码绑定继续为 superuser-only。
 

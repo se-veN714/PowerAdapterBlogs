@@ -2,6 +2,14 @@
 
 > **文档权重**：60（历史变更记录；不覆盖当前架构文档）
 
+## [2026-08-08]
+
+### Board Index Category 映射边界修复
+
+- Board 文章入口不再从模板回退到失效 Category；后端未提供可公开访问 URL 时直接隐藏“查看全部文章”，避免停用分类产生 404。
+- Board 新文章 CTA 与 `PostCreateView` 统一要求有效创建权限和正常、唯一的 Category 映射；缺失、停用或重复映射不再展示错误入口，也不会错误预选分类。
+- 增加缺失、停用、重复 Category 映射回归测试，并同步 V2GUIDE 与 Boards 开发文档的已完成状态。
+
 ## [2026-08-06]
 
 ### Board Index 文档一致性收尾
@@ -9,7 +17,6 @@
 - 在修复夹具后的最终工作树重跑 47 项 Board Index/Policy/文章运行时组合回归，连同 Django check、Ruff 与 `git diff --check` 全部通过；`git ls-files "*HANDOFF*"` 为空。
 - 通过 `run.py --plain` + Playwright 在桌面 1264 与移动 390 两种 viewport 下渲染三个 Board Index：所有 `documentElement.scrollWidth == innerWidth`、无横向溢出，`DISPATCHES / JOIN {Board} / 登录后申请 / 查看全部文章` 文本标记在 DOM 中确认，结构位置在 `</article>` 之后、page footer 之前。
 - V2GUIDE 第 81 段清理过时的"K3 补文章入口+后端接线"待办描述，改为已完成事实；仅保留 REFUSE 模板统一接入为真实剩余项。
-- 提交与推送尚未执行，等待用户明确授权。
 
 ## [2026-08-04]
 

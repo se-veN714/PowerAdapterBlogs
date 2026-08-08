@@ -36,7 +36,7 @@ from boards.models import (
 from boards.policies import (
     boards_manageable_by,
     can_access_post_admin,
-    can_create_post,
+    can_create_post_for_board_category,
     can_create_post_in_any_board,
     can_view_review_queue,
 )
@@ -117,7 +117,7 @@ def board_index_shared_context(request, board):
             user=user,
         ).first()
         if user.is_superuser or (membership and membership.is_active):
-            if can_create_post(user, board):
+            if can_create_post_for_board_category(user, board):
                 participation_url = _url_with_query(
                     "Blogs:post_create",
                     query={"board": board.slug},

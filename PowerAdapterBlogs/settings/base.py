@@ -234,6 +234,15 @@ SKATE_CLIP_ENCODE_POSTER = {
 # processing 状态超过该秒数视为卡死（Worker 崩溃/断电），可被复位重试。
 SKATE_CLIP_STUCK_PROCESSING_SECONDS = 1800
 
+# 私有原片保留政策（S4）：ready 后原片保留天数；0 = 永久保留（默认，最安全）。
+# skate_media_gc --retention 按此裁剪；删除后 source_file 置空、审计字段保留，
+# 该媒体不可再重build（重试会得到 source_missing）。
+SKATE_CLIP_SOURCE_RETENTION_DAYS = 0
+
+# 磁盘高水位告警阈值（百分比，S4）：skate_media_gc --check-disk 对私有原片与
+# 派生根所在卷计算使用率，超过即以非零退出码告警（供 cron/监控采集）。
+SKATE_CLIP_DISK_HIGH_WATERMARK = 90
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 

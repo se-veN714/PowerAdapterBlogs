@@ -359,9 +359,9 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
 
 > 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。
 
-### 7.2 SK8 Clip 视频流水线（进行中：S0/S1/S2/S3 已落地）
+### 7.2 SK8 Clip 视频流水线（已完成：S0/S1/S2/S3/S4 全部落地）
 
-> **状态**：S0（Schema/Storage）、S1（Upload/Validation）、S2（Processing Worker + Claim 所有权）与 S3（Presentation）完成，S4（Operations/Nginx）待实施。规范见本地 git-ignored `docs/guides/SKATEBOARD_GUIDE.md`；任务基线 `devenir @ d5c7104`，分支 `codex/sk8-video-pipeline`。
+> **状态**：S0（Schema/Storage）、S1（Upload/Validation）、S2（Processing Worker + Claim 所有权）、S3（Presentation）与 S4（Operations）全部完成。规范见本地 git-ignored `docs/guides/SKATEBOARD_GUIDE.md`；任务基线 `devenir @ d5c7104`，分支 `codex/sk8-video-pipeline`。
 
 - **模型**：`SkateClipMedia`（OneToOne → `SkateClip`，`related_name="media"`）承载上传-处理-发布生命周期；PostgreSQL 只存元数据/Storage key/状态/错误，视频二进制永不进库。字段含探测结果（`duration_ms`/`width`/`height`/`orientation`/`frame_rate`）、审计（`source_size`/`source_sha256`/`uploaded_by`）与状态机（`state`/`error_code`/`error_detail`/`pipeline_version`/`processed_at`）。`media_key`（服务端 UUID）决定派生目录名，与数据库 pk 解耦。
 - **状态机**：`uploaded → processing → ready / failed`；`failed` 经 Manager 明确重试回 `uploaded`；替换原片或升级 `pipeline_version` 回 `uploaded`。`ready` 只在 `main.webm`/`preview.webm`/`poster.webp` 全部落盘并校验后写入。
@@ -396,10 +396,17 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
   - **查询/交付卫生**（§10.10）：`SkateClipMixin.get_queryset()` 增 `select_related("media")`；移除 `content_forms.py` 未使用 `SkateClipMedia` import 和 `skate_worker.py` 未使用 `Path` import。
   - 迁移 `0014`（`claimed_at`）+ `0015`（`claim_generation` + `claim_token`）。boards 回归 225 项 OK（1 skip 既有），Ruff 全过，`makemigrations --check` 无漂移。
   - **未验证项**：PostgreSQL `select_for_update(skip_locked=True)` 行锁语义未在生产 PG 上测试（SQLite 测试不证明）；真实多 Worker 并发未测试。
-- **后续阶段**：S4 Nginx/运维。每阶段独立提交与验收。
 - **S3 Presentation**（`board_index.py` + `views.py` + 模板 + JS）：
   - `_attach_media_urls(clip)`：`prepare_skate_clips` 为每条 clip 附加 `main_url`/`preview_url`/`poster_url`（从 `media.state=ready` 的 `FileField.url` 派生）；非 ready 时为空串，模板回退到旧 `video_url`/`thumbnail_url`。
   - `assemble_skateboard` / `HomieLineView` / `SkateClipListView` 的 clip 查询均加 `select_related("media")`，避免每行一次查询。
   - 模板 `_clip_media.html`：`{% with effective_video=main_url|default:video_url effective_poster=media_poster_url|default:poster_url %}` 优先消费派生资源；`data-skate-preview="{{ preview_url }}"` 属性供 JS 按需加载红黑预览。`_clip_row.html`/`_clip_pair.html`/`_selected_line.html` 的 `with` 参数透传 `main_url`/`preview_url`/`media_poster_url`；WATCH CLIP 按钮按 `main_url or video_url` 启用。`clip_list.html` 优先用 `poster_url`（`<img>`）+ `main_url`（`<video controls>`）。
   - JS `skateboard.js` section 5：`bindPreviewHover()` 在 `hover: hover and (pointer: fine)` 且非 `prefers-reduced-motion: reduce` 时，为 `[data-skate-preview]` 的 `.sk-clip-media` 绑定 `mouseenter`/`focusin` → 切换 `<source>` 到 preview.webm 并播放，`mouseleave`/`focusout` → 恢复 main.webm。触摸设备与 reduced-motion 不加载预览（poster 已足够）。htmx `afterSwap` 后重新绑定。
   - 测试 `boards/tests/test_skate_presentation.py`（7 项：URL 附加逻辑 + 非 ready/无 media/failed 回退 + Index/ClipList 页面渲染断言）；boards 回归 232 项 OK（11 skip 为无 FFmpeg 集成测试）。
+- **S4 Operations**（GC 命令 + Worker 可观测性 + Nginx 示例 + 备份/恢复流程）：
+  - `boards/management/commands/skate_media_gc.py`：**默认 dry-run，`--apply` 才执行删除**（删除类操作必须显式）。四项子任务可独立（`--orphans`/`--tmp`/`--retention`/`--check-disk`，无标志=全量）：孤儿=派生目录中 `media_key` 不在数据库的文件（Clip/Media 行删除后残留），DB 有行但非 ready 的不删（防 stale Worker 刚发布的输出）；tmp/ 只清「无媒体行 / 非 processing / processing 卡死超时」目录（跳过活跃 Worker）；retention 按 `SKATE_CLIP_SOURCE_RETENTION_DAYS`（默认 0=永久保留）裁剪 ready 原片——删文件并 `source_file=""`，审计字段 `source_size`/`source_sha256` 保留，原片删除后不可再重build；磁盘水位对 source/delivery 两卷 `shutil.disk_usage`，超 `SKATE_CLIP_DISK_HIGH_WATERMARK`（默认 90%）先输出报告再以 `CommandError` 非零退出（cron 退出码告警）。`--json` 单行输出供监控采集；dry-run 报告本身即数据库↔文件系统一致性对账工具（备份恢复演练用）。
+  - `process_skate_clips.py` 可观测性增强：每条处理输出 `[state] <media_key> in <ms>`；`--json` 汇总（`pending`/`processing`/`ready_total`/`failed_total`/`failed_by_error` 按 error_code 分组/逐条 `media` 数组含耗时与错误码/`duration_ms`）；`--dry-run --json` 组合为无副作用状态探针。
+  - `deploy/nginx/skate_media.conf.example`：`location ^~ /media/skate/` 仅放行派生目录——`tmp/` 返回 404（Worker 半成品不可公开）、隐藏文件 deny、`limit_except GET HEAD`、显式 `video/webm`/`image/webp` types、`Cache-Control: public, max-age=3600`（重处理为同 key 原子替换，同 URL 内容可能变化，故不用 immutable）+ `Accept-Ranges: bytes`。验收要点写在文件头注释（206 Range/403 列目录/404 tmp）。
+  - **备份/恢复**：PostgreSQL dump（元数据）+ `media-private/skateboard/source/`（原片）+ `media/skate/`（派生）三部分分别备份；恢复顺序=先库后文件系统，再跑 `skate_media_gc`（dry-run）对账孤儿（文件多=残留可清，文件少=需从原片重build）。原片 retention>0 时备份必须含原片卷，否则超期媒体永久失去重建能力。
+  - 新配置：`SKATE_CLIP_SOURCE_RETENTION_DAYS=0`、`SKATE_CLIP_DISK_HIGH_WATERMARK=90`（`settings/base.py`，集中管理禁止散落硬编码）。
+  - 测试 `boards/tests/test_skate_gc.py`（14 项：孤儿 dry-run/apply/非 UUID 垃圾 + tmp 四分支 + retention 三分支 + 磁盘水位 mock + worker JSON 汇总）；boards 回归 246 项 OK，Ruff 全过，迁移无漂移（S4 无 schema 改动）。
+  - **未验证项**：Nginx 片段未在真实 Nginx 上验收（Range 206/缓存头/tmp 404），部署时按示例文件头清单验收。

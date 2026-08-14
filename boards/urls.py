@@ -20,6 +20,7 @@ from boards.content_views import (
     SkateClipCreateView,
     SkateClipDeleteView,
     SkateClipManageListView,
+    SkateClipMediaUploadView,
     SkateClipUpdateView,
 )
 
@@ -46,6 +47,11 @@ urlpatterns = [
         "manage/skateboard/clips/<int:pk>/delete/",
         SkateClipDeleteView.as_view(),
         name="skate-manage-delete",
+    ),
+    path(
+        "manage/skateboard/clips/<int:pk>/media/upload/",
+        SkateClipMediaUploadView.as_view(),
+        name="skate-media-upload",
     ),
     path(
         "manage/music/<str:provider>/",

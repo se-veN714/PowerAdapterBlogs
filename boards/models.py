@@ -795,6 +795,11 @@ class SkateClipMedia(models.Model):
     def is_ready(self):
         return self.state == SkateClipMediaState.READY
 
+    @staticmethod
+    def build_source_key(filename: str) -> str:
+        """为上传原片生成服务端 UUID 存储 key（视图/Worker 共用）。"""
+        return _skate_source_upload_to(None, filename)
+
     def apply_probe(self, *, duration_ms, width, height, frame_rate=""):
         """写入 FFprobe 权威探测结果并派生画面方向（S1/S2 调用）。"""
         self.duration_ms = duration_ms

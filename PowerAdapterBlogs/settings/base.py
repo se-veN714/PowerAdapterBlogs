@@ -12,6 +12,7 @@
 
 import json
 import os
+import shutil
 from pathlib import Path
 
 # here put the import lib
@@ -193,6 +194,15 @@ SKATE_CLIP_SOURCE_ROOT = BASE_DIR / "media-private" / "skateboard" / "source"
 # /media/skate/ 仅放行派生子目录并禁列目录。
 SKATE_CLIP_DELIVERY_ROOT = MEDIA_ROOT / "skate"
 SKATE_CLIP_DELIVERY_URL = f"{MEDIA_URL}skate/"
+
+# FFprobe 可执行文件路径：环境变量 > PATH 查找 > 裸命令名（报错可诊断）。
+# 上传校验（S1）与处理 Worker（S2）共用；找不到时上传校验会明确失败。
+SKATE_CLIP_FFPROBE_PATH = (
+    os.environ.get("SKATE_FFPROBE", "").strip() or shutil.which("ffprobe") or "ffprobe"
+)
+
+# FFprobe 探测超时（秒）：合法样片 <0.2s，留足余量防御异常输入。
+SKATE_CLIP_FFPROBE_TIMEOUT = 15.0
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

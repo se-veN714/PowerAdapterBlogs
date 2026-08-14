@@ -1,6 +1,7 @@
 from django import forms
+from django.conf import settings
 
-from boards.models import CodingProject, MusicScope, SkateClip, SpotifyRecord
+from boards.models import CodingProject, MusicScope, SkateClip, SkateClipMedia, SpotifyRecord
 
 
 class SkateClipForm(forms.ModelForm):
@@ -27,6 +28,34 @@ class SkateClipForm(forms.ModelForm):
             "filmed_at": forms.DateInput(attrs={"type": "date"}),
             "notes": forms.Textarea(attrs={"rows": 4}),
         }
+
+
+class SkateClipMediaUploadForm(forms.Form):
+    """私有原片上传表单（S1）。
+
+    大小上限做快速失败；内容安全（容器/视频流/时长）由视图调用
+    FFprobe 权威裁决，扩展名与 MIME 不参与判定。
+    """
+
+    source = forms.FileField(
+        label="视频原片",
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": "video/mp4,video/quicktime,video/webm,video/x-m4v,.mp4,.mov,.webm,.m4v",
+                "data-skate-max-bytes": str(settings.SKATE_CLIP_MAX_UPLOAD_BYTES),
+                "data-skate-max-duration-ms": str(settings.SKATE_CLIP_MAX_DURATION_MS),
+            }
+        ),
+    )
+
+    def clean_source(self):
+        uploaded = self.cleaned_data["source"]
+        if uploaded.size > settings.SKATE_CLIP_MAX_UPLOAD_BYTES:
+            limit_mib = settings.SKATE_CLIP_MAX_UPLOAD_BYTES // (1024 * 1024)
+            raise forms.ValidationError(
+                f"文件超过大小上限（{limit_mib} MiB）。"
+            )
+        return uploaded
 
 
 class MusicRecordForm(forms.ModelForm):

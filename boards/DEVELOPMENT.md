@@ -359,9 +359,9 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
 
 > 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。
 
-### 7.2 SK8 Clip 视频流水线（进行中：S0 已落地）
+### 7.2 SK8 Clip 视频流水线（进行中：S0/S1 已落地）
 
-> **状态**：S0（Schema/Storage）完成，S1（Upload/Validation）待实施。规范见本地 git-ignored `docs/guides/SKATEBOARD_GUIDE.md`；任务基线 `devenir @ d5c7104`，分支 `codex/sk8-video-pipeline`。
+> **状态**：S0（Schema/Storage）与 S1（Upload/Validation）完成，S2（Processing）待实施。规范见本地 git-ignored `docs/guides/SKATEBOARD_GUIDE.md`；任务基线 `devenir @ d5c7104`，分支 `codex/sk8-video-pipeline`。
 
 - **模型**：`SkateClipMedia`（OneToOne → `SkateClip`，`related_name="media"`）承载上传-处理-发布生命周期；PostgreSQL 只存元数据/Storage key/状态/错误，视频二进制永不进库。字段含探测结果（`duration_ms`/`width`/`height`/`orientation`/`frame_rate`）、审计（`source_size`/`source_sha256`/`uploaded_by`）与状态机（`state`/`error_code`/`error_detail`/`pipeline_version`/`processed_at`）。`media_key`（服务端 UUID）决定派生目录名，与数据库 pk 解耦。
 - **状态机**：`uploaded → processing → ready / failed`；`failed` 经 Manager 明确重试回 `uploaded`；替换原片或升级 `pipeline_version` 回 `uploaded`。`ready` 只在 `main.webm`/`preview.webm`/`poster.webp` 全部落盘并校验后写入。
@@ -370,4 +370,12 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
 - **兼容**：旧 `SkateClip.video_url`/`thumbnail_url`/人工 `duration` 保留不删；公开页面在 media `ready` 后优先消费本表探测值（S3 实施）。
 - **Admin**：`SkateClipMediaAdmin` 仅 superuser 只读（add/change/delete 全拒），媒体行只能由上传视图与 Worker 状态机驱动。
 - **迁移**：`0013_skateclipmedia.py`。**测试**：`boards/tests/test_skate_clip_media.py`（23 项，含存储路由安全断言与 Admin 只读断言）；boards 全量回归 180 项通过，`makemigrations --check` 无漂移。
-- **后续阶段**：S1 上传/三层校验 → S2 FFmpeg Worker → S3 Index 焦点预览 → S4 Nginx/运维。每阶段独立提交与验收。
+- **S1 上传/校验**（`boards/skate_media.py` + `content_forms/content_views/urls` + manage 模板）：
+  - 三层校验：浏览器预检（大小+时长，仅体验，`media_upload.html` 内联 JS）→ Django 表单（大小快速失败，`SkateClipMediaUploadForm`）→ **FFprobe 权威裁决**（`probe_video_file`：参数列表 subprocess + 15s timeout + JSON 解析；伪扩展/损坏/空文件 `invalid_container`、无视频流 `no_video_stream`、时长缺失/超限 `duration_missing`/`duration_exceeded`、超时 `probe_timeout`，错误只存有界摘要）。
+  - `parse_probe_payload` 纯函数：`format.duration` 字符串秒→毫秒边界判定（20.000s 过 / 20.001s 拒）；`side_data_list.rotation`（Display Matrix）±90°/270° 时互换显示宽高（exp1 实测：coded 1280x720+rot90 → 显示 720x1280）；`r_frame_rate` 保留分数文本，`0/0` 归空。
+  - 视图 `SkateClipMediaUploadView`（Policy：`can_manage_board_content`）：写私有存储（服务端 UUID key）→ FFprobe → 失败即删文件回显有界错误码；成功走 `select_for_update` 短事务 `get_or_create` 媒体行（state=uploaded + 探测元数据 + sha256/size/上传者），替换时清理旧原片（事务外）。**FFprobe 与文件 IO 均在事务外**。
+  - **实现陷阱**：Django 5.x `FileField.storage` 是 `cached_property`——视图/Worker 一律调 `skate_source_storage()` 工厂读当前 settings，禁止 `field.storage`（测试 override 与多配置下会拿到旧实例，删错目录）。
+  - 样片实验（`.local/sk8-lab/`，git-ignored）：VP9 主片 `good/cpu-used=4/crf=32/row-mt=1`（8.5s 1080 竖屏 13.9s 编码 7.5MB）；预览 3s/480 高/15fps/realtime cu=8 crf=40（0.5s/37KB）；封面单帧 WebP q=80；**旋转源解码自动转轴**（autorotate 默认开），滤镜链无需手动 transpose。
+  - `SKATE_CLIP_FFPROBE_PATH`（env `SKATE_FFPROBE` > `shutil.which` > 裸名）与 `SKATE_CLIP_FFPROBE_TIMEOUT=15.0` 集中在 settings。
+  - 测试 `boards/tests/test_skate_upload.py`（19 项：纯解析逻辑 + FFmpeg 可用时集成链路，含未授权/伪扩展/超时长/超大小/替换清理/无残留断言）；boards 回归 199 项 OK。
+- **后续阶段**：S2 FFmpeg Worker → S3 Index 焦点预览 → S4 Nginx/运维。每阶段独立提交与验收。

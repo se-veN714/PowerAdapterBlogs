@@ -1,20 +1,43 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Q
 from django.forms import Form, modelform_factory
+from django.http import Http404
 from django.urls import reverse
-from django.views.generic import CreateView, DeleteView, ListView, TemplateView, UpdateView
+from django.views.generic import (
+    CreateView,
+    DeleteView,
+    FormView,
+    ListView,
+    TemplateView,
+    UpdateView,
+)
 
-from boards.content_forms import CodingProjectForm, MusicRecordForm, SkateClipForm
+from boards.content_forms import (
+    CodingProjectForm,
+    MusicRecordForm,
+    SkateClipForm,
+    SkateClipMediaUploadForm,
+)
 from boards.models import (
     AppleRecord,
     Board,
     CodingProject,
     SkateClip,
+    SkateClipMedia,
+    SkateClipMediaState,
     SpotifyRecord,
+    skate_source_storage,
 )
 from boards.policies import can_manage_board_content
+from boards.skate_media import (
+    CLIP_PROBE_ERROR_MESSAGES,
+    probe_video_file,
+    sha256_file,
+)
 
 
 MUSIC_MODELS = {
@@ -249,6 +272,118 @@ class SkateClipDeleteView(SkateClipMixin, DeleteView):
     def form_valid(self, form):
         messages.success(self.request, "滑板片段已删除。")
         return super().form_valid(form)
+
+
+class SkateClipMediaUploadView(SkateClipMixin, FormView):
+    """对已存在 Clip 上传或替换私有原片（S1 三层校验的服务端核心）。
+
+    流程：Policy 鉴权 → 大小快速失败 → 写入私有存储（UUID 名）→
+    FFprobe 权威裁决 → 通过才落库（uploaded 状态 + 探测元数据）。
+    FFprobe 失败时删除已写文件并把有界错误码回显给管理员；
+    数据库写入为短事务，探测与文件 IO 均在事务外。
+    """
+
+    template_name = "pages/boards/manage/skateboard/media_upload.html"
+    form_class = SkateClipMediaUploadForm
+
+    def _load_clip(self):
+        # self.board 由基类 dispatch（set_common_data）就绪后再查询。
+        self.clip = (
+            SkateClip.objects.filter(homie__board=self.board)
+            .select_related("homie")
+            .filter(pk=self.kwargs.get("pk"))
+            .first()
+        )
+        if self.clip is None:
+            raise Http404("Clip 不存在。")
+
+    def get(self, request, *args, **kwargs):
+        self._load_clip()
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        self._load_clip()
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        uploaded = form.cleaned_data["source"]
+        storage = skate_source_storage()
+        saved_name = None
+        try:
+            saved_name = storage.save(
+                SkateClipMedia.build_source_key(uploaded.name), uploaded
+            )
+            probe = probe_video_file(storage.path(saved_name))
+            if not probe.ok:
+                self._reject(probe.error_code, saved_name)
+                return self.form_invalid(form)
+            source_size = storage.size(saved_name)
+            digest = sha256_file(storage.path(saved_name))
+        except OSError:
+            self._reject("probe_failed", saved_name)
+            return self.form_invalid(form)
+
+        with transaction.atomic():
+            media, _created = SkateClipMedia.objects.select_for_update().get_or_create(
+                clip=self.clip,
+                defaults={"uploaded_by": self.request.user},
+            )
+            old_source = media.source_file.name if media.source_file else ""
+            media.uploaded_by = self.request.user
+            media.source_file = saved_name
+            media.source_size = source_size
+            media.source_sha256 = digest
+            media.state = SkateClipMediaState.UPLOADED
+            media.error_code = ""
+            media.error_detail = ""
+            media.processed_at = None
+            media.apply_probe(
+                duration_ms=probe.duration_ms,
+                width=probe.width,
+                height=probe.height,
+                frame_rate=probe.frame_rate,
+            )
+            media.save()
+
+        # 替换成功后清理旧原片（不在事务内做文件删除）。
+        if old_source and old_source != saved_name:
+            try:
+                storage.delete(old_source)
+            except OSError:
+                pass
+
+        messages.success(
+            self.request,
+            "原片已上传并校验通过，等待处理流水线生成发布资源。",
+        )
+        return super().form_valid(form)
+
+    def _reject(self, error_code: str, saved_name: str | None) -> None:
+        if saved_name:
+            # 直接用工厂读取当前 settings；FileField.storage 是 cached_property，
+            # 测试/多配置场景下可能持有旧实例。
+            storage = skate_source_storage()
+            try:
+                storage.delete(saved_name)
+            except OSError:
+                pass
+        detail = CLIP_PROBE_ERROR_MESSAGES.get(
+            error_code, "上传校验失败，请稍后重试。"
+        )
+        messages.error(self.request, f"上传被拒绝：{detail}")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["clip"] = self.clip
+        try:
+            media = self.clip.media
+        except SkateClipMedia.DoesNotExist:
+            media = None
+        context["media"] = media
+        context["max_upload_bytes"] = settings.SKATE_CLIP_MAX_UPLOAD_BYTES
+        context["max_upload_mib"] = settings.SKATE_CLIP_MAX_UPLOAD_BYTES // (1024 * 1024)
+        context["max_duration_ms"] = settings.SKATE_CLIP_MAX_DURATION_MS
+        return context
 
 
 class CodingProjectMixin(BoardContentManagerMixin):

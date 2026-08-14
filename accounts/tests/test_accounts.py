@@ -119,11 +119,19 @@ class DashboardLoginTest(TestCase):
             {'username': self.dashboard_user.username, 'password': self.password},
         )
 
-        self.assertRedirects(response, reverse('cus_admin:index'))
+        self.assertRedirects(response, reverse("cus_admin:index"))
         self.assertEqual(
             int(self.client.session['_auth_user_id']),
             self.dashboard_user.pk,
         )
+
+    def test_site_login_uses_first_party_dashboard_as_canonical_target(self):
+        response = self.client.post(
+            reverse("accounts:login"),
+            {"username": self.dashboard_user.username, "password": self.password},
+        )
+
+        self.assertRedirects(response, reverse("dashboard:overview"))
 
     def test_dashboard_user_cannot_log_in_to_system_admin(self):
         response = self.client.post(

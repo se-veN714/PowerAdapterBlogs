@@ -36,7 +36,11 @@ urlpatterns = [
         "dashboard/memberships/",
         include("boards.dashboard_urls"),
     ),
-    path("dashboard/", custom_site.urls, name="dashboard"),
+    path("dashboard/compatibility/", custom_site.urls),
+    path(
+        "dashboard/",
+        include(("PowerAdapterBlogs.dashboard_urls", "dashboard"), namespace="dashboard"),
+    ),
     # dal
     path(
         "category-autocomplete/",

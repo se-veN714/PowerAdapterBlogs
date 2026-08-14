@@ -1,0 +1,17 @@
+{% extends "pages/dashboard/base.html" %}
+{% block dashboard_kicker %}SECURITY TRACE / APPEND-ONLY EVENTS{% endblock %}
+{% block dashboard_heading %}审计事件流{% endblock %}
+{% block dashboard_lead %}按时间检查文章流程与 Membership 变更；只有当前权限允许的事件源会进入视图。{% endblock %}
+{% block dashboard_action %}{% if security_url %}<a class="dashboard-primary" href="{{ security_url }}">完整性核验</a>{% endif %}{% endblock %}
+{% block dashboard_content %}
+<div class="audit-layout">
+    <aside class="audit-rail"><p>EVENT WINDOW</p><strong>● TODAY</strong><span>{{ audit_events|length }} loaded</span><span>○ RECENT</span><span>○ OLDER</span></aside>
+    <section class="audit-stream" aria-label="审计事件">
+        <p class="audit-stream-label">RECENT / READ-ONLY STREAM</p>
+        {% for event in audit_events %}<article>
+            <h2><time>{{ event.occurred_at|date:"m-d H:i:s" }}</time> {{ event.kind }} <span>{{ event.target }}</span></h2>
+            <p>{{ event.actor }} · {{ event.source }}</p>
+        </article>{% empty %}<p class="dashboard-empty">当前权限范围内没有事件。</p>{% endfor %}
+    </section>
+</div>
+{% endblock %}

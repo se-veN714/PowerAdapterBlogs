@@ -128,7 +128,7 @@ class H2PrivilegedAuthenticationTest(TestCase):
     def test_challenge_rejects_external_target_expiry_and_user_tampering(self):
         self._begin_login(target="https://evil.example/steal")
         session = self.client.session
-        self.assertEqual(session[PENDING_KEY]["target"], reverse("cus_admin:index"))
+        self.assertEqual(session[PENDING_KEY]["target"], reverse("dashboard:overview"))
         self.assertNotIn("evil.example", str(session[PENDING_KEY]))
         session[PENDING_KEY]["issued_at"] = (
             timezone.now() - timedelta(minutes=6)
@@ -165,7 +165,7 @@ class H2PrivilegedAuthenticationTest(TestCase):
         )
 
     def test_dashboard_can_be_remembered_for_seven_days_without_relaxing_super_admin(self):
-        dashboard_url = reverse("cus_admin:index")
+        dashboard_url = reverse("dashboard:overview")
         self._begin_login(target=dashboard_url)
         challenge_page = self.client.get(reverse("accounts:mfa-challenge"))
         self.assertContains(challenge_page, "信任当前浏览器 7 天")

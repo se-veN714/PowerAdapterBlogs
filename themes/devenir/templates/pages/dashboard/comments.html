@@ -1,0 +1,29 @@
+{% extends "pages/dashboard/base.html" %}
+{% block dashboard_kicker %}CONVERSATION FLOW / MODERATION QUEUE{% endblock %}
+{% block dashboard_heading %}评论与审核{% endblock %}
+{% block dashboard_lead %}左侧选择待审上下文，右侧集中判断；实际状态变更继续进入现有审核中心。{% endblock %}
+{% block dashboard_action %}{% if moderation_url %}<a class="dashboard-primary" href="{{ moderation_url }}">进入审核中心</a>{% endif %}{% endblock %}
+{% block dashboard_content %}
+<nav class="queue-tabs" aria-label="评论状态">
+    <a href="?status=0" {% if selected_status == "0" %}aria-current="page"{% endif %}>PENDING {{ comment_counts.0|default:0 }}</a>
+    <a href="?status=1" {% if selected_status == "1" %}aria-current="page"{% endif %}>PUBLISHED {{ comment_counts.1|default:0 }}</a>
+    <a href="?status=2" {% if selected_status == "2" %}aria-current="page"{% endif %}>REJECTED {{ comment_counts.2|default:0 }}</a>
+</nav>
+<div class="moderation-desk">
+    <section class="moderation-queue" aria-label="评论队列">
+        <p>REVIEW QUEUE / OLDEST FIRST</p>
+        {% for comment in comments %}<a href="?status={{ selected_status }}&amp;selected={{ comment.pk }}" {% if selected_comment.pk == comment.pk %}aria-current="true"{% endif %}>
+            <strong>“{{ comment.content|truncatechars:64 }}”</strong>
+            <small>{{ comment.author_name }} · {{ comment.created_time|timesince }}前<br>{{ comment.post.title|truncatechars:32 }}</small>
+        </a>{% empty %}<span class="dashboard-empty">当前队列为空。</span>{% endfor %}
+    </section>
+    <article class="comment-detail">
+        {% if selected_comment %}
+        <p>POST CONTEXT / {{ selected_comment.post.title }}</p>
+        <blockquote>“{{ selected_comment.content }}”</blockquote>
+        <dl><dt>AUTHOR</dt><dd>{{ selected_comment.author_name }}</dd><dt>SUBMITTED</dt><dd>{{ selected_comment.created_time|date:"Y-m-d H:i" }}</dd><dt>RISK</dt><dd>未启用风险评分</dd></dl>
+        <a class="dashboard-primary" href="{{ moderation_url }}">在审核中心处理</a>
+        {% else %}<p class="dashboard-empty">选择一条评论查看上下文。</p>{% endif %}
+    </article>
+</div>
+{% endblock %}

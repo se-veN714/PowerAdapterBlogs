@@ -54,6 +54,19 @@ class DashboardMembershipAccessMixin(LoginRequiredMixin):
             raise PermissionDenied("当前特权 Session 无效，请重新完成工作台登录验证。")
         return super().dispatch(request, *args, **kwargs)
 
+    def get_context_data(self, **kwargs):
+        from PowerAdapterBlogs.dashboard_context import dashboard_shell_context
+
+        context = super().get_context_data(**kwargs)
+        context.update(
+            dashboard_shell_context(
+                self.request,
+                active="memberships",
+                title=getattr(self, "title", "板块成员管理"),
+            )
+        )
+        return context
+
 
 @method_decorator(never_cache, name="dispatch")
 class DashboardMembershipListView(DashboardMembershipAccessMixin, ListView):

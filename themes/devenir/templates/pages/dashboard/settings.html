@@ -1,0 +1,14 @@
+{% extends "pages/dashboard/base.html" %}
+{% block dashboard_kicker %}CONFIGURATION / SINGLE SITE{% endblock %}
+{% block dashboard_heading %}站点设置{% endblock %}
+{% block dashboard_lead %}展示运行中的单站点配置。当前只读，避免把 settings.py 与数据库配置混成双重事实来源。{% endblock %}
+{% block dashboard_content %}
+<div class="settings-layout">
+    <nav class="settings-index" aria-label="设置章节"><a href="#identity" aria-current="page">● SITE IDENTITY</a><a href="#runtime">○ RUNTIME DEFAULTS</a><a href="#integration">○ INTEGRATIONS</a><a href="#backup">○ BACKUP &amp; EXPORT</a></nav>
+    <div class="settings-sections">
+        <section id="identity"><p>01 / SITE IDENTITY</p><dl><dt>SITE TITLE</dt><dd>{{ site_configuration.site_title }}</dd><dt>PUBLIC BASE URL</dt><dd>{{ site_configuration.public_base_url|default:"未配置" }}</dd></dl></section>
+        <section id="runtime"><p>02 / RUNTIME DEFAULTS</p><dl><dt>THEME</dt><dd>{{ site_configuration.theme }}</dd><dt>LANGUAGE</dt><dd>{{ site_configuration.language }}</dd><dt>TIME ZONE</dt><dd>{{ site_configuration.time_zone }}</dd></dl></section>
+        <section id="integration"><p>03 / CONFIGURATION SOURCE</p><p>当前配置来自部署环境与 Django settings。若未来需要站内编辑，应先建立单一数据库配置模型、校验和审计，再开放写操作。</p></section>
+    </div>
+</div>
+{% endblock %}

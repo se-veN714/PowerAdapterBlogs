@@ -1,0 +1,27 @@
+:root {
+    --d-bg: #0d1010;
+    --d-panel: #141818;
+    --d-panel-alt: #101313;
+    --d-elevated: #1c2323;
+    --d-line: rgba(216, 255, 225, .14);
+    --d-line-strong: rgba(216, 255, 225, .34);
+    --d-text: #eef4ef;
+    --d-muted: #aab5aa;
+    --d-faint: #647067;
+    --d-mint: #d8ffe1;
+    --d-cyan: #4dd6b0;
+    --d-purple: #b795f4;
+    --d-orange: #ffad48;
+    --d-danger: #ff8d8d;
+    --d-sidebar: 248px;
+    --d-topbar: 72px;
+    --d-mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+    --d-sans: "Source Han Sans CN", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    --d-serif: "Source Han Serif CN", "Noto Serif CJK SC", SimSun, serif;
+}
+* { box-sizing: border-box; }
+html { color-scheme: dark; background: var(--d-bg); }
+body { margin: 0; color: var(--d-text); background: var(--d-bg); font-family: var(--d-sans); }
+a { color: inherit; }
+button, input, select { font: inherit; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

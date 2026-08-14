@@ -1,0 +1,6 @@
+<article class="decision-card decision-card--{{ tone|default:'mint' }}">
+    <p class="decision-card-kicker">{{ number }} / {{ kicker }}</p>
+    <h2>{{ title }}</h2>
+    <div class="decision-card-body">{{ body }}</div>
+    {% if url %}<a class="decision-card-link" href="{{ url }}">{{ link_label }} <span aria-hidden="true">→</span></a>{% endif %}
+</article>

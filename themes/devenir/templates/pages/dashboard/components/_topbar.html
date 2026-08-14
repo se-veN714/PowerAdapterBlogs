@@ -1,0 +1,11 @@
+<header class="dashboard-topbar">
+    <button class="dashboard-menu-toggle" type="button" aria-controls="dashboard-sidebar" aria-expanded="false" data-dashboard-menu>
+        <span aria-hidden="true">☰</span><span class="sr-only">打开工作台导航</span>
+    </button>
+    <p>CONTROL PLANE / {{ dashboard_active|upper }}</p>
+    <div class="dashboard-topbar-actions">
+        <a href="{% url 'index' %}">PUBLIC SITE</a>
+        <span>{{ dashboard_identity.environment_label }} / {{ dashboard_identity.username }} <i aria-hidden="true"></i></span>
+        <form action="{% url 'accounts:logout' %}" method="post">{% csrf_token %}<button type="submit">LOGOUT</button></form>
+    </div>
+</header>

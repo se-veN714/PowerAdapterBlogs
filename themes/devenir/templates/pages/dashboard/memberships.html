@@ -1,22 +1,17 @@
-{% extends "base.html" %}
-
-{% block title %}成员管理 · PowerAdapter{% endblock %}
-{% block meta_robots %}noindex, nofollow{% endblock %}
-{% block extra_css %}{% include "pages/dashboard/_styles.html" %}{% endblock %}
-
-{% block content %}
-<section class="membership-shell">
-    <div class="container">
-        <p class="membership-kicker">Dashboard / Membership Control</p>
-        <h1 class="membership-heading">板块成员管理</h1>
-        <p class="membership-intro">这里处理全站 Board Membership 的日常变更。每次写操作都要求有效的工作台特权 Session、一次性动态验证码和变更原因，并留下不可变审计事件。</p>
+{% extends "pages/dashboard/base.html" %}
+{% load static %}
+{% block dashboard_css %}<link rel="stylesheet" href="{% static 'css/dashboard/memberships.css' %}">{% endblock %}
+{% block dashboard_kicker %}ACCESS GRAPH / MEMBERSHIP CONTROL{% endblock %}
+{% block dashboard_heading %}板块成员管理{% endblock %}
+{% block dashboard_lead %}每次写操作都要求有效的工作台特权 Session、一次性动态验证码和变更原因，并留下不可变审计事件。{% endblock %}
+{% block dashboard_action %}<a class="dashboard-primary" href="{% url 'board-dashboard:membership-grant' %}">直接授予</a>{% endblock %}
+{% block dashboard_content %}
 
         <div class="membership-toolbar">
             <div class="membership-stats" aria-label="成员管理统计">
                 <div class="membership-stat"><strong>{{ paginator.count }}</strong><span>当前筛选</span></div>
                 <a class="membership-stat" href="{% url 'board-dashboard:membership-events' %}"><strong>{{ event_count }}</strong><span>审计事件 →</span></a>
             </div>
-            <a class="membership-action" href="{% url 'board-dashboard:membership-grant' %}">+ 直接授予</a>
         </div>
 
         <form class="membership-filters" method="get" role="search">
@@ -68,6 +63,4 @@
             {% if page_obj.has_next %}<a class="membership-action subtle" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.next_page_number }}">下一页</a>{% endif %}
         </nav>
         {% endif %}
-    </div>
-</section>
 {% endblock %}

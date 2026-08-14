@@ -1,0 +1,49 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ dashboard_page_title }} · PowerAdapter</title>
+    <link rel="stylesheet" href="{% static 'css/dashboard/tokens.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard/shell.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard/components.css' %}">
+    {% block dashboard_css %}{% endblock %}
+    <noscript>
+        <style>
+            @media (max-width: 980px) {
+                .dashboard-sidebar { position: static; width: 100%; height: auto; transform: none; }
+                .dashboard-menu-toggle, .dashboard-overlay { display: none; }
+            }
+        </style>
+    </noscript>
+</head>
+<body class="dashboard-body">
+<a class="dashboard-skip" href="#dashboard-main">跳到主要内容</a>
+<div class="dashboard-layout">
+    {% include "pages/dashboard/components/_sidebar.html" %}
+    <div class="dashboard-stage">
+        {% include "pages/dashboard/components/_topbar.html" %}
+        <main class="dashboard-main" id="dashboard-main" tabindex="-1">
+            {% if messages %}
+            <div class="dashboard-messages" aria-live="polite">
+                {% for message in messages %}<p class="dashboard-message {{ message.tags }}">{{ message }}</p>{% endfor %}
+            </div>
+            {% endif %}
+            <header class="dashboard-heading">
+                <div>
+                    <p class="dashboard-kicker">{% block dashboard_kicker %}CONTROL PLANE{% endblock %}</p>
+                    <h1>{% block dashboard_heading %}{{ dashboard_page_title }}{% endblock %}</h1>
+                    <p class="dashboard-lead">{% block dashboard_lead %}{% endblock %}</p>
+                </div>
+                <div class="dashboard-heading-action">{% block dashboard_action %}{% endblock %}</div>
+            </header>
+            {% block dashboard_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+<div class="dashboard-overlay" data-dashboard-overlay hidden></div>
+<script src="{% static 'js/dashboard.js' %}" defer></script>
+</body>
+</html>

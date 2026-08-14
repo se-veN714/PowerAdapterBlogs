@@ -229,8 +229,7 @@ def mark_privileged_session(
         if remember_dashboard and certificate_binding is None:
             request.session[DASHBOARD_REMEMBER_KEY] = {
                 **value,
-                "expires_at": timezone.now().timestamp()
-                + settings.MFA_DASHBOARD_REMEMBER_TTL_SECONDS,
+                "expires_at": now + settings.MFA_DASHBOARD_REMEMBER_TTL_SECONDS,
             }
         else:
             request.session.pop(DASHBOARD_REMEMBER_KEY, None)

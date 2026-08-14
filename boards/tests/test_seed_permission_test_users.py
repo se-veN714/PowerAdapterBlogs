@@ -99,7 +99,7 @@ class BackendNavigationTest(TestCase):
 
         response = self.client.get(reverse("index"))
 
-        self.assertContains(response, reverse("cus_admin:index"))
+        self.assertContains(response, reverse("dashboard:overview"))
         self.assertNotContains(response, reverse("admin:index"))
 
     def test_superuser_sees_dashboard_and_system_admin_entries(self):
@@ -114,5 +114,5 @@ class BackendNavigationTest(TestCase):
 
         response = self.client.get(reverse("index"))
 
-        self.assertContains(response, reverse("cus_admin:index"))
+        self.assertContains(response, reverse("dashboard:overview"))
         self.assertContains(response, reverse("admin:index"))

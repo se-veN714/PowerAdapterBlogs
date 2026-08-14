@@ -1,0 +1,5 @@
+{% if page_obj.has_other_pages %}<nav class="dashboard-pagination" aria-label="分页">
+    {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if selected_q %}&amp;q={{ selected_q|urlencode }}{% endif %}{% if selected_status %}&amp;status={{ selected_status }}{% endif %}">← PREV</a>{% endif %}
+    <span>{{ page_obj.number|stringformat:"02d" }} / {{ page_obj.paginator.num_pages|stringformat:"02d" }}</span>
+    {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if selected_q %}&amp;q={{ selected_q|urlencode }}{% endif %}{% if selected_status %}&amp;status={{ selected_status }}{% endif %}">NEXT →</a>{% endif %}
+</nav>{% endif %}

@@ -143,7 +143,7 @@ class LoginView(FormView):
                 return requested_target
         user = self.request.user
         if user.is_authenticated and user.is_dashboard_user:
-            return reverse("cus_admin:index")
+            return reverse("dashboard:overview")
         return super().get_success_url()
 
     def form_valid(self, form):
@@ -234,7 +234,7 @@ class LoginView(FormView):
             ):
                 return requested_target
         if user.is_dashboard_user or user.is_superuser:
-            return reverse("cus_admin:index")
+            return reverse("dashboard:overview")
         return reverse("index")
 
 

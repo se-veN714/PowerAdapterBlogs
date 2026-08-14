@@ -1,14 +1,10 @@
-{% extends "base.html" %}
-
-{% block title %}{{ action_title }} · PowerAdapter{% endblock %}
-{% block meta_robots %}noindex, nofollow{% endblock %}
-{% block extra_css %}{% include "pages/dashboard/_styles.html" %}{% endblock %}
-
-{% block content %}
-<section class="membership-shell">
-    <div class="container">
-        <p class="membership-kicker">Dashboard / Step-up Authorization</p>
-        <h1 class="membership-heading">{{ action_title }}</h1>
+{% extends "pages/dashboard/base.html" %}
+{% load static %}
+{% block dashboard_css %}<link rel="stylesheet" href="{% static 'css/dashboard/memberships.css' %}">{% endblock %}
+{% block dashboard_kicker %}ACCESS GRAPH / STEP-UP AUTHORIZATION{% endblock %}
+{% block dashboard_heading %}{{ action_title }}{% endblock %}
+{% block dashboard_lead %}动态验证码只授权本页这一次、这个对象与这个动作；不能复用于其他成员或其他变更。{% endblock %}
+{% block dashboard_content %}
         <div class="membership-panel">
             {% if membership %}
             <div class="membership-target">
@@ -36,6 +32,4 @@
                 </div>
             </form>
         </div>
-    </div>
-</section>
 {% endblock %}

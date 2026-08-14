@@ -1,0 +1,32 @@
+{% extends "pages/dashboard/base.html" %}
+{% load dashboard_tags %}
+{% block dashboard_kicker %}SITE OPERATIONS / CURRENT FIELD{% endblock %}
+{% block dashboard_heading %}控制台总览{% endblock %}
+{% block dashboard_lead %}只保留需要立即判断或跳转处理的信息；明细回到各自工作区。{% endblock %}
+{% block dashboard_action %}<a class="dashboard-primary" href="{% url 'index' %}">查看公开站点</a>{% endblock %}
+{% block dashboard_content %}
+<section class="decision-grid" aria-label="站点重点信息">
+    {% include "pages/dashboard/components/_decision_card.html" with number="01" kicker="CONTENT PULSE" title=content_pulse.published_count|stringformat:"s"|add:" 已发布" body=content_pulse|content_pulse_body url=content_pulse.posts_url link_label="OPEN POSTS" %}
+    {% if moderation_summary.visible %}
+        {% include "pages/dashboard/components/_decision_card.html" with number="02" kicker="MODERATION" title=moderation_summary.pending_comment_count|stringformat:"s"|add:" 条等待判断" body=moderation_summary|moderation_body url=moderation_summary.moderation_url link_label="REVIEW COMMENTS" tone="warning" %}
+    {% else %}
+        {% include "pages/dashboard/components/_decision_card.html" with number="02" kicker="MODERATION" title="权限受限" body="当前账号没有评论审核权限。计数不会泄露。" tone="warning" %}
+    {% endif %}
+    {% include "pages/dashboard/components/_decision_card.html" with number="03" kicker="AUDIENCE TODAY" title=audience_today.page_views|stringformat:"s"|add:" 次浏览" body=audience_today|audience_body url=audience_today.analytics_url link_label="VIEW ANALYTICS" tone="cyan" %}
+    {% include "pages/dashboard/components/_decision_card.html" with number="04" kicker="ASSET LIBRARY" title=asset_summary.total_count|stringformat:"s"|add:" 个媒体资源" body=asset_summary|asset_body url=asset_summary.media_url link_label="OPEN MEDIA" tone="purple" %}
+    {% if security_summary.visible %}
+        {% include "pages/dashboard/components/_decision_card.html" with number="05" kicker="SECURITY & AUDIT" title="安全摘要可用" body=security_summary|security_body url=security_summary.security_url link_label="SECURITY OPERATIONS" %}
+    {% else %}
+        {% include "pages/dashboard/components/_decision_card.html" with number="05" kicker="SECURITY & AUDIT" title="权限受限" body="安全审计数据由服务端隐藏。站内页面不承担 uptime 监控。" %}
+    {% endif %}
+    <article class="decision-card decision-card--warning">
+        <p class="decision-card-kicker">06 / QUICK START</p><h2>从这里开始</h2>
+        <div class="quick-actions">
+            {% for action in quick_actions %}
+                {% if action.enabled %}<a href="{{ action.url }}"><kbd>{{ action.key }}</kbd>{{ action.label }}</a>
+                {% else %}<span aria-disabled="true" title="{{ action.disabled_reason }}"><kbd>{{ action.key }}</kbd>{{ action.label }}</span>{% endif %}
+            {% endfor %}
+        </div>
+    </article>
+</section>
+{% endblock %}

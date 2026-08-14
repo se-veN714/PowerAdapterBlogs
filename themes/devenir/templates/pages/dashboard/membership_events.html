@@ -1,22 +1,17 @@
-{% extends "base.html" %}
-
-{% block title %}Membership 事件历史 · PowerAdapter{% endblock %}
-{% block meta_robots %}noindex, nofollow{% endblock %}
-{% block extra_css %}{% include "pages/dashboard/_styles.html" %}{% endblock %}
-
-{% block content %}
-<section class="membership-shell">
-    <div class="container">
-        <p class="membership-kicker">Dashboard / Immutable Event Timeline</p>
-        <h1 class="membership-heading">{% if membership %}{{ membership.user.username }} 的成员历史{% else %}Membership 事件历史{% endif %}</h1>
-        <p class="membership-intro">关系型事件是 Membership 生命周期的可靠业务历史；即使关联账号或 Board 以后删除，快照字段仍保留当时语义。</p>
+{% extends "pages/dashboard/base.html" %}
+{% load static %}
+{% block dashboard_css %}<link rel="stylesheet" href="{% static 'css/dashboard/memberships.css' %}">{% endblock %}
+{% block dashboard_kicker %}ACCESS GRAPH / IMMUTABLE EVENT TIMELINE{% endblock %}
+{% block dashboard_heading %}{% if membership %}{{ membership.user.username }} 的成员历史{% else %}Membership 事件历史{% endif %}{% endblock %}
+{% block dashboard_lead %}关系型事件是 Membership 生命周期的可靠业务历史；即使关联账号或 Board 以后删除，快照字段仍保留当时语义。{% endblock %}
+{% block dashboard_action %}<a class="dashboard-primary" href="{% url 'board-dashboard:memberships' %}">返回成员管理</a>{% endblock %}
+{% block dashboard_content %}
 
         <div class="membership-toolbar">
             <div class="membership-stats">
                 <div class="membership-stat"><strong>{{ paginator.count }}</strong><span>当前事件</span></div>
                 {% if membership %}<div class="membership-stat"><strong>{{ membership.get_role_display }}</strong><span>{% if membership.is_active %}当前启用{% else %}当前停用{% endif %}</span></div>{% endif %}
             </div>
-            <a class="membership-action subtle" href="{% url 'board-dashboard:memberships' %}">← 返回成员管理</a>
         </div>
 
         <form class="membership-filters" method="get" role="search">
@@ -68,6 +63,4 @@
             {% if page_obj.has_next %}<a class="membership-action subtle" href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.next_page_number }}">下一页</a>{% endif %}
         </nav>
         {% endif %}
-    </div>
-</section>
 {% endblock %}

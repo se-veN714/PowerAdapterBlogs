@@ -430,7 +430,7 @@
                             {% endif %}
                             <section class="nav-menu-group">
                                 <p class="nav-menu-label">管理与权限</p>
-                                {% if can_access_dashboard %}<a href="{% url 'cus_admin:index' %}">工作台</a>{% endif %}
+                                {% if can_access_dashboard %}<a href="{% url 'dashboard:overview' %}">工作台</a>{% endif %}
                                 {% if can_access_dashboard and perms.boards.manage_all_board_memberships %}<a href="{% url 'board-dashboard:memberships' %}">成员管理</a>{% endif %}
                                 {% if can_access_security_operations %}<a href="{% url 'operations:security' %}">安全运维</a>{% endif %}
                                 {% if can_manage_mfa %}<a href="{% url 'accounts:mfa-settings' %}">动态验证码</a>{% endif %}
@@ -497,7 +497,7 @@
                     <p class="sidebar-submenu-label">板块管理</p>
                     {% for link in board_management_links %}<a href="{{ link.url }}">{{ link.label }}</a>{% endfor %}
                     {% endif %}
-                    {% if can_access_dashboard %}<a href="{% url 'cus_admin:index' %}">工作台</a>{% endif %}
+                    {% if can_access_dashboard %}<a href="{% url 'dashboard:overview' %}">工作台</a>{% endif %}
                     {% if can_access_dashboard and perms.boards.manage_all_board_memberships %}<a href="{% url 'board-dashboard:memberships' %}">成员管理</a>{% endif %}
                     {% if can_access_security_operations %}<a href="{% url 'operations:security' %}">安全运维</a>{% endif %}
                     {% if can_manage_mfa %}<a href="{% url 'accounts:mfa-settings' %}">动态验证码</a>{% endif %}

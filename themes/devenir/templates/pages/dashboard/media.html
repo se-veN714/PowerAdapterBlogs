@@ -1,0 +1,14 @@
+{% extends "pages/dashboard/base.html" %}
+{% block dashboard_kicker %}ASSET FIELD / MEDIA LIBRARY{% endblock %}
+{% block dashboard_heading %}媒体资源库{% endblock %}
+{% block dashboard_lead %}按 3×N 网格浏览现有文章图片与封面；引用分析与独立上传尚未建模。{% endblock %}
+{% block dashboard_action %}{% if can_upload %}<a class="dashboard-primary" href="{{ upload_url }}">随文章上传</a>{% endif %}{% endblock %}
+{% block dashboard_content %}
+<div class="dashboard-toolbar dashboard-toolbar-static"><span>{{ asset_count }} ASSETS</span><span>GRID / 3×N</span><span>READ ONLY</span></div>
+<section class="asset-grid" aria-label="媒体资源">
+    {% for asset in assets %}<article class="asset-card">
+        <a class="asset-preview" href="{{ asset.url }}" target="_blank" rel="noopener"><img src="{{ asset.url }}" alt="{{ asset.alt|default:asset.name }}" loading="lazy"></a>
+        <h2>{{ asset.name }}</h2><p>{{ asset.kind }}</p><small>USED BY / {{ asset.usage|truncatechars:44 }}</small>
+    </article>{% empty %}<p class="dashboard-empty">尚无可展示的媒体资源。</p>{% endfor %}
+</section>
+{% endblock %}

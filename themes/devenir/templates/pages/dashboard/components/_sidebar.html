@@ -1,0 +1,19 @@
+<aside class="dashboard-sidebar" id="dashboard-sidebar" aria-label="工作台导航">
+    <div class="dashboard-brand">
+        <span class="dashboard-brand-mark" aria-hidden="true">PA</span>
+        <span>PowerAdapter_<br>CONTROL PLANE</span>
+    </div>
+    <p class="dashboard-nav-label">WORKSPACE</p>
+    <nav class="dashboard-nav">
+        {% for item in dashboard_navigation %}
+        <a href="{{ item.url }}" {% if item.key == dashboard_active %}aria-current="page"{% endif %}>
+            <span>{{ forloop.counter|stringformat:"02d" }}</span>{{ item.label }}
+        </a>
+        {% endfor %}
+    </nav>
+    <section class="dashboard-session" aria-label="特权会话状态">
+        <p>PRIVILEGED SESSION</p>
+        <strong><i aria-hidden="true"></i>{{ dashboard_identity.mfa_state_label }}</strong>
+        <small>{% if dashboard_identity.session_verified %}SESSION VERIFIED{% else %}SESSION CHECK REQUIRED{% endif %}</small>
+    </section>
+</aside>

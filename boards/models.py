@@ -22,6 +22,7 @@ import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.db.models import Q
 
@@ -577,6 +578,230 @@ class SkateClip(models.Model):
 
     def __str__(self):
         return f"{self.order:02d} {self.title}"
+
+
+# ---------------------------------------------------------------------------
+# Skateboard Clip 媒体资产：私有上传 → FFprobe/FFmpeg 派生 → 状态机。
+# PostgreSQL 只存元数据与 Storage key，视频二进制永不进数据库；
+# 私有原片目录不出公开 URL，公开页面只消费 state=ready 的派生资源。
+# ---------------------------------------------------------------------------
+
+
+class SkateClipMediaState(models.TextChoices):
+    UPLOADED = "uploaded", "Uploaded"
+    PROCESSING = "processing", "Processing"
+    READY = "ready", "Ready"
+    FAILED = "failed", "Failed"
+
+
+class SkateClipOrientation(models.TextChoices):
+    PORTRAIT = "portrait", "Portrait"
+    LANDSCAPE = "landscape", "Landscape"
+    SQUARE = "square", "Square"
+
+
+class SkateClipSourceStorage(FileSystemStorage):
+    """私有原片存储：生成公开 URL 属于编程错误，直接失败。
+
+    独立于 MEDIA_ROOT（开发 static() 与生产 Nginx 都触达不到），
+    上限、探测与派生参数集中在 settings 的 SKATE_CLIP_* 命名空间。
+    """
+
+    def url(self, name):
+        raise ValueError(
+            "Skate clip private source files must never be exposed via a public URL."
+        )
+
+
+def skate_source_storage():
+    """私有原片 Storage 工厂（FileField 用 callable 以免配置进迁移）。"""
+    return SkateClipSourceStorage(location=settings.SKATE_CLIP_SOURCE_ROOT)
+
+
+def skate_delivery_storage():
+    """派生资源 Storage 工厂：MEDIA_ROOT/skate/ 下仅放可公开的派生文件。"""
+    return FileSystemStorage(
+        location=settings.SKATE_CLIP_DELIVERY_ROOT,
+        base_url=settings.SKATE_CLIP_DELIVERY_URL,
+    )
+
+
+def _skate_source_upload_to(instance, filename):
+    """服务端 UUID 命名私有原片，不信任上传文件名作路径。
+
+    扩展名仅作显示保留（小写、限长），内容安全裁决由 S1 FFprobe 负责。
+    """
+    suffix = Path(filename).suffix.lower()[:16]
+    if suffix and not suffix[1:].isalnum():
+        suffix = ".bin"
+    return f"{uuid.uuid4().hex}{suffix}"
+
+
+def _skate_main_upload_to(instance, filename):
+    return f"delivery/{instance.media_key}/main.webm"
+
+
+def _skate_preview_upload_to(instance, filename):
+    return f"preview/{instance.media_key}/preview.webm"
+
+
+def _skate_poster_upload_to(instance, filename):
+    return f"poster/{instance.media_key}.webp"
+
+
+def derive_skate_orientation(width, height):
+    """按 FFprobe 权威宽高派生画面方向；缺失或非法时返回空串。"""
+    try:
+        width = int(width or 0)
+        height = int(height or 0)
+    except (TypeError, ValueError):
+        return ""
+    if width <= 0 or height <= 0:
+        return ""
+    if width > height:
+        return SkateClipOrientation.LANDSCAPE
+    if width < height:
+        return SkateClipOrientation.PORTRAIT
+    return SkateClipOrientation.SQUARE
+
+
+class SkateClipMedia(models.Model):
+    """SkateClip 的媒体资产（一对一），承载上传-处理-发布生命周期。
+
+    状态机（SKATEBOARD_GUIDE §8）：uploaded → processing → ready/failed；
+    failed 经 Manager 明确重试回 uploaded；替换原片或升级 pipeline 回
+    uploaded。ready 只在三类派生资源全部落盘并校验后写入。旧兼容字段
+    SkateClip.video_url/thumbnail_url 在迁移兼容期保留不删，公开展示在
+    media ready 后优先使用本表探测值。
+    """
+
+    clip = models.OneToOneField(
+        SkateClip,
+        on_delete=models.CASCADE,
+        related_name="media",
+        verbose_name="所属片段",
+    )
+    media_key = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name="资产键",
+        help_text="服务端生成的稳定标识，决定派生文件目录名",
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_skate_media",
+        verbose_name="上传者",
+        help_text="仅审计用途；用户删除后媒体行保留",
+    )
+    source_file = models.FileField(
+        storage=skate_source_storage,
+        upload_to=_skate_source_upload_to,
+        max_length=255,
+        blank=True,
+        verbose_name="私有原片",
+        help_text="仅服务端与 Worker 可读，永不生成公开 URL",
+    )
+    main_file = models.FileField(
+        storage=skate_delivery_storage,
+        upload_to=_skate_main_upload_to,
+        max_length=255,
+        blank=True,
+        verbose_name="正式播放 WebM",
+    )
+    preview_file = models.FileField(
+        storage=skate_delivery_storage,
+        upload_to=_skate_preview_upload_to,
+        max_length=255,
+        blank=True,
+        verbose_name="红黑预览 WebM",
+    )
+    poster_file = models.ImageField(
+        storage=skate_delivery_storage,
+        upload_to=_skate_poster_upload_to,
+        max_length=255,
+        blank=True,
+        verbose_name="封面 WebP",
+    )
+    state = models.CharField(
+        max_length=16,
+        choices=SkateClipMediaState.choices,
+        default=SkateClipMediaState.UPLOADED,
+        db_index=True,
+        verbose_name="处理状态",
+    )
+    duration_ms = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="时长(毫秒)",
+        help_text="FFprobe 权威时长，替代人工 duration",
+    )
+    width = models.PositiveIntegerField(null=True, blank=True, verbose_name="画面宽")
+    height = models.PositiveIntegerField(null=True, blank=True, verbose_name="画面高")
+    orientation = models.CharField(
+        max_length=16,
+        choices=SkateClipOrientation.choices,
+        blank=True,
+        verbose_name="画面方向",
+        help_text="由探测宽高派生，不手工填写",
+    )
+    frame_rate = models.CharField(
+        max_length=32,
+        blank=True,
+        verbose_name="帧率",
+        help_text="FFprobe r_frame_rate 文本（如 30000/1001），不解析为浮点",
+    )
+    source_size = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="原片字节数",
+    )
+    source_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name="原片 SHA-256",
+        help_text="重复检测、审计与处理输入一致性",
+    )
+    pipeline_version = models.PositiveSmallIntegerField(
+        default=1,
+        verbose_name="流水线版本",
+        help_text="风格/编码算法升级后可从原片批量重建派生资源",
+    )
+    error_code = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name="错误码",
+        help_text="面向管理员的有界错误码，不含内部命令或路径",
+    )
+    error_detail = models.TextField(
+        blank=True,
+        verbose_name="错误详情",
+        help_text="有界诊断摘要；公开页面不得渲染此字段",
+    )
+    processed_at = models.DateTimeField(null=True, blank=True, verbose_name="处理完成时间")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        verbose_name = "片段媒体资产"
+        verbose_name_plural = "片段媒体资产"
+
+    def __str__(self):
+        return f"clip#{self.clip_id} media ({self.get_state_display()})"
+
+    @property
+    def is_ready(self):
+        return self.state == SkateClipMediaState.READY
+
+    def apply_probe(self, *, duration_ms, width, height, frame_rate=""):
+        """写入 FFprobe 权威探测结果并派生画面方向（S1/S2 调用）。"""
+        self.duration_ms = duration_ms
+        self.width = width
+        self.height = height
+        self.frame_rate = frame_rate
+        self.orientation = derive_skate_orientation(width, height)
 
 
 # ---------------------------------------------------------------------------

@@ -29,6 +29,7 @@ from boards.models import (
     CodingPrinciple,
     CodingProject,
     SkateClip,
+    SkateClipMedia,
     SkateHomie,
     SpotifyRecord,
 )
@@ -483,6 +484,40 @@ class SkateClipAdmin(SuperuserBoardContentAdmin):
     list_filter = ["category", "status", "is_public"]
     search_fields = ["title", "spot"]
     ordering = ["order"]
+
+
+@admin.register(SkateClipMedia)
+class SkateClipMediaAdmin(SuperuserBoardContentAdmin):
+    """片段媒体资产：仅 superuser 只读观察。
+
+    媒体行由上传视图与处理 Worker 的状态机驱动，Admin 中禁止手工
+    新增/编辑/删除，避免绕过私有存储与状态一致性约束。
+    """
+
+    exclude = ()
+    list_display = [
+        "clip",
+        "state",
+        "duration_ms",
+        "width",
+        "height",
+        "orientation",
+        "pipeline_version",
+        "processed_at",
+        "updated_at",
+    ]
+    list_filter = ["state", "orientation"]
+    search_fields = ["clip__title", "source_sha256"]
+    ordering = ["-updated_at"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(SpotifyRecord)

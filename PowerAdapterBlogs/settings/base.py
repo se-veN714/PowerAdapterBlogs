@@ -172,6 +172,28 @@ MEDIA_URL = "/media/"
 
 MEDIA_ROOT = BASE_DIR / "media/"
 
+# ---------------------------------------------------------------------------
+# Skateboard Clip 媒体流水线（SK8 S0）
+# 约束集中于此，禁止散落硬编码；生产可用环境独立 settings 覆盖。
+# ---------------------------------------------------------------------------
+
+# 单条上传大小上限（字节）：150 MiB（建议值，可按部署调整）。
+SKATE_CLIP_MAX_UPLOAD_BYTES = 150 * 1024 * 1024
+
+# 单条真实时长硬限制（毫秒）：20 秒（FFprobe 权威裁决）。
+SKATE_CLIP_MAX_DURATION_MS = 20_000
+
+# 私有原片根目录：刻意放在 MEDIA_ROOT 之外——开发环境 urls.py 会用
+# static() 服务整个 MEDIA_ROOT，生产 Nginx 亦只放行派生目录；私有原片
+# 在两个面都不可达，且 Storage.url() 直接抛错。
+SKATE_CLIP_SOURCE_ROOT = BASE_DIR / "media-private" / "skateboard" / "source"
+
+# 派生资源（delivery/preview/poster）根目录与公开 URL 前缀：
+# 位于 MEDIA_ROOT 下由 /media/ 前缀统一分发；生产 Nginx 需对
+# /media/skate/ 仅放行派生子目录并禁列目录。
+SKATE_CLIP_DELIVERY_ROOT = MEDIA_ROOT / "skate"
+SKATE_CLIP_DELIVERY_URL = f"{MEDIA_URL}skate/"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 

@@ -12,6 +12,7 @@ build/
 *.sqlite
 .env
 /media/
+/media-private/
 /logs/
 
 # ====== Node / Frontend ======

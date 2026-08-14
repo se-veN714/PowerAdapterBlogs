@@ -358,3 +358,16 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
 13. **神椿板块（🟢 上线后）**：明确延后到首个正式版本上线后再启动，不进入当前 Release Candidate。开始实现前先冻结内容范围与定位、`Board.slug`/Category 映射、版权与外部素材来源、专属 Index 视觉及内容模型；随后再按现有 Board Policy、Membership、公开文章流、管理工作区与响应式验收流程拆分前后端任务。当前不新增路由、模型、迁移、种子数据或占位页面。
 
 > 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。
+
+### 7.2 SK8 Clip 视频流水线（进行中：S0 已落地）
+
+> **状态**：S0（Schema/Storage）完成，S1（Upload/Validation）待实施。规范见本地 git-ignored `docs/guides/SKATEBOARD_GUIDE.md`；任务基线 `devenir @ d5c7104`，分支 `codex/sk8-video-pipeline`。
+
+- **模型**：`SkateClipMedia`（OneToOne → `SkateClip`，`related_name="media"`）承载上传-处理-发布生命周期；PostgreSQL 只存元数据/Storage key/状态/错误，视频二进制永不进库。字段含探测结果（`duration_ms`/`width`/`height`/`orientation`/`frame_rate`）、审计（`source_size`/`source_sha256`/`uploaded_by`）与状态机（`state`/`error_code`/`error_detail`/`pipeline_version`/`processed_at`）。`media_key`（服务端 UUID）决定派生目录名，与数据库 pk 解耦。
+- **状态机**：`uploaded → processing → ready / failed`；`failed` 经 Manager 明确重试回 `uploaded`；替换原片或升级 `pipeline_version` 回 `uploaded`。`ready` 只在 `main.webm`/`preview.webm`/`poster.webp` 全部落盘并校验后写入。
+- **存储路由（安全不变量）**：私有原片根 `SKATE_CLIP_SOURCE_ROOT = BASE_DIR/media-private/skateboard/source` **刻意在 `MEDIA_ROOT` 之外**——开发 `urls.py` 的 `static()` 会服务整个 `MEDIA_ROOT`，生产 Nginx 亦只放行派生目录；`SkateClipSourceStorage.url()` 直接抛 `ValueError`，任何公开链接生成都是失败。派生资源在 `MEDIA_ROOT/skate/`（`delivery/<key>/main.webm`、`preview/<key>/preview.webm`、`poster/<key>.webp`），URL 前缀 `/media/skate/`。
+- **集中配置**（`settings/base.py`）：`SKATE_CLIP_MAX_UPLOAD_BYTES`（默认 150 MiB）、`SKATE_CLIP_MAX_DURATION_MS`（默认 20 000）。禁止散落硬编码。
+- **兼容**：旧 `SkateClip.video_url`/`thumbnail_url`/人工 `duration` 保留不删；公开页面在 media `ready` 后优先消费本表探测值（S3 实施）。
+- **Admin**：`SkateClipMediaAdmin` 仅 superuser 只读（add/change/delete 全拒），媒体行只能由上传视图与 Worker 状态机驱动。
+- **迁移**：`0013_skateclipmedia.py`。**测试**：`boards/tests/test_skate_clip_media.py`（23 项，含存储路由安全断言与 Admin 只读断言）；boards 全量回归 180 项通过，`makemigrations --check` 无漂移。
+- **后续阶段**：S1 上传/三层校验 → S2 FFmpeg Worker → S3 Index 焦点预览 → S4 Nginx/运维。每阶段独立提交与验收。

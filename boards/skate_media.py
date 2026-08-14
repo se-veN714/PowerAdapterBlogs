@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -125,7 +126,7 @@ def parse_probe_payload(payload: dict) -> ClipProbeResult:
         duration_s = float(str(raw_duration))
     except (TypeError, ValueError):
         duration_s = None
-    if duration_s is None or duration_s <= 0:
+    if duration_s is None or not math.isfinite(duration_s) or duration_s <= 0:
         return ClipProbeResult(
             ok=False,
             error_code=ClipProbeError.DURATION_MISSING,
@@ -151,6 +152,17 @@ def parse_probe_payload(payload: dict) -> ClipProbeResult:
         coded_height = int(video["height"])
     except (KeyError, TypeError, ValueError):
         coded_width = coded_height = None
+
+    if coded_width is None or coded_height is None or coded_width <= 0 or coded_height <= 0:
+        return ClipProbeResult(
+            ok=False,
+            error_code=ClipProbeError.NO_VIDEO_STREAM,
+            error_detail=f"Invalid video dimensions: {coded_width}x{coded_height}",
+            duration_ms=duration_ms,
+            format_name=str(fmt.get("format_name") or "")[:64],
+            video_codec=str(video.get("codec_name") or "")[:32],
+            has_audio=has_audio,
+        )
 
     rotation = _rotation_from_stream(video)
     width, height = _display_dimensions(coded_width, coded_height, rotation)

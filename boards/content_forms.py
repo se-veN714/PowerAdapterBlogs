@@ -1,7 +1,7 @@
 from django import forms
 from django.conf import settings
 
-from boards.models import CodingProject, MusicScope, SkateClip, SkateClipMedia, SpotifyRecord
+from boards.models import CodingProject, MusicScope, SkateClip, SpotifyRecord
 
 
 class SkateClipForm(forms.ModelForm):

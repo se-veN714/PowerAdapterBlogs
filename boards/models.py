@@ -18,13 +18,18 @@
 
 import functools
 from pathlib import Path
+from typing import TYPE_CHECKING
 import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
+from django.utils import timezone
+
+if TYPE_CHECKING:
+    pass
 
 from PowerAdapterBlogs.image_validation import validate_uploaded_image
 
@@ -665,6 +670,112 @@ def derive_skate_orientation(width, height):
     return SkateClipOrientation.SQUARE
 
 
+class SkateClipMediaManager(models.Manager):
+    """SkateClipMedia 状态机原子操作（Worker 并发安全）。"""
+
+    def claim(self, media) -> bool:
+        """原子领取：uploaded → processing，生成新 token + 递增 generation。
+
+        在调用者持有的行锁内执行；成功后传入的 media 对象属性已同步。
+        """
+        media.state = SkateClipMediaState.PROCESSING
+        media.claimed_at = timezone.now()
+        media.claim_generation += 1
+        media.claim_token = uuid.uuid4()
+        media.error_code = ""
+        media.error_detail = ""
+        rows = SkateClipMedia.objects.filter(
+            pk=media.pk,
+            state=SkateClipMediaState.UPLOADED,
+        ).update(
+            state=SkateClipMediaState.PROCESSING,
+            claimed_at=media.claimed_at,
+            claim_generation=media.claim_generation,
+            claim_token=media.claim_token,
+            error_code="",
+            error_detail="",
+        )
+        return rows == 1
+
+    def claim_by_pk(self, media_id: int):
+        """原子领取指定 pk 的 uploaded 媒体（--media-id 安全路径）。"""
+        with transaction.atomic():
+            media = (
+                SkateClipMedia.objects.select_for_update(skip_locked=True)
+                .filter(pk=media_id, state=SkateClipMediaState.UPLOADED)
+                .first()
+            )
+            if media is None:
+                return None
+            if self.claim(media):
+                return media
+            return None
+
+    def finish(
+        self,
+        media,
+        *,
+        generation: int,
+        token,
+        main_key: str = "",
+        preview_key: str = "",
+        poster_key: str = "",
+    ) -> bool:
+        """原子完成：processing → ready。条件更新必须匹配 pk+processing+generation+token。
+
+        成功后才在数据库中切换三个 FileField 到正式 key。返回是否真正写回。
+        """
+        rows = SkateClipMedia.objects.filter(
+            pk=media.pk,
+            state=SkateClipMediaState.PROCESSING,
+            claim_generation=generation,
+            claim_token=token,
+        ).update(
+            state=SkateClipMediaState.READY,
+            claimed_at=None,
+            error_code="",
+            error_detail="",
+            processed_at=timezone.now(),
+            main_file=main_key,
+            preview_file=preview_key,
+            poster_file=poster_key,
+        )
+        return rows == 1
+
+    def fail(
+        self,
+        media,
+        *,
+        generation: int,
+        token,
+        error_code: str,
+        error_detail: str,
+    ) -> bool:
+        """原子失败：processing → failed。条件同 finish。"""
+        rows = SkateClipMedia.objects.filter(
+            pk=media.pk,
+            state=SkateClipMediaState.PROCESSING,
+            claim_generation=generation,
+            claim_token=token,
+        ).update(
+            state=SkateClipMediaState.FAILED,
+            claimed_at=None,
+            error_code=error_code,
+            error_detail=error_detail[:200],
+        )
+        return rows == 1
+
+    def invalidate_claim(self, media) -> None:
+        """使旧 Worker claim 失效（上传替换时调用）。
+
+        递增 generation 使正在运行的 Worker 写回时条件不匹配，
+        其输出将被丢弃且不会修改状态。不需要行锁—— generation 递增是
+        单调操作，与上传事务的 get_or_create 在同一原子块内。
+        """
+        media.claim_generation += 1
+        media.claim_token = uuid.uuid4()
+
+
 class SkateClipMedia(models.Model):
     """SkateClip 的媒体资产（一对一），承载上传-处理-发布生命周期。
 
@@ -732,6 +843,23 @@ class SkateClipMedia(models.Model):
         db_index=True,
         verbose_name="处理状态",
     )
+    claimed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="领取时间",
+        help_text="Worker 原子领取时刻；超时未完成视为卡死可复位",
+    )
+    claim_generation = models.PositiveIntegerField(
+        default=0,
+        verbose_name="领取代次",
+        help_text="每次领取或上传替换递增；Worker 写回时必须匹配此值",
+    )
+    claim_token = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name="领取令牌",
+        help_text="每次领取生成新令牌；写回时必须匹配，防止 stale Worker 覆盖",
+    )
     duration_ms = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -787,6 +915,8 @@ class SkateClipMedia(models.Model):
     class Meta:
         verbose_name = "片段媒体资产"
         verbose_name_plural = "片段媒体资产"
+
+    objects = SkateClipMediaManager()
 
     def __str__(self):
         return f"clip#{self.clip_id} media ({self.get_state_display()})"

@@ -75,6 +75,11 @@ def _payload(**overrides) -> dict:
     return payload
 
 
+# ---------------------------------------------------------------------------
+# 纯逻辑测试（不依赖 FFmpeg/FFprobe）
+# ---------------------------------------------------------------------------
+
+
 class ParseProbePayloadTests(SimpleTestCase):
     def test_valid_portrait(self):
         result = parse_probe_payload(_payload())
@@ -144,6 +149,34 @@ class ParseProbePayloadTests(SimpleTestCase):
         result = parse_probe_payload(payload)
         self.assertTrue(result.has_audio)
 
+    def test_nan_duration_rejected(self):
+        payload = _payload(format={"duration": "nan"})
+        result = parse_probe_payload(payload)
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error_code, ClipProbeError.DURATION_MISSING)
+
+    def test_inf_duration_rejected(self):
+        payload = _payload(format={"duration": "inf"})
+        result = parse_probe_payload(payload)
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error_code, ClipProbeError.DURATION_MISSING)
+
+    def test_zero_dimensions_rejected(self):
+        payload = _payload(
+            streams=[{
+                "codec_type": "video",
+                "codec_name": "h264",
+                "width": 0,
+                "height": 0,
+                "r_frame_rate": "30/1",
+                "duration": "8.5",
+            }],
+            format={"format_name": "mov,mp4", "duration": "8.5"},
+        )
+        result = parse_probe_payload(payload)
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error_code, ClipProbeError.NO_VIDEO_STREAM)
+
 
 class BuildSourceKeyTests(SimpleTestCase):
     def test_key_is_server_uuid(self):
@@ -160,6 +193,101 @@ class UploadFormTests(SimpleTestCase):
             )
             self.assertFalse(form.is_valid())
             self.assertIn("大小上限", form.errors["source"][0])
+
+
+class ProbeTimeoutTests(SimpleTestCase):
+    def test_probe_timeout_returns_bounded_error(self):
+        from unittest import mock
+        import subprocess as sp
+
+        with override_settings(SKATE_CLIP_FFPROBE_TIMEOUT=0.0001):
+            with mock.patch("boards.skate_media.run_ffprobe") as runner:
+                runner.side_effect = sp.TimeoutExpired(cmd="ffprobe", timeout=0.0001)
+                result = probe_video_file("/nonexistent/path.mp4")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error_code, ClipProbeError.PROBE_TIMEOUT)
+
+
+# ---------------------------------------------------------------------------
+# 不依赖 FFmpeg 的权限/HTTP 测试
+# ---------------------------------------------------------------------------
+
+
+class UploadPermissionTests(TestCase):
+    """匿名 302、普通用户 403、Manager 200、未知 Clip 404。"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        settings_ctx = override_settings(SKATE_CLIP_SOURCE_ROOT=Path(self.tmp.name))
+        settings_ctx.enable()
+        self.addCleanup(settings_ctx.disable)
+        self.addCleanup(self.tmp.cleanup)
+
+        self.board = Board.objects.create(slug="skateboard", name="Skateboard")
+        homie = SkateHomie.objects.create(
+            board=self.board, node_index=1, name="Tester", joined_at="2026-08-01"
+        )
+        self.clip = SkateClip.objects.create(homie=homie, order=0, title="Ollie")
+
+        self.manager = get_user_model().objects.create_user(
+            username="skmanager",
+            email="sk@example.com",
+            password="pw-123456",
+            is_active=True,
+        )
+        from boards.models import BoardMembership
+
+        BoardMembership.objects.create(
+            board=self.board,
+            user=self.manager,
+            role=BoardMembership.Role.MANAGER,
+            is_active=True,
+        )
+        self.url = f"/boards/manage/skateboard/clips/{self.clip.pk}/media/upload/"
+
+    def test_anonymous_redirects_to_login(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("login", response.url)
+
+    def test_plain_user_forbidden(self):
+        user = get_user_model().objects.create_user(
+            username="plain2",
+            email="p2@example.com",
+            password="pw-123456",
+            is_active=True,
+        )
+        self.client.force_login(user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_manager_can_open_upload_page(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "UPLOAD MEDIA")
+
+    def test_unknown_clip_404(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            f"/boards/manage/skateboard/clips/{self.clip.pk + 999}/media/upload/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_size_limit_rejected_before_probe(self):
+        self.client.force_login(self.manager)
+        with override_settings(SKATE_CLIP_MAX_UPLOAD_BYTES=1024):
+            response = self.client.post(
+                self.url,
+                {"source": SimpleUploadedFile("ok.mp4", b"x" * 2048)},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(SkateClipMedia.objects.filter(clip=self.clip).exists())
+
+
+# ---------------------------------------------------------------------------
+# 依赖 FFmpeg 的集成测试
+# ---------------------------------------------------------------------------
 
 
 @skipUnless(HAVE_FFMPEG_TOOLS, "FFmpeg/FFprobe not available on PATH or SKATE_* env")
@@ -236,35 +364,6 @@ class SkateClipUploadIntegrationTests(TestCase):
             {"source": SimpleUploadedFile(path.name, content)},
         )
 
-    def test_anonymous_redirects_to_login(self):
-        response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("login", response.url)
-
-    def test_plain_user_forbidden(self):
-        user = get_user_model().objects.create_user(
-            username="plain2",
-            email="p2@example.com",
-            password="pw-123456",
-            is_active=True,
-        )
-        self.client.force_login(user)
-        response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 403)
-
-    def test_manager_can_open_upload_page(self):
-        self.client.force_login(self.manager)
-        response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "UPLOAD MEDIA")
-
-    def test_unknown_clip_404(self):
-        self.client.force_login(self.manager)
-        response = self.client.get(
-            f"/boards/manage/skateboard/clips/{self.clip.pk + 999}/media/upload/"
-        )
-        self.assertEqual(response.status_code, 404)
-
     def test_valid_upload_creates_uploaded_media(self):
         self.client.force_login(self.manager)
 
@@ -304,13 +403,6 @@ class SkateClipUploadIntegrationTests(TestCase):
         self.assertFalse(SkateClipMedia.objects.filter(clip=self.clip).exists())
         self.assertEqual(list(Path(self.tmp.name).iterdir()), [])
 
-    def test_size_limit_rejected_before_probe(self):
-        self.client.force_login(self.manager)
-        with override_settings(SKATE_CLIP_MAX_UPLOAD_BYTES=1024):
-            response = self.post_file(self.ok_path)
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(SkateClipMedia.objects.filter(clip=self.clip).exists())
-
     def test_replacement_reuses_row_and_cleans_old_file(self):
         self.client.force_login(self.manager)
         self.post_file(self.ok_path)
@@ -340,15 +432,3 @@ class SkateClipUploadIntegrationTests(TestCase):
         root = Path(settings.SKATE_CLIP_SOURCE_ROOT)
         self.assertFalse((root / old_name).exists())
         self.assertTrue((root / media.source_file.name).exists())
-
-    def test_probe_timeout_returns_bounded_error(self):
-        from unittest import mock
-
-        with override_settings(SKATE_CLIP_FFPROBE_TIMEOUT=0.0001):
-            with mock.patch("boards.skate_media.run_ffprobe") as runner:
-                import subprocess as sp
-
-                runner.side_effect = sp.TimeoutExpired(cmd="ffprobe", timeout=0.0001)
-                result = probe_video_file(self.ok_path)
-        self.assertFalse(result.ok)
-        self.assertEqual(result.error_code, ClipProbeError.PROBE_TIMEOUT)

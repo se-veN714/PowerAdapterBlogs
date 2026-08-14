@@ -359,9 +359,9 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
 
 > 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。
 
-### 7.2 SK8 Clip 视频流水线（进行中：S0/S1 已落地）
+### 7.2 SK8 Clip 视频流水线（进行中：S0/S1/S2 已落地，Review 修复已合入）
 
-> **状态**：S0（Schema/Storage）与 S1（Upload/Validation）完成，S2（Processing）待实施。规范见本地 git-ignored `docs/guides/SKATEBOARD_GUIDE.md`；任务基线 `devenir @ d5c7104`，分支 `codex/sk8-video-pipeline`。
+> **状态**：S0（Schema/Storage）、S1（Upload/Validation）与 S2（Processing Worker + Claim 所有权 + 异常分类）完成并通过 Review 修复，S3（Presentation）待实施。规范见本地 git-ignored `docs/guides/SKATEBOARD_GUIDE.md`；任务基线 `devenir @ d5c7104`，分支 `codex/sk8-video-pipeline`。
 
 - **模型**：`SkateClipMedia`（OneToOne → `SkateClip`，`related_name="media"`）承载上传-处理-发布生命周期；PostgreSQL 只存元数据/Storage key/状态/错误，视频二进制永不进库。字段含探测结果（`duration_ms`/`width`/`height`/`orientation`/`frame_rate`）、审计（`source_size`/`source_sha256`/`uploaded_by`）与状态机（`state`/`error_code`/`error_detail`/`pipeline_version`/`processed_at`）。`media_key`（服务端 UUID）决定派生目录名，与数据库 pk 解耦。
 - **状态机**：`uploaded → processing → ready / failed`；`failed` 经 Manager 明确重试回 `uploaded`；替换原片或升级 `pipeline_version` 回 `uploaded`。`ready` 只在 `main.webm`/`preview.webm`/`poster.webp` 全部落盘并校验后写入。
@@ -378,4 +378,22 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
   - 样片实验（`.local/sk8-lab/`，git-ignored）：VP9 主片 `good/cpu-used=4/crf=32/row-mt=1`（8.5s 1080 竖屏 13.9s 编码 7.5MB）；预览 3s/480 高/15fps/realtime cu=8 crf=40（0.5s/37KB）；封面单帧 WebP q=80；**旋转源解码自动转轴**（autorotate 默认开），滤镜链无需手动 transpose。
   - `SKATE_CLIP_FFPROBE_PATH`（env `SKATE_FFPROBE` > `shutil.which` > 裸名）与 `SKATE_CLIP_FFPROBE_TIMEOUT=15.0` 集中在 settings。
   - 测试 `boards/tests/test_skate_upload.py`（19 项：纯解析逻辑 + FFmpeg 可用时集成链路，含未授权/伪扩展/超时长/超大小/替换清理/无残留断言）；boards 回归 199 项 OK。
-- **后续阶段**：S2 FFmpeg Worker → S3 Index 焦点预览 → S4 Nginx/运维。每阶段独立提交与验收。
+- **S2 处理 Worker**（`boards/skate_worker.py` + `management/commands/process_skate_clips.py` + 迁移 `0014` 增 `claimed_at`）：
+  - 原子领取：`select_for_update(skip_locked=True)` 只领 `uploaded` → 置 `processing` + `claimed_at`；多进程并发安全；`ready/failed/processing` 不重复处理（幂等）。
+  - 派生流程：先清 `tmp/<media_key>/` 并重建目录（FFmpeg 不自建目录）→ `main.webm`（VP9 good/cu=4/crf=32/row-mt、两轴 ≤1920 等比、源有音轨转 Opus 96k、无源不强造）→ `preview.webm`（中段 3s、红黑滤镜 `colorchannelmixer` G/B 归零 + `eq` 提对比、480 高、15fps、realtime cu=8、`-an`；短源取整片）→ `poster.webp`（1 帧、红黑、720 宽、q=80；源短于取帧点取首帧）。
+  - 发布即校验：main/preview 逐一 ffprobe（可解码 + 尺寸有效 + main 时长漂移 ≤max(1s, 10%)）、poster 非空；**全部通过才 `os.replace` 同盘原子切正式 key**，失败即 `failed` + 有界错误码（`source_missing`/`encode_*_failed`/`derived_invalid`/`promote_failed`）并清 tmp。
+  - FFmpeg 全程不持 DB 事务；卡死复位：`reset_stuck_media()` 把 `processing` 且 `claimed_at` 超过 `SKATE_CLIP_STUCK_PROCESSING_SECONDS`(1800s) 的行复位 `uploaded`。
+  - 命令：`python manage.py process_skate_clips [--limit N] [--reset-stuck] [--media-id ID] [--dry-run]`；计划任务分钟级轮询即可。
+  - 配置：`SKATE_CLIP_FFMPEG_PATH`（env `SKATE_FFMPEG` > which > 裸名）、`SKATE_CLIP_FFMPEG_TIMEOUT=300`、`SKATE_CLIP_ENCODE_MAIN/PREVIEW/POSTER`、`SKATE_CLIP_STUCK_PROCESSING_SECONDS`。
+  - 测试 `boards/tests/test_skate_worker.py`（23 项：领取/复位/配方纯逻辑 + FFmpeg 集成全链路 + dry-run/队列命令 + 缺源失败有界）；boards 回归 212 项 OK，迁移无漂移。
+- **S2 Review 修复**（§10 阻断项 1-10 全部解决）：
+  - **Claim 所有权**（§10.1/10.2/10.3/10.4）：模型增 `claim_token`（UUID）+ `claim_generation`（递增计数器）；`SkateClipMediaManager` 提供 `claim`/`claim_by_pk`/`finish`/`fail`/`invalidate_claim` 原子操作。Worker 写回状态时条件 UPDATE 匹配 `(pk, processing, generation, token)`——上传替换递增 generation 使旧 Worker 的 `finish`/`fail` 条件不匹配，输出被丢弃且不改状态。临时目录含 generation（`tmp/<media_key>/<generation>/`）避免新旧 Worker 互相清理。发布改为三产物全部校验通过后单次条件 UPDATE 切换三个 FileField（而非依次 `os.replace`），旧 ready 资源在新 Worker 确认 stale 后才清理。
+  - **异常分类**（§10.5）：`process_media` 捕获 `subprocess.TimeoutExpired`（`ffmpeg_timeout`）、`OSError`（`ffmpeg_not_found`）、意外异常（`worker_unexpected`），不再依赖 30 分钟卡死复位。
+  - **`--media-id` 原子领取**（§10.6）：改为 `claim_media_by_pk`（`select_for_update` + `skip_locked` + 条件 UPDATE），找不到/状态不符抛 `CommandError`（非零退出码）。
+  - **输入元数据健壮性**（§10.7）：`parse_probe_payload` 用 `math.isfinite()` 拒绝 `nan`/`inf` 时长；宽高 ≤0 或缺失拒绝（`no_video_stream`），不返回 `ok=True`。
+  - **派生校验**（§10.8）：main 校验 codec（vp9/vp09）+ 时长漂移 + 尺寸有效；preview 校验无音轨 + 时长有界 + 尺寸有效；poster 用独立 `_validate_image`（ffprobe 直接读 WebP stream，不要求 duration——`probe_video_file` 对图片会因 `duration_missing` 拒绝）+ 非空 + 尺寸有效。
+  - **测试跳过边界**（§10.9）：权限/HTTP/parser/form 测试移出 FFmpeg `skipUnless`——`ParseProbePayloadTests`（含 nan/inf/零尺寸）、`UploadPermissionTests`（302/403/200/404/大小限制）、`ProbeTimeoutTests`、`ManagementCommandNoFfmpegTests`（dry-run/missing/wrong-state CommandError）不依赖 FFmpeg 即执行。集成测试仅跳过真实编码/探测。定向测试 68 项：执行 55、跳过 13（无 FFmpeg 环境时）/执行 68、跳过 0（有 FFmpeg 环境）。
+  - **查询/交付卫生**（§10.10）：`SkateClipMixin.get_queryset()` 增 `select_related("media")`；移除 `content_forms.py` 未使用 `SkateClipMedia` import 和 `skate_worker.py` 未使用 `Path` import。
+  - 迁移 `0014`（`claimed_at`）+ `0015`（`claim_generation` + `claim_token`）。boards 回归 225 项 OK（1 skip 既有），Ruff 全过，`makemigrations --check` 无漂移。
+  - **未验证项**：PostgreSQL `select_for_update(skip_locked=True)` 行锁语义未在生产 PG 上测试（SQLite 测试不证明）；真实多 Worker 并发未测试。
+- **后续阶段**：S3 Index 焦点预览 → S4 Nginx/运维。每阶段独立提交与验收。

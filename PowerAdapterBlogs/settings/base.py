@@ -204,6 +204,36 @@ SKATE_CLIP_FFPROBE_PATH = (
 # FFprobe 探测超时（秒）：合法样片 <0.2s，留足余量防御异常输入。
 SKATE_CLIP_FFPROBE_TIMEOUT = 15.0
 
+# FFmpeg 可执行文件路径（转码 Worker，S2）。
+SKATE_CLIP_FFMPEG_PATH = (
+    os.environ.get("SKATE_FFMPEG", "").strip() or shutil.which("ffmpeg") or "ffmpeg"
+)
+
+# FFmpeg 转码超时（秒）：20s 1080p 片实测 ~14-40s，按最坏档位留余量。
+SKATE_CLIP_FFMPEG_TIMEOUT = 300.0
+
+# 派生配方（.local/sk8-lab/exp2 实测，VP9 good/cpu-used=4 为速度甜点）。
+SKATE_CLIP_ENCODE_MAIN = {
+    "cpu_used": 4,
+    "crf": 32,
+    "audio_bitrate": "96k",
+    "max_dimension": 1920,  # 两轴上限，超限等比缩小
+}
+SKATE_CLIP_ENCODE_PREVIEW = {
+    "seconds": 3.0,   # 焦点预览时长（指南 2-4s 取中）
+    "height": 480,
+    "fps": 15,
+    "crf": 40,
+}
+SKATE_CLIP_ENCODE_POSTER = {
+    "width": 720,
+    "quality": 80,
+    "at_seconds": 1.0,  # 取帧位置；短于该时长的源取首帧
+}
+
+# processing 状态超过该秒数视为卡死（Worker 崩溃/断电），可被复位重试。
+SKATE_CLIP_STUCK_PROCESSING_SECONDS = 1800
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 

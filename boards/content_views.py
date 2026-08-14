@@ -181,7 +181,7 @@ class SkateClipMixin(BoardContentManagerMixin):
     def get_queryset(self):
         return (
             SkateClip.objects.filter(homie__board=self.board)
-            .select_related("homie")
+            .select_related("homie", "media")
         )
 
     def get_success_url(self):
@@ -329,6 +329,10 @@ class SkateClipMediaUploadView(SkateClipMixin, FormView):
                 defaults={"uploaded_by": self.request.user},
             )
             old_source = media.source_file.name if media.source_file else ""
+            # 替换原片时使旧 Worker claim 失效（递增 generation），
+            # 防止正在运行的旧 Worker 把 ready/failed 写回覆盖新上传。
+            if not _created and media.state == SkateClipMediaState.PROCESSING:
+                SkateClipMedia.objects.invalidate_claim(media)
             media.uploaded_by = self.request.user
             media.source_file = saved_name
             media.source_size = source_size

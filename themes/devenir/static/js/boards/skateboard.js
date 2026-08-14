@@ -250,6 +250,55 @@ document.addEventListener('DOMContentLoaded', function () {
 
     bindVideoObserver();
 
+    /* ---------- 5. 焦点预览：hover/focus 按需加载红黑 preview.webm ---------- */
+
+    var previewReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    // 触摸设备（无 hover 能力）不加载预览——poster 已足够。
+    var canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+    function bindPreviewHover() {
+        if (previewReduceMotion.matches || !canHover) return;
+        document.querySelectorAll('.sk-clip-media[data-skate-preview]').forEach(function (media) {
+            if (media.dataset.skatePreviewBound) return;
+            media.dataset.skatePreviewBound = '1';
+            var video = media.querySelector('video');
+            if (!video) return;
+            var previewUrl = media.dataset.skatePreview;
+            var originalSrc = video.querySelector('source') ? video.querySelector('source').src : '';
+            var loaded = false;
+
+            function loadPreview() {
+                if (!loaded && previewUrl) {
+                    var source = video.querySelector('source');
+                    if (source) {
+                        source.src = previewUrl;
+                        video.load();
+                        loaded = true;
+                    }
+                }
+                video.play().catch(function () {});
+            }
+
+            function restoreMain() {
+                if (loaded && originalSrc) {
+                    var source = video.querySelector('source');
+                    if (source) {
+                        source.src = originalSrc;
+                        video.load();
+                        loaded = false;
+                    }
+                }
+            }
+
+            media.addEventListener('mouseenter', loadPreview);
+            media.addEventListener('mouseleave', restoreMain);
+            media.addEventListener('focusin', loadPreview);
+            media.addEventListener('focusout', restoreMain);
+        });
+    }
+
+    bindPreviewHover();
+
     // htmx 交换 Selected Line 后，旧视频随 DOM 移除，新视频重新绑定
     document.body.addEventListener('htmx:afterSwap', function (event) {
         if (event.detail.target && event.detail.target.id === 'selected-line') {
@@ -260,6 +309,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             observed = observed.filter(function (video) { return document.contains(video); });
             bindVideoObserver();
+            bindPreviewHover();
         }
     });
 });

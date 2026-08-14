@@ -19,6 +19,7 @@ from boards.models import (
     CodingPrinciple,
     CodingProject,
     SkateClip,
+    SkateClipMediaState,
     SkateHomie,
     SpotifyRecord,
 )
@@ -53,11 +54,16 @@ def _homie_line_url(board_slug, node_index):
 
 
 def prepare_skate_clips(clips):
-    """Decorate clips and group each display cycle as 2 portrait + 3 landscape."""
+    """Decorate clips and group each display cycle as 2 portrait + 3 landscape.
+
+    为每条 clip 附加 ready media 派生 URL（main_url/preview_url/poster_url）；
+    media 非 ready 时这些属性为空串，模板回退到旧 video_url/thumbnail_url。
+    """
     prepared = list(clips)
     for index, clip in enumerate(prepared, start=1):
         clip.duration_display = _format_duration(clip.duration)
         clip.display_index = f"{index:02d}"
+        _attach_media_urls(clip)
 
     return [
         {
@@ -66,6 +72,28 @@ def prepare_skate_clips(clips):
         }
         for start in range(0, len(prepared), 5)
     ]
+
+
+def _attach_media_urls(clip):
+    """把 ready SkateClipMedia 的派生资源 URL 附加到 clip 对象上。
+
+    模板优先使用这些属性；为空时回退到旧 video_url/thumbnail_url。
+    """
+    clip.main_url = ""
+    clip.preview_url = ""
+    clip.poster_url = ""
+    try:
+        media = clip.media
+    except AttributeError:
+        return
+    if media is None or media.state != SkateClipMediaState.READY:
+        return
+    if media.main_file:
+        clip.main_url = media.main_file.url
+    if media.preview_file:
+        clip.preview_url = media.preview_file.url
+    if media.poster_file:
+        clip.poster_url = media.poster_file.url
 
 
 def assemble_skateboard(board):
@@ -86,7 +114,7 @@ def assemble_skateboard(board):
     if selected is not None:
         clip_list = list(
             SkateClip.objects.filter(homie=selected, is_public=True)
-            .select_related("homie")
+            .select_related("homie", "media")
             .order_by("order", "pk")
         )
     clip_groups = prepare_skate_clips(clip_list)

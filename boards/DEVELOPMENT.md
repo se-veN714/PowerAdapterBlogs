@@ -359,9 +359,9 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
 
 > 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。
 
-### 7.2 SK8 Clip 视频流水线（进行中：S0/S1/S2 已落地，Review 修复已合入）
+### 7.2 SK8 Clip 视频流水线（进行中：S0/S1/S2/S3 已落地）
 
-> **状态**：S0（Schema/Storage）、S1（Upload/Validation）与 S2（Processing Worker + Claim 所有权 + 异常分类）完成并通过 Review 修复，S3（Presentation）待实施。规范见本地 git-ignored `docs/guides/SKATEBOARD_GUIDE.md`；任务基线 `devenir @ d5c7104`，分支 `codex/sk8-video-pipeline`。
+> **状态**：S0（Schema/Storage）、S1（Upload/Validation）、S2（Processing Worker + Claim 所有权）与 S3（Presentation）完成，S4（Operations/Nginx）待实施。规范见本地 git-ignored `docs/guides/SKATEBOARD_GUIDE.md`；任务基线 `devenir @ d5c7104`，分支 `codex/sk8-video-pipeline`。
 
 - **模型**：`SkateClipMedia`（OneToOne → `SkateClip`，`related_name="media"`）承载上传-处理-发布生命周期；PostgreSQL 只存元数据/Storage key/状态/错误，视频二进制永不进库。字段含探测结果（`duration_ms`/`width`/`height`/`orientation`/`frame_rate`）、审计（`source_size`/`source_sha256`/`uploaded_by`）与状态机（`state`/`error_code`/`error_detail`/`pipeline_version`/`processed_at`）。`media_key`（服务端 UUID）决定派生目录名，与数据库 pk 解耦。
 - **状态机**：`uploaded → processing → ready / failed`；`failed` 经 Manager 明确重试回 `uploaded`；替换原片或升级 `pipeline_version` 回 `uploaded`。`ready` 只在 `main.webm`/`preview.webm`/`poster.webp` 全部落盘并校验后写入。
@@ -396,4 +396,10 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
   - **查询/交付卫生**（§10.10）：`SkateClipMixin.get_queryset()` 增 `select_related("media")`；移除 `content_forms.py` 未使用 `SkateClipMedia` import 和 `skate_worker.py` 未使用 `Path` import。
   - 迁移 `0014`（`claimed_at`）+ `0015`（`claim_generation` + `claim_token`）。boards 回归 225 项 OK（1 skip 既有），Ruff 全过，`makemigrations --check` 无漂移。
   - **未验证项**：PostgreSQL `select_for_update(skip_locked=True)` 行锁语义未在生产 PG 上测试（SQLite 测试不证明）；真实多 Worker 并发未测试。
-- **后续阶段**：S3 Index 焦点预览 → S4 Nginx/运维。每阶段独立提交与验收。
+- **后续阶段**：S4 Nginx/运维。每阶段独立提交与验收。
+- **S3 Presentation**（`board_index.py` + `views.py` + 模板 + JS）：
+  - `_attach_media_urls(clip)`：`prepare_skate_clips` 为每条 clip 附加 `main_url`/`preview_url`/`poster_url`（从 `media.state=ready` 的 `FileField.url` 派生）；非 ready 时为空串，模板回退到旧 `video_url`/`thumbnail_url`。
+  - `assemble_skateboard` / `HomieLineView` / `SkateClipListView` 的 clip 查询均加 `select_related("media")`，避免每行一次查询。
+  - 模板 `_clip_media.html`：`{% with effective_video=main_url|default:video_url effective_poster=media_poster_url|default:poster_url %}` 优先消费派生资源；`data-skate-preview="{{ preview_url }}"` 属性供 JS 按需加载红黑预览。`_clip_row.html`/`_clip_pair.html`/`_selected_line.html` 的 `with` 参数透传 `main_url`/`preview_url`/`media_poster_url`；WATCH CLIP 按钮按 `main_url or video_url` 启用。`clip_list.html` 优先用 `poster_url`（`<img>`）+ `main_url`（`<video controls>`）。
+  - JS `skateboard.js` section 5：`bindPreviewHover()` 在 `hover: hover and (pointer: fine)` 且非 `prefers-reduced-motion: reduce` 时，为 `[data-skate-preview]` 的 `.sk-clip-media` 绑定 `mouseenter`/`focusin` → 切换 `<source>` 到 preview.webm 并播放，`mouseleave`/`focusout` → 恢复 main.webm。触摸设备与 reduced-motion 不加载预览（poster 已足够）。htmx `afterSwap` 后重新绑定。
+  - 测试 `boards/tests/test_skate_presentation.py`（7 项：URL 附加逻辑 + 非 ready/无 media/failed 回退 + Index/ClipList 页面渲染断言）；boards 回归 232 项 OK（11 skip 为无 FFmpeg 集成测试）。

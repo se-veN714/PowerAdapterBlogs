@@ -23,7 +23,14 @@
             {% for clip in clips %}
             <article class="sk-archive-card reveal">
                 <div class="sk-archive-media">
-                    {% if clip.thumbnail_url %}
+                    {% if clip.poster_url %}
+                    <img src="{{ clip.poster_url }}" alt="{{ clip.title }} 封面" loading="lazy">
+                    {% elif clip.main_url %}
+                    <video muted playsinline preload="metadata" controls aria-label="{{ clip.title }}"
+                           {% if clip.thumbnail_url %}poster="{{ clip.thumbnail_url }}"{% endif %}>
+                        <source src="{{ clip.main_url }}">
+                    </video>
+                    {% elif clip.thumbnail_url %}
                     <img src="{{ clip.thumbnail_url }}" alt="{{ clip.title }} 封面" loading="lazy">
                     {% elif clip.video_url %}
                     <video muted playsinline preload="metadata" controls aria-label="{{ clip.title }}">

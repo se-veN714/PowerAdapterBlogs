@@ -326,9 +326,9 @@ class HomieLineView(TemplateView):
         )
         self.selected_homie = homie
         self.clip_list = list(
-            SkateClip.objects.filter(homie=homie, is_public=True).order_by(
-                "order", "pk"
-            )
+            SkateClip.objects.filter(homie=homie, is_public=True)
+            .select_related("homie", "media")
+            .order_by("order", "pk")
         )
         self.clip_groups = prepare_skate_clips(self.clip_list)
         return super().get(request, *args, **kwargs)
@@ -352,7 +352,7 @@ class SkateClipListView(ListView):
         self.board = get_object_or_404(Board, slug="skateboard", is_active=True)
         return (
             SkateClip.objects.filter(homie__board=self.board, is_public=True)
-            .select_related("homie")
+            .select_related("homie", "media")
             .order_by(F("filmed_at").desc(nulls_last=True), "-created_at", "-pk")
         )
 

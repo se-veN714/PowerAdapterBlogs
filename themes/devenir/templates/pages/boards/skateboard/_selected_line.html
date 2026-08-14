@@ -31,12 +31,12 @@ Skateboard Board — Selected Line 片段（htmx 交换目标内容）。
         {% include 'pages/boards/skateboard/_clip_pair.html' with left=group.vertical.0 right=group.vertical.1 %}
         {% else %}
         {% for clip in group.vertical %}
-        {% include 'pages/boards/skateboard/_clip_row.html' with index=clip.display_index name=clip.title|upper category=clip.category|upper spot=clip.spot filmed=clip.filmed_at|date:"m.d.y" duration=clip.duration_display|default:"" status=clip.status notes=clip.notes vertical=True video_url=clip.video_url poster_url=clip.thumbnail_url hud=clip.hud_type|default:"" hud_label=clip.hud_label timecode=clip.timecode bars=clip.hud_type %}
+        {% include 'pages/boards/skateboard/_clip_row.html' with index=clip.display_index name=clip.title|upper category=clip.category|upper spot=clip.spot filmed=clip.filmed_at|date:"m.d.y" duration=clip.duration_display|default:"" status=clip.status notes=clip.notes vertical=True video_url=clip.video_url poster_url=clip.thumbnail_url main_url=clip.main_url preview_url=clip.preview_url media_poster_url=clip.poster_url hud=clip.hud_type|default:"" hud_label=clip.hud_label timecode=clip.timecode bars=clip.hud_type %}
         {% endfor %}
         {% endif %}
     {% endif %}
     {% for clip in group.horizontal %}
-    {% include 'pages/boards/skateboard/_clip_row.html' with index=clip.display_index name=clip.title|upper category=clip.category|upper spot=clip.spot filmed=clip.filmed_at|date:"m.d.y" duration=clip.duration_display|default:"" status=clip.status notes=clip.notes flip=forloop.counter|divisibleby:2 video_url=clip.video_url poster_url=clip.thumbnail_url hud=clip.hud_type|default:"" hud_label=clip.hud_label timecode=clip.timecode bars=clip.hud_type %}
+    {% include 'pages/boards/skateboard/_clip_row.html' with index=clip.display_index name=clip.title|upper category=clip.category|upper spot=clip.spot filmed=clip.filmed_at|date:"m.d.y" duration=clip.duration_display|default:"" status=clip.status notes=clip.notes flip=forloop.counter|divisibleby:2 video_url=clip.video_url poster_url=clip.thumbnail_url main_url=clip.main_url preview_url=clip.preview_url media_poster_url=clip.poster_url hud=clip.hud_type|default:"" hud_label=clip.hud_label timecode=clip.timecode bars=clip.hud_type %}
     {% endfor %}
     {% empty %}
     <div class="sk-empty">

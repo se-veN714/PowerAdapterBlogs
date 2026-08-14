@@ -16,13 +16,16 @@ with 参数：
     hud_label  可空：HUD 指标文案，如 "HEIGHT 0.58M"
     timecode   可空：静态装饰时间码，如 "00:00:02:10"
     bars       真值时显示柱状图装饰
-    video_url  可空：真实视频；为空时渲染占位视觉
-    poster_url 可空：视频封面
+    video_url  可空：旧兼容真实视频 URL
+    poster_url 可空：旧兼容视频封面
+    main_url     可空：S2 派生正式播放 WebM URL（优先于 video_url）
+    preview_url  可空：S2 派生红黑预览 WebM URL
+    media_poster_url 可空：S2 派生封面 WebP URL（优先于 poster_url）
 
 媒体区由 _clip_media.html 渲染；WATCH CLIP 为信息区最后一个元素，紧随元数据。
 {% endcomment %}
 <article class="sk-clip{% if vertical %} sk-clip--vertical{% endif %}{% if flip %} sk-clip--flip{% endif %} reveal">
-    {% include 'pages/boards/skateboard/_clip_media.html' with name=name video_url=video_url poster_url=poster_url hud=hud hud_label=hud_label timecode=timecode bars=bars vertical=vertical %}
+    {% include 'pages/boards/skateboard/_clip_media.html' with name=name video_url=video_url poster_url=poster_url main_url=main_url preview_url=preview_url media_poster_url=media_poster_url hud=hud hud_label=hud_label timecode=timecode bars=bars vertical=vertical %}
 
     <div class="sk-clip-info">
         <p class="sk-clip-index">{{ index }}</p>
@@ -37,7 +40,7 @@ with 参数：
             <div class="sk-clip-notes"><dt>NOTES</dt><dd>{{ notes }}</dd></div>
             {% endif %}
         </dl>
-        <button type="button" class="sk-watch" {% if not video_url %}disabled title="片段素材将在后端集成阶段接入"{% endif %}>
+        <button type="button" class="sk-watch" {% if not main_url and not video_url %}disabled title="片段素材将在后端集成阶段接入"{% endif %}>
             <span class="sk-watch-tri" aria-hidden="true"></span>WATCH CLIP
         </button>
     </div>

@@ -2,21 +2,32 @@
 Skateboard Board — 媒体区共享组件（视频/占位 + HUD 装饰）。
 
 with 参数：
-    name        动作名（aria-label 用）
-    video_url   可空：真实视频；为空时渲染占位视觉
-    poster_url  可空：视频封面
-    hud         可空：arc / speed / measure / ring
-    hud_label   可空：HUD 指标文案
-    timecode    可空：静态装饰时间码
-    bars        真值时显示柱状图装饰
-    vertical    真值时显示 9:16 格式角标
+    name         动作名（aria-label 用）
+    video_url    可空：旧兼容真实视频 URL
+    poster_url   可空：旧兼容视频封面 URL
+    main_url     可空：S2 派生正式播放 WebM URL（优先于 video_url）
+    preview_url  可空：S2 派生红黑预览 WebM URL（hover/focus 按需加载）
+    media_poster_url 可空：S2 派生封面 WebP URL（优先于 poster_url）
+    hud          可空：arc / speed / measure / ring
+    hud_label    可空：HUD 指标文案
+    timecode     可空：静态装饰时间码
+    bars         真值时显示柱状图装饰
+    vertical     真值时显示 9:16 格式角标
+
+S3 Presentation 策略：
+- 有 main_url 时渲染 <video>（poster 优先 media_poster_url > poster_url），
+  data-skate-preview 存 preview_url 供 JS 在 hover/focus 时按需加载。
+- 无 main_url 但有 video_url 时回退到旧兼容 <video>。
+- 都没有时渲染占位视觉。
+- reduced-motion / 触摸设备不加载预览（JS 判定）。
 {% endcomment %}
-<div class="sk-clip-media"{% if hud %} data-hud="{{ hud }}"{% endif %}>
-    {% if video_url %}
+{% with effective_video=main_url|default:video_url effective_poster=media_poster_url|default:poster_url %}
+<div class="sk-clip-media"{% if hud %} data-hud="{{ hud }}"{% endif %}{% if preview_url %} data-skate-preview="{{ preview_url }}"{% endif %}>
+    {% if effective_video %}
     <video muted playsinline preload="metadata" loop
-           {% if poster_url %}poster="{{ poster_url }}"{% endif %}
+           {% if effective_poster %}poster="{{ effective_poster }}"{% endif %}
            aria-label="{{ name }}">
-        <source src="{{ video_url }}">
+        <source src="{{ effective_video }}">
     </video>
     {% else %}
     <div class="sk-clip-placeholder" role="img"
@@ -58,3 +69,4 @@ with 参数：
     <span class="sk-hud-bars" aria-hidden="true"><i style="height:35%"></i><i style="height:62%"></i><i style="height:44%"></i><i style="height:82%"></i><i style="height:56%"></i><i style="height:70%"></i><i style="height:38%"></i></span>
     {% endif %}
 </div>
+{% endwith %}

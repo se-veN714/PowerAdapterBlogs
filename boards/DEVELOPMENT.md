@@ -355,4 +355,6 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
 11. **Skate Spot 结构化位置与 PostGIS（🟢 低）**：当前 `SkateClip.spot` 文本足够用于地点展示，不为此新增 MongoDB 业务集合。只有地图视口、附近 Spot、距离排序等需求真实出现后，才评估独立 `SkateSpot`（名称、城市、可空坐标、`exact/approximate/city_only/hidden` 精度与公开状态）并在现有 PostgreSQL 上启用 PostGIS/GeoDjango；精确坐标默认不公开，国内地图供应商坐标不得未经统一转换混存。
 12. **Dashboard BoardMembership 全生命周期（🟡 验收，M0–M3 代码完成）**：关系型事件、统一状态 Service、申请/自助/日常 Dashboard、事件时间线与全验证 break-glass 已完成；pending 申请继续 fail closed，不开放物理删除、默认 CRUD 或批量写。剩余工作是在 PostgreSQL CI/预发布执行真实行锁竞争测试，并完成人工 Authenticator + Nginx mTLS 演练。
 
+13. **神椿板块（🟢 上线后）**：明确延后到首个正式版本上线后再启动，不进入当前 Release Candidate。开始实现前先冻结内容范围与定位、`Board.slug`/Category 映射、版权与外部素材来源、专属 Index 视觉及内容模型；随后再按现有 Board Policy、Membership、公开文章流、管理工作区与响应式验收流程拆分前后端任务。当前不新增路由、模型、迁移、种子数据或占位页面。
+
 > 注：`V2GUIDE.md` 分支表当前未列出 `codex/board-back`（仅列 `admin-hardening` 与 `board-index-k3`）。若需把后端分支纳入总览，请确认后由我同步更新 V2GUIDE（权重 100，需你确认）。

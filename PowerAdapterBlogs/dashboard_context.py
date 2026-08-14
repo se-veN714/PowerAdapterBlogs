@@ -67,8 +67,9 @@ def dashboard_navigation(request) -> list[dict]:
 
 
 def dashboard_shell_context(request, *, active: str, title: str) -> dict:
+    user = request.user
     device = MfaTotpDevice.objects.filter(
-        user=request.user,
+        user=user,
         status=MfaTotpDevice.Status.ACTIVE,
     ).only("status").first()
     return {
@@ -77,9 +78,20 @@ def dashboard_shell_context(request, *, active: str, title: str) -> dict:
         "dashboard_navigation": [
             item for item in dashboard_navigation(request) if item.get("visible", True)
         ],
+        "dashboard_utility_navigation": [
+            {"label": "Public Home", "url": _url("index")},
+            {"label": "My Profile", "url": _url("accounts:my-profile")},
+            {"label": "MFA Security", "url": _url("accounts:mfa-settings")},
+            {"label": "Legacy Admin", "url": _url("cus_admin:index")},
+            *(
+                [{"label": "Security Ops", "url": _url("operations:security")}]
+                if can_view_security_operations(user)
+                else []
+            ),
+        ],
         "dashboard_identity": {
-            "username": request.user.username,
-            "environment_label": "ROOT" if request.user.is_superuser else "OPERATOR",
+            "username": user.username,
+            "environment_label": "ROOT" if user.is_superuser else "OPERATOR",
             "mfa_state_label": "VERIFIED" if device else "NOT ENROLLED",
             # Authorization was already enforced by the dashboard middleware/view.
             # Do not re-run the mutating session validator while building UI context.

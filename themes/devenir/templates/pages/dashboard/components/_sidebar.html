@@ -1,14 +1,23 @@
+{% load static %}
 <aside class="dashboard-sidebar" id="dashboard-sidebar" aria-label="工作台导航">
-    <div class="dashboard-brand">
-        <span class="dashboard-brand-mark" aria-hidden="true">PA</span>
+    <a class="dashboard-brand" href="{% url 'index' %}" aria-label="返回 PowerAdapter 首页">
+        <span class="dashboard-brand-mark" aria-hidden="true">
+            <img src="{% static 'img/PowerAdapter_icon.webp' %}" alt="" width="40" height="40">
+        </span>
         <span>PowerAdapter_<br>CONTROL PLANE</span>
-    </div>
+    </a>
     <p class="dashboard-nav-label">WORKSPACE</p>
     <nav class="dashboard-nav">
         {% for item in dashboard_navigation %}
         <a href="{{ item.url }}" {% if item.key == dashboard_active %}aria-current="page"{% endif %}>
             <span>{{ forloop.counter|stringformat:"02d" }}</span>{{ item.label }}
         </a>
+        {% endfor %}
+    </nav>
+    <p class="dashboard-nav-label dashboard-nav-label--utility">SITE &amp; ACCOUNT</p>
+    <nav class="dashboard-nav dashboard-nav--utility" aria-label="站点与账号">
+        {% for item in dashboard_utility_navigation %}
+        <a href="{{ item.url }}">{{ item.label }}</a>
         {% endfor %}
     </nav>
     <section class="dashboard-session" aria-label="特权会话状态">

@@ -70,6 +70,19 @@ class DevenirDashboardTest(TestCase):
         self.assertContains(response, "控制台总览")
         self.assertContains(response, "1 已发布")
         self.assertContains(response, "0 个媒体资源")
+        self.assertContains(response, reverse("index"))
+        self.assertContains(response, reverse("accounts:my-profile"))
+        self.assertContains(response, reverse("accounts:mfa-settings"))
+        self.assertContains(response, reverse("cus_admin:index"))
+        self.assertNotContains(response, reverse("operations:security"))
+
+    def test_security_navigation_uses_existing_server_permission(self):
+        permission = Permission.objects.get(codename="view_audit_log")
+        self.user.user_permissions.add(permission)
+
+        response = self.client.get(reverse("dashboard:overview"))
+
+        self.assertContains(response, reverse("operations:security"))
 
     def test_anonymous_dashboard_request_keeps_canonical_next_target(self):
         self.client.logout()

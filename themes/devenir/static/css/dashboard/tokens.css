@@ -15,13 +15,17 @@
     --d-danger: #ff8d8d;
     --d-sidebar: 248px;
     --d-topbar: 72px;
+    --d-type-caption: .75rem;
+    --d-type-small: .8125rem;
+    --d-type-action: .875rem;
+    --d-type-body: .9375rem;
     --d-mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
     --d-sans: "Source Han Sans CN", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
     --d-serif: "Source Han Serif CN", "Noto Serif CJK SC", SimSun, serif;
 }
 * { box-sizing: border-box; }
 html { color-scheme: dark; background: var(--d-bg); }
-body { margin: 0; color: var(--d-text); background: var(--d-bg); font-family: var(--d-sans); }
+body { margin: 0; color: var(--d-text); background: var(--d-bg); font: var(--d-type-body)/1.6 var(--d-sans); }
 a { color: inherit; }
 button, input, select { font: inherit; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

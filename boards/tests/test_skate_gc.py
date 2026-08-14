@@ -109,7 +109,9 @@ class GcOrphanTests(TestCase):
         with _StorageSandbox() as (_src, delivery):
             media = _make_media()
             orphan_key = uuid.uuid4()
-            _put(delivery, f"delivery/{media.media_key}/main.webm")
+            known_name = f"delivery/{media.media_key}/main.webm"
+            _put(delivery, known_name)
+            SkateClipMedia.objects.filter(pk=media.pk).update(main_file=known_name)
             _put(delivery, f"delivery/{orphan_key}/main.webm")
             report = _run_gc_json("--orphans", "--apply")
             self.assertEqual(report["orphans"]["count"], 1)
@@ -123,6 +125,21 @@ class GcOrphanTests(TestCase):
             self.assertIn("poster/.DS_Store", report["orphans"]["unexpected"])
             self.assertEqual(report["orphans"]["count"], 1)
             self.assertFalse(delivery.exists("poster/.DS_Store"))
+
+    def test_source_orphan_and_missing_ready_asset_are_reported(self):
+        with _StorageSandbox() as (source, _delivery):
+            media = _make_media(main_file="delivery/missing/main.webm")
+            source.save("orphan.mp4", ContentFile(b"src"))
+
+            report = _run_gc_json("--orphans")
+
+            self.assertEqual(report["orphans"]["source_orphans"], ["orphan.mp4"])
+            self.assertTrue(
+                any(
+                    item["media_key"] == str(media.media_key) and item["asset"] == "main"
+                    for item in report["orphans"]["missing"]
+                )
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +246,36 @@ class GcRetentionTests(TestCase):
             self.assertEqual(report["retention"]["count"], 0)
             self.assertTrue(source.exists(source_name))
 
+    def test_retention_cas_does_not_delete_replaced_source(self):
+        with _StorageSandbox() as (source, _delivery):
+            media = _make_media()
+            old_name = f"{media.media_key}.mp4"
+            source.save(old_name, ContentFile(b"old"))
+            processed_at = timezone.now() - timezone.timedelta(days=30)
+            SkateClipMedia.objects.filter(pk=media.pk).update(
+                source_file=old_name,
+                source_sha256="a" * 64,
+                processed_at=processed_at,
+            )
+
+            original_filter = SkateClipMedia.objects.filter
+
+            def replace_before_cas(*args, **kwargs):
+                if kwargs.get("source_file") == old_name:
+                    original_filter(pk=media.pk).update(
+                        source_file="replacement.mp4", source_sha256="b" * 64
+                    )
+                return original_filter(*args, **kwargs)
+
+            with override_settings(SKATE_CLIP_SOURCE_RETENTION_DAYS=7):
+                with mock.patch.object(
+                    SkateClipMedia.objects, "filter", side_effect=replace_before_cas
+                ):
+                    report = _run_gc_json("--retention", "--apply")
+
+            self.assertEqual(report["retention"]["count"], 0)
+            self.assertTrue(source.exists(old_name))
+
 
 # ---------------------------------------------------------------------------
 # 磁盘水位
@@ -252,6 +299,20 @@ class GcDiskTests(TestCase):
             report = json.loads(out.getvalue())
         self.assertTrue(report["disk"]["exceeded"])
         self.assertEqual(report["disk"]["volumes"][0]["percent"], 95.0)
+
+    def test_missing_configured_roots_probe_existing_parent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            usage = SimpleNamespace(total=100, used=40, free=60)
+            with override_settings(
+                SKATE_CLIP_SOURCE_ROOT=base / "missing" / "source",
+                SKATE_CLIP_DELIVERY_ROOT=base / "missing" / "delivery",
+            ):
+                with mock.patch("shutil.disk_usage", return_value=usage) as disk_usage:
+                    report = _run_gc_json("--check-disk")
+            self.assertFalse(report["disk"]["unavailable"])
+            self.assertEqual(Path(report["disk"]["volumes"][0]["probe_path"]), base)
+            self.assertEqual(disk_usage.call_count, 2)
 
 
 # ---------------------------------------------------------------------------

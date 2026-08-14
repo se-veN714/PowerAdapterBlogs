@@ -106,8 +106,18 @@ def reset_stuck_media() -> int:
 
 
 def _tmp_dir(media: SkateClipMedia) -> str:
-    """临时目录含 generation，避免新旧 Worker 互相清理。"""
-    return f"tmp/{media.media_key}/{media.claim_generation}"
+    """临时目录同时隔离 generation 与 claim token。"""
+    return f"tmp/{media.media_key}/{media.claim_generation}-{media.claim_token.hex}"
+
+
+def _versioned_keys(media: SkateClipMedia) -> tuple[str, str, str]:
+    """为一次 claim 生成不可变发布 key；数据库切换才令其对外可见。"""
+    version = f"{media.claim_generation}-{media.claim_token.hex}"
+    return (
+        f"delivery/{media.media_key}/{version}/main.webm",
+        f"preview/{media.media_key}/{version}/preview.webm",
+        f"poster/{media.media_key}/{version}/poster.webp",
+    )
 
 
 def _build_main_args(source_abs: str, tmp_key: str) -> list[str]:
@@ -205,13 +215,10 @@ def _cleanup_tmp(storage, media: SkateClipMedia) -> None:
         pass
 
 
-def _cleanup_old_ready(storage, media: SkateClipMedia) -> None:
-    """清理上一轮 ready 的旧派生资源（仅在确认新 ready 已落库后调用）。"""
-    for key in (
-        f"delivery/{media.media_key}/main.webm",
-        f"preview/{media.media_key}/preview.webm",
-        f"poster/{media.media_key}.webp",
-    ):
+def _cleanup_keys(storage, keys, *, keep=()) -> None:
+    """尽力删除明确给出的旧/失败版本，不推导当前数据库引用。"""
+    keep = {key for key in keep if key}
+    for key in {key for key in keys if key} - keep:
         try:
             if storage.exists(key):
                 storage.delete(key)
@@ -243,8 +250,11 @@ def _validate_derived(delivery, media, main_tmp, preview_tmp, poster_tmp) -> str
         return f"preview: {preview_result.error_code or 'missing dimensions'}"
     if preview_result.has_audio:
         return "preview: unexpected audio track"
-    if preview_result.duration_ms and preview_result.duration_ms > settings.SKATE_CLIP_MAX_DURATION_MS:
-        return f"preview: duration {preview_result.duration_ms}ms exceeds limit"
+    if preview_result.video_codec not in ("vp9", "vp09"):
+        return f"preview: unexpected codec {preview_result.video_codec}"
+    preview_limit_ms = int(float(settings.SKATE_CLIP_ENCODE_PREVIEW["seconds"]) * 1000)
+    if preview_result.duration_ms and preview_result.duration_ms > preview_limit_ms + 500:
+        return f"preview: duration {preview_result.duration_ms}ms exceeds recipe"
 
     # poster: 非空 + 可读取 WebP + 尺寸有效
     if not delivery.exists(poster_tmp) or delivery.size(poster_tmp) <= 0:
@@ -288,7 +298,7 @@ def _validate_image(path: str) -> str | None:
     for s in streams:
         try:
             w, h = int(s["width"]), int(s["height"])
-            if w > 0 and h > 0:
+            if w > 0 and h > 0 and s.get("codec_name") == "webp":
                 return None  # 有效图片
         except (KeyError, TypeError, ValueError):
             continue
@@ -327,16 +337,14 @@ def _encode_all(delivery, source_abs, tmp_key, duration_ms) -> str | None:
     return None
 
 
-def _publish_to_final(delivery, media, tmp_key) -> str | None:
-    """把校验通过的 tmp 文件原子切换到正式 key。返回 None 表示成功。"""
+def _publish_to_final(delivery, media, tmp_key) -> tuple[tuple[str, str, str] | None, str | None]:
+    """发布到本 claim 专属、尚未被数据库引用的不可变 key。"""
     main_tmp = f"{tmp_key}/main.webm"
     preview_tmp = f"{tmp_key}/preview.webm"
     poster_tmp = f"{tmp_key}/poster.webp"
 
     try:
-        main_final = f"delivery/{media.media_key}/main.webm"
-        preview_final = f"preview/{media.media_key}/preview.webm"
-        poster_final = f"poster/{media.media_key}.webp"
+        main_final, preview_final, poster_final = _versioned_keys(media)
 
         for final_key in (main_final, preview_final, poster_final):
             os.makedirs(os.path.dirname(delivery.path(final_key)), exist_ok=True)
@@ -345,8 +353,10 @@ def _publish_to_final(delivery, media, tmp_key) -> str | None:
         os.replace(delivery.path(preview_tmp), delivery.path(preview_final))
         os.replace(delivery.path(poster_tmp), delivery.path(poster_final))
     except OSError:
-        return WorkerError.PROMOTE_FAILED
-    return None
+        keys = _versioned_keys(media)
+        _cleanup_keys(delivery, keys)
+        return None, WorkerError.PROMOTE_FAILED
+    return (main_final, preview_final, poster_final), None
 
 
 def process_media(media: SkateClipMedia) -> bool:
@@ -365,6 +375,10 @@ def process_media(media: SkateClipMedia) -> bool:
     source_storage = skate_source_storage()
     generation = media.claim_generation
     token = media.claim_token
+    old_keys = tuple(
+        field.name if field else ""
+        for field in (media.main_file, media.preview_file, media.poster_file)
+    )
 
     # 快速失败：源文件不存在
     if not media.source_file or not source_storage.exists(media.source_file.name):
@@ -413,7 +427,7 @@ def process_media(media: SkateClipMedia) -> bool:
             return False
 
         # 3) 原子切换到正式 key
-        publish_err = _publish_to_final(delivery, media, tmp_key)
+        published_keys, publish_err = _publish_to_final(delivery, media, tmp_key)
         if publish_err is not None:
             SkateClipMedia.objects.fail(
                 media,
@@ -425,9 +439,8 @@ def process_media(media: SkateClipMedia) -> bool:
             return False
 
         # 4) 条件 UPDATE 切换数据库状态为 ready
-        main_key = f"delivery/{media.media_key}/main.webm"
-        preview_key = f"preview/{media.media_key}/preview.webm"
-        poster_key = f"poster/{media.media_key}.webp"
+        assert published_keys is not None
+        main_key, preview_key, poster_key = published_keys
 
         success = SkateClipMedia.objects.finish(
             media,
@@ -439,10 +452,13 @@ def process_media(media: SkateClipMedia) -> bool:
         )
         if not success:
             # Stale claim：上传替换已使旧 generation 失效。
-            # 新文件已落盘但数据库不会被切换（新 generation 的 Worker
-            # 会重新处理）。不做清理——新 Worker 的 _cleanup_tmp 会处理。
+            # 本 claim 的不可变版本从未被数据库引用，可安全删除。
+            _cleanup_keys(delivery, published_keys)
             media.error_code = WorkerError.STALE_CLAIM
             return False
+
+        # 数据库已一次性切换三个引用；此后才回收上一版，不会产生混代可见窗口。
+        _cleanup_keys(delivery, old_keys, keep=published_keys)
 
         media.state = SkateClipMediaState.READY
         media.claimed_at = None

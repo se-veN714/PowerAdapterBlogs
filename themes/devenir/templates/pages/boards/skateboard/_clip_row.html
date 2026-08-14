@@ -25,7 +25,7 @@ with 参数：
 媒体区由 _clip_media.html 渲染；WATCH CLIP 为信息区最后一个元素，紧随元数据。
 {% endcomment %}
 <article class="sk-clip{% if vertical %} sk-clip--vertical{% endif %}{% if flip %} sk-clip--flip{% endif %} reveal">
-    {% include 'pages/boards/skateboard/_clip_media.html' with name=name video_url=video_url poster_url=poster_url main_url=main_url preview_url=preview_url media_poster_url=media_poster_url hud=hud hud_label=hud_label timecode=timecode bars=bars vertical=vertical %}
+    {% include 'pages/boards/skateboard/_clip_media.html' with media_id=media_id name=name video_url=video_url poster_url=poster_url main_url=main_url preview_url=preview_url media_poster_url=media_poster_url hud=hud hud_label=hud_label timecode=timecode bars=bars vertical=vertical %}
 
     <div class="sk-clip-info">
         <p class="sk-clip-index">{{ index }}</p>
@@ -40,7 +40,7 @@ with 参数：
             <div class="sk-clip-notes"><dt>NOTES</dt><dd>{{ notes }}</dd></div>
             {% endif %}
         </dl>
-        <button type="button" class="sk-watch" {% if not main_url and not video_url %}disabled title="片段素材将在后端集成阶段接入"{% endif %}>
+        <button type="button" class="sk-watch"{% if media_id %} data-skate-watch="sk-media-{{ media_id }}"{% endif %} {% if not main_url and not video_url %}disabled title="片段素材将在后端集成阶段接入"{% endif %}>
             <span class="sk-watch-tri" aria-hidden="true"></span>WATCH CLIP
         </button>
     </div>

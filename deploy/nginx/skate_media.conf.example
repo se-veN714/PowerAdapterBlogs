@@ -4,19 +4,22 @@
 # 引入方式：在对外 server{} 中 `include /etc/nginx/locations/skate_media.conf;`
 # 并把 alias 路径改为部署实际值（= settings.SKATE_CLIP_DELIVERY_ROOT）。
 # 参考 deploy/nginx/super_admin_mtls.conf.example 的组织方式。
+# 本文件在 server{} 中 include，因此下列传输层上限也在 server 作用域生效；
+# Django 上传表单仍按 SKATE_CLIP_MAX_UPLOAD_BYTES 做端点级权威限制。
+client_max_body_size 150m;
 #
 # 安全边界（SKATEBOARD_GUIDE §5 / §9）：
 #   1. 私有原片目录（media-private/skateboard/source）绝不出现在任何 location；
 #      Django 侧 Storage.url() 亦直接抛错，两面封死。
 #   2. /media/skate/tmp/ 是 Worker 临时输出（编码半成品），必须拒绝公开。
-#   3. 派生文件名含 UUID；重处理为 os.replace 原子替换，同 URL 内容可能变化，
-#      因此不用 immutable，用 1h 保守缓存 + Last-Modified/ETag 协商。
+#   3. 派生文件使用 UUID + claim 版本目录；数据库原子切换引用后 URL 不再变更，
+#      可以安全使用 immutable 长缓存，旧版本由 Worker/GC 延后回收。
 #
 # 验收要点（SKATEBOARD_GUIDE §9 S4）：
 #   - Content-Type：main/preview => video/webm，poster => image/webp。
 #   - Range：curl -r 0-1023 应返回 206（nginx 静态文件原生支持，
 #     sendfile on 且无 proxy 缓存截断即可）。
-#   - 缓存头：Cache-Control: public, max-age=3600。
+#   - 缓存头：Cache-Control: public, max-age=31536000, immutable。
 #   - 列目录：GET /media/skate/ 与 /media/skate/delivery/ 均应 403。
 #   - tmp：GET /media/skate/tmp/<key>/1/main.webm 应 404。
 # =============================================================================
@@ -48,6 +51,6 @@ location ^~ /media/skate/ {
         image/webp webp;
     }
 
-    add_header Cache-Control "public, max-age=3600" always;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
     add_header Accept-Ranges bytes always;
 }

@@ -4,7 +4,7 @@ than either media rail and splits diagonally: left clip at top-left, right clip
 at bottom-right. Both clips retain complete public metadata.
 {% endcomment %}
 <article class="sk-clip-pair reveal">
-    {% include 'pages/boards/skateboard/_clip_media.html' with name=left.title|upper video_url=left.video_url poster_url=left.thumbnail_url main_url=left.main_url preview_url=left.preview_url media_poster_url=left.poster_url hud=left.hud_type|default:"" hud_label=left.hud_label timecode=left.timecode bars=left.hud_type vertical=True %}
+    {% include 'pages/boards/skateboard/_clip_media.html' with media_id=left.pk name=left.title|upper video_url=left.video_url poster_url=left.thumbnail_url main_url=left.main_url preview_url=left.preview_url media_poster_url=left.poster_url hud=left.hud_type|default:"" hud_label=left.hud_label timecode=left.timecode bars=left.hud_type vertical=True %}
 
     <div class="sk-pair-info">
         <section class="sk-pair-detail sk-pair-detail--left">
@@ -18,7 +18,7 @@ at bottom-right. Both clips retain complete public metadata.
                 <div><dt>STATUS</dt><dd class="sk-status--{{ left.status|lower }}">{{ left.status }}</dd></div>
                 {% if left.notes %}<div class="sk-clip-notes"><dt>NOTES</dt><dd>{{ left.notes }}</dd></div>{% endif %}
             </dl>
-            <button type="button" class="sk-watch" {% if not left.main_url and not left.video_url %}disabled title="片段素材待接入"{% endif %}>
+            <button type="button" class="sk-watch" data-skate-watch="sk-media-{{ left.pk }}" {% if not left.main_url and not left.video_url %}disabled title="片段素材待接入"{% endif %}>
                 <span class="sk-watch-tri" aria-hidden="true"></span>WATCH CLIP
             </button>
         </section>
@@ -34,11 +34,11 @@ at bottom-right. Both clips retain complete public metadata.
                 <div><dt>STATUS</dt><dd class="sk-status--{{ right.status|lower }}">{{ right.status }}</dd></div>
                 {% if right.notes %}<div class="sk-clip-notes"><dt>NOTES</dt><dd>{{ right.notes }}</dd></div>{% endif %}
             </dl>
-            <button type="button" class="sk-watch" {% if not right.main_url and not right.video_url %}disabled title="片段素材待接入"{% endif %}>
+            <button type="button" class="sk-watch" data-skate-watch="sk-media-{{ right.pk }}" {% if not right.main_url and not right.video_url %}disabled title="片段素材待接入"{% endif %}>
                 <span class="sk-watch-tri" aria-hidden="true"></span>WATCH CLIP
             </button>
         </section>
     </div>
 
-    {% include 'pages/boards/skateboard/_clip_media.html' with name=right.title|upper video_url=right.video_url poster_url=right.thumbnail_url main_url=right.main_url preview_url=right.preview_url media_poster_url=right.poster_url hud=right.hud_type|default:"" hud_label=right.hud_label timecode=right.timecode bars=right.hud_type vertical=True %}
+    {% include 'pages/boards/skateboard/_clip_media.html' with media_id=right.pk name=right.title|upper video_url=right.video_url poster_url=right.thumbnail_url main_url=right.main_url preview_url=right.preview_url media_poster_url=right.poster_url hud=right.hud_type|default:"" hud_label=right.hud_label timecode=right.timecode bars=right.hud_type vertical=True %}
 </article>

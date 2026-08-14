@@ -323,31 +323,40 @@ class SkateClipMediaUploadView(SkateClipMixin, FormView):
             self._reject("probe_failed", saved_name)
             return self.form_invalid(form)
 
-        with transaction.atomic():
-            media, _created = SkateClipMedia.objects.select_for_update().get_or_create(
-                clip=self.clip,
-                defaults={"uploaded_by": self.request.user},
-            )
-            old_source = media.source_file.name if media.source_file else ""
-            # 替换原片时使旧 Worker claim 失效（递增 generation），
-            # 防止正在运行的旧 Worker 把 ready/failed 写回覆盖新上传。
-            if not _created and media.state == SkateClipMediaState.PROCESSING:
-                SkateClipMedia.objects.invalidate_claim(media)
-            media.uploaded_by = self.request.user
-            media.source_file = saved_name
-            media.source_size = source_size
-            media.source_sha256 = digest
-            media.state = SkateClipMediaState.UPLOADED
-            media.error_code = ""
-            media.error_detail = ""
-            media.processed_at = None
-            media.apply_probe(
-                duration_ms=probe.duration_ms,
-                width=probe.width,
-                height=probe.height,
-                frame_rate=probe.frame_rate,
-            )
-            media.save()
+        old_source = ""
+        try:
+            with transaction.atomic():
+                media, _created = SkateClipMedia.objects.select_for_update().get_or_create(
+                    clip=self.clip,
+                    defaults={"uploaded_by": self.request.user},
+                )
+                old_source = media.source_file.name if media.source_file else ""
+                # 替换原片时使旧 Worker claim 失效（递增 generation），
+                # 防止正在运行的旧 Worker 把 ready/failed 写回覆盖新上传。
+                if not _created and media.state == SkateClipMediaState.PROCESSING:
+                    SkateClipMedia.objects.invalidate_claim(media)
+                media.uploaded_by = self.request.user
+                media.source_file = saved_name
+                media.source_size = source_size
+                media.source_sha256 = digest
+                media.state = SkateClipMediaState.UPLOADED
+                media.error_code = ""
+                media.error_detail = ""
+                media.processed_at = None
+                media.apply_probe(
+                    duration_ms=probe.duration_ms,
+                    width=probe.width,
+                    height=probe.height,
+                    frame_rate=probe.frame_rate,
+                )
+                media.save()
+        except Exception:
+            # 文件系统不参与数据库事务；落库失败时主动回滚新原片，避免孤儿。
+            try:
+                storage.delete(saved_name)
+            except OSError:
+                pass
+            raise
 
         # 替换成功后清理旧原片（不在事务内做文件删除）。
         if old_source and old_source != saved_name:

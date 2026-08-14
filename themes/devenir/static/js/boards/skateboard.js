@@ -264,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var video = media.querySelector('video');
             if (!video) return;
             var previewUrl = media.dataset.skatePreview;
-            var originalSrc = video.querySelector('source') ? video.querySelector('source').src : '';
+            var originalSrc = media.dataset.skateMain || (video.querySelector('source') ? video.querySelector('source').src : '');
             var loaded = false;
 
             function loadPreview() {
@@ -299,6 +299,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     bindPreviewHover();
 
+    /* ---------- 6. WATCH CLIP：恢复正式源并启动可控播放 ---------- */
+
+    function bindWatchButtons() {
+        document.querySelectorAll('[data-skate-watch]').forEach(function (button) {
+            if (button.dataset.skateWatchBound) return;
+            button.dataset.skateWatchBound = '1';
+            button.addEventListener('click', function () {
+                var media = document.getElementById(button.dataset.skateWatch);
+                var video = media && media.querySelector('video');
+                var source = video && video.querySelector('source');
+                if (!media || !video || !source) return;
+                var mainUrl = media.dataset.skateMain;
+                if (mainUrl && source.src !== new URL(mainUrl, document.baseURI).href) {
+                    source.src = mainUrl;
+                    video.load();
+                }
+                video.controls = true;
+                media.focus({ preventScroll: true });
+                media.scrollIntoView({ block: 'center', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+                video.play().catch(function () {});
+            });
+        });
+    }
+
+    bindWatchButtons();
+
     // htmx 交换 Selected Line 后，旧视频随 DOM 移除，新视频重新绑定
     document.body.addEventListener('htmx:afterSwap', function (event) {
         if (event.detail.target && event.detail.target.id === 'selected-line') {
@@ -310,6 +336,7 @@ document.addEventListener('DOMContentLoaded', function () {
             observed = observed.filter(function (video) { return document.contains(video); });
             bindVideoObserver();
             bindPreviewHover();
+            bindWatchButtons();
         }
     });
 });

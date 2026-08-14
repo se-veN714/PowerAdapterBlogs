@@ -22,7 +22,7 @@ S3 Presentation 策略：
 - reduced-motion / 触摸设备不加载预览（JS 判定）。
 {% endcomment %}
 {% with effective_video=main_url|default:video_url effective_poster=media_poster_url|default:poster_url %}
-<div class="sk-clip-media"{% if hud %} data-hud="{{ hud }}"{% endif %}{% if preview_url %} data-skate-preview="{{ preview_url }}"{% endif %}>
+<div class="sk-clip-media"{% if media_id %} id="sk-media-{{ media_id }}"{% endif %}{% if effective_video %} tabindex="0" role="button" data-skate-main="{{ effective_video }}" aria-label="播放 {{ name }}"{% endif %}{% if hud %} data-hud="{{ hud }}"{% endif %}{% if preview_url %} data-skate-preview="{{ preview_url }}"{% endif %}>
     {% if effective_video %}
     <video muted playsinline preload="metadata" loop
            {% if effective_poster %}poster="{{ effective_poster }}"{% endif %}

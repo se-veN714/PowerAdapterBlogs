@@ -126,6 +126,8 @@ class Command(BaseCommand):
                 "磁盘水位超过 SKATE_CLIP_DISK_HIGH_WATERMARK="
                 f"{report['disk']['watermark']}%"
             )
+        if report.get("disk", {}).get("unavailable"):
+            raise CommandError("无法读取 SK8 媒体根目录所在磁盘的空间信息。")
 
     # ------------------------------------------------------------------
     def _known_media(self) -> dict[uuid_lib.UUID, tuple[str, object]]:
@@ -135,9 +137,17 @@ class Command(BaseCommand):
         }
 
     def _gc_orphans(self, do_apply: bool) -> dict:
-        """删除派生目录中 media_key 不在数据库的文件（Clip/Media 行已删）。"""
+        """清理无数据库引用的公私文件，并报告 ready 行缺失的派生文件。"""
         storage = skate_delivery_storage()
         known = set(self._known_media())
+        referenced_derived = {
+            name
+            for row in SkateClipMedia.objects.values(
+                "main_file", "preview_file", "poster_file"
+            )
+            for name in (row["main_file"], row["preview_file"], row["poster_file"])
+            if name
+        }
         targets: list[str] = []
         unexpected: list[str] = []
         for section in _ORPHAN_SCANS:
@@ -153,6 +163,13 @@ class Command(BaseCommand):
                     unexpected.append(f"{section}/{name}/")
                 elif key not in known:
                     targets.append(f"{section}/{name}")
+                else:
+                    base = Path(storage.path(f"{section}/{name}"))
+                    for child in base.rglob("*"):
+                        if child.is_file():
+                            rel = child.relative_to(Path(storage.location)).as_posix()
+                            if rel not in referenced_derived:
+                                targets.append(rel)
             for name in files:
                 stem = name.rsplit(".", 1)[0] if "." in name else name
                 key = _parse_key(stem)
@@ -160,6 +177,8 @@ class Command(BaseCommand):
                     targets.append(f"{section}/{name}")
                     unexpected.append(f"{section}/{name}")
                 elif key not in known:
+                    targets.append(f"{section}/{name}")
+                elif f"{section}/{name}" not in referenced_derived:
                     targets.append(f"{section}/{name}")
 
         freed = 0
@@ -174,11 +193,46 @@ class Command(BaseCommand):
                     storage.delete(rel)
             removed.append(rel)
             freed += size
+        source_storage = skate_source_storage()
+        referenced_sources = {
+            name
+            for name in SkateClipMedia.objects.exclude(source_file="").values_list(
+                "source_file", flat=True
+            )
+        }
+        source_orphans = []
+        try:
+            source_dirs, source_files = source_storage.listdir("")
+        except FileNotFoundError:
+            source_dirs, source_files = [], []
+        for name in source_files:
+            if name not in referenced_sources:
+                source_orphans.append(name)
+                freed += _tree_size(Path(source_storage.path(name)))
+                if do_apply:
+                    source_storage.delete(name)
+        # 私有原片应为平铺 UUID 文件；目录属于异常孤儿，保守报告、不递归删除。
+        unexpected.extend(f"source/{name}/" for name in source_dirs)
+
+        missing = []
+        for media in SkateClipMedia.objects.filter(state=SkateClipMediaState.READY):
+            for label, field in (
+                ("main", media.main_file),
+                ("preview", media.preview_file),
+                ("poster", media.poster_file),
+            ):
+                if not field or not storage.exists(field.name):
+                    missing.append(
+                        {"media_key": str(media.media_key), "asset": label, "key": field.name if field else ""}
+                    )
+
         return {
             "count": len(removed),
             "bytes": freed,
             "keys": removed,
             "unexpected": unexpected,
+            "source_orphans": source_orphans,
+            "missing": missing,
         }
 
     # ------------------------------------------------------------------
@@ -246,8 +300,20 @@ class Command(BaseCommand):
             except OSError:
                 size = 0
             if do_apply:
-                storage.delete(name)
-                SkateClipMedia.objects.filter(pk=media.pk).update(source_file="")
+                rows = SkateClipMedia.objects.filter(
+                    pk=media.pk,
+                    state=SkateClipMediaState.READY,
+                    source_file=name,
+                    source_sha256=media.source_sha256,
+                    processed_at=media.processed_at,
+                ).update(source_file="")
+                if rows != 1:
+                    continue
+                try:
+                    storage.delete(name)
+                except OSError:
+                    # 数据库已不再引用旧原片；下次 --orphans 会报告并可清理。
+                    continue
             removed.append(str(media.media_key))
             freed += size
         return {
@@ -266,13 +332,34 @@ class Command(BaseCommand):
             ("source", Path(settings.SKATE_CLIP_SOURCE_ROOT)),
             ("delivery", Path(settings.SKATE_CLIP_DELIVERY_ROOT)),
         ):
-            usage = shutil.disk_usage(str(root))
+            probe = root
+            while not probe.exists() and probe != probe.parent:
+                probe = probe.parent
+            try:
+                usage = shutil.disk_usage(str(probe))
+            except OSError as exc:
+                volumes.append(
+                    {
+                        "label": label,
+                        "path": str(root),
+                        "probe_path": str(probe),
+                        "percent": None,
+                        "error": str(exc)[:160],
+                    }
+                )
+                continue
             percent = round(usage.used / usage.total * 100, 1) if usage.total else 0.0
             volumes.append(
-                {"label": label, "path": str(root), "percent": percent}
+                {"label": label, "path": str(root), "probe_path": str(probe), "percent": percent}
             )
-        exceeded = any(v["percent"] > watermark for v in volumes)
-        return {"watermark": watermark, "volumes": volumes, "exceeded": exceeded}
+        unavailable = any(v["percent"] is None for v in volumes)
+        exceeded = any(v["percent"] is not None and v["percent"] > watermark for v in volumes)
+        return {
+            "watermark": watermark,
+            "volumes": volumes,
+            "exceeded": exceeded,
+            "unavailable": unavailable,
+        }
 
     # ------------------------------------------------------------------
     def _print_report(self, report: dict) -> None:
@@ -285,6 +372,14 @@ class Command(BaseCommand):
                 self.stdout.write(f"  - {rel}")
             for rel in orphans["unexpected"]:
                 self.stdout.write(self.style.WARNING(f"  ! 非预期条目: {rel}"))
+            for rel in orphans["source_orphans"]:
+                self.stdout.write(f"  - source/{rel}")
+            for item in orphans["missing"]:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  ! 缺失派生资源: {item['media_key']} {item['asset']} {item['key']}"
+                    )
+                )
         tmp = report.get("tmp")
         if tmp is not None:
             self.stdout.write(
@@ -308,7 +403,9 @@ class Command(BaseCommand):
         disk = report.get("disk")
         if disk is not None:
             parts = " / ".join(
-                f"{v['label']} {v['percent']}%" for v in disk["volumes"]
+                f"{v['label']} {v['percent']}%" if v["percent"] is not None
+                else f"{v['label']} unavailable"
+                for v in disk["volumes"]
             )
             line = f"disk: {parts}（阈值 {disk['watermark']}%）"
             self.stdout.write(self.style.ERROR(line) if disk["exceeded"] else line)

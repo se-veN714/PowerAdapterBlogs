@@ -13,6 +13,8 @@
 .bm-upload-note strong{color:var(--glitch-c,#ff4d5e)}
 .bm-media-state{display:inline-block;padding:.15rem .55rem;border:1px solid color-mix(in srgb,var(--glitch-c,#ff4d5e) 40%,transparent);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase}
 .bm-media-meta{list-style:none;padding:0;margin:.8rem 0 0;font-size:.8rem;opacity:.85;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.4rem 1.2rem}
+.bm-file-meta{margin-top:.7rem;min-height:1.4em;color:var(--muted,#91a096);font-size:.78rem;letter-spacing:.04em}
+.bm-file-meta.is-error{color:var(--glitch-c,#ff4d5e)}
 </style>
 {% endblock %}
 
@@ -49,7 +51,7 @@
         </div>
         {% endif %}
 
-        <form class="bm-form" method="post" enctype="multipart/form-data" novalidate
+        <form class="bm-form" method="post" enctype="multipart/form-data"
               data-skate-upload data-skate-max-bytes="{{ max_upload_bytes }}" data-skate-max-duration-ms="{{ max_duration_ms }}">
             {% csrf_token %}
             {% if form.non_field_errors %}<div class="bm-form__errors-top" role="alert">{{ form.non_field_errors }}</div>{% endif %}
@@ -59,6 +61,7 @@
                     {% for field in form %}
                     <div class="bm-field bm-field--wide">
                         {{ field.label_tag }}{{ field }}
+                        <div class="bm-file-meta" data-skate-file-meta aria-live="polite"></div>
                         {% if field.errors %}<ul class="bm-field__errors">{{ field.errors }}</ul>{% endif %}
                     </div>
                     {% endfor %}
@@ -82,17 +85,30 @@
     var maxBytes = parseInt(form.getAttribute("data-skate-max-bytes"), 10);
     var maxDurationMs = parseInt(form.getAttribute("data-skate-max-duration-ms"), 10);
     var input = form.querySelector("input[type=file]");
-    if (!input || !window.FileReader) { return; }
+    var meta = form.querySelector("[data-skate-file-meta]");
+    if (!input || !window.URL || !window.URL.createObjectURL) { return; }
+
+    function formatBytes(bytes) {
+        return (bytes / 1048576).toFixed(1) + " MiB";
+    }
+
+    function show(message, isError) {
+        if (!meta) { return; }
+        meta.textContent = message;
+        meta.classList.toggle("is-error", !!isError);
+    }
 
     function deny(message) {
         input.setCustomValidity(message);
+        show(message, true);
         input.reportValidity();
     }
 
     input.addEventListener("change", function () {
         var file = input.files && input.files[0];
         input.setCustomValidity("");
-        if (!file) { return; }
+        if (!file) { show("", false); return; }
+        show(file.name + " · " + formatBytes(file.size) + " · 正在读取媒体信息…", false);
         if (file.size > maxBytes) {
             deny("文件超过 " + Math.round(maxBytes / 1048576) + " MiB 上限（浏览器预检）。");
             return;
@@ -105,11 +121,18 @@
             URL.revokeObjectURL(url);
             if (video.duration && video.duration * 1000 > maxDurationMs + 250) {
                 deny("视频超过 " + (maxDurationMs / 1000) + " 秒上限（浏览器预检，服务端将复核）。");
+                return;
             }
+            var orientation = video.videoHeight > video.videoWidth ? "竖屏" :
+                (video.videoHeight < video.videoWidth ? "横屏" : "方形");
+            show(file.name + " · " + formatBytes(file.size) + " · " +
+                video.videoWidth + "×" + video.videoHeight + " · " + orientation + " · " +
+                video.duration.toFixed(2) + " 秒", false);
         };
         video.onerror = function () {
             URL.revokeObjectURL(url);
             // 无法解码不等于非法（浏览器 codec 限制）；交给服务端裁决。
+            show(file.name + " · " + formatBytes(file.size) + " · 浏览器无法读取元数据，服务端仍会权威校验。", false);
         };
         video.src = url;
     });

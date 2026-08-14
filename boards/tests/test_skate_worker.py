@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 from datetime import timedelta
 from pathlib import Path
-from unittest import skipUnless
+from unittest import mock, skipUnless
 
 from django.conf import settings
 from django.core.management import call_command
@@ -345,9 +345,13 @@ class ProcessMediaIntegrationTests(TestCase):
         self.assertEqual(self.media.error_code, "")
 
         delivery = skate_delivery_storage()
-        main_key = f"delivery/{self.media.media_key}/main.webm"
-        preview_key = f"preview/{self.media.media_key}/preview.webm"
-        poster_key = f"poster/{self.media.media_key}.webp"
+        main_key = self.media.main_file.name
+        preview_key = self.media.preview_file.name
+        poster_key = self.media.poster_file.name
+        version = f"{self.media.claim_generation}-{self.media.claim_token.hex}"
+        self.assertIn(version, main_key)
+        self.assertIn(version, preview_key)
+        self.assertIn(version, poster_key)
         for key in (main_key, preview_key, poster_key):
             self.assertTrue(delivery.exists(key), key)
             self.assertGreater(delivery.size(key), 0, key)
@@ -407,6 +411,46 @@ class ProcessMediaIntegrationTests(TestCase):
         self.media.refresh_from_db()
         # 状态不应被旧 Worker 改为 ready
         self.assertNotEqual(self.media.state, SkateClipMediaState.READY)
+        delivery = skate_delivery_storage()
+        stale_version = f"{claimed.claim_generation}-{claimed.claim_token.hex}"
+        self.assertFalse(delivery.exists(f"delivery/{claimed.media_key}/{stale_version}/main.webm"))
+
+    def test_partial_promotion_never_replaces_previous_ready_assets(self):
+        """第二个 os.replace 失败时，数据库引用与旧文件内容保持一致。"""
+        delivery = skate_delivery_storage()
+        old_keys = (
+            f"delivery/{self.media.media_key}/old/main.webm",
+            f"preview/{self.media.media_key}/old/preview.webm",
+            f"poster/{self.media.media_key}/old/poster.webp",
+        )
+        from django.core.files.base import ContentFile
+
+        for key in old_keys:
+            delivery.save(key, ContentFile(b"old"))
+        SkateClipMedia.objects.filter(pk=self.media.pk).update(
+            main_file=old_keys[0], preview_file=old_keys[1], poster_file=old_keys[2]
+        )
+        self.media.refresh_from_db()
+        claimed = claim_next_media()
+        real_replace = os.replace
+        calls = 0
+
+        def fail_second(source, target):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("simulated partial promotion")
+            return real_replace(source, target)
+
+        with mock.patch("boards.skate_worker.os.replace", side_effect=fail_second):
+            self.assertFalse(process_media(claimed))
+
+        self.media.refresh_from_db()
+        self.assertEqual(self.media.main_file.name, old_keys[0])
+        self.assertEqual(self.media.preview_file.name, old_keys[1])
+        self.assertEqual(self.media.poster_file.name, old_keys[2])
+        for key in old_keys:
+            self.assertEqual(delivery.open(key).read(), b"old")
 
     def test_management_command_processes_queue(self):
         from io import StringIO

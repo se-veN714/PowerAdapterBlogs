@@ -20,6 +20,7 @@ from boards.models import (
     CodingProject,
     SkateClip,
     SkateClipMediaState,
+    SkateClipOrientation,
     SkateHomie,
     SpotifyRecord,
 )
@@ -65,13 +66,32 @@ def prepare_skate_clips(clips):
         clip.display_index = f"{index:02d}"
         _attach_media_urls(clip)
 
-    return [
-        {
-            "vertical": prepared[start : start + 2],
-            "horizontal": prepared[start + 2 : start + 5],
-        }
-        for start in range(0, len(prepared), 5)
-    ]
+    portraits = []
+    landscapes = []
+    unknown = []
+    for clip in prepared:
+        orientation = getattr(clip, "media_orientation", "")
+        if orientation == SkateClipOrientation.PORTRAIT:
+            portraits.append(clip)
+        elif orientation in (SkateClipOrientation.LANDSCAPE, SkateClipOrientation.SQUARE):
+            landscapes.append(clip)
+        else:
+            unknown.append(clip)
+
+    groups = []
+    while portraits or landscapes or unknown:
+        vertical = portraits[:2]
+        del portraits[:2]
+        while len(vertical) < 2 and unknown:
+            vertical.append(unknown.pop(0))
+
+        horizontal = landscapes[:3]
+        del landscapes[:3]
+        while len(horizontal) < 3 and unknown:
+            horizontal.append(unknown.pop(0))
+
+        groups.append({"vertical": vertical, "horizontal": horizontal})
+    return groups
 
 
 def _attach_media_urls(clip):
@@ -82,12 +102,14 @@ def _attach_media_urls(clip):
     clip.main_url = ""
     clip.preview_url = ""
     clip.poster_url = ""
+    clip.media_orientation = ""
     try:
         media = clip.media
     except AttributeError:
         return
     if media is None or media.state != SkateClipMediaState.READY:
         return
+    clip.media_orientation = media.orientation
     if media.main_file:
         clip.main_url = media.main_file.url
     if media.preview_file:

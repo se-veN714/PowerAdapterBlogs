@@ -22,6 +22,7 @@ from boards.models import (
     SkateClip,
     SkateClipMedia,
     SkateClipMediaState,
+    SkateClipOrientation,
     SkateHomie,
     skate_delivery_storage,
 )
@@ -91,6 +92,48 @@ class AttachMediaUrlsTests(TestCase):
         self.assertEqual(clip.preview_url, "")
         self.assertEqual(clip.poster_url, "")
 
+    def test_groups_follow_probed_orientation_not_input_position(self):
+        _, homie = _make_board_and_homie()
+        clips = [_make_clip(homie, order=index, title=f"Clip {index}") for index in range(5)]
+        orientations = (
+            SkateClipOrientation.LANDSCAPE,
+            SkateClipOrientation.PORTRAIT,
+            SkateClipOrientation.LANDSCAPE,
+            SkateClipOrientation.PORTRAIT,
+            SkateClipOrientation.SQUARE,
+        )
+        for clip, orientation in zip(clips, orientations, strict=True):
+            _make_ready_media(clip, orientation=orientation)
+
+        groups = prepare_skate_clips(clips)
+
+        self.assertEqual([clip.pk for clip in groups[0]["vertical"]], [clips[1].pk, clips[3].pk])
+        self.assertEqual(
+            [clip.pk for clip in groups[0]["horizontal"]],
+            [clips[0].pk, clips[2].pk, clips[4].pk],
+        )
+
+    def test_known_landscape_is_not_forced_into_portrait_slot(self):
+        _, homie = _make_board_and_homie()
+        clips = [_make_clip(homie, order=index, title=f"Wide {index}") for index in range(4)]
+        for clip in clips:
+            _make_ready_media(clip, orientation=SkateClipOrientation.LANDSCAPE)
+
+        groups = prepare_skate_clips(clips)
+
+        self.assertEqual(groups[0]["vertical"], [])
+        self.assertEqual(len(groups[0]["horizontal"]), 3)
+        self.assertEqual(len(groups[1]["horizontal"]), 1)
+
+    def test_legacy_unknown_orientation_keeps_two_plus_three_fallback(self):
+        _, homie = _make_board_and_homie()
+        clips = [_make_clip(homie, order=index, title=f"Legacy {index}") for index in range(5)]
+
+        groups = prepare_skate_clips(clips)
+
+        self.assertEqual(groups[0]["vertical"], clips[:2])
+        self.assertEqual(groups[0]["horizontal"], clips[2:])
+
     def test_no_media_urls_empty(self):
         _, homie = _make_board_and_homie()
         clip = _make_clip(homie)
@@ -155,6 +198,9 @@ class SkateboardIndexRenderingTests(TestCase):
                 # preview_url 出现在 data-skate-preview="..."
                 self.assertIn("preview.webm", content)
                 self.assertIn("data-skate-preview", content)
+                self.assertIn(f'id="sk-media-{clip.pk}"', content)
+                self.assertIn(f'data-skate-watch="sk-media-{clip.pk}"', content)
+                self.assertIn("data-skate-main", content)
 
     def test_clip_without_media_falls_back_to_placeholder(self):
         from django.urls import reverse

@@ -409,5 +409,5 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
   - 新配置：`SKATE_CLIP_SOURCE_RETENTION_DAYS=0`、`SKATE_CLIP_DISK_HIGH_WATERMARK=90`（`settings/base.py`，集中管理禁止散落硬编码）。
   - 测试 `boards/tests/test_skate_gc.py`（14 项：孤儿 dry-run/apply/非 UUID 垃圾 + tmp 四分支 + retention 三分支 + 磁盘水位 mock + worker JSON 汇总）；boards 回归 246 项 OK，Ruff 全过，迁移无漂移（S4 无 schema 改动）。
   - **未验证项**：Nginx 片段未在真实 Nginx 上验收（Range 206/缓存头/tmp 404），部署时按示例文件头清单验收。
-  - **2026-08-15 合并前回归**：真实 FFmpeg/FFprobe 的 Worker/Presentation/GC/Upload 定向 73 项通过；Boards 全量 253 项通过、1 项 PostgreSQL 专属测试跳过；Ruff、Django check、迁移漂移和 `node --check` 均通过。
+  - **2026-08-15 合并前回归**：真实 FFmpeg/FFprobe 的 Worker/Presentation/GC/Upload 定向 73 项通过；Boards 全量 253 项通过；全项目 443 项通过，唯一 1 项 PostgreSQL 专属并发测试按设计跳过。Ruff、Django check、迁移漂移、`node --check`、Git connectivity 与 tracked HANDOFF 审计均通过。`devenir @ d5c7104` 是 `codex/sk8-video-pipeline @ 61c08fd` 的直接祖先，可 fast-forward 合并；生产发布前仍须完成 PostgreSQL 多 Worker 行锁与真实 Nginx Range/缓存/tmp 拒绝访问验收。
   - **🟡 后续容量控制**：当前仅有两个受信 Board Manager，上传大小/时长、Policy 与 Nginx 传输上限已限制；尚未增加按用户 pending/processing 数量的严格并发配额。用户规模扩大或 Worker 积压出现后，再以 PostgreSQL 事务锁或队列层配额实现，不能只依赖易竞态的 `count()` 快速检查。

@@ -9,7 +9,7 @@
 - 将 main/preview/poster 改为 claim 版本化不可变 key；三项文件先写入未引用版本，再以数据库条件 UPDATE 整体切换，半途发布失败与 stale Worker 不再覆盖或混用当前公开资源。
 - Index 按 FFprobe 落库的方向组成最多 2 个竖屏与 3 个横屏；WATCH CLIP 可恢复正式源并播放，媒体预览支持键盘焦点，上传页即时显示大小、分辨率、方向与时长。
 - GC 增加私有原片孤儿、无引用派生版本与 ready 缺失资源对账；retention 改为 CAS 后删除，磁盘检查兼容尚未创建的配置根；Nginx 示例补 150 MiB 传输上限与 immutable 缓存。
-- 使用真实 FFmpeg/FFprobe 的 73 项 SK8 定向回归通过；完整 Boards 回归 253 项通过、1 项 PostgreSQL 专属测试按设计跳过。PostgreSQL 多 Worker 行锁仍须在 CI/预发布验收。
+- 使用真实 FFmpeg/FFprobe 的 73 项 SK8 定向回归、253 项 Boards 回归及 443 项全项目回归全部通过；唯一 1 项 PostgreSQL 专属并发测试按设计跳过。分支可从 `devenir @ d5c7104` fast-forward 合并；PostgreSQL 多 Worker 行锁与真实 Nginx 分发仍须在 CI/预发布验收。
 
 ## [2026-08-08]
 

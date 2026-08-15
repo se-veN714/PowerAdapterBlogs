@@ -4,7 +4,7 @@ than either media rail and splits diagonally: left clip at top-left, right clip
 at bottom-right. Both clips retain complete public metadata.
 {% endcomment %}
 <article class="sk-clip-pair reveal">
-    {% include 'pages/boards/skateboard/_clip_media.html' with media_id=left.pk name=left.title|upper video_url=left.video_url poster_url=left.thumbnail_url main_url=left.main_url preview_url=left.preview_url media_poster_url=left.poster_url hud=left.hud_type|default:"" hud_label=left.hud_label timecode=left.timecode bars=left.hud_type vertical=True %}
+    {% include 'pages/boards/skateboard/_clip_media.html' with media_id=left.pk name=left.title|upper clip_format=left.clip_format|upper category=left.category|upper spot=left.spot spot_address=left.spot_address spot_longitude=left.spot_longitude spot_latitude=left.spot_latitude filmed=left.filmed_at|date:"m.d.y" duration=left.duration_display status=left.status notes=left.notes video_url=left.video_url poster_url=left.thumbnail_url main_url=left.main_url preview_url=left.preview_url media_poster_url=left.poster_url hud=left.hud_type|default:"" hud_label=left.hud_label timecode=left.timecode bars=left.hud_type vertical=True %}
 
     <div class="sk-pair-info">
         <section class="sk-pair-detail sk-pair-detail--left">
@@ -40,5 +40,5 @@ at bottom-right. Both clips retain complete public metadata.
         </section>
     </div>
 
-    {% include 'pages/boards/skateboard/_clip_media.html' with media_id=right.pk name=right.title|upper video_url=right.video_url poster_url=right.thumbnail_url main_url=right.main_url preview_url=right.preview_url media_poster_url=right.poster_url hud=right.hud_type|default:"" hud_label=right.hud_label timecode=right.timecode bars=right.hud_type vertical=True %}
+    {% include 'pages/boards/skateboard/_clip_media.html' with media_id=right.pk name=right.title|upper clip_format=right.clip_format|upper category=right.category|upper spot=right.spot spot_address=right.spot_address spot_longitude=right.spot_longitude spot_latitude=right.spot_latitude filmed=right.filmed_at|date:"m.d.y" duration=right.duration_display status=right.status notes=right.notes video_url=right.video_url poster_url=right.thumbnail_url main_url=right.main_url preview_url=right.preview_url media_poster_url=right.poster_url hud=right.hud_type|default:"" hud_label=right.hud_label timecode=right.timecode bars=right.hud_type vertical=True %}
 </article>

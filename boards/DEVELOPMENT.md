@@ -401,6 +401,13 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
   - `assemble_skateboard` / `HomieLineView` / `SkateClipListView` 的 clip 查询均加 `select_related("media")`，避免每行一次查询。
   - 模板为有视频的媒体区提供可聚焦语义、稳定 DOM id 与 `data-skate-main`；WATCH CLIP 按钮通过 `data-skate-watch` 定位对应媒体。JS 的 hover/focus 预览继续遵守 reduced-motion 与触摸降级，WATCH 会恢复正式源、开启 controls、滚动聚焦并播放；htmx 交换后统一重绑。
   - 测试 `boards/tests/test_skate_presentation.py`（7 项：URL 附加逻辑 + 非 ready/无 media/failed 回退 + Index/ClipList 页面渲染断言）；boards 回归 232 项 OK（11 skip 为无 FFmpeg 集成测试）。
+- **S5 New Clip + Playback Experience（2026-08-15 代码完成）**：
+  - 迁移 `0016` 为 `SkateClip` 增加 `clip_format`（Clip / Line / B-roll）、`spot_address` 与可空 Decimal 经纬度；坐标必须成对且有界。
+  - `SkateClipForm` 直接包含可空原片上传；`SAVE METADATA` 允许只存资料，`UPLOAD & QUEUE PROCESS` 要求已有或新原片。`boards/skate_upload.py` 被新建/编辑与旧替换入口共同复用，避免复制 FFprobe/清理/锁逻辑。
+  - New Clip 页面提供 drag/drop、本地视频预览、大小/时长/方向浏览器预检；服务端大小与 FFprobe 仍是权威裁决。
+  - 高德配置只向浏览器输出 Web JS Key 与同源 `serviceHost`；`AMAP_JS_SECURITY_JSCODE` 仅由 `/_AMapService/<path>` 固定目标代理读取并追加到上游请求。禁用、缺 Key 或加载失败时保留纯文本地点输入。
+  - Skateboard Index 的 WATCH CLIP 改为原地 `<dialog>`：桌面左视频/右资料与地图，移动端上视频/下资料；支持按钮关闭、背景关闭、Esc 与焦点归还。无地图配置时显示已保存坐标，不阻断播放。
+  - 最终验收：新增 `test_skate_experience.py`；全项目 454 项通过（1 项 PostgreSQL 专属测试按设计跳过），迁移无漂移、Django check、Ruff 与 JavaScript 语法通过；浏览器 1440×1000 与 390×844 无页面级横向溢出，播放、响应式和 Esc 焦点闭环通过。待人工真实文件与真实高德凭据联调。
 - **S4 Operations**（GC 命令 + Worker 可观测性 + Nginx 示例 + 备份/恢复流程）：
   - `boards/management/commands/skate_media_gc.py`：默认 dry-run，`--apply` 才删除。`--orphans` 同时清理无引用的版本化派生文件与私有原片，报告 ready 行缺失的 main/preview/poster；`--tmp` 跳过活跃 Worker；retention 先以 state/source hash/processed_at 条件 UPDATE 清空引用，成功后才删旧文件，避免与替换上传竞态；`--check-disk` 在配置根尚未创建时探测最近存在父目录，真实 IO 错误则结构化报告并非零退出。
   - `process_skate_clips.py` 可观测性增强：每条处理输出 `[state] <media_key> in <ms>`；`--json` 汇总（`pending`/`processing`/`ready_total`/`failed_total`/`failed_by_error` 按 error_code 分组/逐条 `media` 数组含耗时与错误码/`duration_ms`）；`--dry-run --json` 组合为无副作用状态探针。

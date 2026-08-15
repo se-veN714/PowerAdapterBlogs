@@ -26,10 +26,12 @@ from Blogs.autocomplete import CategoryAutocomplete, TagAutocomplete
 from Blogs.feed import PublicPostAtomFeed, PublicPostFeed
 from Blogs.sitemap import PostSitemap
 from Blogs.views import IndexView
+from boards.amap_proxy import amap_service_proxy
 from config.views import AboutView, LinkListView, PrivacyView, robots_txt, security_txt
 from .cus_site import custom_site
 
 urlpatterns = [
+    path("_AMapService/<path:resource>", amap_service_proxy, name="amap-service"),
     path("super_admin/", admin.site.urls, name="super_admin"),
     # dashboard
     path(

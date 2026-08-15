@@ -5,14 +5,31 @@ from boards.models import CodingProject, MusicScope, SkateClip, SpotifyRecord
 
 
 class SkateClipForm(forms.ModelForm):
+    source = forms.FileField(
+        required=False,
+        label="视频原片",
+        help_text="MP4 / MOV / WebM，最大 150 MiB、最长 20 秒。浏览器预检仅作提示，服务端会再次校验。",
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": "video/mp4,video/quicktime,video/webm,video/x-m4v,.mp4,.mov,.webm,.m4v",
+                "data-skate-max-bytes": str(settings.SKATE_CLIP_MAX_UPLOAD_BYTES),
+                "data-skate-max-duration-ms": str(settings.SKATE_CLIP_MAX_DURATION_MS),
+            }
+        ),
+    )
+
     class Meta:
         model = SkateClip
         fields = (
             "homie",
             "order",
             "title",
+            "clip_format",
             "category",
             "spot",
+            "spot_address",
+            "spot_longitude",
+            "spot_latitude",
             "filmed_at",
             "duration",
             "status",
@@ -27,7 +44,37 @@ class SkateClipForm(forms.ModelForm):
         widgets = {
             "filmed_at": forms.DateInput(attrs={"type": "date"}),
             "notes": forms.Textarea(attrs={"rows": 4}),
+            "spot_longitude": forms.HiddenInput(),
+            "spot_latitude": forms.HiddenInput(),
+            "spot_address": forms.HiddenInput(),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 兼容 S5 之前的 Manager POST；新 UI 仍显式展示并默认选择 Clip。
+        self.fields["clip_format"].required = False
+
+    def clean_clip_format(self):
+        return self.cleaned_data.get("clip_format") or "clip"
+
+    def clean_source(self):
+        uploaded = self.cleaned_data.get("source")
+        if uploaded and uploaded.size > settings.SKATE_CLIP_MAX_UPLOAD_BYTES:
+            limit_mib = settings.SKATE_CLIP_MAX_UPLOAD_BYTES // (1024 * 1024)
+            raise forms.ValidationError(f"文件超过大小上限（{limit_mib} MiB）。")
+        return uploaded
+
+    def clean(self):
+        cleaned = super().clean()
+        longitude = cleaned.get("spot_longitude")
+        latitude = cleaned.get("spot_latitude")
+        if (longitude is None) != (latitude is None):
+            self.add_error("spot", "地图坐标不完整，请重新选择地点或清空定位。")
+        if longitude is not None and not -180 <= longitude <= 180:
+            self.add_error("spot", "经度必须位于 -180 到 180 之间。")
+        if latitude is not None and not -90 <= latitude <= 90:
+            self.add_error("spot", "纬度必须位于 -90 到 90 之间。")
+        return cleaned
 
 
 class SkateClipMediaUploadForm(forms.Form):

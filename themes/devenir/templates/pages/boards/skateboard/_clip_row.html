@@ -25,7 +25,7 @@ with 参数：
 媒体区由 _clip_media.html 渲染；WATCH CLIP 为信息区最后一个元素，紧随元数据。
 {% endcomment %}
 <article class="sk-clip{% if vertical %} sk-clip--vertical{% endif %}{% if flip %} sk-clip--flip{% endif %} reveal">
-    {% include 'pages/boards/skateboard/_clip_media.html' with media_id=media_id name=name video_url=video_url poster_url=poster_url main_url=main_url preview_url=preview_url media_poster_url=media_poster_url hud=hud hud_label=hud_label timecode=timecode bars=bars vertical=vertical %}
+    {% include 'pages/boards/skateboard/_clip_media.html' with media_id=media_id name=name clip_format=clip_format category=category spot=spot spot_address=spot_address spot_longitude=spot_longitude spot_latitude=spot_latitude filmed=filmed duration=duration status=status notes=notes video_url=video_url poster_url=poster_url main_url=main_url preview_url=preview_url media_poster_url=media_poster_url hud=hud hud_label=hud_label timecode=timecode bars=bars vertical=vertical %}
 
     <div class="sk-clip-info">
         <p class="sk-clip-index">{{ index }}</p>

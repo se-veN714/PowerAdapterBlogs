@@ -450,6 +450,12 @@ class ClipCategory(models.TextChoices):
     HEIGHT = "height", "Height"
 
 
+class ClipFormat(models.TextChoices):
+    CLIP = "clip", "Clip"
+    LINE = "line", "Line"
+    B_ROLL = "b_roll", "B-roll"
+
+
 class ClipStatus(models.TextChoices):
     LANDED = "landed", "Landed"
     UNFINISHED = "unfinished", "Unfinished"
@@ -546,13 +552,35 @@ class SkateClip(models.Model):
     )
     order = models.PositiveSmallIntegerField(default=0, verbose_name="排序")
     title = models.CharField(max_length=80, verbose_name="动作名")
+    clip_format = models.CharField(
+        max_length=16,
+        choices=ClipFormat.choices,
+        default=ClipFormat.CLIP,
+        verbose_name="内容类型",
+        help_text="Clip=单个动作，Line=连续动作，B-roll=环境或过渡镜头",
+    )
     category = models.CharField(
         max_length=32,
         choices=ClipCategory.choices,
         blank=True,
-        verbose_name="分类",
+        verbose_name="动作类型",
     )
     spot = models.CharField(max_length=128, blank=True, verbose_name="地点")
+    spot_address = models.CharField(max_length=255, blank=True, verbose_name="详细地址")
+    spot_longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        verbose_name="经度",
+    )
+    spot_latitude = models.DecimalField(
+        max_digits=8,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        verbose_name="纬度",
+    )
     filmed_at = models.DateField(null=True, blank=True, verbose_name="拍摄日期")
     duration = models.DurationField(null=True, blank=True, verbose_name="时长")
     status = models.CharField(

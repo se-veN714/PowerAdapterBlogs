@@ -15,6 +15,8 @@ import os
 import shutil
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # here put the import lib
 """
 Django settings for PowerAdapterBlogs project.
@@ -30,6 +32,11 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# All settings profiles share the same local configuration source. Real process
+# environment variables keep precedence so deployment-time secrets are never
+# overwritten by values from the developer-only .env file.
+load_dotenv(BASE_DIR / ".env", override=False)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -242,6 +249,15 @@ SKATE_CLIP_SOURCE_RETENTION_DAYS = 0
 # 磁盘高水位告警阈值（百分比，S4）：skate_media_gc --check-disk 对私有原片与
 # 派生根所在卷计算使用率，超过即以非零退出码告警（供 cron/监控采集）。
 SKATE_CLIP_DISK_HIGH_WATERMARK = 90
+
+# 高德 Web JS API。Key 会发送给浏览器；securityJsCode 仅供服务端代理读取，
+# 禁止进入模板、静态文件、日志或 API 响应。
+AMAP_JS_API_ENABLED = os.getenv("AMAP_JS_API_ENABLED", "false").lower() in {
+    "1", "true", "yes", "on"
+}
+AMAP_JS_API_KEY = os.getenv("AMAP_JS_API_KEY", "").strip()
+AMAP_JS_SECURITY_JSCODE = os.getenv("AMAP_JS_SECURITY_JSCODE", "").strip()
+AMAP_JS_SERVICE_HOST = os.getenv("AMAP_JS_SERVICE_HOST", "/_AMapService").strip()
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -495,7 +511,7 @@ SUPER_ADMIN_EXTERNAL_URL = os.getenv("SUPER_ADMIN_EXTERNAL_URL", "")
 
 MONGO = {
     "HOST": os.getenv("MONGO_HOST", "localhost"),
-    "PORT": os.getenv("MONGO_PORT", 27017),
+    "PORT": int(os.getenv("MONGO_PORT", "27017")),
     "DB_NAME": os.getenv("MONGO_DB_NAME", "poweradapter_mongo"),
     "DB_USER": os.getenv("MONGO_DB_USER", ""),
     "DB_PASSWORD": os.getenv("MONGO_DB_PASSWORD", ""),

@@ -299,7 +299,63 @@ document.addEventListener('DOMContentLoaded', function () {
 
     bindPreviewHover();
 
-    /* ---------- 6. WATCH CLIP：恢复正式源并启动可控播放 ---------- */
+    /* ---------- 6. WATCH CLIP：在不离开 Index 的对话框中播放 ---------- */
+
+    var player = document.querySelector('[data-skate-player]');
+    var playerVideo = player && player.querySelector('[data-skate-player-video]');
+    var lastPlayerTrigger = null;
+    var playerMap = null;
+    var amapPromise = null;
+
+    function setPlayerText(name, value) {
+        var node = player && player.querySelector('[data-skate-player-' + name + ']');
+        if (node) node.textContent = value || '—';
+    }
+
+    function loadPlayerMap(media) {
+        var node = player && player.querySelector('[data-skate-player-map]');
+        var lng = Number(media.dataset.skateLongitude);
+        var lat = Number(media.dataset.skateLatitude);
+        if (!node || !Number.isFinite(lng) || !Number.isFinite(lat)) return;
+        if (player.dataset.amapEnabled !== 'true' || !player.dataset.amapKey) {
+            node.innerHTML = '<span>GEO ' + lat.toFixed(4) + ' / ' + lng.toFixed(4) + '</span>';
+            return;
+        }
+        if (!amapPromise) {
+            window._AMapSecurityConfig = { serviceHost: player.dataset.amapServiceHost || '/_AMapService' };
+            amapPromise = new Promise(function (resolve, reject) {
+                if (window.AMap) { resolve(window.AMap); return; }
+                var script = document.createElement('script');
+                script.src = 'https://webapi.amap.com/maps?v=2.0&key=' + encodeURIComponent(player.dataset.amapKey);
+                script.onload = function () { resolve(window.AMap); };
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+        amapPromise.then(function (AMap) {
+            if (!playerMap) playerMap = new AMap.Map(node, { zoom: 14, viewMode: '2D', mapStyle: 'amap://styles/dark' });
+            playerMap.clearMap();
+            playerMap.add(new AMap.Marker({ position: [lng, lat] }));
+            playerMap.setZoomAndCenter(15, [lng, lat]);
+        }).catch(function () {
+            node.innerHTML = '<span>MAP UNAVAILABLE / ' + lat.toFixed(4) + ', ' + lng.toFixed(4) + '</span>';
+        });
+    }
+
+    function openPlayer(media, trigger) {
+        if (!player || !playerVideo) return;
+        lastPlayerTrigger = trigger;
+        playerVideo.src = media.dataset.skateMain;
+        setPlayerText('title', media.dataset.skateTitle);
+        setPlayerText('format', media.dataset.skateFormat);
+        setPlayerText('category', media.dataset.skateCategory ? '/ ' + media.dataset.skateCategory : '');
+        ['spot', 'filmed', 'duration', 'status', 'notes', 'address'].forEach(function (name) {
+            setPlayerText(name, media.dataset['skate' + name.charAt(0).toUpperCase() + name.slice(1)]);
+        });
+        player.showModal();
+        playerVideo.play().catch(function () {});
+        loadPlayerMap(media);
+    }
 
     function bindWatchButtons() {
         document.querySelectorAll('[data-skate-watch]').forEach(function (button) {
@@ -307,19 +363,28 @@ document.addEventListener('DOMContentLoaded', function () {
             button.dataset.skateWatchBound = '1';
             button.addEventListener('click', function () {
                 var media = document.getElementById(button.dataset.skateWatch);
-                var video = media && media.querySelector('video');
-                var source = video && video.querySelector('source');
-                if (!media || !video || !source) return;
-                var mainUrl = media.dataset.skateMain;
-                if (mainUrl && source.src !== new URL(mainUrl, document.baseURI).href) {
-                    source.src = mainUrl;
-                    video.load();
-                }
-                video.controls = true;
-                media.focus({ preventScroll: true });
-                media.scrollIntoView({ block: 'center', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
-                video.play().catch(function () {});
+                if (media && media.dataset.skateMain) openPlayer(media, button);
             });
+        });
+    }
+
+    function closePlayer() {
+        if (!player || !player.open) return;
+        playerVideo.pause();
+        playerVideo.removeAttribute('src');
+        playerVideo.load();
+        player.close();
+        if (lastPlayerTrigger) lastPlayerTrigger.focus({ preventScroll: true });
+    }
+    if (player) {
+        player.querySelector('[data-skate-player-close]').addEventListener('click', closePlayer);
+        player.addEventListener('click', function (event) { if (event.target === player) closePlayer(); });
+        player.addEventListener('cancel', function (event) { event.preventDefault(); closePlayer(); });
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && player.open) {
+                event.preventDefault();
+                closePlayer();
+            }
         });
     }
 

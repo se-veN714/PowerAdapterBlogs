@@ -5,6 +5,8 @@
 
 from urllib.parse import urlencode
 
+from django.conf import settings
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
@@ -307,6 +309,12 @@ class BoardIndexView(TemplateView):
             self.request.user,
             Board.objects.filter(pk=self.board.pk),
         )
+        if self.board.slug == "skateboard":
+            context["amap_enabled"] = bool(
+                settings.AMAP_JS_API_ENABLED and settings.AMAP_JS_API_KEY
+            )
+            context["amap_api_key"] = settings.AMAP_JS_API_KEY
+            context["amap_service_host"] = settings.AMAP_JS_SERVICE_HOST
         return context
 
 

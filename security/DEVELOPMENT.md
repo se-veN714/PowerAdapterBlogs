@@ -5,7 +5,7 @@
 > **职责**: Django Admin 日志 HMAC 完整性保护 + MongoDB 审计日志  
 > **依赖**: PyPI `gmssl==3.2.2`（仅 SM3-HMAC）, `pymongo` (MongoDB), Django `LogEntry`
 > **创建**: 2026-06-21  
-> **最后更新**: 2026-08-02 — SiteOperators 审计能力迁移到独立 `/operations/security/`
+> **最后更新**: 2026-08-15 — `.env` 加载统一下沉至 base settings，MongoDB 环境变量命名收口
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-15 | v2.5 | 所有 settings profile 统一从根 ignored `.env` 读取配置；MongoDB 仅使用 `MONGO_*` 命名，端口显式转为整数 |
 | 2026-08-02 | v2.4 | 新增 `/operations/security/` 只读安全运维页；SiteOperators 不再进入 Dashboard，选中核验在事务内锁定且单次最多 100 条，核验动作本身写入 HMAC 审计事件 |
 | 2026-07-27 | v2.3 | `SiteOperators` 获得查看与运行完整性审计的精确 Permission；普通 dashboard 用户不再默认看到全站审计 |
 | 2026-07-19 | v2.2 | **完整性误报热修**：规范签名载荷；初始化改为只补缺；历史记录仅按可验证旧算法安全升级；8 个回归测试通过 |
@@ -304,10 +305,25 @@ Django 批量删除通过 `LogEntry.objects.log_actions()` 批量创建日志，
 
 ### 5.1 MONGO 配置 (`base.py`)
 
+`base.py` 在读取任何设置前调用 `load_dotenv(BASE_DIR / ".env", override=False)`。因此 `develop.py`、`product.py` 与其他 settings profile 使用同一配置来源；操作系统/部署平台注入的环境变量优先于 `.env`。根 `.env` 已被 `.gitignore` 排除，禁止将真实用户名、密码或密钥复制到本文、HANDOFF 或提交记录。
+
+统一键名如下；旧的 `DB_MONGO_*` 不再使用：
+
+```dotenv
+MONGO_DB_NAME=poweradapter_mongo
+MONGO_DB_USER=
+MONGO_DB_PASSWORD=
+MONGO_HOST=localhost
+MONGO_PORT=27017
+MONGO_COLLECTION=logs
+```
+
+当前本地开发配置为 `localhost:27017/poweradapter_mongo`、集合 `logs`、无认证。生产环境必须创建最小权限 MongoDB 用户并通过部署环境注入凭据，不能沿用无认证配置。
+
 ```python
 MONGO = {
     "HOST": os.getenv("MONGO_HOST", "localhost"),
-    "PORT": os.getenv("MONGO_PORT", 27017),
+    "PORT": int(os.getenv("MONGO_PORT", "27017")),
     "DB_NAME": os.getenv("MONGO_DB_NAME", "poweradapter_mongo"),
     "DB_USER": os.getenv("MONGO_DB_USER", ""),
     "DB_PASSWORD": os.getenv("MONGO_DB_PASSWORD", ""),

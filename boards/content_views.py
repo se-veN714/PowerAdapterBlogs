@@ -2,7 +2,6 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
 from django.db.models import Q
 from django.forms import Form, modelform_factory
 from django.http import Http404
@@ -28,16 +27,10 @@ from boards.models import (
     CodingProject,
     SkateClip,
     SkateClipMedia,
-    SkateClipMediaState,
     SpotifyRecord,
-    skate_source_storage,
 )
 from boards.policies import can_manage_board_content
-from boards.skate_media import (
-    CLIP_PROBE_ERROR_MESSAGES,
-    probe_video_file,
-    sha256_file,
-)
+from boards.skate_upload import SkateUploadRejected, ingest_skate_source
 
 
 MUSIC_MODELS = {
@@ -187,6 +180,63 @@ class SkateClipMixin(BoardContentManagerMixin):
     def get_success_url(self):
         return reverse("boards:skate-manage-list")
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(
+            {
+                "max_upload_bytes": settings.SKATE_CLIP_MAX_UPLOAD_BYTES,
+                "max_upload_mib": settings.SKATE_CLIP_MAX_UPLOAD_BYTES // (1024 * 1024),
+                "max_duration_ms": settings.SKATE_CLIP_MAX_DURATION_MS,
+                "amap_enabled": bool(
+                    settings.AMAP_JS_API_ENABLED and settings.AMAP_JS_API_KEY
+                ),
+                "amap_api_key": settings.AMAP_JS_API_KEY,
+                "amap_service_host": settings.AMAP_JS_SERVICE_HOST,
+            }
+        )
+        return context
+
+
+class SkateClipFormMediaMixin:
+    """Add optional source ingestion to the normal clip CRUD form."""
+
+    def form_valid(self, form):
+        creating = getattr(self, "object", None) is None
+        process_requested = self.request.POST.get("intent") == "process"
+        source = form.cleaned_data.get("source") if process_requested else None
+        if process_requested and not source:
+            form.add_error("source", "上传并处理需要选择一个视频原片。")
+            return self.form_invalid(form)
+
+        response = super().form_valid(form)
+        if source:
+            try:
+                ingest_skate_source(
+                    clip=self.object,
+                    uploaded=source,
+                    uploaded_by=self.request.user,
+                )
+            except SkateUploadRejected as exc:
+                # 元数据保留为私有草稿，避免上传失败后公开一个无媒体占位。
+                if not self.object.video_url and self.object.is_public:
+                    self.object.is_public = False
+                    self.object.save(update_fields=["is_public", "updated_at"])
+                messages.error(
+                    self.request,
+                    f"片段资料已保存为私有草稿，但原片被拒绝：{exc.public_message}",
+                )
+            else:
+                messages.success(
+                    self.request,
+                    f"滑板片段已{'创建' if creating else '更新'}；原片校验通过，已进入待处理队列。",
+                )
+        else:
+            messages.success(
+                self.request,
+                f"滑板片段已{'创建' if creating else '更新'}。",
+            )
+        return response
+
 
 class SkateClipManageListView(SkateClipMixin, ListView):
     template_name = "pages/boards/manage/skateboard/list.html"
@@ -233,7 +283,7 @@ class SkateClipManageListView(SkateClipMixin, ListView):
         return context
 
 
-class SkateClipCreateView(SkateClipMixin, CreateView):
+class SkateClipCreateView(SkateClipFormMediaMixin, SkateClipMixin, CreateView):
     template_name = "pages/boards/manage/skateboard/form.html"
 
     def get_form(self, form_class=None):
@@ -244,12 +294,7 @@ class SkateClipCreateView(SkateClipMixin, CreateView):
         )
         return form
 
-    def form_valid(self, form):
-        messages.success(self.request, "滑板片段已创建。")
-        return super().form_valid(form)
-
-
-class SkateClipUpdateView(SkateClipMixin, UpdateView):
+class SkateClipUpdateView(SkateClipFormMediaMixin, SkateClipMixin, UpdateView):
     template_name = "pages/boards/manage/skateboard/form.html"
 
     def get_form(self, form_class=None):
@@ -259,11 +304,6 @@ class SkateClipUpdateView(SkateClipMixin, UpdateView):
             "pk",
         )
         return form
-
-    def form_valid(self, form):
-        messages.success(self.request, "滑板片段已更新。")
-        return super().form_valid(form)
-
 
 class SkateClipDeleteView(SkateClipMixin, DeleteView):
     template_name = "pages/boards/manage/skateboard/delete_confirm.html"
@@ -306,84 +346,21 @@ class SkateClipMediaUploadView(SkateClipMixin, FormView):
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
-        uploaded = form.cleaned_data["source"]
-        storage = skate_source_storage()
-        saved_name = None
         try:
-            saved_name = storage.save(
-                SkateClipMedia.build_source_key(uploaded.name), uploaded
+            ingest_skate_source(
+                clip=self.clip,
+                uploaded=form.cleaned_data["source"],
+                uploaded_by=self.request.user,
             )
-            probe = probe_video_file(storage.path(saved_name))
-            if not probe.ok:
-                self._reject(probe.error_code, saved_name)
-                return self.form_invalid(form)
-            source_size = storage.size(saved_name)
-            digest = sha256_file(storage.path(saved_name))
-        except OSError:
-            self._reject("probe_failed", saved_name)
+        except SkateUploadRejected as exc:
+            messages.error(self.request, f"上传被拒绝：{exc.public_message}")
             return self.form_invalid(form)
-
-        old_source = ""
-        try:
-            with transaction.atomic():
-                media, _created = SkateClipMedia.objects.select_for_update().get_or_create(
-                    clip=self.clip,
-                    defaults={"uploaded_by": self.request.user},
-                )
-                old_source = media.source_file.name if media.source_file else ""
-                # 替换原片时使旧 Worker claim 失效（递增 generation），
-                # 防止正在运行的旧 Worker 把 ready/failed 写回覆盖新上传。
-                if not _created and media.state == SkateClipMediaState.PROCESSING:
-                    SkateClipMedia.objects.invalidate_claim(media)
-                media.uploaded_by = self.request.user
-                media.source_file = saved_name
-                media.source_size = source_size
-                media.source_sha256 = digest
-                media.state = SkateClipMediaState.UPLOADED
-                media.error_code = ""
-                media.error_detail = ""
-                media.processed_at = None
-                media.apply_probe(
-                    duration_ms=probe.duration_ms,
-                    width=probe.width,
-                    height=probe.height,
-                    frame_rate=probe.frame_rate,
-                )
-                media.save()
-        except Exception:
-            # 文件系统不参与数据库事务；落库失败时主动回滚新原片，避免孤儿。
-            try:
-                storage.delete(saved_name)
-            except OSError:
-                pass
-            raise
-
-        # 替换成功后清理旧原片（不在事务内做文件删除）。
-        if old_source and old_source != saved_name:
-            try:
-                storage.delete(old_source)
-            except OSError:
-                pass
 
         messages.success(
             self.request,
             "原片已上传并校验通过，等待处理流水线生成发布资源。",
         )
         return super().form_valid(form)
-
-    def _reject(self, error_code: str, saved_name: str | None) -> None:
-        if saved_name:
-            # 直接用工厂读取当前 settings；FileField.storage 是 cached_property，
-            # 测试/多配置场景下可能持有旧实例。
-            storage = skate_source_storage()
-            try:
-                storage.delete(saved_name)
-            except OSError:
-                pass
-        detail = CLIP_PROBE_ERROR_MESSAGES.get(
-            error_code, "上传校验失败，请稍后重试。"
-        )
-        messages.error(self.request, f"上传被拒绝：{detail}")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

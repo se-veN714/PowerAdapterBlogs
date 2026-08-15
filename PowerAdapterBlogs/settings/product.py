@@ -16,13 +16,10 @@ import base64
 import os
 
 from django.core.exceptions import ImproperlyConfigured
-from dotenv import load_dotenv
 
 from .base import *
 
 DEBUG = False
-
-load_dotenv(BASE_DIR / '.env')
 
 
 def required_env(name):

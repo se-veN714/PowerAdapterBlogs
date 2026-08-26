@@ -4,7 +4,7 @@
 > **项目**: 基于 Django 5.2 的个人博客系统  
 > **作者**: seveN1foR / PowerAdapter  
 > **许可证**: MIT  
-> **最后更新**: 2026-08-04 — App 目录决策与双后台 MFA 时效分层
+> **最后更新**: 2026-08-26 — 固定 Django Template + HTMX 单体架构并移除旧 Data API
 
 ---
 
@@ -18,7 +18,7 @@ DjangoProject/                 # 项目根目录
 │   ├── cus_site.py            # 自定义 AdminSite（dashboard 后台）
 │   └── wsgi.py
 ├── accounts/                  # 自定义用户模块
-├── Blogs/                     # 博客核心（文章/分类/标签/API）
+├── Blogs/                     # 博客核心（文章/分类/标签/HTMX fragments）
 ├── comment/                   # 评论模块
 ├── config/                    # 站点配置（友链/侧边栏）
 ├── security/                  # 日志完整性（HMAC + MongoDB 审计）
@@ -50,7 +50,7 @@ DjangoProject/                 # 项目根目录
 |-----|------|---------|
 | `accounts` | 用户模型、登录/登出、权限体系、纵深防御 | `accounts/DEVELOPMENT.md` |
 | `boards` | Board、Membership、权限申请审批与跨 App Policy | `boards/DEVELOPMENT.md` |
-| `Blogs` | 文章 CRUD、分类/标签、全文搜索、REST API | `Blogs/LOGGUIDE.md` |
+| `Blogs` | 文章 CRUD、分类/标签、全文搜索、HTMX fragments | `Blogs/DEVELOPMENT.md` |
 | `comment` | 评论提交/审核、IP 提取 | `comment/LOGGUIDE.md` |
 | `config` | 友链管理、侧边栏配置 | `config/LOGGUIDE.md` |
 | `security` | SM3-HMAC 日志签名、MongoDB 审计 | `security/DEVELOPMENT.md` |
@@ -105,23 +105,14 @@ DjangoProject/                 # 项目根目录
 | `/accounts/password/change/` | `AccountPasswordChangeView` | 校验旧密码并保留当前会话 |
 | `/accounts/password/change/verify/` | `PasswordEmailVerificationView` | 短时邮箱验证码与发送/错误次数限制 |
 
-### 2.4 API 路由
-
-| URL | 说明 |
-|-----|------|
-| `/Blogs/api/posts/` | REST 文章列表 (DRF ViewSet) |
-| `/Blogs/api/categories/` | REST 分类列表 |
-| `/Blogs/api/schema/` | OpenAPI Schema |
-| `/Blogs/api/docs/` | Swagger UI |
-
-### 2.5 自动补全
+### 2.4 自动补全
 
 | URL | 说明 |
 |-----|------|
 | `/category-autocomplete/` | 分类 autocomplete (dal_select2) |
 | `/tag-autocomplete/` | 标签 autocomplete (dal_select2) |
 
-### 2.6 DEBUG 专属
+### 2.5 DEBUG 专属
 
 | URL | 说明 |
 |-----|------|
@@ -171,13 +162,12 @@ DjangoProject/                 # 项目根目录
 
 | 类别 | 技术 |
 |------|------|
-| 框架 | Django 5.2, DRF 3.16 |
+| 框架 | Django 5.2 + 服务端模板 + HTMX |
 | 数据库 | PostgreSQL + psycopg2-binary |
 | 缓存/会话 | Redis (django-redis 6.0) |
 | 静态文件 | WhiteNoise 6.12 |
 | Admin UI | django-jazzmin 3.0 |
 | Autocomplete | django-autocomplete-light 3.12 |
-| API 文档 | drf-spectacular 0.28 (Swagger) |
 | 日志完整性 | gmssl SM3-HMAC + pymongo MongoDB 审计 |
 | 日志格式 | Kaomoji 表情日志 (INFO/WARN/ERROR) |
 | 模板 | Bulma CSS + widget_tweaks + mathfilters |

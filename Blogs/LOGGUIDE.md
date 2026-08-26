@@ -7,7 +7,7 @@
 
 ## 职责边界
 
-Blogs 是项目核心业务模块：文章 CRUD、分类/标签管理、PV/UV 统计、全文搜索、REST API、站点地图。**任何对 Post/Category/Tag 的写操作都应该打 INFO 日志。**
+Blogs 是项目核心业务模块：文章 CRUD、分类/标签管理、PV/UV 统计、全文搜索、HTMX fragments 和站点地图。**任何对 Post/Category/Tag 的写操作都应该打 INFO 日志。**
 
 ---
 
@@ -105,31 +105,9 @@ logger.error(f"图片上传失败: file={filename} user={request.user.id} error=
 | 编辑 | INFO | id, name, changed_fields |
 | 删除 | INFO | id, name, user_id |
 
-### B. REST API (apis.py)
+### B. 模型层 (models.py)
 
-| ViewSet 方法 | 级别 | 内容 |
-|-------------|------|------|
-| `create()` | INFO | Post 创建：post_id, slug, user |
-| `update()` / `partial_update()` | INFO | Post 编辑：post_id, changed_fields |
-| `destroy()` | INFO | Post 删除：post_id, slug |
-| `create/update/destroy()` (异常) | ERROR | 操作类型, post_id, error |
-
-```python
-class PostViewSet(ModelViewSet):
-    def perform_create(self, serializer):
-        instance = serializer.save()
-        logger.info(f"API Post 创建: post_id={instance.id} slug={instance.slug} "
-                    f"user={self.request.user.id}")
-
-    def perform_destroy(self, instance):
-        logger.info(f"API Post 删除: post_id={instance.id} slug={instance.slug} "
-                    f"user={self.request.user.id}")
-        instance.delete()
-```
-
-### C. 模型层 (models.py)
-
-#### C1. Post.save()
+#### B1. Post.save()
 
 自动生成 slug 时记录（仅在 slug 为空时触发）：
 
@@ -143,13 +121,13 @@ def save(self, *args, **kwargs):
 
 > Post.save() 本身不需要额外日志 — slug 生成已在视图层覆盖。
 
-#### C2. PostVisit — 不打日志
+#### B2. PostVisit — 不打日志
 
 每一篇文章的每次访问都触发 `PostVisit` 写入。**绝不在 PostVisit 上打日志** — 这是日志量爆炸的第一大杀手。
 
-### D. 管理命令 (management/commands/)
+### C. 管理命令 (management/commands/)
 
-#### D1. generate_posts
+#### C1. generate_posts
 
 ```python
 logger.info(
@@ -165,7 +143,7 @@ logger.info("generate_posts 完成: created=%s", count)
 该命令只允许在 `DEBUG=True` 的开发/测试环境执行。`--clear` 仅清理 slug 使用
 `generated-post-` 保留前缀的命令生成文章，不得删除普通业务文章；清理与生成必须保持在同一事务中。
 
-#### D2. init_slug
+#### C2. init_slug
 
 ```python
 logger.info(f"init_slug 开始: posts_without_slug={count}")
@@ -173,7 +151,7 @@ logger.info(f"init_slug 开始: posts_without_slug={count}")
 logger.info(f"init_slug 完成: fixed={fixed_count}")
 ```
 
-### E. 缓存清除
+### D. 缓存清除
 
 `clear_page_caches()` 被多处调用，本身不需日志。但如果清除失败：
 
@@ -184,7 +162,7 @@ except Exception as e:
     logger.warning(f"缓存清除失败: keys={cache_keys} error={e}")
 ```
 
-### F. 中间件 (middleware/user_id.py)
+### E. 中间件 (middleware/user_id.py)
 
 | 时机 | 级别 | 内容 |
 |------|------|------|

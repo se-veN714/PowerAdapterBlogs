@@ -31,8 +31,6 @@ setup(
         "django-mathfilters>=1.0",
         "django-jazzmin>=3.0.0",
         "django-autocomplete-light>=3.11",
-        "drf-spectacular>=0.28",
-        "drf-spectacular-sidecar>=2025.8",
         "Markdown>=3.8",
         "gmssl>=3.2.2",
     ],

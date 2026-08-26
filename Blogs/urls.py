@@ -12,13 +12,8 @@
 # here put the import lib
 # Django
 from django.urls import path
-from django.urls.conf import include
-# site
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from rest_framework.routers import DefaultRouter
 
 # Model
-from Blogs.apis import PostViewSet, CategoryViewSet
 from Blogs.views import (
     CategoryView, TagView, PostDetailView,
     PostArchiveView, PostListView, PostReviewWorkspaceView, SearchView,
@@ -28,17 +23,6 @@ from Blogs.views import (
 )
 from Blogs.views import post_img_upload
 from comment.views import CommentDeleteView, CommentView
-
-router = DefaultRouter()
-router.register('posts', PostViewSet, basename='api_post')
-router.register('categories', CategoryViewSet, basename='api_category')
-
-api_urlpatterns = [
-    # RESTful API
-    path("", include(router.urls)),
-    path("schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("docs/", SpectacularSwaggerView.as_view(url_name="blogs:Blogs:schema"), name="swagger-ui"),
-]
 
 urlpatterns = [
     # CategoryPage
@@ -72,8 +56,6 @@ urlpatterns = [
     path("post/<slug:slug>/revision/<str:version>/", revision_body, name="revision_body"),
     path("post/<slug:slug>/diff/", revision_diff, name="revision_diff"),
 
-    # API
-    path("api/",include((api_urlpatterns,"Blogs"))),
 ]
 
 

@@ -561,23 +561,3 @@ class Stage5RuntimePolicyTest(TestCase):
         post.refresh_from_db()
         self.assertEqual(post.status, Post.STATUS_DRAFT)
         self.assertFalse(post.workflow_events.exists())
-
-    def test_api_is_read_only_and_scopes_internal_posts(self):
-        public_post = self.create_post("Public")
-        internal_post = self.create_post(
-            "Internal API",
-            visibility=Post.VISIBILITY_STAFF_ONLY,
-        )
-        list_url = reverse("blogs:Blogs:api_post-list")
-
-        anonymous_response = self.client.get(list_url)
-        anonymous_ids = {item["id"] for item in anonymous_response.json()["results"]}
-        self.assertIn(public_post.pk, anonymous_ids)
-        self.assertNotIn(internal_post.pk, anonymous_ids)
-
-        self.client.force_login(self.reviewer)
-        reviewer_response = self.client.get(list_url)
-        reviewer_ids = {item["id"] for item in reviewer_response.json()["results"]}
-        self.assertIn(public_post.pk, reviewer_ids)
-        self.assertIn(internal_post.pk, reviewer_ids)
-        self.assertEqual(self.client.post(list_url, {}).status_code, 405)

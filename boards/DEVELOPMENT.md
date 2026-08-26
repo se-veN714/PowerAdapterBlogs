@@ -80,7 +80,7 @@ boards/
 │   ├── test_membership.py    # 阶段 2 ORM 与 Admin 边界测试
 │   ├── test_policies.py      # 阶段 3 跨 App Policy 契约测试
 │   ├── test_admin_scope.py   # 阶段 4 Dashboard 隔离与阶段 5 action 测试
-│   ├── test_stage5_runtime.py # 阶段 5 View/Upload/API/Service 测试
+│   ├── test_stage5_runtime.py # 阶段 5 View/Upload/Service 测试
 │   ├── test_board_index_models.py  # Board Index 内容模型行为测试
 │   ├── test_board_index_views.py   # BoardIndexView / HomieLineView 分派与渲染测试
 │   ├── test_board_content_management.py # 内容工作区允许/拒绝与 provider 隔离

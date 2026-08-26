@@ -68,7 +68,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_extensions",
     "widget_tweaks",
-    "drf_spectacular",
     "django_redis",
     # my_app
     "security.apps.SecurityConfig",
@@ -333,11 +332,6 @@ JAZZMIN_UI_TWEAKS = {
     },
 }
 
-REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
-    "PAGE_SIZE": 10,  # 后续可以尝试 Cursor分页
-}
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 

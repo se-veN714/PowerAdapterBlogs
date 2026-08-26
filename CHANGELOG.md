@@ -2,6 +2,15 @@
 
 > **文档权重**：60（历史变更记录；不覆盖当前架构文档）
 
+## [2026-08-26]
+
+### Django + HTMX 单体边界与本地启动检查
+
+- `run.py` 自动切换到项目根 `.venv`，默认在启动前执行 Django system check、migration drift 检查和本地 migration；新增只读 `--check-only`、仅准备 `--prepare-only`、部署设置提示及显式跳过参数。
+- 删除旧 Post/Category DRF ViewSet、Serializer、Router、OpenAPI Schema 与 Swagger UI，并从项目声明和本地虚拟环境清理 DRF/OpenAPI 及仅由其引入的依赖链。
+- 高权重文档固定 Django Template + HTMX 为可见规划期内唯一 Web 架构；普通迭代和 Agent 不得为 SPA、独立前端或假设性客户端恢复通用 JSON Data API。
+- 新增公开表面契约测试：`/` 必须渲染 Devenir 首页，`/Blogs/api/` 必须保持 404。相关 21 项回归、Ruff、Django check、迁移漂移、`pip check` 与 diff check 均通过。
+
 ## [2026-08-15]
 
 ### SK8 New Clip 与播放体验闭环

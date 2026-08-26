@@ -91,7 +91,7 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
 
         防御场景：
         - Admin UI has_change_permission 被绕过
-        - 通过 ORM/API/Shell 直接修改敏感字段
+        - 通过 ORM、管理脚本或 Shell 直接修改敏感字段
         - 第三方包的意外提权
 
         注意：groups 和 user_permissions（M2M）由 admin.save_related() 守卫。

@@ -10,6 +10,7 @@ import re
 import signal
 import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 from types import TracebackType
@@ -23,6 +24,10 @@ LOCAL_MTLS_ROOT = PROJECT_ROOT / ".local" / "nginx-mtls"
 LOCAL_KEYRING_FILE = LOCAL_MTLS_ROOT / "local-secrets" / "mfa-keyring.json"
 LOCAL_NGINX_CONFIG = LOCAL_MTLS_ROOT / "nginx-local-mtls.conf"
 LOCAL_NGINX_START = LOCAL_MTLS_ROOT / "start-nginx.ps1"
+PROJECT_PYTHON_CANDIDATES = (
+    PROJECT_ROOT / ".venv" / "Scripts" / "python.exe",
+    PROJECT_ROOT / ".venv" / "bin" / "python",
+)
 
 
 class AlreadyRunningError(RuntimeError):
@@ -140,6 +145,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=8000, type=int)
     parser.add_argument(
+        "--skip-prepare",
+        action="store_true",
+        help="跳过 Django check、迁移漂移检查和 migrate，仅用于已确认环境的快速启动",
+    )
+    parser.add_argument(
+        "--skip-migrate",
+        action="store_true",
+        help="运行基础检查，但不自动应用尚未执行的 migration",
+    )
+    finish_mode = parser.add_mutually_exclusive_group()
+    finish_mode.add_argument(
+        "--check-only",
+        action="store_true",
+        help="只运行只读检查（含 migrate --check），不迁移、不启动服务",
+    )
+    finish_mode.add_argument(
+        "--prepare-only",
+        action="store_true",
+        help="运行基础检查并应用 migration，完成后退出而不启动服务",
+    )
+    parser.add_argument(
+        "--deploy-check",
+        action="store_true",
+        help="额外运行 Django deployment security checks；开发配置会产生预期警告",
+    )
+    parser.add_argument(
         "--no-replace",
         action="store_false",
         dest="replace_existing",
@@ -157,6 +188,50 @@ def parse_args() -> argparse.Namespace:
         help="显式使用普通 HTTP 开发模式，不加载本地 MFA/mTLS 配置",
     )
     return parser.parse_args()
+
+
+def _project_python() -> Path:
+    for candidate in PROJECT_PYTHON_CANDIDATES:
+        if candidate.is_file():
+            return candidate.resolve()
+    raise RuntimeError("未找到项目根目录 .venv，请先创建虚拟环境并安装依赖。")
+
+
+def _relaunch_with_project_python() -> int | None:
+    """Keep Waitress and management commands on the same project runtime."""
+    project_python = _project_python()
+    if Path(sys.executable).resolve() == project_python:
+        return None
+    print(f"[环境] 切换到项目解释器：{project_python}")
+    completed = subprocess.run(
+        [str(project_python), str(Path(__file__).resolve()), *sys.argv[1:]],
+        cwd=PROJECT_ROOT,
+        check=False,
+    )
+    return completed.returncode
+
+
+def _run_management_command(*arguments: str) -> None:
+    display = " ".join(arguments)
+    print(f"[检查] python manage.py {display}")
+    subprocess.run(
+        [sys.executable, "manage.py", *arguments],
+        cwd=PROJECT_ROOT,
+        check=True,
+    )
+
+
+def _prepare_django(*, check_only: bool, skip_migrate: bool, deploy_check: bool) -> None:
+    """Run bounded local checks; production deployment remains a separate flow."""
+    _run_management_command("check")
+    _run_management_command("makemigrations", "--check", "--dry-run")
+    if deploy_check:
+        _run_management_command("check", "--deploy", "--tag", "security")
+    if check_only or skip_migrate:
+        _run_management_command("migrate", "--check")
+    else:
+        print("[准备] 应用本地数据库 migration")
+        _run_management_command("migrate")
 
 
 def _proxy_auth_secret() -> str:
@@ -244,8 +319,23 @@ def _ensure_local_nginx() -> None:
 
 
 def main() -> int:
-    args = parse_args()
     try:
+        relaunched = _relaunch_with_project_python()
+        if relaunched is not None:
+            return relaunched
+        args = parse_args()
+        if args.skip_prepare and (
+            args.check_only
+            or args.prepare_only
+            or args.skip_migrate
+            or args.deploy_check
+        ):
+            raise RuntimeError(
+                "--skip-prepare 不能与 --check-only、--prepare-only、--skip-migrate "
+                "或 --deploy-check 同时使用。"
+            )
+        if args.prepare_only and args.skip_migrate:
+            raise RuntimeError("--prepare-only 不能与 --skip-migrate 同时使用。")
         with SingleInstanceLock(PID_FILE, replace_existing=args.replace_existing):
             if args.plain:
                 os.environ.update(
@@ -258,6 +348,21 @@ def main() -> int:
                 print("已显式启用普通 HTTP 调试模式；本地 MFA/mTLS 强制关闭。")
             else:
                 _configure_local_security(enrollment_mode=args.enrollment_mode)
+
+            if not args.skip_prepare:
+                _prepare_django(
+                    check_only=args.check_only,
+                    skip_migrate=args.skip_migrate,
+                    deploy_check=args.deploy_check,
+                )
+            if args.check_only:
+                print("[完成] Django 基础检查通过；未修改数据库，也未启动服务。")
+                return 0
+            if args.prepare_only:
+                print("[完成] Django 基础检查与本地 migration 已完成；未启动服务。")
+                return 0
+
+            if not args.plain:
                 _ensure_local_nginx()
                 mode = "绑定模式" if args.enrollment_mode else "MFA + mTLS 强制模式"
                 print(f"本地安全入口已启用（{mode}）：https://admin.localhost:8443/")

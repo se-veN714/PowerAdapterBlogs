@@ -3,9 +3,9 @@
 > **文档权重**：85（Blogs 当前实现与模块 TODO）
 > **模块**: `Blogs/`  
 > **职责**: 博客文章 CRUD、分类/标签管理、PV/UV 统计、修订追踪 (v2.0)、可见性控制  
-> **依赖**: Django CBV (ListView/DetailView/CreateView/UpdateView), DRF ViewSet, Redis 缓存  
+> **依赖**: Django CBV (ListView/DetailView/CreateView/UpdateView), HTMX, Redis 缓存
 > **创建**: 2025-08-04  
-> **最后更新**: 2026-07-29 — 已发布稿件组合筛选与游标懒加载
+> **最后更新**: 2026-08-26 — 移除旧 DRF API，统一为 Django 模板与 HTMX 交互边界
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-26 | v2.20 | 删除旧 DRF ViewSet、序列化器、OpenAPI/Swagger 路由和依赖；固定 Django Template + HTMX 单体架构，不保留通用 JSON Data API 路线 |
 | 2026-07-29 | v2.19 | `/Blogs/review/` 的“可下架”栏增加 Board、Tag、作者和标题/摘要搜索；每批 8 篇，使用签名 `(created_time, pk)` 游标与 htmx 追加，不执行分页总数 COUNT，也不在片段请求中重查其他状态栏和筛选选项；迁移 0009 增加匹配游标顺序的复合索引 |
 | 2026-07-29 | v2.18 | 新增 `/Blogs/review/` 简易稿件流程页；按 Policy 分栏显示可提审草稿、可审核稿件和可下架文章；Admin 将无权限与状态不匹配分别提示；待审正文仅转义展示 Markdown 原文 |
 | 2026-07-27 | v2.17 | **博客基础 F4**：文章 canonical/Open Graph、Feed 自动发现；Sitemap 切换统一公开 QuerySet 并修复旧 location；149 项全量回归通过 |
@@ -69,8 +70,7 @@ flowchart TD
         IMG["post_img_upload<br/>图片上传 /img_upload/"]
     end
 
-    subgraph api["API"]
-        DRF["DRF ViewSets<br/>PostViewSet / CategoryViewSet"]
+    subgraph fragments["HTMX fragment 端点"]
         REV_API["修订 HTML 端点 ×2<br/>revision body / adjacent diff"]
     end
 
@@ -100,7 +100,6 @@ flowchart TD
     POST --> EVENT
     REV --> EVENT
 
-    DRF --> POST
     REV_API --> REV
 
     LIST --> REDIS
@@ -131,19 +130,17 @@ flowchart TD
 |------|------------|------|
 | `models.py` | `Post`, `PostRevision`, `PostWorkflowEvent` 等 | 7 个数据模型；内容版本与状态历史分离 |
 | `services.py` | `commit_post_form()`, `record_post_workflow_event()`, Post workflow | 文章原子提交、陈旧版本检测、状态事件、行锁与 Policy 重检 |
-| `views.py` | 6 个 CBV + `post_img_upload` + 修订 fragment 端点 | 前台浏览 + 编辑器 + 图片上传 + HTML Application API |
+| `views.py` | 6 个 CBV + `post_img_upload` + 修订 fragment 端点 | 前台浏览 + 编辑器 + 图片上传 + 服务端 HTML fragment |
 | `forms.py` | `PostForm` | 文章编辑表单（visibility/change_type/edit_summary + 隐藏的 `base_revision_id`） |
 | `covers.py` | `default_cover_static_path()` | 按分类名选择 Devenir 静态默认封面；未知分类回退 `Cover.png`，不写入 `Post.cover` |
 | `admin.py` | `PostAdmin`, `PostRevisionAdmin`, `PostWorkflowEventAdmin` 等 | Dashboard Admin；修订与工作流历史只读并按 Board 收敛 |
 | `adminforms.py` | `PostAdminForm` | Admin 专用表单 (覆盖 widgets) |
-| `apis.py` | `PostViewSet`, `CategoryViewSet` | DRF REST API |
-| `serializers.py` | `PostSerializer`, `CategorySerializer` | DRF 序列化器 |
-| `urls.py` | — | 前台路由 + DRF 路由 + 修订 HTML 端点路由 |
+| `urls.py` | — | 前台路由 + 修订 HTML 端点路由 |
 | `revisions.py` | `get_next_version()`, `create_revision()`, `render_diff()` | 修订工具；创建时锁定 Post 并校验 change_type，不承载授权判断 |
 | `feed.py` | `PublicPostFeed` / `PublicPostAtomFeed` | F3 RSS/Atom；复用公开文章 QuerySet，只生成固定公网基址的绝对链接 |
 | `tests.py` | `PostStreamHtmxTest` 等 | 权限、修订、上传、Post Stream fragment、缓存隔离与管理命令回归 |
 
-### 2.1 Post Stream HTML Application API
+### 2.1 Post Stream HTMX 交换边界
 
 `PostListView`、`CategoryView`、`TagView` 与 `SearchView` 共享 `post_list`、分页、`categories` 和 `post.can_edit` 契约。分类与搜索不再维护独立卡片数据形状：
 
@@ -462,22 +459,20 @@ sequenceDiagram
 
 ---
 
-## 5. API 设计
+## 5. 服务端 HTML 交互端点
 
-### 5.1 DRF REST API (`/api/posts/` + `/api/categories/`)
+旧 DRF REST API、OpenAPI Schema 与 Swagger UI 已于 2026-08-26 移除。当前项目以 Django 服务端模板和 HTMX fragment 为唯一 Web 交互契约；不为独立前端或假设中的客户端保留第二套 Data API。
 
-由 `PostViewSet` + `CategoryViewSet` 提供 Policy-scoped 只读数据 API；写方法当前明确返回 405。
-
-### 5.2 修订历史 HTML Application API (v2.0 P1)
+### 5.1 修订历史 HTMX 端点 (v2.0 P1)
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/post/{slug}/revision/v{major}.{minor}/` | GET | 普通请求返回完整历史页面；htmx 返回正文 fragment |
 | `/post/{slug}/diff/?from=1.0&to=1.1` | GET | 仅允许相邻版本，返回 diff HTML fragment |
 
-> 修订交互属于 HTML Application API，不挂在 DRF router 下；时间线元数据随文章详情页返回。
+> 修订交互由 Django 返回完整页面或 HTML fragment；时间线元数据随文章详情页返回。
 
-### 5.3 图片上传
+### 5.2 图片上传
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
@@ -549,7 +544,7 @@ Stage 4 的对象范围由 `boards.policies` 统一裁决：
 **设计决策**：
 - 非授权用户访问 STAFF_ONLY 文章 → **404** 而非 403
 - 原因：不泄露"这篇文章存在但你无权查看"的信息
-- 列表/API 使用 `published_posts_visible_to()`，详情与修订端点使用 `can_view_published_post()`；拒绝时继续返回 404
+- 列表使用 `published_posts_visible_to()`，详情与修订端点使用 `can_view_published_post()`；拒绝时继续返回 404
 
 ### 7.1 所有视图的 visibility 过滤
 
@@ -561,7 +556,6 @@ Stage 4 的对象范围由 `boards.policies` 统一裁决：
 | `SearchView` | 继承 PostListView | 自动继承 |
 | `PostDetailView` | `get_object()` | 判断后 `raise Http404` |
 | `revision_body` / `revision_diff` | 函数入口 | `can_view_published_post()` |
-| DRF Post/Category | `get_queryset()` | Policy-scoped 只读；写方法 405 |
 
 ---
 
@@ -668,7 +662,7 @@ PostRevision (内容唯一来源)
 | 6 | Post 移除 `title/desc/content/slug` 列 | `models.py` + migration |
 | 7 | PostRevision 去掉"快照"字样 (verbose_name 改为"文章版本") | `models.py` + migration |
 | 8 | PostAdmin fieldsets 改为从 current_revision 代理读取 | `admin.py` |
-| 9 | DRF serializer 更新字段来源 | `serializers.py` |
+| 9 | 所有服务端页面与 HTMX fragment 更新字段来源 | `views.py` + `templates/` |
 
 ---
 
@@ -692,8 +686,6 @@ flowchart TD
         SERVICE["services.py<br/>原子提交 / 状态工作流"]
         VIEWS["views.py<br/>6 CBV + upload + 修订 fragments"]
         ADMIN["admin.py<br/>PostAdmin/CategoryAdmin/TagAdmin"]
-        APIS["apis.py<br/>PostViewSet/CategoryViewSet"]
-        SERIAL["serializers.py"]
         URLS["urls.py"]
     end
 
@@ -718,13 +710,7 @@ flowchart TD
     ADMIN --> ADMIN_F
     ADMIN --> CUS
 
-    APIS --> MODELS
-    APIS --> SERIAL
-
-    SERIAL --> MODELS
-
     URLS --> VIEWS
-    URLS --> APIS
 
     style MODELS fill:#e8f5e9,stroke:#388e3c
     style REV fill:#e1f5fe,stroke:#0288d1
@@ -747,7 +733,7 @@ flowchart TD
 | slug 唯一性由 DB 保证 | 🟢 低 | `save()` 中手动生成 slug，并发创建可能冲突。概率极低 |
 | 修订时间线无分页 | 🟢 低 | 详情页一次加载全部版本元数据；个人博客文章版本数 < 100 时可接受，R4 再评估 |
 | 修订 Diff 尚不支持块移动检测 | 🟢 低 | R4 已支持任意正向版本比较与三种展示模式；独立的块移动识别收益有限，留作 v2.5+ 候选 |
-| 普通 View/API 未使用 Board Policy | ✅ 已修复 | Stage 5 已覆盖写作 View、上传、修订端点、评论提交和只读 DRF ViewSet |
+| 普通 View 未使用 Board Policy | ✅ 已修复 | Stage 5 已覆盖写作 View、上传、修订端点和评论提交；旧 DRF API 已在 2026-08-26 移除，避免形成第二套权限契约 |
 | `/super_admin/` 的 Post 默认注册依赖 Django `is_staff` + Permission | 🟡 中 | 当前仅 superuser 创建流程授予 `is_staff`；未来引入非 superuser staff 前补 Policy 或显式 superuser 边界 |
 | 公开归档与 RSS/Atom | ✅ 已完成 | `/Blogs/archive/`、`/feed/` 与 `/feed/atom/` 共用公开文章 QuerySet；草稿、审核中和内部文章均有隔离测试 |
 
@@ -770,10 +756,6 @@ flowchart TD
 | `/img_upload/` | `post_img_upload` | `post_img_upload` |
 | `/post/{slug}/revision/{version}/` | `revision_body` | `revision_body` |
 | `/post/{slug}/diff/` | `revision_diff` | `revision_diff` |
-| `/api/posts/` | DRF `PostViewSet` | (REST) |
-| `/api/categories/` | DRF `CategoryViewSet` | (REST) |
-| `/api/schema/` | `SpectacularAPIView` | `schema` |
-| `/api/docs/` | `SpectacularSwaggerView` | `swagger-ui` |
 
 ### B. 关键配置
 

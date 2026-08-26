@@ -2,7 +2,7 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-08-08
+> **更新**: 2026-08-26
 > **状态**: Board Scope Stage 0–8 已完成，遗留 `is_reviewer` 已停止授权并通过 schema migration 删除；`/review/` 承载业务审核，`/operations/security/` 承载 SiteOperators 日志完整性核验，`/dashboard/` 仅供显式 `dashboard_user` 与 superuser 日常运维；生产 MFA/mTLS 开关仍默认关闭，本地 `run.py` 已默认开启完整验证并自动维护独立 Nginx 边缘
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
@@ -136,17 +136,17 @@ Devenir Dashboard 采用第一方 Django View + Template + htmx 业务界面，�
 
 > **Board 分支历史基线（2026-07-28）**：`codex/board-back` 的 Board Index 后端已落地（内容模型合并入单一 `boards/models.py`、固定 Board 归属由 Model 层强制、分派视图与路由、数据保留型音乐扁平化迁移）。内容种子数据（`seed_board_index`，Faker 驱动，幂等+`--reset`）已补齐；Music 叙事区（Yearly 大数字 / Monthly bars / Cross-Scale / Companion / Gravity）已全量数据驱动，模板硬编码 mock 与 `{% empty %}` 假数据分支已清除，死脚本 `music-mock-data.js` 已删除。该分支当时通过 system check、迁移漂移检查、100 项 Board/全局角色回归及 215 项全项目测试；其中当时跳过的 16 项 MFA 契约骨架现已由 H2 可执行测试取代，不能作为当前 MFA 状态依据。
 
-### 0.2 前端架构决策：Devenir HDA，不做全面分离
+### 0.2 Web 架构决策：Devenir HDA，不做前后端分离
 
-> **决策日期**：2026-07-13
-> **结论**：浏览器端继续采用 Django Template + htmx 的 Hypermedia-Driven Application（HDA）模式，不把 Devenir 重写为消费 JSON 的独立 SPA。
+> **决策日期**：2026-07-13；2026-08-26 再确认并收紧
+> **结论**：项目在可见规划期内固定采用 Django Template + htmx 的 Hypermedia-Driven Application（HDA）模式。旧 DRF/OpenAPI/Swagger 已删除；不建设通用 JSON Data API，不为 SPA、独立前端、移动客户端或“也许以后会用”预留第二套接口。
 
 ```mermaid
 flowchart LR
-    BROWSER["浏览器 / Devenir"] -->|完整页面或 hx-request| HTML["HTML Application API<br/>Django 页面 + HTML fragment"]
-    CLIENT["未来安卓端 / 其他项目"] -->|/api/v1/ JSON| DATA["Versioned Data API<br/>DRF"]
-    HTML --> POLICY["共享 Policy / Service"]
-    DATA --> POLICY
+    BROWSER["浏览器 / Devenir"] -->|普通请求或 HX-Request| VIEW["Django View<br/>完整页面或 HTML fragment"]
+    VIEW --> FORM["Django Form / CSRF / Session"]
+    VIEW --> POLICY["Policy / Service"]
+    FORM --> POLICY
     POLICY --> ORM["Django ORM"]
 ```
 
@@ -156,30 +156,16 @@ flowchart LR
 
 1. htmx 端点默认返回 HTML fragment，不返回 JSON 后再由前端拼接 DOM。
 2. 普通请求优先保留完整页面或 POST/Redirect/GET 回退，不能把可用性完全绑定到 JavaScript。
-3. HTML、Admin、API 必须共享 Policy / Service，禁止在模板或前端复制授权规则。
+3. 完整页面、HTMX 端点与 Admin 必须共享 Policy / Service，禁止在模板或前端复制授权规则。
 4. Devenir 的页面结构、SEO、Session、CSRF 和表单验证继续由 Django 负责。
 5. 复杂前端状态仅限编辑器、动画、图表等确有必要的局部组件，不为简单 CRUD 引入 SPA 状态层。
 
-#### JSON API 边界
+#### 单一 Web 契约边界
 
-DRF 是给程序消费的 Data API，不作为 Devenir 的内部渲染依赖。只有出现真实的安卓客户端、第三方消费者、离线工作流或独立前端团队时，才评估扩大 `/api/v1/`；届时必须版本化并保持兼容。
-
-当前 API 尚不能作为分离式前端基础：
-
-| 严重度 | 现状 | 后续要求 |
-|---|---|---|
-| ✅ | `CategoryViewSet` 原使用无显式权限的 `ModelViewSet` | Stage 5 已改为 `ReadOnlyModelViewSet`，只返回当前用户可见文章关联的分类 |
-| ✅ | `PostViewSet` 原使用不理解 BoardMembership 的 `IsAdminUser` | Stage 5 已改为 Policy-scoped 只读 API；写方法明确返回 405，等待真实客户端需求后单独设计写入 Serializer/Service |
-| 🟡 中 | API 仅覆盖 Post / Category，未覆盖评论、修订、Board 和权限申请 | 没有真实第二客户端前不补“为完整而完整”的通用 API |
-
-#### 重新评估全面分离的触发条件
-
-- 出现需要长期维护的第二客户端。
-- 出现离线编辑、大量客户端状态或实时协同等 HDA 明显不适合的需求。
-- 前后端由独立团队和发布周期维护。
-- 经过度量确认服务端 HTML 是实际瓶颈，而不是数据库、缓存、静态资源或查询问题。
-
-在这些条件出现前，全面分离属于额外复杂度，不列入 v2.4–v2.5+ 主路线。
+1. 站内交互只使用命名 Django URL、完整 HTML 页面、HTML fragment 和标准表单提交；不得新增 DRF Router、Serializer、ViewSet、OpenAPI Schema 或 Swagger UI。
+2. HTMX 请求头只是响应形态协商，不是身份或权限边界；每个 fragment 端点仍必须执行 Session、CSRF、Policy 与对象可见性检查。
+3. 地图、Spotify、邮件和 MongoDB 等供应商接口属于服务端或受控浏览器集成，不构成本项目的通用 Data API，也不授权暴露内部 ORM 数据。
+4. 若未来出现完全不同的产品目标，必须由用户重新作出架构决策并从需求、威胁模型和版本契约重新设计；普通功能迭代和 agent 不得自行恢复旧 API。
 
 参考：[htmx Documentation](https://htmx.org/docs/)、[Hypermedia APIs vs. Data APIs](https://htmx.org/essays/hypermedia-apis-vs-data-apis/)、[Hypermedia-Driven Applications](https://htmx.org/essays/hypermedia-driven-applications/)。
 
@@ -337,7 +323,7 @@ flowchart TD
 
 ### 2.8 htmx HTML 端点（实际实现）
 
-修订交互属于浏览器 Application API，返回 HTML 而不是 JSON：
+修订交互由 Django 返回 HTML，而不是 JSON：
 
 | 请求 | htmx 响应 | 普通请求 |
 |---|---|---|
@@ -421,7 +407,7 @@ R4 允许比较同一文章中任意两个不同版本，但参数必须保持�
 
 > **状态**: 规划中；等待另一项目完成内容模型对接后再启动
 > **目标**: Post 退化为纯元数据容器，PostRevision 成为内容唯一数据源  
-> **影响**: 模型 + 视图 + 模板 + Admin + DRF serializer · 预计 4-6h
+> **影响**: 模型 + 视图 + 模板 + Admin · 预计 4-6h
 
 ### 2A.1 架构变化
 
@@ -477,7 +463,7 @@ v2.1:  GET /post/{slug}/
 | 6 | 所有视图改内容来源：`post.title` → `post.current_revision.title` 等 | `Blogs/views.py` | `PostDetailView` / `PostListView` / `SearchView` 等 |
 | 7 | 模板改：`{{ post.title }}` → `{{ post.current_revision.title }}` | `themes/` | 所有引用 post.title/content/desc/slug 的模板 |
 | 8 | `PostAdmin` fieldsets 改为从 current_revision 代理读取 | `Blogs/admin.py` + `adminforms.py` | |
-| 9 | DRF `PostSerializer` 字段来源改为 `current_revision.*` | `Blogs/serializers.py` | |
+| 9 | 所有服务端页面与 HTMX fragment 字段来源改为 `current_revision.*` | `Blogs/views.py` + `themes/` | |
 | 10 | Post 移除 `title/desc/content/slug` 列 | `models.py` + migration | 最后一步，确认所有引用已迁移 |
 | 11 | PostRevision `verbose_name` 去"快照" → 改为"文章版本" | `models.py` + migration | 语义对齐 |
 
@@ -488,10 +474,10 @@ v2.1:  GET /post/{slug}/
 | 前台文章渲染 | `{{ post.title }}` | `{{ post.current_revision.title }}` |
 | 搜索 (title+content) | `Q(title__icontains=...) \| Q(content__icontains=...)` | 通过 `current_revision` 跨表查询 |
 | slug 路由 | `Post.slug` | `Post.current_revision.slug` (slug 变更在快照中体现) |
-| 修订 API | 不变 | 不变 (PostRevision 表结构无变化) |
+| 修订 HTML 端点 | 不变 | 不变 (PostRevision 表结构无变化) |
 | RSS Feed | `post.title` | `post.current_revision.title` |
 
-> 核心原则：**API 不变，模板微调，前端无感**。
+> 核心原则：**命名 URL 与 HTML 交互契约稳定，模板微调，浏览器端无独立数据模型**。
 
 ---
 
@@ -503,7 +489,7 @@ Blogs/
 ├── models.py              # + PostRevision
 ├── forms.py               # + change_type, edit_summary 字段
 ├── views.py               # PostCreateView/PostEditView 快照逻辑
-├── urls.py                # + revisions/diff API 路由
+├── urls.py                # + revisions/diff HTML 路由
 └── revisions.py           # 新建：版本计算、快照、diff 渲染工具
 
 security/
@@ -551,7 +537,7 @@ PowerAdapterBlogs/settings/
 |------|------|------|
 | Devenir 全面前后端分离 / SPA 重写 | ❌ 不做 | 与当前 htmx HDA 路线相违，且没有真实第二客户端 |
 | htmx 消费 JSON 再拼 DOM | ❌ 不做 | htmx 端点直接返回服务端渲染 HTML fragment |
-| 为浏览器建设通用 JSON API | ❌ 不做 | 浏览器走 HTML Application API；JSON API 仅服务真实外部消费者 |
+| 建设通用 JSON Data API | ❌ 不做 | 项目固定使用完整 HTML 页面与 HTMX fragments，不保留假设性第二客户端接口 |
 | diff 独立页面 `/post/slug/diff/` | ❌ 不做 | 采用嵌入式 htmx HTML fragment |
 | Devenir 主题迁移 | ✅ 已完成 | 当前唯一启用主题，继续按 HDA 演进 |
 | PostImage 模型 CRUD | ❌ 不做 | 已有但无视图，暂不启用 |

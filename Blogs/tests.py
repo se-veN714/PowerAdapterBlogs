@@ -14,8 +14,7 @@ from datetime import timedelta
 import base64
 
 from accounts.models import MyUser
-from Blogs.models import Category, Post, PostRevision, Tag
-from Blogs.serializers import PostDetailSerializer
+from Blogs.models import Category, Post, PostRevision
 from Blogs.revisions import (
     DIFF_ALGORITHM,
     build_structured_diff,
@@ -24,6 +23,19 @@ from Blogs.revisions import (
 )
 from Blogs.management.commands.generate_posts import GENERATED_SLUG_PREFIX
 from boards.models import Board, BoardMembership
+
+
+class PublicSurfaceContractTest(TestCase):
+    def test_site_root_renders_devenir_homepage(self):
+        response = self.client.get(reverse("index"), HTTP_HOST="localhost:8000")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "pages/index.html")
+
+    def test_removed_legacy_api_stays_unreachable(self):
+        response = self.client.get("/Blogs/api/")
+
+        self.assertEqual(response.status_code, 404)
 
 
 @override_settings(PUBLIC_SITE_URL="https://blog.example.test")
@@ -247,12 +259,6 @@ class BlogSecurityTest(TestCase):
             stored_name = response.json()['url'].rsplit('/', 1)[-1]
             self.assertNotEqual(stored_name, 'unsafe-name.png')
             self.assertTrue(Path(media_root, 'post_images', stored_name).exists())
-
-    def test_post_serializer_reads_many_to_many_tags(self):
-        tag = Tag.objects.create(name='Django', owner=self.owner)
-        self.post.tag.add(tag)
-        self.assertEqual(PostDetailSerializer(self.post).data['tags'], ['Django'])
-
 
 class PostRevisionCharacterizationTest(TestCase):
     """Lock down the v2.0 revision contract before the service is refactored."""

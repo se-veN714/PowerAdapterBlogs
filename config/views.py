@@ -38,7 +38,6 @@ def robots_txt(request):
         "Disallow: /accounts/invitation/",
         "Disallow: /accounts/settings/",
         "Disallow: /Blogs/img_upload/",
-        "Disallow: /Blogs/api/",
         f"Sitemap: {public_absolute_url(reverse('sitemap'))}",
     )
     return HttpResponse("\n".join(lines) + "\n", content_type="text/plain")

@@ -13,8 +13,9 @@
 # here put the import lib
 # urls.py
 from django.urls import path
-from security.views import CommentModerationView
+from security.views import AuditEventListView, CommentModerationView
 
 urlpatterns = [
+    path("audit-events/", AuditEventListView.as_view(), name="audit_events"),
     path("comments_moderate/", CommentModerationView.as_view(), name="comment_moderate"),
 ]

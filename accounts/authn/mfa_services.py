@@ -8,14 +8,12 @@ from datetime import timedelta
 
 import pyotp
 from django.conf import settings
-from django.contrib.admin.models import CHANGE, LogEntry
 from django.contrib.auth.hashers import check_password, make_password
-from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.utils import timezone
 
 from boards.models import BoardMembership
-from security.models import SecureLogEntry
+from security.outbox import enqueue_audit_event
 
 from .mfa_crypto import (
     EncryptedMfaSecret,
@@ -130,24 +128,35 @@ def _decrypt_seed(device: MfaTotpDevice) -> str:
 
 
 def _audit(*, actor: MyUser, device: MfaTotpDevice, event: str, reason: str = ""):
-    """Write a minimal Django LogEntry and require its HMAC companion."""
-    content_type = ContentType.objects.get_for_model(MfaTotpDevice)
-    message = f"mfa_event={event}"
-    if reason:
-        message = f"{message};reason={reason}"
-    entry = LogEntry.objects.log_action(
-        user_id=actor.pk,
-        content_type_id=content_type.pk,
-        object_id=str(device.pk),
-        object_repr=f"TOTP device {device.pk}",
-        action_flag=CHANGE,
-        change_message=message,
+    """Enqueue a minimized MFA lifecycle event in the caller transaction."""
+    reason_code = str(reason or "NONE").strip().lower()
+    allowed_reasons = {
+        "none",
+        "binding_expired",
+        "secret_unavailable",
+        "invalid_code",
+        "replayed_code",
+        *RESET_REASONS,
+    }
+    if reason_code not in allowed_reasons:
+        reason_code = "other"
+    return enqueue_audit_event(
+        event_type=f"mfa.{event}",
+        actor={"type": "user", "id": str(actor.pk)},
+        target={"type": "mfa_totp_device", "id": str(device.pk)},
+        context={"source": "mfa-service"},
+        change={
+            "after": {
+                "status": device.status,
+                "auth_version": int(device.auth_version),
+                "reason_code": reason_code.upper(),
+            }
+        },
+        outcome={
+            "status": "failure" if event.endswith("failed") else "success",
+            "error_code": reason_code.upper() if event.endswith("failed") else None,
+        },
     )
-    secure_entry, _ = SecureLogEntry.compute_from_logentry(
-        entry,
-        settings.LOG_HMAC_KEY,
-    )
-    return secure_entry
 
 
 @transaction.atomic

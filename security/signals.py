@@ -1,75 +1,112 @@
-# -*- coding: utf-8 -*-
-# @File    : signals.py
-# @Time    : 2025/8/3 03:00
-# @Author  : seveN1foR
-# @Version : 1.0
-# @Software: PyCharm
-# @Contact : qingyudong942@gmail.com
+"""Append-only guards and durable Django Admin audit capture."""
 
-"""
-本模块提供了security的signals功能的类和函数。
-"""
-
-from django.conf import settings
 from django.contrib.admin.models import LogEntry
-from django.core.exceptions import PermissionDenied
-from django.db.models.signals import post_save, pre_save, pre_delete
+from django.db.models.deletion import ProtectedError
+from django.db.models.signals import post_save, pre_delete, pre_save
 from django.dispatch import receiver
 
-# here put the import lib
-import logging
+from security.admin_audit import record_admin_logentry
+from security.models import (
+    AuditCheckpoint,
+    AuditOutbox,
+    AuditVerificationRun,
+    SecureLogEntry,
+)
 
-from accounts.thread_local import get_current_user
-from security.models import SecureLogEntry
 
-logger = logging.getLogger(__name__)
+LOG_ENTRY_IMMUTABLE_FIELDS = (
+    "action_time",
+    "user_id",
+    "content_type_id",
+    "object_id",
+    "object_repr",
+    "action_flag",
+    "change_message",
+)
+INTEGRITY_IMMUTABLE_FIELDS = ("log_entry_id", "hmac")
+OUTBOX_IMMUTABLE_FIELDS = ("event_id", "event_type", "partition", "event")
+CHECKPOINT_IMMUTABLE_FIELDS = (
+    "partition",
+    "sequence",
+    "mac",
+    "key_id",
+    "checkpoint_hmac",
+)
+VERIFICATION_RUN_IMMUTABLE_FIELDS = ("scope", "partition")
 
-# ============================================================
-# LogEntry / SecureLogEntry 不可变性保护
-# 仅 superuser 可修改或删除日志记录
-# ============================================================
 
-LOG_PROTECTED_MSG = "Only superuser can modify or delete log entries"
+@receiver(post_save, sender=LogEntry)
+def enqueue_admin_audit_event(sender, instance, created, **kwargs):
+    if created:
+        record_admin_logentry(instance)
 
 
 @receiver(pre_save, sender=LogEntry)
-def prevent_logentry_modify(sender, instance, **kwargs):
-    """阻止非 superuser 修改已有 LogEntry。"""
-    if instance.pk is None:
-        return  # 新建 LogEntry 不受限制（Django 内部自动创建）
-    user = get_current_user()
-    if user is not None and not user.is_superuser:
-        raise PermissionDenied(LOG_PROTECTED_MSG)
+def prevent_log_entry_rewrite(sender, instance, **kwargs):
+    if not instance.pk:
+        return
+    original = sender.objects.filter(pk=instance.pk).values(*LOG_ENTRY_IMMUTABLE_FIELDS).first()
+    if original and any(
+        getattr(instance, field) != original[field]
+        for field in LOG_ENTRY_IMMUTABLE_FIELDS
+    ):
+        raise ProtectedError("audit LogEntry records are append-only", [instance])
+
+
+@receiver(pre_save, sender=SecureLogEntry)
+def prevent_integrity_rewrite(sender, instance, **kwargs):
+    if not instance.pk:
+        return
+    original = sender.objects.filter(pk=instance.pk).values(*INTEGRITY_IMMUTABLE_FIELDS).first()
+    if original and any(
+        getattr(instance, field) != original[field]
+        for field in INTEGRITY_IMMUTABLE_FIELDS
+    ):
+        raise ProtectedError("audit integrity evidence is append-only", [instance])
+
+
+def _prevent_field_rewrite(sender, instance, fields, message):
+    if not instance.pk:
+        return
+    original = sender.objects.filter(pk=instance.pk).values(*fields).first()
+    if original and any(getattr(instance, field) != original[field] for field in fields):
+        raise ProtectedError(message, [instance])
+
+
+@receiver(pre_save, sender=AuditOutbox)
+def prevent_outbox_payload_rewrite(sender, instance, **kwargs):
+    _prevent_field_rewrite(
+        sender,
+        instance,
+        OUTBOX_IMMUTABLE_FIELDS,
+        "audit outbox payloads are immutable",
+    )
+
+
+@receiver(pre_save, sender=AuditCheckpoint)
+def prevent_checkpoint_rewrite(sender, instance, **kwargs):
+    _prevent_field_rewrite(
+        sender,
+        instance,
+        CHECKPOINT_IMMUTABLE_FIELDS,
+        "audit checkpoints are immutable",
+    )
+
+
+@receiver(pre_save, sender=AuditVerificationRun)
+def prevent_verification_scope_rewrite(sender, instance, **kwargs):
+    _prevent_field_rewrite(
+        sender,
+        instance,
+        VERIFICATION_RUN_IMMUTABLE_FIELDS,
+        "audit verification scope is immutable",
+    )
 
 
 @receiver(pre_delete, sender=LogEntry)
-def prevent_logentry_delete(sender, instance, **kwargs):
-    """阻止非 superuser 删除 LogEntry。"""
-    user = get_current_user()
-    if user is not None and not user.is_superuser:
-        raise PermissionDenied(LOG_PROTECTED_MSG)
-
-
 @receiver(pre_delete, sender=SecureLogEntry)
-def prevent_secure_logentry_delete(sender, instance, **kwargs):
-    """阻止非 superuser 删除 SecureLogEntry（HMAC 完整性记录）。"""
-    user = get_current_user()
-    if user is not None and not user.is_superuser:
-        raise PermissionDenied(LOG_PROTECTED_MSG)
-
-
-# ============================================================
-# SecureLogEntry 自动签名（创建时 HMAC）
-# ============================================================
-
-@receiver(post_save, sender=LogEntry)
-def create_secure_log_entry(sender, instance, created, **kwargs):
-    if not created:
-        return
-
-    try:
-        secret_key = settings.LOG_HMAC_KEY
-        SecureLogEntry.compute_from_logentry(instance, secret_key)
-    except Exception:
-        logger.exception(f"SecureLogEntry 同步失败: logentry_id={instance.id} "
-                         f"content_type_id={instance.content_type_id}")
+@receiver(pre_delete, sender=AuditOutbox)
+@receiver(pre_delete, sender=AuditCheckpoint)
+@receiver(pre_delete, sender=AuditVerificationRun)
+def prevent_audit_evidence_deletion(sender, instance, **kwargs):
+    raise ProtectedError("audit evidence deletion is disabled", [instance])

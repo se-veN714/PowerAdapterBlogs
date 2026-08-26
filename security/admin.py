@@ -7,9 +7,7 @@ from security.models import SecureLogEntry
 from security.services import audit_secure_log_entries
 from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 
-# Register your models here.
-admin.site.register(SecureLogEntry)
-
+@admin.register(SecureLogEntry)
 class SecureLogEntryAdmin(DashboardAdminMixin, admin.ModelAdmin):
     """Legacy adapter retained for tests; operations now live at /operations/."""
     list_display = ("log_entry", "status_display", "computed_at", "last_verified_at")
@@ -32,12 +30,13 @@ class SecureLogEntryAdmin(DashboardAdminMixin, admin.ModelAdmin):
         return self._can_view_audit_log(request)
 
     def has_change_permission(self, request, obj=None):
-        """仅超级管理员可修改完整性记录"""
-        return request.user.is_superuser
+        return False
 
     def has_delete_permission(self, request, obj=None):
-        """仅超级管理员可删除完整性记录"""
-        return request.user.is_superuser
+        return False
+
+    def has_add_permission(self, request):
+        return False
 
     def status_display(self, obj):
         if obj.is_tampered:

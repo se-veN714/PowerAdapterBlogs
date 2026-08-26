@@ -5,7 +5,6 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pyotp
-from django.contrib.admin.models import LogEntry
 from django.contrib.auth import SESSION_KEY
 from django.core.cache import cache
 from django.core.management import call_command
@@ -13,6 +12,8 @@ from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+
+from security.models import AuditOutbox
 
 from accounts.authn.mfa_services import (
     MfaServiceError,
@@ -214,8 +215,9 @@ class H2PrivilegedAuthenticationTest(TestCase):
                 verify_active_totp(user=self.user, actor=self.user, code=code)
         self.assertEqual(context.exception.reason, "replayed_code")
         self.assertTrue(
-            LogEntry.objects.filter(
-                change_message__contains="reason=replayed_code"
+            AuditOutbox.objects.filter(
+                event_type="mfa.challenge_failed",
+                event__outcome__error_code="REPLAYED_CODE",
             ).exists()
         )
 

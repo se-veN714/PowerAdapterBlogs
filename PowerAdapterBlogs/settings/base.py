@@ -391,7 +391,12 @@ LOGGING = {
             "handlers": ["info_file", "warning_file", "error_file"],
             "level": "DEBUG",
             "propagate": False,  # 阻止再传给 root
-        }
+        },
+        "security": {
+            "handlers": ["info_file", "warning_file", "error_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
     "root": {
         "handlers": ["console"],
@@ -515,5 +520,10 @@ MONGO = {
     "DB_NAME": os.getenv("MONGO_DB_NAME", "poweradapter_mongo"),
     "DB_USER": os.getenv("MONGO_DB_USER", ""),
     "DB_PASSWORD": os.getenv("MONGO_DB_PASSWORD", ""),
-    "COLLECTION": os.getenv("MONGO_COLLECTION", "logs"),
+    "COLLECTION": os.getenv("MONGO_AUDIT_COLLECTION", "audit_events"),
+    "LEGACY_COLLECTION": os.getenv("MONGO_LEGACY_AUDIT_COLLECTION", "logs"),
+    "HEAD_COLLECTION": os.getenv("MONGO_AUDIT_HEAD_COLLECTION", "audit_chain_heads"),
+    "SERVER_SELECTION_TIMEOUT_MS": int(
+        os.getenv("MONGO_SERVER_SELECTION_TIMEOUT_MS", "3000")
+    ),
 }

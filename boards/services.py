@@ -19,6 +19,7 @@ from boards.membership_step_up import (
     consume_membership_step_up,
 )
 from boards.policies import can_manage_board_members
+from security.outbox import enqueue_audit_event
 
 logger = logging.getLogger(__name__)
 
@@ -87,71 +88,48 @@ def can_review_board_access_request(*, actor, access_request):
     )
 
 
-def _audit_decision(access_request_id):
-    """Best-effort Mongo audit after the relational transaction commits."""
-    try:
-        from security.mongo_client import MongoLogger
-
-        access_request = BoardAccessRequest.objects.select_related(
-            "board", "applicant", "reviewed_by"
-        ).get(pk=access_request_id)
-        MongoLogger().insert_log(
-            action="board_access_decision",
-            data={
-                "request_id": access_request.pk,
-                "board_id": access_request.board_id,
-                "board": access_request.board.slug,
-                "applicant_id": access_request.applicant_id,
-                "applicant": access_request.applicant.username,
-                "actor_id": access_request.reviewed_by_id,
-                "actor": access_request.reviewed_by.username,
-                "previous_role": access_request.previous_role or None,
+def _enqueue_access_decision_audit(access_request):
+    enqueue_audit_event(
+        event_type="board.access_request.decided",
+        actor={"type": "user", "id": str(access_request.reviewed_by_id)},
+        target={"type": "board_access_request", "id": str(access_request.pk)},
+        context={"source": "web"},
+        change={
+            "before": {"status": BoardAccessRequest.Status.PENDING},
+            "after": {
+                "status": access_request.status,
                 "requested_role": access_request.requested_role,
-                "result": access_request.status,
+                "board_id": str(access_request.board_id),
+                "applicant_id": str(access_request.applicant_id),
             },
-        )
-    except Exception:
-        logger.warning(
-            "Board access audit log failed for request_id=%s",
-            access_request_id,
-            exc_info=True,
-        )
+        },
+        outcome={"status": "success", "error_code": None},
+    )
 
 
-def _audit_membership_event(event_id):
-    """Best-effort HMAC mirror after the relational event has committed."""
-    try:
-        from security.mongo_client import MongoLogger
-
-        event = BoardMembershipEvent.objects.select_related("access_request").get(
-            pk=event_id
-        )
-        MongoLogger().insert_log(
-            action="board_membership_event",
-            data={
-                "event_id": event.pk,
-                "event_type": event.event_type,
-                "source": event.source,
-                "membership_id": event.membership_id,
-                "board_id": event.board_id_snapshot,
-                "board": event.board_slug_snapshot,
-                "user_id": event.user_id_snapshot,
-                "user": event.username_snapshot,
-                "actor_id": event.actor_id_snapshot,
-                "actor": event.actor_username_snapshot,
-                "previous_role": event.previous_role or None,
-                "new_role": event.new_role or None,
-                "previous_is_active": event.previous_is_active,
-                "new_is_active": event.new_is_active,
-                "access_request_id": event.access_request_id,
+def _enqueue_membership_event_audit(event):
+    enqueue_audit_event(
+        event_type=f"board.membership.{event.event_type}",
+        actor={
+            "type": "user" if event.actor_id_snapshot else "system",
+            "id": str(event.actor_id_snapshot or "system"),
+        },
+        target={"type": "board_membership", "id": str(event.membership_id)},
+        context={"source": event.source},
+        change={
+            "before": {
+                "role": event.previous_role or None,
+                "is_active": event.previous_is_active,
             },
-        )
-    except Exception:
-        logger.warning(
-            "Board membership event audit failed for event_id=%s",
-            event_id,
-            exc_info=True,
-        )
+            "after": {
+                "role": event.new_role or None,
+                "is_active": event.new_is_active,
+                "board_id": str(event.board_id_snapshot),
+                "user_id": str(event.user_id_snapshot),
+            },
+        },
+        outcome={"status": "success", "error_code": None},
+    )
 
 
 def _transition_event_type(*, membership, target_role, target_is_active):
@@ -286,6 +264,7 @@ def _transition_board_membership(
         actor_id_snapshot=getattr(actor, "pk", None),
         actor_username_snapshot=getattr(actor, "username", ""),
     )
+    _enqueue_membership_event_audit(event)
     return membership, event
 
 
@@ -328,12 +307,6 @@ def _consume_dashboard_step_up(*, request, capability, actor, action, target):
         actor=actor,
         action=action,
         target=target,
-    )
-
-
-def _schedule_membership_event_audit(event):
-    transaction.on_commit(
-        lambda event_id=event.pk: _audit_membership_event(event_id)
     )
 
 
@@ -423,7 +396,7 @@ def grant_board_membership(
             action=MEMBERSHIP_ACTION_GRANT,
             target=target,
         )
-        membership, event = _transition_board_membership(
+        membership, _event = _transition_board_membership(
             board=locked_board,
             user=locked_user,
             actor=actor,
@@ -432,7 +405,6 @@ def grant_board_membership(
             source=BoardMembershipEvent.Source.DASHBOARD,
             reason=reason,
         )
-        _schedule_membership_event_audit(event)
         return membership
 
 
@@ -472,7 +444,7 @@ def change_board_membership_role(
             action=MEMBERSHIP_ACTION_CHANGE_ROLE,
             target=target,
         )
-        locked, event = _transition_board_membership(
+        locked, _event = _transition_board_membership(
             board=locked.board,
             user=locked.user,
             actor=actor,
@@ -482,7 +454,6 @@ def change_board_membership_role(
             reason=reason,
             membership=locked,
         )
-        _schedule_membership_event_audit(event)
         return locked
 
 
@@ -520,7 +491,7 @@ def deactivate_board_membership(
             action=MEMBERSHIP_ACTION_DEACTIVATE,
             target=target,
         )
-        locked, event = _transition_board_membership(
+        locked, _event = _transition_board_membership(
             board=locked.board,
             user=locked.user,
             actor=actor,
@@ -530,7 +501,6 @@ def deactivate_board_membership(
             reason=reason,
             membership=locked,
         )
-        _schedule_membership_event_audit(event)
         return locked
 
 
@@ -562,7 +532,7 @@ def reactivate_board_membership(
             action=MEMBERSHIP_ACTION_REACTIVATE,
             target=target,
         )
-        locked, event = _transition_board_membership(
+        locked, _event = _transition_board_membership(
             board=locked.board,
             user=locked.user,
             actor=actor,
@@ -572,7 +542,6 @@ def reactivate_board_membership(
             reason=reason,
             membership=locked,
         )
-        _schedule_membership_event_audit(event)
         return locked
 
 
@@ -642,7 +611,7 @@ def transfer_board_manager(
             action=MEMBERSHIP_ACTION_TRANSFER_MANAGER,
             target=target,
         )
-        replacement, replacement_event = _transition_board_membership(
+        replacement, _replacement_event = _transition_board_membership(
             board=old.board,
             user=replacement_user,
             actor=actor,
@@ -654,7 +623,7 @@ def transfer_board_manager(
             event_type_override=BoardMembershipEvent.EventType.MANAGER_TRANSFERRED,
         )
         old_role = old.role if old_disposition == "deactivate" else old_disposition
-        old, old_event = _transition_board_membership(
+        old, _old_event = _transition_board_membership(
             board=old.board,
             user=old.user,
             actor=actor,
@@ -665,8 +634,6 @@ def transfer_board_manager(
             membership=old,
             event_type_override=BoardMembershipEvent.EventType.MANAGER_TRANSFERRED,
         )
-        _schedule_membership_event_audit(replacement_event)
-        _schedule_membership_event_audit(old_event)
         return replacement, old
 
 
@@ -731,7 +698,7 @@ def break_glass_deactivate_last_manager(
             action=MEMBERSHIP_ACTION_BREAK_GLASS_DEACTIVATE,
             target=target,
         )
-        locked, event = _transition_board_membership(
+        locked, _event = _transition_board_membership(
             board=locked.board,
             user=locked.user,
             actor=actor,
@@ -741,7 +708,6 @@ def break_glass_deactivate_last_manager(
             reason=reason,
             membership=locked,
         )
-        _schedule_membership_event_audit(event)
         return locked
 
 
@@ -777,7 +743,7 @@ def decide_board_access_request(*, access_request, actor, approve, note=""):
         locked.previous_role = membership.role if membership else ""
 
         if approve:
-            _membership, event = _transition_board_membership(
+            _membership, _event = _transition_board_membership(
                 board=locked.board,
                 user=locked.applicant,
                 actor=actor,
@@ -804,11 +770,7 @@ def decide_board_access_request(*, access_request, actor, approve, note=""):
                 "decision_note",
             ]
         )
-        transaction.on_commit(lambda: _audit_decision(locked.pk))
-        if approve:
-            transaction.on_commit(
-                lambda event_id=event.pk: _audit_membership_event(event_id)
-            )
+        _enqueue_access_decision_audit(locked)
         return locked
 
 
@@ -847,7 +809,7 @@ def withdraw_board_membership(*, membership, actor):
             raise ValidationError("该板块权限已经停用。")
         if locked.role == BoardMembership.Role.MANAGER:
             raise PermissionDenied("Manager 不能自助退出，请由站长管理入口处理。")
-        locked, event = _transition_board_membership(
+        locked, _event = _transition_board_membership(
             board=locked.board,
             user=locked.user,
             actor=actor,
@@ -856,8 +818,5 @@ def withdraw_board_membership(*, membership, actor):
             source=BoardMembershipEvent.Source.SELF_SERVICE,
             reason="成员通过短时邮箱验证主动退出板块。",
             membership=locked,
-        )
-        transaction.on_commit(
-            lambda event_id=event.pk: _audit_membership_event(event_id)
         )
         return locked

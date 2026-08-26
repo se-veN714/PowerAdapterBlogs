@@ -10,6 +10,7 @@
 本模块提供了开发环境下的设置
 """
 import base64
+import hashlib
 import os
 
 from .base import *  # NOQA
@@ -52,3 +53,19 @@ if _key_b64:
     LOG_HMAC_KEY = base64.b64decode(_key_b64)
 else:
     LOG_HMAC_KEY = b'\x9dM\xb0\x01ss_>\xb3\xec\xb5w\xa1\xb3kY\xc3\xa4\x19\xb7\x8cE\xf3\xff};\x01by\xa7\xa22'
+
+
+def _development_audit_key(purpose):
+    return hashlib.sha256(LOG_HMAC_KEY + b":" + purpose.encode("ascii")).digest()
+
+
+MONGO_AUDIT_HMAC_KEYS = {
+    "mongo-dev-v1": _development_audit_key("mongo"),
+    "legacy-mongo-v0": LOG_HMAC_KEY,
+}
+MONGO_AUDIT_ACTIVE_KEY_ID = "mongo-dev-v1"
+MONGO_AUDIT_LEGACY_KEY_ID = "legacy-mongo-v0"
+CHECKPOINT_AUDIT_HMAC_KEYS = {
+    "checkpoint-dev-v1": _development_audit_key("checkpoint")
+}
+CHECKPOINT_AUDIT_ACTIVE_KEY_ID = "checkpoint-dev-v1"

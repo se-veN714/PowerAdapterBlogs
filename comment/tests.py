@@ -1,11 +1,11 @@
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.test.client import RequestFactory
-from unittest.mock import patch
 
 from accounts.models import MyUser
 from Blogs.models import Category, Post
 from comment.models import Comment
+from security.models import AuditOutbox
 from security.services import moderate_comment
 
 
@@ -58,6 +58,9 @@ class CommentSafetyTest(TestCase):
         self.assertEqual(comment.nickname, self.owner.username)
         self.assertContains(response, self.owner.username)
         self.assertNotContains(response, 'forged-anonymous-name')
+        audit_event = AuditOutbox.objects.get(event_type="comment.created")
+        self.assertEqual(audit_event.event["target"]["id"], str(comment.pk))
+        self.assertNotIn("content", audit_event.event["change"]["after"])
 
     def test_only_owner_can_soft_delete_comment(self):
         comment = Comment.objects.create(
@@ -72,9 +75,14 @@ class CommentSafetyTest(TestCase):
         self.assertEqual(self.client.post(delete_url).status_code, 200)
         comment.refresh_from_db()
         self.assertEqual(comment.status, Comment.Status.DELETED)
+        self.assertTrue(
+            AuditOutbox.objects.filter(
+                event_type="comment.deleted",
+                event__target__id=str(comment.pk),
+            ).exists()
+        )
 
-    @patch('security.services.MongoLogger')
-    def test_moderation_updates_status_and_writes_hmac_audit_event(self, mongo_cls):
+    def test_moderation_updates_status_and_enqueues_audit_event(self):
         comment = Comment.objects.create(
             post=self.post, user=self.owner, nickname='Owner', content='这是足够长的评论内容'
         )
@@ -91,4 +99,9 @@ class CommentSafetyTest(TestCase):
 
         comment.refresh_from_db()
         self.assertEqual(comment.status, Comment.Status.PUBLISHED)
-        mongo_cls.return_value.insert_log.assert_called_once()
+        audit_event = AuditOutbox.objects.get(event_type="comment.moderated")
+        self.assertEqual(audit_event.event["target"]["id"], str(comment.pk))
+        self.assertEqual(
+            audit_event.event["change"]["after"]["status"],
+            Comment.Status.PUBLISHED,
+        )

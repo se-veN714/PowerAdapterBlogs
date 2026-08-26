@@ -3,6 +3,7 @@ import logging
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
@@ -12,6 +13,7 @@ from Blogs.models import Post
 from boards.policies import can_view_published_post
 from comment.form import CommentForm
 from comment.models import Comment
+from security.outbox import enqueue_audit_event
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +44,7 @@ class CommentView(LoginRequiredMixin, TemplateView):
     Handles user comment submissions on blog posts.
 
     This view requires the user to be authenticated before posting a comment.
-    It also records a security event log that includes metadata such as IP,
-    User-Agent, referrer, and a SM3-based client fingerprint.
+    A successful insert atomically records a minimized durable audit event.
 
     Methods:
         post(request, *args, **kwargs): Handles the comment form submission.
@@ -92,14 +93,29 @@ class CommentView(LoginRequiredMixin, TemplateView):
             }, status=400)
 
         try:
-            instance = form.save(commit=False)
-            instance.post = post
-            instance.user = request.user
-            profile = getattr(request.user, "profile", None)
-            instance.nickname = (
-                profile.public_name if profile is not None else request.user.username
-            )
-            instance.save()
+            with transaction.atomic():
+                instance = form.save(commit=False)
+                instance.post = post
+                instance.user = request.user
+                profile = getattr(request.user, "profile", None)
+                instance.nickname = (
+                    profile.public_name if profile is not None else request.user.username
+                )
+                instance.save()
+                enqueue_audit_event(
+                    event_type="comment.created",
+                    actor={"type": "user", "id": str(request.user.pk)},
+                    target={"type": "comment", "id": str(instance.pk)},
+                    context={"source": "web"},
+                    change={
+                        "before": {},
+                        "after": {
+                            "status": int(instance.status),
+                            "post_id": str(post.pk),
+                        },
+                    },
+                    outcome={"status": "success", "error_code": None},
+                )
 
             logger.info(
                 "Comment 提交: comment_id=%s post_slug=%s user=%s",
@@ -135,10 +151,29 @@ class CommentDeleteView(LoginRequiredMixin, TemplateView):
         return JsonResponse({'success': False, 'message': '请先登录。'}, status=401)
 
     def post(self, request, *args, **kwargs):
-        comment = get_object_or_404(Comment, pk=kwargs['pk'])
-        if comment.user_id != request.user.id and not request.user.is_superuser:
-            return JsonResponse({'success': False, 'message': '无权删除这条评论。'}, status=403)
-        comment.status = Comment.Status.DELETED
-        comment.save(update_fields=['status'])
+        with transaction.atomic():
+            comment = get_object_or_404(
+                Comment.objects.select_for_update(),
+                pk=kwargs['pk'],
+            )
+            if comment.user_id != request.user.id and not request.user.is_superuser:
+                return JsonResponse(
+                    {'success': False, 'message': '无权删除这条评论。'},
+                    status=403,
+                )
+            old_status = int(comment.status)
+            comment.status = Comment.Status.DELETED
+            comment.save(update_fields=['status'])
+            enqueue_audit_event(
+                event_type="comment.deleted",
+                actor={"type": "user", "id": str(request.user.pk)},
+                target={"type": "comment", "id": str(comment.pk)},
+                context={"source": "self-service"},
+                change={
+                    "before": {"status": old_status},
+                    "after": {"status": int(Comment.Status.DELETED)},
+                },
+                outcome={"status": "success", "error_code": None},
+            )
         logger.info("Comment 用户删除: comment_id=%s user=%s", comment.id, request.user.id)
         return JsonResponse({'success': True, 'message': '评论已删除。'})

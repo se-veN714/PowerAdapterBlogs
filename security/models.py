@@ -6,6 +6,7 @@ from django.contrib.admin.models import LogEntry
 from django.db import models
 from django.utils import timezone
 
+from security.audit import AuditKeyring, canonical_json_bytes
 from security.sec_utils.hmac_utils import sm3_hmac
 
 
@@ -107,8 +108,18 @@ class SecureLogEntry(models.Model):
         return compare_digest(instance.hmac, expected)
 
     @classmethod
-    def compute_from_logentry(cls, entry: LogEntry, secret_key: bytes):
-        """为 ``LogEntry`` 补建签名，不覆盖已经存在的审计证据。"""
+    def compute_from_logentry(
+        cls,
+        entry: LogEntry,
+        secret_key: bytes,
+        *,
+        allow_legacy_backfill: bool = False,
+    ):
+        """Create one missing frozen legacy row after explicit acknowledgement."""
+        if not allow_legacy_backfill:
+            raise RuntimeError(
+                "SecureLogEntry creation is frozen after MongoDB authority cutover"
+            )
         hmac_value = cls.calculate_hmac(entry, secret_key)
 
         obj, created = cls.objects.get_or_create(
@@ -122,11 +133,8 @@ class SecureLogEntry(models.Model):
 
     @classmethod
     def resign(cls, instance: "SecureLogEntry", secret_key: bytes) -> None:
-        """以当前规范载荷重签；调用方必须先完成取证或旧签名验证。"""
-        instance.hmac = cls.calculate_hmac(instance.log_entry, secret_key)
-        instance.is_tampered = False
-        instance.last_verified_at = timezone.now()
-        instance.save(update_fields=["hmac", "is_tampered", "last_verified_at"])
+        """Historical audit evidence is never re-signed in place."""
+        raise RuntimeError("legacy SecureLogEntry re-signing is disabled")
 
     @classmethod
     def identify_known_legacy_format(
@@ -154,12 +162,13 @@ class SecureLogEntry(models.Model):
         return None
 
     @classmethod
-    def audit_all(cls, secret_key: bytes) -> int:
+    def audit_all(cls, secret_key: bytes, *, batch_size: int = 500) -> int:
         """
         审计所有日志信息
         """
         tampered = 0
-        for entry in cls.objects.all():
+        entries = cls.objects.select_related("log_entry").order_by("pk")
+        for entry in entries.iterator(chunk_size=batch_size):
             if cls.audit(entry, secret_key):
                 tampered += 1
         return tampered
@@ -174,4 +183,137 @@ class SecureLogEntry(models.Model):
         instance.last_verified_at = timezone.now()
         instance.save(update_fields=["is_tampered", "last_verified_at"])
         return instance.is_tampered
+
+
+class AuditOutbox(models.Model):
+    """Durable, transactional staging for Mongo-authoritative audit events."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        DELIVERED = "delivered", "Delivered"
+        DEAD = "dead", "Dead letter"
+
+    event_id = models.UUIDField(unique=True, editable=False)
+    event_type = models.CharField(max_length=128)
+    partition = models.CharField(max_length=128)
+    event = models.JSONField()
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    attempts = models.PositiveIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(default=timezone.now)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    lock_token = models.UUIDField(null=True, blank=True, editable=False)
+    last_error_code = models.CharField(max_length=64, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    delivery_sequence = models.PositiveBigIntegerField(null=True, blank=True)
+    delivery_mac = models.CharField(max_length=128, blank=True, default="")
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["status", "next_attempt_at"],
+                name="security_ao_status_4d65e1_idx",
+            ),
+            models.Index(
+                fields=["partition", "created_at"],
+                name="security_ao_partiti_7b69_idx",
+            ),
+        ]
+
+
+class AuditCheckpoint(models.Model):
+    """Signed Mongo-chain checkpoint awaiting independent WORM anchoring."""
+
+    partition = models.CharField(max_length=128)
+    sequence = models.PositiveBigIntegerField()
+    mac = models.CharField(max_length=128)
+    observed_at = models.DateTimeField(auto_now_add=True)
+    key_id = models.CharField(max_length=64)
+    checkpoint_hmac = models.CharField(max_length=128)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["partition", "sequence"],
+                name="unique_audit_checkpoint",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["partition", "-sequence"],
+                name="security_ac_partiti_30e1_idx",
+            )
+        ]
+
+    @classmethod
+    def create_signed(cls, *, partition: str, sequence: int, mac: str):
+        keyring = AuditKeyring.from_settings("checkpoint")
+        payload = {
+            "schema_version": 1,
+            "purpose": "mongo-chain-checkpoint",
+            "partition": partition,
+            "sequence": sequence,
+            "mac": mac,
+            "key_id": keyring.active_key_id,
+        }
+        signature = sm3_hmac(
+            keyring.keys[keyring.active_key_id],
+            canonical_json_bytes(payload),
+        )
+        checkpoint, created = cls.objects.get_or_create(
+            partition=partition,
+            sequence=sequence,
+            defaults={
+                "mac": mac,
+                "key_id": keyring.active_key_id,
+                "checkpoint_hmac": signature,
+            },
+        )
+        if not created and (
+            checkpoint.mac != mac
+            or checkpoint.key_id != keyring.active_key_id
+            or checkpoint.checkpoint_hmac != signature
+        ):
+            raise ValueError("checkpoint sequence is already bound to different content")
+        return checkpoint, created
+
+    def verify(self) -> bool:
+        keyring = AuditKeyring.from_settings("checkpoint")
+        key = keyring.get(self.key_id)
+        if key is None:
+            return False
+        payload = {
+            "schema_version": 1,
+            "purpose": "mongo-chain-checkpoint",
+            "partition": self.partition,
+            "sequence": self.sequence,
+            "mac": self.mac,
+            "key_id": self.key_id,
+        }
+        expected = sm3_hmac(key, canonical_json_bytes(payload))
+        return compare_digest(self.checkpoint_hmac, expected)
+
+
+class AuditVerificationRun(models.Model):
+    class Status(models.TextChoices):
+        RUNNING = "running", "Running"
+        PASSED = "passed", "Passed"
+        FAILED = "failed", "Failed"
+
+    scope = models.CharField(max_length=32)
+    partition = models.CharField(max_length=128, blank=True, default="")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.RUNNING)
+    checked_count = models.PositiveBigIntegerField(default=0)
+    error_codes = models.JSONField(default=list, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["scope", "status", "-started_at"],
+                name="security_av_scope_84bf_idx",
+            )
+        ]
 

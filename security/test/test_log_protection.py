@@ -1,6 +1,6 @@
 from django.contrib.admin.models import ADDITION, LogEntry
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import PermissionDenied
+from django.db.models.deletion import ProtectedError
 from django.test import TestCase
 
 from accounts.models import MyUser
@@ -28,10 +28,10 @@ class LogEntryProtectionTest(TestCase):
     def test_non_superuser_cannot_modify_existing_log(self):
         set_current_user(self.operator)
         self.log_entry.change_message = 'tampered'
-        with self.assertRaises(PermissionDenied):
+        with self.assertRaises(ProtectedError):
             self.log_entry.save(update_fields=['change_message'])
 
     def test_non_superuser_cannot_delete_existing_log(self):
         set_current_user(self.operator)
-        with self.assertRaises(PermissionDenied):
+        with self.assertRaises(ProtectedError):
             self.log_entry.delete()

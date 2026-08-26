@@ -76,6 +76,7 @@ urlpatterns = [
         "operations/",
         include(("operations.urls", "operations"), namespace="operations"),
     ),
+    path("security/", include(("security.urls", "security"), namespace="security")),
 ]
 
 if settings.DEBUG:

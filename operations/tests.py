@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.admin.models import CHANGE, LogEntry
 from django.contrib.auth.models import Permission
 from django.test import TestCase
@@ -25,7 +26,7 @@ class SecurityOperationsBoundaryTest(TestCase):
         )
 
     def create_log(self, actor):
-        return LogEntry.objects.create(
+        entry = LogEntry.objects.create(
             user=actor,
             content_type=None,
             object_id="1",
@@ -33,6 +34,12 @@ class SecurityOperationsBoundaryTest(TestCase):
             action_flag=CHANGE,
             change_message="test change",
         )
+        SecureLogEntry.compute_from_logentry(
+            entry,
+            settings.LOG_HMAC_KEY,
+            allow_legacy_backfill=True,
+        )
+        return entry
 
     def test_site_operator_uses_operations_without_dashboard_access(self):
         operator = self.create_user("site-operator")

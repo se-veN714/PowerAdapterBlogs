@@ -1,7 +1,5 @@
 """Runtime Admin isolation contracts for accounts_linear stage 4."""
 
-from unittest.mock import patch
-
 from django.contrib.admin.sites import AdminSite
 from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
@@ -20,6 +18,7 @@ from boards.admin import BoardAdmin
 from boards.models import Board, BoardMembership
 from comment.admin import BoardScopedCommentAdmin
 from comment.models import Comment
+from security.models import AuditOutbox
 
 
 class BoardScopedAdminTest(TestCase):
@@ -242,8 +241,7 @@ class BoardScopedAdminTest(TestCase):
             message_text,
         )
 
-    @patch("security.services.MongoLogger")
-    def test_comment_action_moderates_only_the_reviewers_board(self, mongo_logger):
+    def test_comment_action_moderates_only_the_reviewers_board(self):
         self.add_membership(BoardMembership.Role.REVIEWER)
         request = self.request_for(self.member)
         request.session = {}
@@ -258,7 +256,8 @@ class BoardScopedAdminTest(TestCase):
         self.other_comment.refresh_from_db()
         self.assertEqual(self.comment.status, Comment.Status.PUBLISHED)
         self.assertEqual(self.other_comment.status, Comment.Status.PENDING)
-        mongo_logger.return_value.insert_log.assert_called_once()
+        audit_event = AuditOutbox.objects.get(event_type="comment.moderated")
+        self.assertEqual(audit_event.event["target"]["id"], str(self.comment.pk))
 
     def test_post_revision_visibility_follows_its_post(self):
         self.add_membership(BoardMembership.Role.REVIEWER)

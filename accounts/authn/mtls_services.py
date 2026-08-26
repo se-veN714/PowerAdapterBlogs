@@ -7,13 +7,11 @@ import secrets
 from dataclasses import dataclass
 
 from django.conf import settings
-from django.contrib.admin.models import CHANGE, LogEntry
-from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError, transaction
 from django.core.exceptions import DisallowedHost
 from django.utils import timezone
 
-from security.models import SecureLogEntry
+from security.outbox import enqueue_audit_event
 from security.sec_utils.hmac_utils import sm3_digest
 
 from ..models import ClientCertificateBinding, MyUser
@@ -172,19 +170,30 @@ def resolve_client_certificate(request, *, expected_user=None):
 
 
 def _audit(*, actor, binding, event: str, reason: str = ""):
-    content_type = ContentType.objects.get_for_model(ClientCertificateBinding)
-    message = f"mtls_event={event}"
-    if reason:
-        message = f"{message};reason={reason}"
-    entry = LogEntry.objects.log_action(
-        user_id=actor.pk,
-        content_type_id=content_type.pk,
-        object_id=str(binding.pk),
-        object_repr=f"Client certificate {binding.pk}",
-        action_flag=CHANGE,
-        change_message=message,
+    reason_code = str(reason or "NONE").strip().lower()
+    if reason_code not in {
+        "none",
+        "rotated",
+        "expired",
+        "compromised",
+        "operator_reset",
+    }:
+        reason_code = "other"
+    return enqueue_audit_event(
+        event_type=f"mtls.{event}",
+        actor={"type": "user", "id": str(actor.pk)},
+        target={"type": "client_certificate_binding", "id": str(binding.pk)},
+        context={"source": "mtls-service"},
+        change={
+            "after": {
+                "status": binding.status,
+                "auth_version": int(binding.auth_version),
+                "certificate_profile": binding.certificate_profile,
+                "reason_code": reason_code.upper(),
+            }
+        },
+        outcome={"status": "success", "error_code": None},
     )
-    SecureLogEntry.compute_from_logentry(entry, settings.LOG_HMAC_KEY)
 
 
 @transaction.atomic

@@ -28,6 +28,7 @@ from boards.services import (
     submit_board_access_request,
     withdraw_board_membership,
 )
+from security.models import AuditOutbox
 
 
 class BoardAccessRequestTest(TestCase):
@@ -423,11 +424,7 @@ class BoardAccessRequestTest(TestCase):
         membership.refresh_from_db()
         self.assertTrue(membership.is_active)
 
-    @patch("boards.services._audit_membership_event")
-    def test_member_can_withdraw_own_membership_after_email_verification(
-        self,
-        audit_event,
-    ):
+    def test_member_can_withdraw_own_membership_after_email_verification(self):
         membership = BoardMembership.objects.create(
             board=self.board,
             user=self.applicant,
@@ -454,7 +451,13 @@ class BoardAccessRequestTest(TestCase):
         self.assertEqual(event.source, BoardMembershipEvent.Source.SELF_SERVICE)
         self.assertTrue(event.previous_is_active)
         self.assertFalse(event.new_is_active)
-        audit_event.assert_called_once_with(event.pk)
+        audit_event = AuditOutbox.objects.get(
+            event_type="board.membership.deactivated"
+        )
+        self.assertEqual(
+            audit_event.event["target"]["id"],
+            str(membership.pk),
+        )
 
     def test_member_cannot_withdraw_another_users_or_manager_membership(self):
         another_membership = BoardMembership.objects.create(

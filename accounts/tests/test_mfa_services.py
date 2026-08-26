@@ -1,17 +1,17 @@
 import base64
+import json
 import os
 from datetime import timedelta
 from unittest.mock import patch
 
 import pyotp
 from django.conf import settings
-from django.contrib.admin.models import LogEntry
 from django.contrib.auth.hashers import check_password
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from boards.models import Board, BoardMembership
-from security.models import SecureLogEntry
+from security.models import AuditOutbox
 
 from accounts.authn.mfa_crypto import MfaCryptoError, decode_keyring, decrypt_mfa_secret
 from accounts.authn.mfa_services import (
@@ -168,11 +168,9 @@ class MfaEnrollmentServiceTest(TestCase):
             self.user.mfa_totp_device.status,
             MfaTotpDevice.Status.PENDING,
         )
-        entry = LogEntry.objects.filter(
-            change_message__contains="enrollment_failed"
-        ).get()
-        self.assertNotIn(invalid_code, entry.change_message)
-        self.assertTrue(SecureLogEntry.objects.filter(log_entry=entry).exists())
+        event = AuditOutbox.objects.get(event_type="mfa.enrollment_failed")
+        self.assertNotIn(invalid_code, json.dumps(event.event))
+        self.assertEqual(event.event["outcome"]["error_code"], "INVALID_CODE")
 
     def test_confirmation_is_once_only_and_recovery_codes_are_hash_only(self):
         _enrollment, confirmation = self._activate()
@@ -221,10 +219,11 @@ class MfaEnrollmentServiceTest(TestCase):
                 keyring=decode_keyring(settings.MFA_TOTP_KEYRING),
                 associated_data=_aad(device),
             )
-        entry = LogEntry.objects.filter(
-            change_message__contains="enrollment_expired"
-        ).get()
-        self.assertTrue(SecureLogEntry.objects.filter(log_entry=entry).exists())
+        event = AuditOutbox.objects.get(event_type="mfa.enrollment_expired")
+        self.assertEqual(
+            event.event["change"]["after"]["reason_code"],
+            "BINDING_EXPIRED",
+        )
 
     def test_recovery_code_is_consumed_once_without_creating_login_state(self):
         _enrollment, confirmation = self._activate()
@@ -297,10 +296,13 @@ class MfaEnrollmentServiceTest(TestCase):
         self.assertEqual(revoked.auth_version, original_version + 1)
         self.assertNotEqual(bytes(revoked.secret_ciphertext), original_ciphertext)
         self.assertFalse(revoked.recovery_codes.exists())
-        entry = LogEntry.objects.filter(change_message__contains="device_revoked").get()
-        self.assertNotIn("test-only-password", entry.change_message)
-        self.assertIn("reason=operator_reset", entry.change_message)
-        self.assertTrue(SecureLogEntry.objects.filter(log_entry=entry).exists())
+        event = AuditOutbox.objects.get(event_type="mfa.device_revoked")
+        payload = json.dumps(event.event)
+        self.assertNotIn("test-only-password", payload)
+        self.assertEqual(
+            event.event["change"]["after"]["reason_code"],
+            "OPERATOR_RESET",
+        )
 
     def test_another_active_superuser_can_reset_without_target_password(self):
         self._activate()
@@ -319,8 +321,9 @@ class MfaEnrollmentServiceTest(TestCase):
             self._valid_code(enrollment),
             *confirmation.recovery_codes,
         )
-        audit_payload = "\n".join(
-            LogEntry.objects.values_list("change_message", flat=True)
+        audit_payload = json.dumps(
+            list(AuditOutbox.objects.values_list("event", flat=True)),
+            ensure_ascii=False,
         )
         for value in sensitive_values:
             self.assertNotIn(value, audit_payload)

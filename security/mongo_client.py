@@ -1,164 +1,237 @@
-# -*- coding: utf-8 -*-
-# @File    : mongo_client.py
-# @Time    : 2025/8/26 07:03
-# @Author  : seveN1foR
-# @Version : 2.0
-# @Software: PyCharm
-# @Contact : qingyudong942@gmail.com
+"""MongoDB transport for versioned, chained, immutable audit events."""
 
-"""
-本模块提供了Mongo客户端工厂函数
-v2.0: 修复集合命名、新增 HMAC 验证、连接容错
-"""
+from __future__ import annotations
 
-# here put the import lib
-import json
-import logging
+from datetime import UTC, datetime
+from typing import Any, Mapping
 
 from django.conf import settings
-from pymongo import MongoClient
-from pymongo.errors import PyMongoError
+from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
 
-from security.sec_utils.hmac_utils import sm3_hmac
-
-logger = logging.getLogger(__name__)
+from security.audit import (
+    IMMUTABLE_EVENT_FIELDS,
+    AuditKeyring,
+    canonical_json_bytes,
+    create_signed_event,
+    verify_chain,
+    verify_document,
+)
 
 
 def dict_to_bytes(data: dict) -> bytes:
-    """
-    把 dict 转换为确定性的 bytes
-    - sort_keys=True 确保字典顺序一致
-    - ensure_ascii=False 保留原始字符（比如中文）
-    """
-    return json.dumps(data, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    """Historical canonicalization retained only for legacy verification."""
+    return canonical_json_bytes(data, legacy=True)
+
+
+class AuditDeliveryConflict(RuntimeError):
+    pass
+
+
+class AuditMongoDeploymentError(RuntimeError):
+    def __init__(self, *reason_codes: str):
+        self.reason_codes = tuple(sorted(set(reason_codes)))
+        super().__init__(",".join(self.reason_codes))
 
 
 class MongoLogger:
-    """
-    MongoDB 日志客户端类
-    - dev阶段可以无认证
-    - 支持自动计算 HMAC
-    - 支持完整性验证（verify_log / audit_all）
-    - 连接容错：Mongo 不可用时降级为 no-op，不阻塞主流程
+    """The sole transport for Mongo-authoritative audit evidence.
+
+    Chain insertion requires transactions, hence a replica set or sharded
+    cluster. Transport failures propagate so the relational outbox can retry.
     """
 
-    def __init__(self):
+    def __init__(self, *, client=None, keyring: AuditKeyring | None = None):
         conf = settings.MONGO
-        self._connected = False
-        self._collection_name = conf.get("COLLECTION", "logs")
-
-        try:
+        if client is None:
+            connection = {
+                "host": conf["HOST"],
+                "port": int(conf["PORT"]),
+                "serverSelectionTimeoutMS": int(
+                    conf.get("SERVER_SELECTION_TIMEOUT_MS", 3000)
+                ),
+            }
             if conf.get("DB_USER") and conf.get("DB_PASSWORD"):
-                self.client = MongoClient(
-                    host=conf["HOST"],
-                    port=conf["PORT"],
+                connection.update(
                     username=conf["DB_USER"],
                     password=conf["DB_PASSWORD"],
                     authSource=conf["DB_NAME"],
-                    serverSelectionTimeoutMS=3000,
-                    connectTimeoutMS=3000,
                 )
-            else:
-                self.client = MongoClient(
-                    host=conf["HOST"],
-                    port=conf["PORT"],
-                    serverSelectionTimeoutMS=3000,
-                    connectTimeoutMS=3000,
-                )
-
-            # 验证连接（触发实际连接）
-            self.client.admin.command("ping")
-            self.db = self.client[conf["DB_NAME"]]
-            self.collection = self.db[self._collection_name]  # 修复 Issue A：使用 COLLECTION 而非 DB_NAME
-            self._connected = True
-            logger.info(f"MongoDB 已连接: {conf['HOST']}:{conf['PORT']}/{conf['DB_NAME']}"
-                        f"/{self._collection_name}")
-
-        except PyMongoError as e:
-            logger.warning(f"MongoDB 连接失败，日志暂存降级: {e}")
-            self._connected = False
-            self.collection = None
-            self.client = None
+            client = MongoClient(**connection)
+        self.client = client
+        self.db = client[conf["DB_NAME"]]
+        self.collection = self.db[conf.get("COLLECTION", "audit_events")]
+        self.heads = self.db[conf.get("HEAD_COLLECTION", "audit_chain_heads")]
+        self.keyring = keyring or AuditKeyring.from_settings("mongo")
 
     @property
     def connected(self) -> bool:
-        """是否已成功连接 MongoDB"""
-        return self._connected
-
-    # --- 写入 ---
-
-    def insert_log(self, action: str, data: dict):
-        """
-        插入一条日志，同时计算 HMAC
-        :param action: 日志类型 / 操作名
-        :param data: 业务数据字典
-        """
-        if not self._connected:
-            logger.warning(f"MongoDB 不可用，跳过写入: action={action}")
-            return None
-
-        data_bytes = dict_to_bytes(data)
-        hmac_val = sm3_hmac(hmac_key=settings.LOG_HMAC_KEY, msg=data_bytes)
-        doc = {
-            "action": action,
-            "data": data,
-            "hmac": hmac_val,
-        }
-        return self.collection.insert_one(doc)
-
-    # --- 查询 ---
-
-    def find_logs(self, log_filter: dict = None):
-        """
-        查询日志
-        """
-        if not self._connected:
-            logger.warning("MongoDB 不可用，查询返回空列表")
-            return []
-        return list(self.collection.find(log_filter or {}))
-
-    def find_all(self, limit=100):
-        """返回最近 N 条日志"""
-        if not self._connected:
-            return []
-        return list(self.collection.find().sort("_id", -1).limit(limit))
-
-    # --- HMAC 完整性验证 (Issue B) ---
-
-    def verify_log(self, doc: dict) -> bool:
-        """
-        验证单条 MongoDB 文档的 HMAC 是否匹配。
-        返回 True 表示完整，False 表示被篡改。
-        """
-        if "hmac" not in doc or "data" not in doc:
-            return False
-
-        data_bytes = dict_to_bytes(doc["data"])
-        expected = sm3_hmac(hmac_key=settings.LOG_HMAC_KEY, msg=data_bytes)
-        return doc["hmac"] == expected
-
-    def audit_all(self) -> dict:
-        """
-        审计 MongoDB 中所有日志的完整性。
-        返回 {"total": N, "tampered": N, "healthy": N}
-        """
-        if not self._connected:
-            return {"total": 0, "tampered": 0, "healthy": 0, "error": "MongoDB 不可用"}
-
-        total = 0
-        tampered = 0
-        for doc in self.collection.find():
-            total += 1
-            if not self.verify_log(doc):
-                tampered += 1
-
-        return {
-            "total": total,
-            "tampered": tampered,
-            "healthy": total - tampered,
-        }
+        """Compatibility indicator; actual operations still fail explicitly."""
+        return self.client is not None
 
     def close(self):
-        """关闭连接"""
-        if self.client:
+        if self.client is not None:
             self.client.close()
+
+    def ensure_indexes(self):
+        self.collection.create_index(
+            [("event_id", ASCENDING)], unique=True, name="audit_event_id_unique"
+        )
+        self.collection.create_index(
+            [("integrity.partition", ASCENDING), ("integrity.sequence", ASCENDING)],
+            unique=True,
+            name="audit_partition_sequence_unique",
+        )
+        self.collection.create_index(
+            [("schema_version", ASCENDING), ("occurred_at", DESCENDING), ("_id", DESCENDING)],
+            name="audit_query_recent",
+        )
+        self.collection.create_index(
+            [("event_type", ASCENDING), ("occurred_at", DESCENDING), ("_id", DESCENDING)],
+            name="audit_query_event_type",
+        )
+        self.collection.create_index(
+            [("actor.id", ASCENDING), ("occurred_at", DESCENDING), ("_id", DESCENDING)],
+            name="audit_query_actor",
+        )
+        self.collection.create_index(
+            [
+                ("target.type", ASCENDING),
+                ("target.id", ASCENDING),
+                ("occurred_at", DESCENDING),
+                ("_id", DESCENDING),
+            ],
+            name="audit_query_target",
+        )
+
+    def check_deployment(self) -> dict[str, str]:
+        hello = self.db.command("hello")
+        if hello.get("setName"):
+            topology = "replica_set"
+        elif hello.get("msg") == "isdbgrid":
+            topology = "sharded_cluster"
+        else:
+            raise AuditMongoDeploymentError("transactions_required")
+
+        event_indexes = self.collection.index_information()
+        head_indexes = self.heads.index_information()
+        reasons = []
+        if any(
+            "expireAfterSeconds" in spec
+            for spec in (*event_indexes.values(), *head_indexes.values())
+        ):
+            reasons.append("ttl_forbidden")
+        required_unique = {
+            (("event_id", 1),),
+            (("integrity.partition", 1), ("integrity.sequence", 1)),
+        }
+        actual_unique = {
+            tuple((str(field), int(direction)) for field, direction in spec.get("key", []))
+            for spec in event_indexes.values()
+            if spec.get("unique")
+        }
+        if not required_unique.issubset(actual_unique):
+            reasons.append("required_unique_index_missing")
+        if reasons:
+            raise AuditMongoDeploymentError(*reasons)
+        return {"topology": topology, "status": "ready"}
+
+    def insert_event(self, event: Mapping[str, Any], *, partition: str) -> dict[str, Any]:
+        """Idempotently append one canonical outbox event to its partition."""
+        event_id = str(event["event_id"])
+
+        def append(session):
+            existing = self.collection.find_one({"_id": event_id}, session=session)
+            if existing is not None:
+                verification = verify_document(existing, self.keyring)
+                same_event = all(
+                    existing.get(field) == event.get(field)
+                    for field in IMMUTABLE_EVENT_FIELDS
+                )
+                same_partition = existing.get("integrity", {}).get("partition") == partition
+                if not verification.valid or not same_event or not same_partition:
+                    raise AuditDeliveryConflict(
+                        "event_id already exists with different or invalid canonical content"
+                    )
+                return existing
+
+            previous = self.heads.find_one_and_update(
+                {"_id": partition},
+                {"$inc": {"sequence": 1}},
+                upsert=True,
+                return_document=ReturnDocument.BEFORE,
+                session=session,
+            )
+            sequence = int(previous.get("sequence", 0)) + 1 if previous else 1
+            previous_mac = previous.get("last_mac") if previous else None
+            document = create_signed_event(
+                event_type=event["event_type"],
+                actor=event["actor"],
+                target=event["target"],
+                change=event["change"],
+                outcome=event["outcome"],
+                context=event["context"],
+                event_id=event_id,
+                occurred_at=event["occurred_at"],
+                ingested_at=datetime.now(UTC),
+                partition=partition,
+                sequence=sequence,
+                previous_mac=previous_mac,
+                keyring=self.keyring,
+            )
+            self.collection.insert_one(document, session=session)
+            result = self.heads.update_one(
+                {"_id": partition, "sequence": sequence},
+                {"$set": {"last_mac": document["integrity"]["mac"], "event_id": event_id}},
+                session=session,
+            )
+            if result.matched_count != 1:
+                raise AuditDeliveryConflict("audit chain head changed unexpectedly")
+            return document
+
+        with self.client.start_session() as session:
+            return session.with_transaction(append)
+
+    def insert_log(self, action: str, data: dict):
+        """Block the old direct-write API so callers cannot bypass the outbox."""
+        raise RuntimeError(
+            "direct Mongo audit writes are disabled; use security.outbox.enqueue_audit_event"
+        )
+
+    def verify_log(self, document: Mapping[str, Any]):
+        return verify_document(document, self.keyring)
+
+    def iter_partition(
+        self,
+        partition: str,
+        *,
+        limit: int = 10000,
+        after_sequence: int = 0,
+    ):
+        bounded = max(1, min(limit, 100000))
+        query = {
+            "integrity.partition": partition,
+            "integrity.sequence": {"$gt": after_sequence},
+        }
+        return (
+            self.collection.find(query)
+            .sort("integrity.sequence", ASCENDING)
+            .limit(bounded)
+            .batch_size(min(500, bounded))
+        )
+
+    def audit_partition(self, partition: str, *, limit: int = 10000, checkpoint=None):
+        return verify_chain(
+            self.iter_partition(partition, limit=limit),
+            self.keyring,
+            checkpoint=checkpoint,
+        )
+
+    def get_chain_head(self, partition: str):
+        head = self.heads.find_one({"_id": partition})
+        if not head:
+            return None
+        return {
+            "partition": partition,
+            "sequence": int(head["sequence"]),
+            "mac": head.get("last_mac"),
+        }

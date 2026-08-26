@@ -63,6 +63,36 @@ except (ValueError, TypeError) as exc:
 if len(LOG_HMAC_KEY) < 32:
     raise ImproperlyConfigured('LOGINTEGRITY_HMAC_KEY_BASE64 解码后至少需要 32 bytes')
 
+
+def required_audit_key(name):
+    try:
+        key = base64.b64decode(required_env(name), validate=True)
+    except (ValueError, TypeError) as exc:
+        raise ImproperlyConfigured(f'{name} 不是有效 Base64') from exc
+    if len(key) != 32:
+        raise ImproperlyConfigured(f'{name} 解码后必须正好为 32 bytes')
+    return key
+
+
+MONGO_AUDIT_ACTIVE_KEY_ID = os.getenv('MONGO_AUDIT_ACTIVE_KEY_ID', 'mongo-v1')
+CHECKPOINT_AUDIT_ACTIVE_KEY_ID = os.getenv('CHECKPOINT_AUDIT_ACTIVE_KEY_ID', 'checkpoint-v1')
+MONGO_AUDIT_LEGACY_KEY_ID = 'legacy-mongo-v0'
+MONGO_AUDIT_HMAC_KEYS = {
+    MONGO_AUDIT_ACTIVE_KEY_ID: required_audit_key('MONGO_AUDIT_HMAC_KEY_BASE64'),
+    MONGO_AUDIT_LEGACY_KEY_ID: LOG_HMAC_KEY,
+}
+CHECKPOINT_AUDIT_HMAC_KEYS = {
+    CHECKPOINT_AUDIT_ACTIVE_KEY_ID: required_audit_key('CHECKPOINT_AUDIT_HMAC_KEY_BASE64'),
+}
+active_audit_keys = {
+    MONGO_AUDIT_HMAC_KEYS[MONGO_AUDIT_ACTIVE_KEY_ID],
+    CHECKPOINT_AUDIT_HMAC_KEYS[CHECKPOINT_AUDIT_ACTIVE_KEY_ID],
+}
+if len(active_audit_keys) != 2 or LOG_HMAC_KEY in active_audit_keys:
+    raise ImproperlyConfigured(
+        'MongoDB 与 checkpoint 活跃审计密钥必须相互独立且不同于历史密钥'
+    )
+
 CSRF_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = True
 SECURE_CONTENT_TYPE_NOSNIFF = True

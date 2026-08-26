@@ -11,7 +11,7 @@ from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from security.models import SecureLogEntry
+from security.models import AuditOutbox
 
 from accounts.authn.mfa_services import confirm_totp_enrollment, start_totp_enrollment
 from accounts.authn.mfa_session import PENDING_KEY, PRIVILEGED_KEY
@@ -144,8 +144,9 @@ class ClientCertificateServiceTest(TestCase):
         self.binding.refresh_from_db()
         self.assertEqual(self.binding.auth_version, 2)
         self.assertTrue(
-            SecureLogEntry.objects.filter(
-                log_entry__object_id=str(self.binding.pk),
+            AuditOutbox.objects.filter(
+                event_type="mtls.certificate_revoked",
+                event__target__id=str(self.binding.pk),
             ).exists()
         )
 

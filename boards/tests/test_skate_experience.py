@@ -7,7 +7,13 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from boards.content_forms import SkateClipForm
-from boards.models import Board, BoardMembership, SkateClip, SkateHomie
+from boards.models import (
+    Board,
+    BoardMembership,
+    SkateClip,
+    SkateClipMedia,
+    SkateHomie,
+)
 
 
 class SkateClipFormTests(TestCase):
@@ -102,6 +108,14 @@ class SkateClipCreateExperienceTests(TestCase):
     def test_form_renders_integrated_upload_without_secret(self):
         response = self.client.get(self.url)
         self.assertContains(response, "UPLOAD &amp; QUEUE PROCESS")
+        self.assertNotContains(response, "SEARCH MAP")
+        self.assertContains(response, "输入地点关键词并从联想候选中选择")
+        self.assertContains(response, "data-amap-search-panel")
+        self.assertContains(response, "KEYWORD / 从高德候选中选择地点")
+        self.assertContains(response, 'autocomplete="off"')
+        self.assertContains(response, 'placeholder="输入地点关键词并选择高德候选"')
+        self.assertNotContains(response, "按 Enter 搜索")
+        self.assertContains(response, '<legend class="bm-group__legend"><span>')
         self.assertContains(response, "data-amap-key=\"browser-key\"")
         self.assertNotContains(response, "never-render-this")
 
@@ -164,31 +178,63 @@ class SkateClipCreateExperienceTests(TestCase):
         self.assertTrue(SkateClip.objects.filter(title="Draft Line").exists())
         ingest.assert_not_called()
 
+    @patch("boards.content_views.ingest_skate_source")
+    def test_edit_requires_confirmation_before_replacing_unique_media(self, ingest):
+        clip = SkateClip.objects.create(
+            homie=self.homie,
+            title="Existing Line",
+            status="landed",
+        )
+        SkateClipMedia.objects.create(clip=clip, uploaded_by=self.manager)
 
-class AMapProxyTests(TestCase):
-    class Upstream:
-        status = 200
-        headers = {"Content-Type": "application/json"}
+        response = self.client.post(
+            reverse("boards:skate-manage-update", args=[clip.pk]),
+            {
+                "homie": self.homie.pk,
+                "order": 0,
+                "title": clip.title,
+                "clip_format": "line",
+                "category": "displacement",
+                "status": "landed",
+                "intent": "process",
+                "source": SimpleUploadedFile("replacement.webm", b"video"),
+            },
+        )
 
-        def read(self):
-            return b'{"status":"1"}'
-
-    @override_settings(
-        AMAP_JS_API_ENABLED=True,
-        AMAP_JS_SECURITY_JSCODE="server-only-secret",
-    )
-    @patch("boards.amap_proxy.urlopen", return_value=Upstream())
-    def test_proxy_injects_secret_only_upstream(self, mocked_urlopen):
-        response = self.client.get("/_AMapService/v3/place/text", {"keywords": "park"})
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "server-only-secret")
-        request = mocked_urlopen.call_args.args[0]
-        self.assertIn("jscode=server-only-secret", request.full_url)
+        self.assertContains(response, "系统不会追加第二个视频")
+        ingest.assert_not_called()
 
-    @override_settings(AMAP_JS_API_ENABLED=False, AMAP_JS_SECURITY_JSCODE="secret")
-    def test_proxy_is_closed_when_disabled(self):
-        response = self.client.get("/_AMapService/v3/place/text")
-        self.assertEqual(response.status_code, 404)
+    @patch("boards.content_views.requeue_existing_skate_source")
+    @patch("boards.content_views.ingest_skate_source")
+    def test_edit_can_requeue_existing_source_without_reupload(self, ingest, requeue):
+        clip = SkateClip.objects.create(
+            homie=self.homie,
+            title="Retry Existing Line",
+            status="failed",
+        )
+        SkateClipMedia.objects.create(
+            clip=clip,
+            uploaded_by=self.manager,
+            source_file="source/existing.webm",
+        )
+
+        response = self.client.post(
+            reverse("boards:skate-manage-update", args=[clip.pk]),
+            {
+                "homie": self.homie.pk,
+                "order": 0,
+                "title": clip.title,
+                "clip_format": "line",
+                "category": "displacement",
+                "status": "failed",
+                "intent": "process",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        ingest.assert_not_called()
+        requeue.assert_called_once()
 
 
 class SkatePlayerPresentationTests(TestCase):

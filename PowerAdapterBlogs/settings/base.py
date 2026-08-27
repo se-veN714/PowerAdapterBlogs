@@ -257,6 +257,12 @@ AMAP_JS_API_ENABLED = os.getenv("AMAP_JS_API_ENABLED", "false").lower() in {
 AMAP_JS_API_KEY = os.getenv("AMAP_JS_API_KEY", "").strip()
 AMAP_JS_SECURITY_JSCODE = os.getenv("AMAP_JS_SECURITY_JSCODE", "").strip()
 AMAP_JS_SERVICE_HOST = os.getenv("AMAP_JS_SERVICE_HOST", "/_AMapService").strip()
+AMAP_PROXY_REQUESTS_PER_MINUTE = int(
+    os.getenv("AMAP_PROXY_REQUESTS_PER_MINUTE", "120")
+)
+AMAP_PROXY_MAX_RESPONSE_BYTES = int(
+    os.getenv("AMAP_PROXY_MAX_RESPONSE_BYTES", str(1024 * 1024))
+)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

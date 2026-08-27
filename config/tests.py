@@ -82,6 +82,24 @@ class PublicSiteMetadataTest(TestCase):
         self.assertNotContains(response, "Traceback", status_code=404)
         self.assertContains(response, "noindex, nofollow", status_code=404)
 
+    def test_board_404_selects_board_specific_error_visual(self):
+        response = self.client.get("/boards/skateboard/not-a-real-route/")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(
+            response,
+            "images/errors/alpha-error-visual-skateboard.webp",
+            status_code=404,
+        )
+        self.assertContains(response, "error-page--skateboard", status_code=404)
+
+    @override_settings(ERROR_PREVIEW_ENABLED=False)
+    def test_error_preview_is_hidden_in_production(self):
+        response = self.client.get("/_errors/general/500/")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("X-Error-Preview", response)
+
     def test_production_500_response_hides_exception_details(self):
         request = RequestFactory().get("/broken/")
 
@@ -91,3 +109,22 @@ class PublicSiteMetadataTest(TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertIn("system unstable", content)
         self.assertNotIn("Traceback", content)
+
+
+@override_settings(ERROR_PREVIEW_ENABLED=True)
+class ErrorPreviewTest(TestCase):
+    def test_error_preview_exposes_each_supported_variant(self):
+        for variant in ("general", "skateboard", "music", "coding"):
+            with self.subTest(variant=variant):
+                response = self.client.get(f"/_errors/{variant}/403/")
+                self.assertEqual(response.status_code, 403)
+                self.assertEqual(response["X-Error-Preview"], "1")
+                self.assertContains(
+                    response,
+                    f"error-page--{variant}",
+                    status_code=403,
+                )
+
+    def test_error_preview_rejects_unknown_variant_and_status(self):
+        self.assertEqual(self.client.get("/_errors/unknown/404/").status_code, 404)
+        self.assertEqual(self.client.get("/_errors/general/418/").status_code, 404)

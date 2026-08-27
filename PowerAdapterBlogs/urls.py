@@ -27,7 +27,14 @@ from Blogs.feed import PublicPostAtomFeed, PublicPostFeed
 from Blogs.sitemap import PostSitemap
 from Blogs.views import IndexView
 from boards.amap_proxy import amap_service_proxy
-from config.views import AboutView, LinkListView, PrivacyView, robots_txt, security_txt
+from config.views import (
+    AboutView,
+    LinkListView,
+    PrivacyView,
+    error_preview,
+    robots_txt,
+    security_txt,
+)
 from .cus_site import custom_site
 
 urlpatterns = [
@@ -61,6 +68,11 @@ urlpatterns = [
     path("privacy/", PrivacyView.as_view(), name="privacy"),
     path("robots.txt", robots_txt, name="robots"),
     path(".well-known/security.txt", security_txt, name="security-txt"),
+    path(
+        "_errors/<slug:variant>/<int:status_code>/",
+        error_preview,
+        name="error-preview",
+    ),
     # sitemap
     path(
         "sitemap.xml/",
@@ -88,5 +100,6 @@ if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
+handler403 = "config.views.permission_denied"
 handler404 = "config.views.page_not_found"
 handler500 = "config.views.server_error"

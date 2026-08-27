@@ -5,7 +5,7 @@
 > **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及板块申请审批
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-08-06 — 文档一致性收尾（最终工作树重跑 47 项回归 + 桌面/移动端视觉验收）
+> **最后更新**: 2026-08-27 — SK8 S5 与高德 AutoComplete 人工验收收口
 
 ---
 
@@ -371,7 +371,7 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
 - **Admin**：`SkateClipMediaAdmin` 仅 superuser 只读（add/change/delete 全拒），媒体行只能由上传视图与 Worker 状态机驱动。
 - **迁移**：`0013_skateclipmedia.py`。**测试**：`boards/tests/test_skate_clip_media.py`（23 项，含存储路由安全断言与 Admin 只读断言）；boards 全量回归 180 项通过，`makemigrations --check` 无漂移。
 - **S1 上传/校验**（`boards/skate_media.py` + `content_forms/content_views/urls` + manage 模板）：
-  - 三层校验：浏览器预检（大小+时长，仅体验，`media_upload.html` 内联 JS）→ Django 表单（大小快速失败，`SkateClipMediaUploadForm`）→ **FFprobe 权威裁决**（`probe_video_file`：参数列表 subprocess + 15s timeout + JSON 解析；伪扩展/损坏/空文件 `invalid_container`、无视频流 `no_video_stream`、时长缺失/超限 `duration_missing`/`duration_exceeded`、超时 `probe_timeout`，错误只存有界摘要）。
+  - 三层校验：浏览器预检（大小+时长，仅体验，CRUD 与替换页复用 `skate-form.js` 的选择/拖放组件）→ Django 表单（大小快速失败，`SkateClipMediaUploadForm`）→ **FFprobe 权威裁决**（`probe_video_file`：参数列表 subprocess + 15s timeout + JSON 解析；伪扩展/损坏/空文件 `invalid_container`、无视频流 `no_video_stream`、时长缺失/超限 `duration_missing`/`duration_exceeded`、超时 `probe_timeout`，错误只存有界摘要）。
   - `parse_probe_payload` 纯函数：`format.duration` 字符串秒→毫秒边界判定（20.000s 过 / 20.001s 拒）；`side_data_list.rotation`（Display Matrix）±90°/270° 时互换显示宽高（exp1 实测：coded 1280x720+rot90 → 显示 720x1280）；`r_frame_rate` 保留分数文本，`0/0` 归空。
   - 视图 `SkateClipMediaUploadView`（Policy：`can_manage_board_content`）：写私有存储（服务端 UUID key）→ FFprobe → 失败即删文件回显有界错误码；成功走 `select_for_update` 短事务 `get_or_create` 媒体行（state=uploaded + 探测元数据 + sha256/size/上传者），替换时清理旧原片（事务外）。**FFprobe 与文件 IO 均在事务外**。
   - **实现陷阱**：Django 5.x `FileField.storage` 是 `cached_property`——视图/Worker 一律调 `skate_source_storage()` 工厂读当前 settings，禁止 `field.storage`（测试 override 与多配置下会拿到旧实例，删错目录）。
@@ -385,6 +385,7 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
   - FFmpeg 全程不持 DB 事务；卡死复位：`reset_stuck_media()` 把 `processing` 且 `claimed_at` 超过 `SKATE_CLIP_STUCK_PROCESSING_SECONDS`(1800s) 的行复位 `uploaded`。
   - 命令：`python manage.py process_skate_clips [--limit N] [--reset-stuck] [--media-id ID] [--dry-run]`；计划任务分钟级轮询即可。
   - 配置：`SKATE_CLIP_FFMPEG_PATH`（env `SKATE_FFMPEG` > which > 裸名）、`SKATE_CLIP_FFMPEG_TIMEOUT=300`、`SKATE_CLIP_ENCODE_MAIN/PREVIEW/POSTER`、`SKATE_CLIP_STUCK_PROCESSING_SECONDS`。
+  - HTTP 上传请求只负责校验并写入 `uploaded` 队列，不在 WSGI 进程内创建 daemon FFmpeg 线程。转码统一由独立 `process_skate_clips` Worker/计划任务消费，避免并发上传生成无界线程或进程回收中断编码。
   - 测试 `boards/tests/test_skate_worker.py`（23 项：领取/复位/配方纯逻辑 + FFmpeg 集成全链路 + dry-run/队列命令 + 缺源失败有界）；boards 回归 212 项 OK，迁移无漂移。
 - **S2 Review 修复**（§10 阻断项 1-10 全部解决）：
   - **Claim 所有权与整代发布**（§10.1/10.2/10.3/10.4）：模型用 `claim_token` + `claim_generation` 标识所有权；临时目录与正式版本目录都包含二者。Worker 只向未引用版本写入，随后以匹配 `(pk, processing, generation, token)` 的单次 UPDATE 切换三项引用；stale Worker 删除自己的版本，成功 Worker在切换后清理显式捕获的旧 key，因此任一请求不会看到 main/preview/poster 混代。
@@ -407,7 +408,11 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
   - New Clip 页面提供 drag/drop、本地视频预览、大小/时长/方向浏览器预检；服务端大小与 FFprobe 仍是权威裁决。
   - 高德配置只向浏览器输出 Web JS Key 与同源 `serviceHost`；`AMAP_JS_SECURITY_JSCODE` 仅由 `/_AMapService/<path>` 固定目标代理读取并追加到上游请求。禁用、缺 Key 或加载失败时保留纯文本地点输入。
   - Skateboard Index 的 WATCH CLIP 改为原地 `<dialog>`：桌面左视频/右资料与地图，移动端上视频/下资料；支持按钮关闭、背景关闭、Esc 与焦点归还。无地图配置时显示已保存坐标，不阻断播放。
-  - 最终验收：新增 `test_skate_experience.py`；全项目 454 项通过（1 项 PostgreSQL 专属测试按设计跳过），迁移无漂移、Django check、Ruff 与 JavaScript 语法通过；浏览器 1440×1000 与 390×844 无页面级横向溢出，播放、响应式和 Esc 焦点闭环通过。待人工真实文件与真实高德凭据联调。
+  - 阶段验收：新增 `test_skate_experience.py`；当时全项目 454 项通过（1 项 PostgreSQL 专属测试按设计跳过），迁移无漂移、Django check、Ruff 与 JavaScript 语法通过；浏览器 1440×1000 与 390×844 无页面级横向溢出，播放、响应式和 Esc 焦点闭环通过。2026-08-27 用户又在实际登录表单中完成人工 SK8/高德联调，确认真实候选、地图交互与保存稳定。
+  - **媒体/地图 UI 收口（2026-08-15）**：管理区在 PC 端突破站点文章宽度、占满可视 Section；表格按真实 8 列弹性 Grid 展示且不设置强制横向最小宽度，小于 1100px 才折叠次要列。长文本与操作区在各自单元格内换行；所有 Boards CRUD `legend` 使用内部 `span` 提供独立背景/边框和宽度约束。无媒体行显示 `UPLOAD`，已有媒体行显示 `REPLACE MEDIA`。`SkateClipMedia.clip` 的 OneToOne 是持久化唯一性，替换页与编辑页另要求显式勾选确认，避免把替换误解为追加。两条入口复用可点击/可拖放的文件组件。
+  - 地点表单按高德 JS API 2.0 官方示例链路使用 `autoOptions.input → AutoComplete → select → PlaceSearch.setCity(adcode) → PlaceSearch.search(name)`，`PlaceSearch({map})` 负责在地图展示相关结果。地点输入框位于地图右上角浮层，输入关键词后应由高德原生候选层直接展示联想；自定义 `SEARCH MAP` 按钮、Enter 精确搜索及重复的 `autocomplete.search()` 已移除。选择候选后才持久化坐标；全地图点击、可拖 Marker 与 `AMap.Geocoder` 反向地址回填继续保留。地图只约束外层容器尺寸，禁止用 `!important` 拉伸 `.amap-maps`/`.amap-layer`，否则显示尺寸与事件命中区会分离。
+  - 高德安全边界保持不变：浏览器只获得 Web端（JS API）Key；`AMAP_JS_SECURITY_JSCODE` 仅由同源 `/_AMapService/<path>` 固定目标代理追加到上游。代理只允许 inputtips、地点文本搜索与逆地理编码三个当前资源，校验 JSONP callback，并限制单客户端每分钟请求数、query 长度和上游响应大小。2026-08-15 曾用 JS API Key 直接调用 Web 服务得到 `USERKEY_PLAT_NOMATCH/10009`，该结果只说明 Key 平台不匹配，不能替代真实 JS API 浏览器验收。
+  - **✅ 高德 AutoComplete 联调完成（2026-08-27）**：用户已在实际登录表单中确认关键词候选、地图交互和保存稳定。代码继续保证只有候选选择、地图点击或 Marker 拖动写入成对经纬度；用户重新键入地点时先清空旧地址/坐标，避免“新名称 + 旧坐标”。默认不做 IP 定位；未来若增加当前位置，只能使用用户主动授权的浏览器 Geolocation。
 - **S4 Operations**（GC 命令 + Worker 可观测性 + Nginx 示例 + 备份/恢复流程）：
   - `boards/management/commands/skate_media_gc.py`：默认 dry-run，`--apply` 才删除。`--orphans` 同时清理无引用的版本化派生文件与私有原片，报告 ready 行缺失的 main/preview/poster；`--tmp` 跳过活跃 Worker；retention 先以 state/source hash/processed_at 条件 UPDATE 清空引用，成功后才删旧文件，避免与替换上传竞态；`--check-disk` 在配置根尚未创建时探测最近存在父目录，真实 IO 错误则结构化报告并非零退出。
   - `process_skate_clips.py` 可观测性增强：每条处理输出 `[state] <media_key> in <ms>`；`--json` 汇总（`pending`/`processing`/`ready_total`/`failed_total`/`failed_by_error` 按 error_code 分组/逐条 `media` 数组含耗时与错误码/`duration_ms`）；`--dry-run --json` 组合为无副作用状态探针。

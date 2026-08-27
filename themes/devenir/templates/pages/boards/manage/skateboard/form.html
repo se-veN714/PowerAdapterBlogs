@@ -22,7 +22,8 @@
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="bm-form__errors-top" role="alert">{{ form.non_field_errors }}</div>{% endif %}
     <section class="skf-layout"><div class="skf-main">
-      <fieldset class="bm-group skf-source"><legend class="bm-group__legend">01 / SOURCE VIDEO</legend>
+      <fieldset class="bm-group skf-source"><legend class="bm-group__legend"><span>01 / SOURCE VIDEO</span></legend>
+        {% if existing_media %}<div class="skf-unique" role="note"><strong>ONE CLIP / ONE SOURCE</strong><span>当前源视频：{{ existing_media.get_state_display }} · {{ existing_media.source_size|filesizeformat }}。选择新文件将替换唯一源视频，不会追加第二条。</span></div>{% endif %}
         <label class="skf-drop" for="{{ form.source.id_for_label }}" data-skate-drop>
           <video muted playsinline controls data-skate-local-preview hidden></video>
           <span class="skf-drop__idle" data-skate-drop-idle><b>DROP VIDEO / SELECT FILE</b><small>MP4 · MOV · WEBM / ≤ {{ max_upload_mib }} MiB / ≤ 20 SEC</small></span>
@@ -30,23 +31,33 @@
         </label>
         <p class="skf-preflight" data-skate-file-meta aria-live="polite">CLIENT PREFLIGHT READY · SERVER FFPROBE IS AUTHORITATIVE</p>
         {% if form.source.errors %}<ul class="bm-field__errors">{{ form.source.errors }}</ul>{% endif %}
+        {% if existing_media %}<label class="skf-confirm">{{ form.confirm_replace }}<span><b>{{ form.confirm_replace.label }}</b><small>{{ form.confirm_replace.help_text }}</small></span></label>{% endif %}
+        {% if form.confirm_replace.errors %}<ul class="bm-field__errors">{{ form.confirm_replace.errors }}</ul>{% endif %}
       </fieldset>
 
-      <fieldset class="bm-group"><legend class="bm-group__legend">02 / CLIP IDENTITY</legend><div class="bm-group__grid">
-        {% for field in form %}{% if field.name != 'source' and field.name != 'spot' and field.name != 'spot_address' and field.name != 'spot_longitude' and field.name != 'spot_latitude' and field.name != 'notes' and field.name != 'video_url' and field.name != 'thumbnail_url' %}
+      <fieldset class="bm-group"><legend class="bm-group__legend"><span>02 / CLIP IDENTITY</span></legend><div class="bm-group__grid">
+        {% for field in form %}{% if field.name != 'source' and field.name != 'confirm_replace' and field.name != 'spot' and field.name != 'spot_address' and field.name != 'spot_longitude' and field.name != 'spot_latitude' and field.name != 'notes' and field.name != 'video_url' and field.name != 'thumbnail_url' %}
         <div class="bm-field{% if field.name == 'title' %} bm-field--wide{% endif %}">{{ field.label_tag }}{{ field }}{% if field.errors %}<ul class="bm-field__errors">{{ field.errors }}</ul>{% endif %}{% if field.help_text %}<p class="bm-field__help">{{ field.help_text }}</p>{% endif %}</div>
         {% endif %}{% endfor %}
       </div></fieldset>
 
-      <fieldset class="bm-group"><legend class="bm-group__legend">03 / LOCATION SIGNAL</legend>
-        <div class="bm-field bm-field--wide skf-location">{{ form.spot.label_tag }}{{ form.spot }}{{ form.spot_address }}{{ form.spot_longitude }}{{ form.spot_latitude }}
+      <fieldset class="bm-group"><legend class="bm-group__legend"><span>03 / LOCATION SIGNAL</span></legend>
+        <div class="bm-field bm-field--wide skf-location">{{ form.spot_address }}{{ form.spot_longitude }}{{ form.spot_latitude }}
           {% if form.spot.errors %}<ul class="bm-field__errors">{{ form.spot.errors }}</ul>{% endif %}
-          <p class="bm-field__help" data-amap-status>输入地点可继续手填；高德可用时会提供候选与地图定位。</p>
-          <div class="skf-map" data-amap-map role="img" aria-label="拍摄地点地图预览"><span>MAP SIGNAL / WAITING FOR LOCATION</span></div>
+          <p class="bm-field__help" data-amap-status>输入地点关键词并从联想候选中选择，或直接点击地图选点；标记可拖动微调。</p>
+          <div class="skf-map-frame">
+            <div class="skf-map" data-amap-map role="img" aria-label="拍摄地点地图预览"><span>MAP SIGNAL / WAITING FOR LOCATION</span></div>
+            <div class="skf-map-search" data-amap-search-panel>
+              {{ form.spot.label_tag }}
+              {{ form.spot }}
+              <small>KEYWORD / 从高德候选中选择地点</small>
+            </div>
+          </div>
+          <output class="skf-location__result" data-amap-result>NO GEO SIGNAL</output>
         </div>
       </fieldset>
 
-      <fieldset class="bm-group"><legend class="bm-group__legend">04 / FIELD NOTES</legend>
+      <fieldset class="bm-group"><legend class="bm-group__legend"><span>04 / FIELD NOTES</span></legend>
         <div class="bm-field bm-field--wide">{{ form.notes.label_tag }}{{ form.notes }}{% if form.notes.errors %}<ul class="bm-field__errors">{{ form.notes.errors }}</ul>{% endif %}</div>
         <details class="skf-legacy"><summary>LEGACY EXTERNAL MEDIA</summary><div class="bm-group__grid">
           <div class="bm-field">{{ form.video_url.label_tag }}{{ form.video_url }}{{ form.video_url.errors }}</div>

@@ -311,7 +311,9 @@ class BoardIndexView(TemplateView):
         )
         if self.board.slug == "skateboard":
             context["amap_enabled"] = bool(
-                settings.AMAP_JS_API_ENABLED and settings.AMAP_JS_API_KEY
+                settings.AMAP_JS_API_ENABLED
+                and settings.AMAP_JS_API_KEY
+                and settings.AMAP_JS_SECURITY_JSCODE
             )
             context["amap_api_key"] = settings.AMAP_JS_API_KEY
             context["amap_service_host"] = settings.AMAP_JS_SERVICE_HOST
@@ -368,6 +370,14 @@ class SkateClipListView(ListView):
         context = super().get_context_data(**kwargs)
         context["board"] = self.board
         prepare_skate_clips(context["clips"])
+        # WATCH CLIP 对话框（_player_dialog.html）的 AMap 迷你图配置，与索引页保持一致
+        context["amap_enabled"] = bool(
+            settings.AMAP_JS_API_ENABLED
+            and settings.AMAP_JS_API_KEY
+            and settings.AMAP_JS_SECURITY_JSCODE
+        )
+        context["amap_api_key"] = settings.AMAP_JS_API_KEY
+        context["amap_service_host"] = settings.AMAP_JS_SERVICE_HOST
         return context
 
 

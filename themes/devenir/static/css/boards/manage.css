@@ -19,6 +19,11 @@
     color: var(--bm-text);
     padding: 6.5rem 0 4rem;
 }
+.bm-page > .container {
+    width: 100%;
+    max-width: none;
+    padding-inline: clamp(1rem, 2.5vw, 3rem);
+}
 
 /* ---------- 页头 ---------- */
 .bm-head {
@@ -32,6 +37,7 @@
     border-bottom: 1px solid var(--bm-border);
 }
 .bm-head__titles { display: grid; gap: 0.4rem; }
+.bm-head__actions { display: flex; gap: 0.5rem; align-items: center; }
 .bm-kicker {
     font-family: var(--font-mono);
     font-size: 0.68rem;
@@ -205,7 +211,13 @@
     padding-top: 0.7rem;
     padding-bottom: 0.7rem;
 }
-.bm-cell { min-width: 0; font-size: 0.82rem; color: var(--bm-text-muted); }
+.bm-row--head > * { min-width: 0; white-space: nowrap; }
+.bm-cell {
+    min-width: 0;
+    font-size: 0.82rem;
+    color: var(--bm-text-muted);
+    overflow-wrap: anywhere;
+}
 .bm-cell--strong { color: var(--bm-text); font-weight: 700; font-size: 0.9rem; }
 .bm-cell--accent { color: var(--bm-accent); font-weight: 700; }
 .bm-cell--dim { color: var(--bm-text-dim); font-size: 0.66rem; }
@@ -236,6 +248,8 @@
     display: flex;
     gap: 0.5rem;
     justify-content: flex-end;
+    flex-wrap: wrap;
+    min-width: 0;
 }
 .bm-actions a {
     font-family: var(--font-mono);
@@ -248,6 +262,9 @@
     min-height: 40px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    flex: 0 0 auto;
     transition: color 0.2s, border-color 0.2s;
 }
 
@@ -255,9 +272,10 @@
    与两枚操作按钮会分别参与 auto 计算，导致前面所有列发生错位。 */
 .bm-table--skate .bm-row {
     grid-template-columns:
-        4rem minmax(7rem, 0.8fr) minmax(13rem, 1.6fr)
-        minmax(9rem, 1fr) 7rem 6rem 9.5rem;
-    min-width: 64rem;
+        3rem minmax(5.5rem, 0.65fr) minmax(9rem, 1.45fr)
+        minmax(7rem, 1fr) minmax(5.5rem, 0.7fr) 4.5rem
+        minmax(6rem, 0.75fr) minmax(16rem, 1.35fr);
+    min-width: 0;
 }
 .bm-actions a:hover,
 .bm-actions a:focus-visible {
@@ -300,6 +318,17 @@
     text-transform: uppercase;
     color: var(--bm-accent);
     padding: 0 0.5rem;
+    max-width: calc(100% - 1rem);
+}
+.bm-group__legend > span {
+    display: inline-flex;
+    max-width: 100%;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid var(--bm-border);
+    background: var(--bm-surface);
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 .bm-group__grid {
     display: grid;
@@ -433,10 +462,10 @@
 }
 
 /* ---------- 响应式 ---------- */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
     .bm-row { grid-template-columns: 2.5rem 1fr auto; gap: 0.75rem; }
     .bm-table--skate .bm-row {
-        grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+        grid-template-columns: 2.5rem minmax(0, 1fr) minmax(9rem, auto);
         min-width: 0;
     }
     .bm-row--head { display: none; }

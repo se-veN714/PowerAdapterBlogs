@@ -19,7 +19,10 @@
                 <h1 class="bm-title">CLIP ARCHIVE</h1>
                 <p class="bm-sub">管理成员片段、公开状态与 Index 展示顺序。</p>
             </div>
-            <a class="bm-btn bm-btn--primary" href="{% url 'boards:skate-manage-create' %}">+ NEW CLIP</a>
+            <div class="bm-head__actions">
+                <a class="bm-btn" href="{% url 'boards:index' board.slug %}">VIEW BOARD &rarr;</a>
+                <a class="bm-btn bm-btn--primary" href="{% url 'boards:skate-manage-create' %}">+ NEW CLIP</a>
+            </div>
         </header>
 
         <form class="bm-filters" method="get" action="{% url 'boards:skate-manage-list' %}" role="search" aria-label="筛选滑板片段">
@@ -71,7 +74,7 @@
                 <span class="bm-cell bm-cell--collapse" role="cell"><span class="bm-tag">{{ record.get_status_display|upper }}</span></span>
                 <span class="bm-cell bm-cell--collapse" role="cell">{% if record.is_public %}<span class="bm-tag bm-tag--accent">YES</span>{% else %}<span class="bm-tag bm-tag--off">NO</span>{% endif %}</span>
                 <span class="bm-cell bm-cell--collapse" role="cell">{% if record.media %}<span class="bm-tag{% if record.media.is_ready %} bm-tag--accent{% endif %}">{{ record.media.get_state_display|upper }}</span>{% else %}<span class="bm-tag bm-tag--off">NO MEDIA</span>{% endif %}</span>
-                <span class="bm-actions" role="cell"><a href="{% url 'boards:skate-manage-update' pk=record.pk %}">EDIT</a><a href="{% url 'boards:skate-media-upload' pk=record.pk %}">MEDIA</a><a class="bm-actions__delete" href="{% url 'boards:skate-manage-delete' pk=record.pk %}">DELETE</a></span>
+                <span class="bm-actions" role="cell"><a href="{% url 'boards:skate-manage-update' pk=record.pk %}">EDIT</a><a href="{% url 'boards:skate-media-upload' pk=record.pk %}">{% if record.media %}REPLACE MEDIA{% else %}UPLOAD{% endif %}</a><a class="bm-actions__delete" href="{% url 'boards:skate-manage-delete' pk=record.pk %}">DELETE</a></span>
             </div>
             {% endfor %}
         </div>

@@ -7,15 +7,8 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+<link rel="stylesheet" href="{% static 'css/boards/skate-form.css' %}">
 {% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
-<style>
-.bm-upload-note{border:1px solid color-mix(in srgb,var(--glitch-c,#ff4d5e) 35%,transparent);padding:.9rem 1.1rem;margin-bottom:1.2rem;font-size:.85rem;line-height:1.7}
-.bm-upload-note strong{color:var(--glitch-c,#ff4d5e)}
-.bm-media-state{display:inline-block;padding:.15rem .55rem;border:1px solid color-mix(in srgb,var(--glitch-c,#ff4d5e) 40%,transparent);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase}
-.bm-media-meta{list-style:none;padding:0;margin:.8rem 0 0;font-size:.8rem;opacity:.85;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.4rem 1.2rem}
-.bm-file-meta{margin-top:.7rem;min-height:1.4em;color:var(--muted,#91a096);font-size:.78rem;letter-spacing:.04em}
-.bm-file-meta.is-error{color:var(--glitch-c,#ff4d5e)}
-</style>
 {% endblock %}
 
 {% block content %}
@@ -24,23 +17,25 @@
         <header class="bm-head">
             <div class="bm-head__titles">
                 <p class="bm-kicker">MANAGE / SKATEBOARD</p>
-                <h1 class="bm-title">UPLOAD MEDIA <span>/ {{ clip.title|upper }}</span></h1>
-                <p class="bm-sub">上传私有原片；服务端会做权威校验并通过处理流水线生成发布资源。</p>
+                <h1 class="bm-title">{% if media %}REPLACE MEDIA{% else %}UPLOAD MEDIA{% endif %} <span>/ {{ clip.title|upper }}</span></h1>
+                <p class="bm-sub">ONE CLIP → ONE PRIVATE SOURCE → DERIVED WEBM</p>
             </div>
             <a class="bm-btn" href="{% url 'boards:skate-manage-list' %}">&larr; BACK TO LIST</a>
         </header>
 
         <div class="bm-upload-note" role="note">
-            <strong>上传约束（服务端强制）：</strong>
-            单条视频真实时长 ≤ <strong>20 秒</strong>；文件大小 ≤ <strong>{{ max_upload_mib }} MiB</strong>。
-            仅接受真实视频容器；损坏文件、伪扩展名与超时长内容会被拒绝。
-            原片保存在私有目录，不会直接公开；公开页面只使用处理后的派生资源。
+            <strong class="bm-upload-note__title">UPLOAD POLICY / SERVER ENFORCED</strong>
+            <span class="bm-upload-note__line">单条视频真实时长 ≤ <b>20 秒</b>，文件大小 ≤ <b>{{ max_upload_mib }} MiB</b>；损坏文件、伪扩展名与超时长内容会被拒绝。</span>
+            <span class="bm-upload-note__line">原片位于私有目录，公开页只使用处理后的派生资源。</span>
         </div>
 
         {% if media %}
-        <div class="bm-upload-note">
-            当前媒体状态：<span class="bm-media-state">{{ media.get_state_display }}</span>
+        <div class="bm-upload-note bm-upload-note--replace">
+            <strong class="bm-upload-note__title">ONE CLIP / ONE SOURCE</strong>
+            <span class="bm-upload-note__line">当前媒体状态：<span class="bm-media-state">{{ media.get_state_display }}</span>
             {% if media.error_code %}<span class="bm-media-state">{{ media.error_code }}</span>{% endif %}
+            </span>
+            <span class="bm-upload-note__line">本次提交会替换唯一源视频，并重新进入处理队列；系统不会追加第二个视频。</span>
             <ul class="bm-media-meta">
                 {% if media.duration_ms is not None %}<li>时长 {{ media.duration_ms }} ms</li>{% endif %}
                 {% if media.width %}<li>{{ media.width }} × {{ media.height }}</li>{% endif %}
@@ -51,92 +46,29 @@
         </div>
         {% endif %}
 
-        <form class="bm-form" method="post" enctype="multipart/form-data"
-              data-skate-upload data-skate-max-bytes="{{ max_upload_bytes }}" data-skate-max-duration-ms="{{ max_duration_ms }}">
+        <form class="bm-form skf-form" method="post" enctype="multipart/form-data"
+              data-skate-form data-skate-max-bytes="{{ max_upload_bytes }}" data-skate-max-duration-ms="{{ max_duration_ms }}">
             {% csrf_token %}
             {% if form.non_field_errors %}<div class="bm-form__errors-top" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-            <fieldset class="bm-group">
-                <legend class="bm-group__legend">01 / SOURCE FILE</legend>
-                <div class="bm-group__grid">
-                    {% for field in form %}
-                    <div class="bm-field bm-field--wide">
-                        {{ field.label_tag }}{{ field }}
-                        <div class="bm-file-meta" data-skate-file-meta aria-live="polite"></div>
-                        {% if field.errors %}<ul class="bm-field__errors">{{ field.errors }}</ul>{% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
+            <fieldset class="bm-group skf-source">
+                <legend class="bm-group__legend"><span>01 / SOURCE FILE</span></legend>
+                <label class="skf-drop" for="{{ form.source.id_for_label }}" data-skate-drop>
+                    <video muted playsinline controls data-skate-local-preview hidden></video>
+                    <span class="skf-drop__idle" data-skate-drop-idle><b>DROP VIDEO / SELECT FILE</b><small>MP4 · MOV · WEBM / ≤ {{ max_upload_mib }} MiB / ≤ 20 SEC</small></span>
+                    {{ form.source }}
+                </label>
+                <p class="skf-preflight" data-skate-file-meta aria-live="polite">CLIENT PREFLIGHT READY · SERVER FFPROBE IS AUTHORITATIVE</p>
+                {% if form.source.errors %}<ul class="bm-field__errors">{{ form.source.errors }}</ul>{% endif %}
+                {% if media %}<label class="skf-confirm">{{ form.confirm_replace }}<span><b>{{ form.confirm_replace.label }}</b><small>替换会使当前派生资源失效并重新排队处理。</small></span></label>{% endif %}
+                {% if form.confirm_replace.errors %}<ul class="bm-field__errors">{{ form.confirm_replace.errors }}</ul>{% endif %}
             </fieldset>
             <div class="bm-form__actions">
-                <button class="bm-btn bm-btn--primary" type="submit">UPLOAD SOURCE</button>
+                <button class="bm-btn bm-btn--primary" type="submit">{% if media %}REPLACE ONLY SOURCE{% else %}UPLOAD SOURCE{% endif %}</button>
                 <a class="bm-btn" href="{% url 'boards:skate-manage-list' %}">CANCEL</a>
             </div>
         </form>
     </div>
 </div>
 
-{% block extra_js %}
-<script>
-(function () {
-    "use strict";
-    // 浏览器预检（仅体验层）：大小与时长快速反馈；服务端仍做权威校验。
-    var form = document.querySelector("[data-skate-upload]");
-    if (!form) { return; }
-    var maxBytes = parseInt(form.getAttribute("data-skate-max-bytes"), 10);
-    var maxDurationMs = parseInt(form.getAttribute("data-skate-max-duration-ms"), 10);
-    var input = form.querySelector("input[type=file]");
-    var meta = form.querySelector("[data-skate-file-meta]");
-    if (!input || !window.URL || !window.URL.createObjectURL) { return; }
-
-    function formatBytes(bytes) {
-        return (bytes / 1048576).toFixed(1) + " MiB";
-    }
-
-    function show(message, isError) {
-        if (!meta) { return; }
-        meta.textContent = message;
-        meta.classList.toggle("is-error", !!isError);
-    }
-
-    function deny(message) {
-        input.setCustomValidity(message);
-        show(message, true);
-        input.reportValidity();
-    }
-
-    input.addEventListener("change", function () {
-        var file = input.files && input.files[0];
-        input.setCustomValidity("");
-        if (!file) { show("", false); return; }
-        show(file.name + " · " + formatBytes(file.size) + " · 正在读取媒体信息…", false);
-        if (file.size > maxBytes) {
-            deny("文件超过 " + Math.round(maxBytes / 1048576) + " MiB 上限（浏览器预检）。");
-            return;
-        }
-        // 时长预检：video 元素 loadedmetadata（不读全文件）。
-        var url = URL.createObjectURL(file);
-        var video = document.createElement("video");
-        video.preload = "metadata";
-        video.onloadedmetadata = function () {
-            URL.revokeObjectURL(url);
-            if (video.duration && video.duration * 1000 > maxDurationMs + 250) {
-                deny("视频超过 " + (maxDurationMs / 1000) + " 秒上限（浏览器预检，服务端将复核）。");
-                return;
-            }
-            var orientation = video.videoHeight > video.videoWidth ? "竖屏" :
-                (video.videoHeight < video.videoWidth ? "横屏" : "方形");
-            show(file.name + " · " + formatBytes(file.size) + " · " +
-                video.videoWidth + "×" + video.videoHeight + " · " + orientation + " · " +
-                video.duration.toFixed(2) + " 秒", false);
-        };
-        video.onerror = function () {
-            URL.revokeObjectURL(url);
-            // 无法解码不等于非法（浏览器 codec 限制）；交给服务端裁决。
-            show(file.name + " · " + formatBytes(file.size) + " · 浏览器无法读取元数据，服务端仍会权威校验。", false);
-        };
-        video.src = url;
-    });
-})();
-</script>
-{% endblock %}
+{% block extra_js %}<script src="{% static 'js/boards/skate-form.js' %}"></script>{% endblock %}
 {% endblock %}

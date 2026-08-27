@@ -31,6 +31,9 @@ package-lock.json
 /.venv/
 /sundry/
 /themes/devenir/static/fonts
+# Devenir 视觉源稿与生成中间物；最终优化后的运行时 WebP/SVG 仍须跟踪
+/themes/devenir/static/images/errors/source/
+/themes/devenir/static/images/errors/work/
 /cb_context.md
 /V2GUIDE.md
 /codex_context.md

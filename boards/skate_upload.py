@@ -16,13 +16,19 @@ from boards.skate_media import (
 )
 
 
+_UPLOAD_ERROR_MESSAGES = {
+    **CLIP_PROBE_ERROR_MESSAGES,
+    "source_missing": "该 Clip 没有可重新处理的私有原片，请先选择视频文件。",
+}
+
+
 @dataclass(frozen=True)
 class SkateUploadRejected(Exception):
     code: str
 
     @property
     def public_message(self):
-        return CLIP_PROBE_ERROR_MESSAGES.get(
+        return _UPLOAD_ERROR_MESSAGES.get(
             self.code, "上传校验失败，请稍后重试。"
         )
 
@@ -92,4 +98,41 @@ def ingest_skate_source(*, clip, uploaded, uploaded_by):
             storage.delete(old_source)
         except OSError:
             pass
+    return media
+
+
+def requeue_existing_skate_source(*, clip):
+    """Move an existing private source back to the worker queue.
+
+    The row lock and claim invalidation keep an older in-flight worker from
+    publishing over this retry. File validation remains the worker's
+    responsibility, so the HTTP request performs no FFmpeg or file IO.
+    """
+    with transaction.atomic():
+        media = (
+            SkateClipMedia.objects.select_for_update()
+            .filter(clip=clip)
+            .first()
+        )
+        if media is None or not media.source_file:
+            raise SkateUploadRejected("source_missing")
+        if media.state == SkateClipMediaState.PROCESSING:
+            SkateClipMedia.objects.invalidate_claim(media)
+        media.state = SkateClipMediaState.UPLOADED
+        media.claimed_at = None
+        media.error_code = ""
+        media.error_detail = ""
+        media.processed_at = None
+        media.save(
+            update_fields=[
+                "state",
+                "claimed_at",
+                "claim_generation",
+                "claim_token",
+                "error_code",
+                "error_detail",
+                "processed_at",
+                "updated_at",
+            ]
+        )
     return media

@@ -10,6 +10,7 @@ from boards.models import (
     BoardMembership,
     CodingProject,
     SkateClip,
+    SkateClipMedia,
     SkateHomie,
     SpotifyRecord,
 )
@@ -155,6 +156,26 @@ class BoardContentManagementTests(TestCase):
         self.assertRedirects(response, reverse("boards:skate-manage-list"))
         self.assertFalse(SkateClip.objects.filter(pk=clip.pk).exists())
         self.assertContains(response, "滑板片段已删除。")
+
+    def test_skate_list_distinguishes_first_upload_from_replacement(self):
+        without_media = SkateClip.objects.create(
+            homie=self.homie,
+            order=1,
+            title="Needs Source",
+        )
+        with_media = SkateClip.objects.create(
+            homie=self.homie,
+            order=2,
+            title="Has Source",
+        )
+        SkateClipMedia.objects.create(clip=with_media, uploaded_by=self.manager)
+        self.client.force_login(self.manager)
+
+        response = self.client.get(reverse("boards:skate-manage-list"))
+
+        self.assertContains(response, ">UPLOAD</a>")
+        self.assertContains(response, ">REPLACE MEDIA</a>")
+        self.assertContains(response, str(without_media.order).zfill(2))
 
     def test_management_links_follow_board_policy(self):
         self.client.force_login(self.manager)

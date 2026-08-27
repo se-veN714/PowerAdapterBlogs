@@ -22,8 +22,30 @@
         <div class="sk-archive-grid">
             {% for clip in clips %}
             <article class="sk-archive-card reveal">
-                <div class="sk-archive-media">
-                    {% if clip.poster_url %}
+                <div class="sk-archive-media"
+                     {% if clip.preview_url %}
+                     id="sk-media-{{ clip.pk }}" tabindex="0" role="button"
+                     aria-label="播放 {{ clip.title }}"
+                     data-skate-main="{{ clip.main_url }}" data-skate-preview="{{ clip.preview_url }}"
+                     data-skate-title="{{ clip.title|upper }}"
+                     data-skate-format="{{ clip.clip_format|default:'CLIP'|upper }}"
+                     data-skate-category="{{ clip.category|upper }}"
+                     data-skate-spot="{{ clip.spot }}"
+                     data-skate-address="{{ clip.spot_address }}"
+                     data-skate-longitude="{{ clip.spot_longitude|stringformat:'s' }}"
+                     data-skate-latitude="{{ clip.spot_latitude|stringformat:'s' }}"
+                     data-skate-filmed="{{ clip.filmed_at|date:'m.d.y' }}"
+                     data-skate-duration="{{ clip.duration_display }}"
+                     data-skate-status="{{ clip.status }}"
+                     data-skate-notes="{{ clip.notes }}"
+                     {% endif %}>
+                    {% if clip.preview_url %}
+                    {# 有红黑预览：静音循环自动播（skateboard.js §4 视口触发），主片走 WATCH CLIP 对话框 #}
+                    <video muted playsinline preload="metadata" loop aria-label="{{ clip.title }}"
+                           {% if clip.poster_url %}poster="{{ clip.poster_url }}"{% elif clip.thumbnail_url %}poster="{{ clip.thumbnail_url }}"{% endif %}>
+                        <source src="{{ clip.main_url }}">
+                    </video>
+                    {% elif clip.poster_url %}
                     <img src="{{ clip.poster_url }}" alt="{{ clip.title }} 封面" loading="lazy">
                     {% elif clip.main_url %}
                     <video muted playsinline preload="metadata" controls aria-label="{{ clip.title }}"
@@ -50,6 +72,9 @@
                         {% if clip.duration_display %}<div><dt>DURATION</dt><dd>{{ clip.duration_display }}</dd></div>{% endif %}
                         <div><dt>STATUS</dt><dd class="sk-status--{{ clip.status|lower }}">{{ clip.status }}</dd></div>
                     </dl>
+                    <button type="button" class="sk-watch" data-skate-watch="sk-media-{{ clip.pk }}" {% if not clip.preview_url %}disabled title="片段素材待接入"{% endif %}>
+                        <span class="sk-watch-tri" aria-hidden="true"></span>WATCH CLIP
+                    </button>
                 </div>
             </article>
             {% empty %}
@@ -66,4 +91,10 @@
         {% endif %}
     </div>
 </section>
+
+{% include 'pages/boards/skateboard/_player_dialog.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/boards/skateboard.js' %}"></script>
 {% endblock %}

@@ -1,0 +1,28 @@
+{% comment %}
+WATCH CLIP 播放对话框（skateboard.js §5 绑定）。
+被 index.html 与 clip_list.html 共享 include；要求 view context 提供
+amap_enabled / amap_api_key / amap_service_host（未提供时地图自动隐藏）。
+{% endcomment %}
+<dialog class="sk-player" data-skate-player data-amap-enabled="{{ amap_enabled|yesno:'true,false' }}"
+        data-amap-key="{{ amap_api_key }}" data-amap-service-host="{{ amap_service_host }}" aria-labelledby="sk-player-title">
+    <div class="sk-player-shell">
+        <header class="sk-player-head"><span>CLIP SIGNAL / PLAYBACK NODE</span><button type="button" data-skate-player-close aria-label="关闭视频">CLOSE ×</button></header>
+        <div class="sk-player-grid">
+            <div class="sk-player-stage"><video controls playsinline data-skate-player-video></video></div>
+            <aside class="sk-player-info">
+                <p class="sk-player-index" data-skate-player-format>CLIP</p>
+                <h2 id="sk-player-title" data-skate-player-title>UNTITLED</h2>
+                <p class="sk-player-category" data-skate-player-category></p>
+                <dl>
+                    <div><dt>SPOT</dt><dd data-skate-player-spot>—</dd></div>
+                    <div><dt>FILMED</dt><dd data-skate-player-filmed>—</dd></div>
+                    <div><dt>DURATION</dt><dd data-skate-player-duration>—</dd></div>
+                    <div><dt>STATUS</dt><dd data-skate-player-status>—</dd></div>
+                </dl>
+                <p class="sk-player-notes" data-skate-player-notes></p>
+                <div class="sk-player-map" data-skate-player-map><span>NO GEO SIGNAL</span></div>
+                <p class="sk-player-address" data-skate-player-address></p>
+            </aside>
+        </div>
+    </div>
+</dialog>

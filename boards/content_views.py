@@ -30,7 +30,11 @@ from boards.models import (
     SpotifyRecord,
 )
 from boards.policies import can_manage_board_content
-from boards.skate_upload import SkateUploadRejected, ingest_skate_source
+from boards.skate_upload import (
+    SkateUploadRejected,
+    ingest_skate_source,
+    requeue_existing_skate_source,
+)
 
 
 MUSIC_MODELS = {
@@ -182,16 +186,24 @@ class SkateClipMixin(BoardContentManagerMixin):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        clip = context.get("object")
+        try:
+            existing_media = clip.media if clip and clip.pk else None
+        except SkateClipMedia.DoesNotExist:
+            existing_media = None
         context.update(
             {
                 "max_upload_bytes": settings.SKATE_CLIP_MAX_UPLOAD_BYTES,
                 "max_upload_mib": settings.SKATE_CLIP_MAX_UPLOAD_BYTES // (1024 * 1024),
                 "max_duration_ms": settings.SKATE_CLIP_MAX_DURATION_MS,
                 "amap_enabled": bool(
-                    settings.AMAP_JS_API_ENABLED and settings.AMAP_JS_API_KEY
+                    settings.AMAP_JS_API_ENABLED
+                    and settings.AMAP_JS_API_KEY
+                    and settings.AMAP_JS_SECURITY_JSCODE
                 ),
                 "amap_api_key": settings.AMAP_JS_API_KEY,
                 "amap_service_host": settings.AMAP_JS_SERVICE_HOST,
+                "existing_media": existing_media,
             }
         )
         return context
@@ -204,8 +216,27 @@ class SkateClipFormMediaMixin:
         creating = getattr(self, "object", None) is None
         process_requested = self.request.POST.get("intent") == "process"
         source = form.cleaned_data.get("source") if process_requested else None
-        if process_requested and not source:
+        has_existing_source = bool(
+            not creating
+            and SkateClipMedia.objects.filter(
+                clip=self.object,
+                source_file__gt="",
+            ).exists()
+        )
+        if process_requested and not source and not has_existing_source:
             form.add_error("source", "上传并处理需要选择一个视频原片。")
+            return self.form_invalid(form)
+        if (
+            process_requested
+            and source
+            and getattr(self, "object", None) is not None
+            and SkateClipMedia.objects.filter(clip=self.object).exists()
+            and not form.cleaned_data.get("confirm_replace")
+        ):
+            form.add_error(
+                "confirm_replace",
+                "该 Clip 已有一个源视频。请确认替换；系统不会追加第二个视频。",
+            )
             return self.form_invalid(form)
 
         response = super().form_valid(form)
@@ -229,6 +260,19 @@ class SkateClipFormMediaMixin:
                 messages.success(
                     self.request,
                     f"滑板片段已{'创建' if creating else '更新'}；原片校验通过，已进入待处理队列。",
+                )
+        elif process_requested:
+            try:
+                requeue_existing_skate_source(clip=self.object)
+            except SkateUploadRejected as exc:
+                messages.error(
+                    self.request,
+                    f"片段资料已更新，但无法重新排队：{exc.public_message}",
+                )
+            else:
+                messages.success(
+                    self.request,
+                    "滑板片段已更新；现有私有原片已重新进入待处理队列。",
                 )
         else:
             messages.success(
@@ -345,6 +389,11 @@ class SkateClipMediaUploadView(SkateClipMixin, FormView):
         self._load_clip()
         return super().post(request, *args, **kwargs)
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["replacing"] = SkateClipMedia.objects.filter(clip=self.clip).exists()
+        return kwargs
+
     def form_valid(self, form):
         try:
             ingest_skate_source(
@@ -358,7 +407,7 @@ class SkateClipMediaUploadView(SkateClipMixin, FormView):
 
         messages.success(
             self.request,
-            "原片已上传并校验通过，等待处理流水线生成发布资源。",
+            "原片已上传并校验通过，已进入待处理队列。",
         )
         return super().form_valid(form)
 

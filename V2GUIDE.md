@@ -76,7 +76,7 @@ sequenceDiagram
 
 生产运维入口采用 Tailscale：管理员或 Agent 先进入受控 Tailnet，再以专用非 root 账号通过 SSH key 登录并按需 `sudo`。公网安全组不得为临时 Agent 出口长期开放 SSH，也不得通过放宽云主机安全地区/IP 白名单消除告警；云控制台仅作为 break-glass。Tailscale 负责运维网络入口，不能替代 `/super_admin/` 的 TLS 1.3 mTLS、Django 密码和 TOTP 身份验证。
 
-BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。Board Index 专属内容闭环第一阶段已完成：Music 增加 Spotify/Apple 排行、封面与外链字段，并可从本地 Spotify 导出幂等聚合；Coding Project 支持 GitHub、本地工具和外部链接；Skate Clip、Music 与 Coding 均已有按对应 Board Manager Policy 隔离的 Devenir CRUD。三个 Index 现已统一接入对应 Category 的公开已发布文章流和 Policy 派生参与 CTA；新建文章只在服务端同时确认当前 Board 创建权限及正常、唯一的 Category 映射后预选 Category，Reviewer 则进入带 Board 筛选的审核工作区。主页功能菜单和各 Board Index 只向可管理该板块的账号暴露快捷入口，服务端仍逐请求裁决，Padif 固定为无服务端写入的本地浏览器工具。剩余缺口按风险排队：🟡 Skateboard Clip 增加受控方向/比例字段与上传校验；🟡 Coding Principle/Experiment 纳入业务管理工作区。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
+BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。Board Index 专属内容闭环第一阶段已完成：Music 增加 Spotify/Apple 排行、封面与外链字段，并可从本地 Spotify 导出幂等聚合；Coding Project 支持 GitHub、本地工具和外部链接；Skate Clip、Music 与 Coding 均已有按对应 Board Manager Policy 隔离的 Devenir CRUD。三个 Index 现已统一接入对应 Category 的公开已发布文章流和 Policy 派生参与 CTA；新建文章只在服务端同时确认当前 Board 创建权限及正常、唯一的 Category 映射后预选 Category，Reviewer 则进入带 Board 筛选的审核工作区。主页功能菜单和各 Board Index 只向可管理该板块的账号暴露快捷入口，服务端仍逐请求裁决，Padif 固定为无服务端写入的本地浏览器工具。Skateboard S5 已完成 Clip/Line/B-roll、结构化地点、视频上传预检/服务端权威校验、地图内官方输入提示与播放浮层；2026-08-27 用户已在实际登录表单中完成人工 SK8/高德联调并确认候选、地图交互与保存稳定。代理仅放行当前界面使用的高德资源，校验 JSONP callback，并限制单客户端频率、查询长度与响应大小。当前 Board Index 功能缺口仅保留🟡 Coding Principle/Experiment 纳入业务管理工作区。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
 
 Board Index 的访问边界已重新冻结：`/boards/<slug>/` 及其纯展示 htmx 片段是个人站的公开陈列面，不要求 BoardMembership；Membership 只保护投稿、编辑、审核、评论管理、成员管理和专属内容维护等动作。三个 Index 已统一接入对应 Category 的 `Post.publicly_visible_posts()` 公开文章流（最新 5 篇，草稿、审核中、已下架与 `staff-only` 均不进入），并按服务端 Policy 派生参与 CTA（`anonymous / eligible / pending / member / suspended`）；新建文章由 `PostCreateView.get_initial()` 重新执行板块创建权限及正常、唯一 Category 映射校验后再预选 Category，Reviewer 进入 `/Blogs/review/?board=<slug>`，Board 权限申请页同样支持服务端校验的 Board 预选。详细矩阵和前后端契约见 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（本地，git-ignored）。剩余收尾：所有受保护动作统一接入 REFUSE 模板。
 
@@ -159,6 +159,19 @@ flowchart LR
 3. 完整页面、HTMX 端点与 Admin 必须共享 Policy / Service，禁止在模板或前端复制授权规则。
 4. Devenir 的页面结构、SEO、Session、CSRF 和表单验证继续由 Django 负责。
 5. 复杂前端状态仅限编辑器、动画、图表等确有必要的局部组件，不为简单 CRUD 引入 SPA 状态层。
+
+#### Devenir 视觉语言约束（2026-08-26）
+
+Devenir 不再只等同于“暗色 CRT + 绿色终端”。错误页重构确立了可复用的第二层设计语言：**统一暗色空间、透明主体融合、Editorial 信息层级、板块信号色与受控故障动效**。后续重要页面可以复用这套语言，但不得机械复制错误页构图。
+
+1. 页面先建立一个连续的视觉空间，再用留白、网格、遥测信息和非对称构图划分层级；避免把每个区域都包成彼此割裂的卡片。
+2. 视觉主体优先使用带 Alpha 通道的 WebP，让主体越过栏线、网格或文字平面形成融合；禁止用带黑底的矩形图片假装透明素材。
+3. 全站共享近黑背景、扫描线、等宽信息层和 Editorial 标题；Skateboard、Music、Coding 等 Board 只改变信号色、语义词汇与主题主体，不另造互不兼容的组件体系。
+4. glitch、撕裂、扫描和状态闪烁是短促的状态反馈，不是持续噪声；必须支持 `prefers-reduced-motion`，且不能承担权限、错误原因或操作结果的唯一表达。
+5. 服务端仍输出完整语义、正确 HTTP 状态和无 JavaScript 回退；视觉层不得泄漏异常详情、内部路径、密钥或调试堆栈。
+6. 页面必需的压缩 WebP、SVG、Logo 等交付静态资产必须随代码进入版本控制并由 `collectstatic` 发布；PNG/PSD 源稿、AI 生成中间产物、批量候选和用户媒体不得放入 Git。生产部署不得依赖人工补传页面必需资产。
+
+具体 Token、构图语法、错误页契约、资源目录和验收清单见 `themes/devenir/DEVELOPMENT.md`。
 
 #### 单一 Web 契约边界
 

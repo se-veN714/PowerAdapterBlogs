@@ -6,7 +6,7 @@ with 参数：
     video_url    可空：旧兼容真实视频 URL
     poster_url   可空：旧兼容视频封面 URL
     main_url     可空：S2 派生正式播放 WebM URL（优先于 video_url）
-    preview_url  可空：S2 派生红黑预览 WebM URL（hover/focus 按需加载）
+    preview_url  可空：S2 派生红黑预览 WebM URL（进入视口/focus 按需加载并自动循环播放）
     media_poster_url 可空：S2 派生封面 WebP URL（优先于 poster_url）
     hud          可空：arc / speed / measure / ring
     hud_label    可空：HUD 指标文案
@@ -16,10 +16,11 @@ with 参数：
 
 S3 Presentation 策略：
 - 有 main_url 时渲染 <video>（poster 优先 media_poster_url > poster_url），
-  data-skate-preview 存 preview_url 供 JS 在 hover/focus 时按需加载。
-- 无 main_url 但有 video_url 时回退到旧兼容 <video>。
+  data-skate-preview 存 preview_url 供 JS 在卡片进入视口或 focus/hover 时
+  按需加载并自动循环播放红黑预览。
+- 无 main_url 但有 video_url 时回退到旧兼容 <video>（不自动播主片）。
 - 都没有时渲染占位视觉。
-- reduced-motion / 触摸设备不加载预览（JS 判定）。
+- reduced-motion 用户不自动播放预览（JS 判定），保留 poster 静帧。
 {% endcomment %}
 {% with effective_video=main_url|default:video_url effective_poster=media_poster_url|default:poster_url %}
 <div class="sk-clip-media"{% if media_id %} id="sk-media-{{ media_id }}"{% endif %}{% if effective_video %} tabindex="0" role="button" data-skate-main="{{ effective_video }}" aria-label="播放 {{ name }}"{% endif %}{% if hud %} data-hud="{{ hud }}"{% endif %}{% if preview_url %} data-skate-preview="{{ preview_url }}"{% endif %}

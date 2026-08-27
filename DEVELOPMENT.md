@@ -23,7 +23,7 @@ DjangoProject/                 # 项目根目录
 ├── config/                    # 站点配置（友链/侧边栏）
 ├── security/                  # 日志完整性（HMAC + MongoDB 审计）
 ├── deploy/                    # Nginx mTLS 与仓库外 Client CA 运维模板
-├── themes/                    # 前端模板（bulma 主题）
+├── themes/                    # 前端模板（当前为 Devenir HDA 主题）
 ├── static/                    # 静态资源
 ├── requirements.txt           # 依赖清单
 ├── manage.py                  # Django 管理入口
@@ -54,6 +54,9 @@ DjangoProject/                 # 项目根目录
 | `comment` | 评论提交/审核、IP 提取 | `comment/LOGGUIDE.md` |
 | `config` | 友链管理、侧边栏配置 | `config/LOGGUIDE.md` |
 | `security` | SM3-HMAC 日志签名、MongoDB 审计 | `security/DEVELOPMENT.md` |
+| `themes/devenir` | Django Template + htmx 页面、设计 Token、响应式与错误页视觉 | `themes/devenir/DEVELOPMENT.md` |
+
+Devenir 的全局视觉边界以 `V2GUIDE.md` 为上位决策，具体组件和静态资源规范以下位主题开发文档为准。页面必需的压缩静态资产必须随代码发布；设计源稿、生成中间物和用户媒体留在 Git 之外。
 
 ---
 
@@ -78,6 +81,7 @@ DjangoProject/                 # 项目根目录
 | `/links/` | `LinkListView` | 友链页 |
 | `/about/` | `AboutView` | 站点定位、内容、Board 与技术说明 |
 | `/privacy/` | `PrivacyView` | 数据用途和保留方式说明 |
+| `/_errors/<variant>/<status_code>/` | `error_preview` | 仅 DEBUG 可用的 General/Skateboard/Music/Coding 真实状态预览；生产统一返回 404 |
 | `/boards/access/` | `BoardAccessRequestView` | 已验证用户提交并查看自己的板块权限申请 |
 | `/sitemap.xml/` | sitemaps | 站点地图 (缓存1h) |
 

@@ -223,81 +223,94 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    /* ---------- 4. 视频离屏暂停 ---------- */
-
+    /* ---------- 4. 视频可见即播：红黑 preview 进入视口/focus 自动播放，离屏暂停 ----------
+       卡片 <video> 的 src 初始为主片（preload=metadata），一旦可见就把 source
+       换成 preview.webm 并循环播放；正式观看走 WATCH CLIP 对话框的独立 video。
+       触发双通道：IntersectionObserver + rAF 节流的 scroll/resize 兜底（任一生效即可，
+       防个别环境下 IO 回调不派发）。reduced-motion 与无 hover 的触摸设备只展示
+       poster；用户仍可主动打开 WATCH CLIP 播放正式视频。 */
     var observed = [];
+    var previewAllowed = window.matchMedia('(hover: hover) and (pointer: fine)');
+
+    function previewMedia(video) {
+        return video.closest('[data-skate-preview]');
+    }
+
+    function playClipPreview(video) {
+        if (reduceMotion.matches || !previewAllowed.matches) return;
+        var media = previewMedia(video);
+        if (media && video.dataset.skatePreviewLoaded !== '1') {
+            var source = video.querySelector('source');
+            if (source && media.dataset.skatePreview) {
+                source.src = media.dataset.skatePreview;
+                video.load();
+                video.dataset.skatePreviewLoaded = '1';
+            }
+        }
+        if (video.paused) video.play().catch(function () {});
+    }
+
+    function refreshVideoState(video) {
+        var rect = video.getBoundingClientRect();
+        if (rect.height === 0) return;
+        var visible = rect.bottom > 0 && rect.top < window.innerHeight &&
+            (Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0)) >= rect.height * 0.15;
+        if (visible && previewMedia(video) && !reduceMotion.matches && previewAllowed.matches) {
+            playClipPreview(video);
+        } else if (!visible && !video.paused) {
+            video.pause();
+        }
+    }
+
+    var refreshQueued = false;
+    function scheduleRefresh() {
+        if (refreshQueued) return;
+        refreshQueued = true;
+        window.requestAnimationFrame(function () {
+            refreshQueued = false;
+            observed.forEach(refreshVideoState);
+        });
+    }
 
     function bindVideoObserver() {
-        if (!('IntersectionObserver' in window)) return;
-        var videos = document.querySelectorAll('.sk-clip-media video');
+        var videos = document.querySelectorAll('.sk-clip-media video, .sk-archive-media video');
         if (!videos.length) return;
 
-        var observer = new IntersectionObserver(function (entries) {
-            entries.forEach(function (entry) {
-                if (!entry.isIntersecting && !entry.target.paused) {
-                    entry.target.pause();
+        if ('IntersectionObserver' in window) {
+            var observer = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        playClipPreview(entry.target);
+                    } else if (!entry.target.paused) {
+                        entry.target.pause();
+                    }
+                });
+            }, { threshold: 0.15 });
+
+            videos.forEach(function (video) {
+                if (observed.indexOf(video) === -1) {
+                    observer.observe(video);
+                    observed.push(video);
                 }
             });
-        }, { threshold: 0.15 });
+        }
 
+        // focus / hover 作为补充触发（键盘可达；hover 仅在有 hover 能力的设备上生效）
         videos.forEach(function (video) {
-            if (observed.indexOf(video) === -1) {
-                observer.observe(video);
-                observed.push(video);
-            }
+            var media = video.closest('.sk-clip-media, .sk-archive-media');
+            if (!media || !media.dataset.skatePreview || media.dataset.skatePreviewBound) return;
+            media.dataset.skatePreviewBound = '1';
+            media.addEventListener('focusin', function () { playClipPreview(video); });
+            media.addEventListener('mouseenter', function () { playClipPreview(video); });
         });
+
+        scheduleRefresh();
     }
+
+    window.addEventListener('scroll', scheduleRefresh, { passive: true });
+    window.addEventListener('resize', scheduleRefresh, { passive: true });
 
     bindVideoObserver();
-
-    /* ---------- 5. 焦点预览：hover/focus 按需加载红黑 preview.webm ---------- */
-
-    var previewReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    // 触摸设备（无 hover 能力）不加载预览——poster 已足够。
-    var canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-
-    function bindPreviewHover() {
-        if (previewReduceMotion.matches || !canHover) return;
-        document.querySelectorAll('.sk-clip-media[data-skate-preview]').forEach(function (media) {
-            if (media.dataset.skatePreviewBound) return;
-            media.dataset.skatePreviewBound = '1';
-            var video = media.querySelector('video');
-            if (!video) return;
-            var previewUrl = media.dataset.skatePreview;
-            var originalSrc = media.dataset.skateMain || (video.querySelector('source') ? video.querySelector('source').src : '');
-            var loaded = false;
-
-            function loadPreview() {
-                if (!loaded && previewUrl) {
-                    var source = video.querySelector('source');
-                    if (source) {
-                        source.src = previewUrl;
-                        video.load();
-                        loaded = true;
-                    }
-                }
-                video.play().catch(function () {});
-            }
-
-            function restoreMain() {
-                if (loaded && originalSrc) {
-                    var source = video.querySelector('source');
-                    if (source) {
-                        source.src = originalSrc;
-                        video.load();
-                        loaded = false;
-                    }
-                }
-            }
-
-            media.addEventListener('mouseenter', loadPreview);
-            media.addEventListener('mouseleave', restoreMain);
-            media.addEventListener('focusin', loadPreview);
-            media.addEventListener('focusout', restoreMain);
-        });
-    }
-
-    bindPreviewHover();
 
     /* ---------- 6. WATCH CLIP：在不离开 Index 的对话框中播放 ---------- */
 
@@ -368,13 +381,40 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    /* 媒体卡片本身可点击：click / Enter / Space 直接打开 WATCH 对话框（与 WATCH CLIP 按钮同源） */
+    function bindMediaClick() {
+        document.querySelectorAll('.sk-clip-media[data-skate-main], .sk-archive-media[data-skate-main]').forEach(function (media) {
+            if (media.dataset.skateClickBound) return;
+            media.dataset.skateClickBound = '1';
+            function activate() {
+                if (!media.dataset.skateMain) return;
+                var video = media.querySelector('video');
+                if (video && !video.paused) video.pause(); // 对话框内播主片，先暂停背后预览
+                openPlayer(media, media);
+            }
+            media.addEventListener('click', activate);
+            media.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+                    event.preventDefault();
+                    activate();
+                }
+            });
+        });
+    }
+
     function closePlayer() {
         if (!player || !player.open) return;
         playerVideo.pause();
         playerVideo.removeAttribute('src');
         playerVideo.load();
         player.close();
-        if (lastPlayerTrigger) lastPlayerTrigger.focus({ preventScroll: true });
+        if (lastPlayerTrigger) {
+            // 触发源是媒体卡片时，恢复其红黑预览循环（打开对话框时被暂停）
+            var card = lastPlayerTrigger.closest && lastPlayerTrigger.closest('.sk-clip-media, .sk-archive-media');
+            var preview = card && card.querySelector('video');
+            if (preview && preview.dataset.skatePreviewLoaded === '1') preview.play().catch(function () {});
+            lastPlayerTrigger.focus({ preventScroll: true });
+        }
     }
     if (player) {
         player.querySelector('[data-skate-player-close]').addEventListener('click', closePlayer);
@@ -389,6 +429,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     bindWatchButtons();
+    bindMediaClick();
 
     // htmx 交换 Selected Line 后，旧视频随 DOM 移除，新视频重新绑定
     document.body.addEventListener('htmx:afterSwap', function (event) {
@@ -400,8 +441,8 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             observed = observed.filter(function (video) { return document.contains(video); });
             bindVideoObserver();
-            bindPreviewHover();
             bindWatchButtons();
+            bindMediaClick();
         }
     });
 });

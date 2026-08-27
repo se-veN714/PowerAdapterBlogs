@@ -20,6 +20,7 @@ from django.core.exceptions import ImproperlyConfigured
 from .base import *
 
 DEBUG = False
+ERROR_PREVIEW_ENABLED = False
 
 
 def required_env(name):

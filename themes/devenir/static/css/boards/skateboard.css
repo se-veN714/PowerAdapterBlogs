@@ -659,8 +659,9 @@
 /* ---------- 查看更多（公开时间线入口，与 clips 容器等宽） ---------- */
 
 /* ---------- Playback dialog ---------- */
-.sk-player{width:min(92vw,1180px);max-height:90vh;padding:0;border:1px solid color-mix(in srgb,var(--glitch-c) 45%,var(--fragment-border));background:#0b0f0e;color:var(--text-primary);box-shadow:0 30px 100px rgba(0,0,0,.72)}.sk-player::backdrop{background:rgba(3,6,5,.82);backdrop-filter:blur(5px)}.sk-player-shell{background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.018) 3px 4px)}.sk-player-head{display:flex;justify-content:space-between;align-items:center;padding:.8rem 1rem;border-bottom:1px solid var(--fragment-border);font:.62rem var(--font-mono);letter-spacing:.16em;color:var(--text-tertiary)}.sk-player-head button{border:0;background:none;color:var(--glitch-c);font:inherit;letter-spacing:inherit;cursor:pointer}.sk-player-grid{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(18rem,.8fr);min-height:38rem}.sk-player-stage{display:grid;place-items:center;background:#030504;border-right:1px solid var(--fragment-border)}.sk-player-stage video{width:100%;height:100%;max-height:78vh;object-fit:contain}.sk-player-info{padding:clamp(1.5rem,3vw,2.5rem);overflow-y:auto}.sk-player-index,.sk-player-category{font:.68rem var(--font-mono);letter-spacing:.17em;color:var(--glitch-c)}.sk-player-info h2{margin:.65rem 0 .25rem;font:700 clamp(1.8rem,3vw,3.2rem) var(--font-sans)}.sk-player-info dl{display:grid;gap:.65rem;margin:2rem 0;font-family:var(--font-mono)}.sk-player-info dl div{display:grid;grid-template-columns:6rem 1fr;gap:1rem}.sk-player-info dt{font-size:.6rem;letter-spacing:.15em;color:var(--text-tertiary)}.sk-player-info dd{font-size:.72rem;color:var(--text-secondary)}.sk-player-notes,.sk-player-address{font:.68rem/1.7 var(--font-mono);color:var(--text-secondary)}.sk-player-map{height:12rem;margin-top:1.5rem;border:1px solid var(--fragment-border);display:grid;place-items:center;color:var(--text-tertiary);font:.6rem var(--font-mono);overflow:hidden}.sk-player-map>div{width:100%;height:100%}
-@media(max-width:767px){.sk-player{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;border:0}.sk-player-grid{grid-template-columns:1fr;min-height:0}.sk-player-stage{height:min(56vw,19rem);border-right:0;border-bottom:1px solid var(--fragment-border);position:sticky;top:0;z-index:2}.sk-player-info{padding:1.25rem}.sk-player-map{height:14rem}}
+/* margin:auto 必须显式声明——base.html 全局重置 *{margin:0} 会覆盖 UA 样式表对 dialog:modal 的居中，导致对话框钉在视口顶部 */
+.sk-player{width:min(92vw,1180px);max-height:90vh;padding:0;margin:auto;overflow:hidden;border:1px solid color-mix(in srgb,var(--glitch-c) 45%,var(--fragment-border));background:#0b0f0e;color:var(--text-primary);box-shadow:0 30px 100px rgba(0,0,0,.72)}.sk-player::backdrop{background:rgba(3,6,5,.82);backdrop-filter:blur(5px)}.sk-player-shell{background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.018) 3px 4px)}.sk-player-head{display:flex;justify-content:space-between;align-items:center;padding:.8rem 1rem;border-bottom:1px solid var(--fragment-border);font:.62rem var(--font-mono);letter-spacing:.16em;color:var(--text-tertiary)}.sk-player-head button{border:0;background:none;color:var(--glitch-c);font:inherit;letter-spacing:inherit;cursor:pointer}.sk-player-grid{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(18rem,.8fr);height:min(38rem,calc(90vh - 4rem))}.sk-player-stage{display:grid;place-items:center;background:#030504;border-right:1px solid var(--fragment-border)}.sk-player-stage video{width:100%;height:100%;max-height:78vh;object-fit:contain}.sk-player-info{padding:clamp(1.5rem,3vw,2.5rem);overflow-y:auto}.sk-player-index,.sk-player-category{font:.68rem var(--font-mono);letter-spacing:.17em;color:var(--glitch-c)}.sk-player-info h2{margin:.65rem 0 .25rem;font:700 clamp(1.8rem,3vw,3.2rem) var(--font-sans)}.sk-player-info dl{display:grid;gap:.65rem;margin:2rem 0;font-family:var(--font-mono)}.sk-player-info dl div{display:grid;grid-template-columns:6rem 1fr;gap:1rem}.sk-player-info dt{font-size:.6rem;letter-spacing:.15em;color:var(--text-tertiary)}.sk-player-info dd{font-size:.72rem;color:var(--text-secondary)}.sk-player-notes,.sk-player-address{font:.68rem/1.7 var(--font-mono);color:var(--text-secondary)}.sk-player-map{height:12rem;margin-top:1.5rem;border:1px solid var(--fragment-border);display:grid;place-items:center;color:var(--text-tertiary);font:.6rem var(--font-mono);overflow:hidden}.sk-player-map>div{width:100%;height:100%}
+@media(max-width:767px){body:has(.sk-player[open]){overflow:hidden}.sk-player{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;border:0;overflow-y:auto;overscroll-behavior:contain}.sk-player-grid{grid-template-columns:1fr;min-height:0;height:auto}.sk-player-stage{border-right:0;border-bottom:1px solid var(--fragment-border)}.sk-player-stage video{width:100%;height:auto;max-height:none}.sk-player-info{padding:1.25rem}.sk-player-map{height:14rem}}
 
 .sk-more {
     display: flex;
@@ -860,8 +861,25 @@
 .sk-archive-media img,
 .sk-archive-media video,
 .sk-archive-media .sk-clip-placeholder { width: 100%; height: 100%; object-fit: cover; }
+/* archive 卡片预览视频复用 index 同款灰度滤镜链，避免红黑 preview 原色过饱和 */
+.sk-archive-media video { filter: grayscale(1) brightness(0.78) contrast(1.08); }
 .sk-archive-info { padding: 1.25rem; }
 .sk-archive-info h2 { margin-top: 0.4rem; font-size: clamp(1.2rem, 2vw, 1.7rem); }
+.sk-archive-info .sk-watch { margin-top: 1.25rem; }
+/* 媒体区可点击打开 WATCH 对话框：常驻透明 outline（不占布局），hover/focus 渐显红框 */
+.sk-archive-media[data-skate-preview],
+.sk-clip-media[data-skate-main] {
+    cursor: pointer;
+    outline: 1.5px solid transparent;
+    outline-offset: -3px;
+    transition: outline-color 0.2s ease;
+}
+.sk-archive-media[data-skate-preview]:hover,
+.sk-archive-media[data-skate-preview]:focus-visible,
+.sk-clip-media[data-skate-main]:hover,
+.sk-clip-media[data-skate-main]:focus-visible {
+    outline-color: var(--glitch-c);
+}
 .sk-archive-pagination { display: flex; justify-content: center; gap: 2rem; margin-top: 2.5rem; color: var(--text-tertiary); }
 .sk-archive-pagination a { color: var(--glitch-c); text-decoration: none; }
 
@@ -880,7 +898,9 @@
     .sk-watch,
     .sk-more,
     .sk-more-label-en,
-    .sk-more-arrow { transition: none !important; }
+    .sk-more-arrow,
+    .sk-archive-media[data-skate-preview],
+    .sk-clip-media[data-skate-main] { transition: none !important; }
     .sk-node.is-active .sk-node-frame::before { transform: none; }
     .sk-watch:not(:disabled):hover { transform: none; }
     .sk-more:hover .sk-more-arrow { transform: none; }

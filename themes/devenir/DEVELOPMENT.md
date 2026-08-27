@@ -3,10 +3,10 @@
 > **文档权重**：78（Devenir 当前主题实现；全局路线服从 V2GUIDE）
 > **主题**: `themes/devenir/`
 > **类型**: Django 模板主题 + 自定义 CSS/JS
-> **设计风格**: 暗色 CRT 扫描线 + 绿色调 + 社刊 Editorial 排版
+> **设计风格**: 连续暗色空间 + CRT 扫描线 + Editorial 排版 + 透明主体融合 + Board 信号色
 > **前身**: `themes/bulma/`（Bulma CSS 框架，已弃用）
 > **创建**: 2026-06-22
-> **最后更新**: 2026-07-29 — 权限感知导航与 Skate Clip 公开展示修正
+> **最后更新**: 2026-08-26 — 错误页重构与 Devenir 扩展视觉语言
 
 ---
 
@@ -14,6 +14,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-26 | v1.20 | 403/404/500 重构为全页面故障终端构图；四类透明主题主体、Board 信号色、受控 glitch、reduced-motion 与真实状态预览完成 |
 | 2026-07-29 | v1.19 | Skate Index 的两条 9:16 Clip 改为共用外框：两侧媒体、中央宽信息区，上层左对齐与下层右对齐形成对角关系 |
 | 2026-07-29 | v1.18 | 桌面“功能”升级为全宽 Mega Menu；移动端继续使用二级汉堡；恢复主页板块每次加载时的扫描线入场，文字扰动仍按 Session 去重 |
 | 2026-07-29 | v1.17 | 桌面导航收纳为按权限显示的功能分组；移动汉堡增加二级分类；Skate Index 改为 2 竖 3 横完整信息节奏，“查看更多”接入公开时间列表 |
@@ -69,6 +70,8 @@ flowchart TD
         CSS_L["css/links.css"]
         CSS_ERR["css/errors/page-error.css"]
         JS_M["js/main.js"]
+        JS_ERR["js/errors/page-error.js"]
+        IMG_ERR["images/errors/*.webp<br/>透明交付资产"]
     end
 
     subgraph misc["其他"]
@@ -120,10 +123,29 @@ flowchart TD
 ```
 
 ### 2.2 设计原则
-- **暗 + 绿**：背景 `rgb(13,16,16)`，所有强调色走绿色系
+- **暗 + 信号色**：背景统一为 `rgb(13,16,16)`；General 使用绿色系，各 Board 只在强调层使用自己的信号色
 - **CRT 感**：全站 scanline 纹理层 + fragment-border 卡片边框
 - **高对比度**：正文 `rgb(235,240,235)` vs 背景，确保可读性
 - **等宽优先**：全局 font-family 为 monospace，正文使用 `SourceHanSerifCN`
+
+### 2.3 扩展视觉语言：故障终端与透明主体融合
+
+错误页是这套语言的首个完整实现，但原则可用于 Board Hero、空态、权限拒绝和高价值展示页：
+
+1. **连续空间优先**：先构造一个贯穿视口的暗色画布，再通过网格、扫描线、遥测与留白建立层次；不要默认使用 50/50 卡片或给每段内容套框。
+2. **主体跨层**：带 Alpha 的主体可跨越隐含栏线，与标题、编号或信号纹理形成前后关系。图片自身不得带无法融合的黑色矩形底。
+3. **信息仍是第一层**：大编号、短错误标题、可执行返回动作和状态信息先于装饰；长文案不叠在高细节主体上。
+4. **Board 色是信号，不是换肤**：共享背景、排版、间距和组件；Board 色只进入编号、细线、局部辉光和状态标记。禁止整屏高饱和染色。
+5. **故障动效必须克制**：单次持续约几十至百余毫秒，触发间隔随机且足够长；仅改变视觉切片，不闪烁正文，不制造布局偏移。
+6. **渐进增强**：无 JS 时内容、返回操作和真实 HTTP 状态完整；`prefers-reduced-motion: reduce` 下停用非必要动效。
+7. **安全文案**：生产 500 只显示面向用户的稳定描述；异常消息、栈、内部路径和对象细节不得进入 HTML。
+
+当前错误页契约：
+
+- `config.views.ERROR_VARIANTS` 只选择文案、process telemetry 与静态主体，不决定授权。
+- `error.html` 统一渲染 403/404/500；`handler403`、`handler404`、`handler500` 保持真实状态。
+- `/_errors/<variant>/<status_code>/` 是仅 DEBUG 开放、带真实 HTTP 状态的设计/回归入口；生产、不支持的 variant/status 均返回 404。
+- 桌面、平板和 390px 移动端均须满足 `scrollWidth === clientWidth`，控制台无错误；图片只是增强层，加载失败不能遮挡错误说明和返回入口。
 
 ---
 
@@ -158,7 +180,7 @@ flowchart TD
 | `pages/config/sidebar_posts.html` | — | 侧边栏文章 | LinkBlock render |
 | `pages/config/sidebar_comments.html` | — | 侧边栏评论 | LinkBlock render |
 | `sitemap.xml` | — | SEO 站点地图 | XML |
-| `error.html` | — | 全局错误页 | DIRS 兜底 |
+| `error.html` | — | 403/404/500 与显式预览共用错误页 | DIRS 兜底；variant、状态与无敏感详情文案 |
 | `pages/errors/error-500.html` | standalone | 500 页 | 独立设计 |
 
 ---
@@ -175,10 +197,19 @@ flowchart TD
 | `js/password_rotation.js` | ~75 | 客户端强度信号、匹配提示、授权倒计时和提交动效；不参与服务端有效性判定 |
 | `css/admin_theme.css` | ~440 | Jazzmin 后台 Devenir 视觉覆盖；表格、表单、导航、登录页与移动端适配 |
 | `css/links.css` | ~230 | Links Hero/图片/3层进度条动画/卡片网格 |
-| `css/errors/page-error.css` | ~230 | 500 错误页视觉区域 |
+| `css/errors/page-error.css` | — | 通用/Board 错误页的全屏构图、信号色、透明主体、响应式与 reduced-motion |
+| `js/errors/page-error.js` | — | 低频短促 glitch 调度；不参与状态、权限或错误文案判定 |
+| `images/errors/alpha-error-visual-*.webp` | — | General/Skateboard/Music/Coding 透明交付主体 |
 | `js/main.js` | ~100 | Sidebar开关/Scroll Reveal/Glitch入场/Waveform条 |
 
-### 4.1 进度条动画详解（links.css）
+### 4.1 静态视觉资产交付边界
+
+- **必须跟踪**：模板或 CSS 直接引用、缺失后会造成破图的最终 WebP/SVG/Logo。它们是应用运行时依赖，与 CSS/JS 一起经 `collectstatic` 发布。
+- **不得跟踪**：PNG/PSD 等高分辨率源稿、AI 生成批次、抠图/色键中间物、未采用候选、截图和用户上传媒体。临时处理统一放在 `.local/` 或 `themes/devenir/static/images/errors/source/`、`work/`。
+- 不允许把必需主题资产留给生产服务器人工补传。人工传输只适用于仓库外密钥、私有媒体迁移或明确的运维恢复，不适用于构建页面所需文件。
+- 提交前检查最终资产确有 Alpha、模板路径可由 `{% static %}` 解析，并在新 checkout 执行 `collectstatic` 后验证页面无缺图。
+
+### 4.2 进度条动画详解（links.css）
 
 3 层 CSS 动画叠加仿 Material Design indeterminate：
 
@@ -314,7 +345,7 @@ Consolas 和系统等宽字体。
 | htmx CDN 存在（base.html） | ✅ |
 | MathJax CDN 存在（base.html） | ✅ |
 | ToastUI Editor 暗色适配 | ✅ |
-| 404/500 错误页 | ✅ |
+| 403/404/500 错误页与四类 variant 预览 | ✅ |
 
 ---
 

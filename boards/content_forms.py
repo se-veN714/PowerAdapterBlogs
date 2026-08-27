@@ -17,6 +17,11 @@ class SkateClipForm(forms.ModelForm):
             }
         ),
     )
+    confirm_replace = forms.BooleanField(
+        required=False,
+        label="确认替换唯一视频",
+        help_text="每个 Clip 仅保留一个源视频；替换会使现有派生资源失效并重新进入处理队列。",
+    )
 
     class Meta:
         model = SkateClip
@@ -44,6 +49,12 @@ class SkateClipForm(forms.ModelForm):
         widgets = {
             "filmed_at": forms.DateInput(attrs={"type": "date"}),
             "notes": forms.Textarea(attrs={"rows": 4}),
+            "spot": forms.TextInput(
+                attrs={
+                    "autocomplete": "off",
+                    "placeholder": "输入地点关键词并选择高德候选",
+                }
+            ),
             "spot_longitude": forms.HiddenInput(),
             "spot_latitude": forms.HiddenInput(),
             "spot_address": forms.HiddenInput(),
@@ -94,6 +105,23 @@ class SkateClipMediaUploadForm(forms.Form):
             }
         ),
     )
+    confirm_replace = forms.BooleanField(
+        required=False,
+        label="确认替换唯一视频",
+    )
+
+    def __init__(self, *args, replacing=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.replacing = replacing
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.replacing and not cleaned.get("confirm_replace"):
+            self.add_error(
+                "confirm_replace",
+                "该 Clip 已有一个源视频。请确认替换；系统不会为同一 Clip 追加第二个视频。",
+            )
+        return cleaned
 
     def clean_source(self):
         uploaded = self.cleaned_data["source"]

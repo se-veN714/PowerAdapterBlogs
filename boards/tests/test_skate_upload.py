@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from unittest import skipUnless
+from unittest import mock, skipUnless
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -27,6 +27,7 @@ from boards.skate_media import (
     sha256_file,
 )
 from boards.content_forms import SkateClipMediaUploadForm
+from boards.skate_upload import SkateUploadRejected, requeue_existing_skate_source
 
 
 def _find_binary(env_key: str, name: str) -> str | None:
@@ -266,6 +267,39 @@ class UploadPermissionTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "UPLOAD MEDIA")
+        self.assertContains(response, "data-skate-drop")
+        self.assertContains(response, "DROP VIDEO / SELECT FILE")
+
+    def test_existing_media_requires_explicit_replace_confirmation(self):
+        SkateClipMedia.objects.create(clip=self.clip, uploaded_by=self.manager)
+        self.client.force_login(self.manager)
+
+        with mock.patch("boards.content_views.ingest_skate_source") as ingest:
+            response = self.client.post(
+                self.url,
+                {"source": SimpleUploadedFile("replace.webm", b"video")},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "REPLACE MEDIA")
+        self.assertContains(response, "系统不会为同一 Clip 追加第二个视频")
+        ingest.assert_not_called()
+
+    def test_existing_media_can_be_replaced_after_confirmation(self):
+        SkateClipMedia.objects.create(clip=self.clip, uploaded_by=self.manager)
+        self.client.force_login(self.manager)
+
+        with mock.patch("boards.content_views.ingest_skate_source") as ingest:
+            response = self.client.post(
+                self.url,
+                {
+                    "source": SimpleUploadedFile("replace.webm", b"video"),
+                    "confirm_replace": "on",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        ingest.assert_called_once()
 
     def test_unknown_clip_404(self):
         self.client.force_login(self.manager)
@@ -283,6 +317,49 @@ class UploadPermissionTests(TestCase):
             )
         self.assertEqual(response.status_code, 200)
         self.assertFalse(SkateClipMedia.objects.filter(clip=self.clip).exists())
+
+
+class RequeueExistingSourceTests(TestCase):
+    def setUp(self):
+        self.clip = make_clip()
+
+    def test_failed_media_with_private_source_returns_to_uploaded(self):
+        media = SkateClipMedia.objects.create(
+            clip=self.clip,
+            source_file="source/existing.webm",
+            state=SkateClipMediaState.FAILED,
+            error_code="encode_main_failed",
+            error_detail="bounded detail",
+        )
+
+        requeue_existing_skate_source(clip=self.clip)
+
+        media.refresh_from_db()
+        self.assertEqual(media.state, SkateClipMediaState.UPLOADED)
+        self.assertEqual(media.error_code, "")
+        self.assertEqual(media.error_detail, "")
+
+    def test_processing_media_invalidates_previous_claim(self):
+        media = SkateClipMedia.objects.create(
+            clip=self.clip,
+            source_file="source/existing.webm",
+            state=SkateClipMediaState.PROCESSING,
+            claim_generation=3,
+        )
+
+        requeue_existing_skate_source(clip=self.clip)
+
+        media.refresh_from_db()
+        self.assertEqual(media.state, SkateClipMediaState.UPLOADED)
+        self.assertEqual(media.claim_generation, 4)
+
+    def test_missing_private_source_is_rejected(self):
+        SkateClipMedia.objects.create(clip=self.clip)
+
+        with self.assertRaises(SkateUploadRejected) as raised:
+            requeue_existing_skate_source(clip=self.clip)
+
+        self.assertEqual(raised.exception.code, "source_missing")
 
 
 # ---------------------------------------------------------------------------
@@ -421,7 +498,10 @@ class SkateClipUploadIntegrationTests(TestCase):
         )
         self.client.post(
             self.url,
-            {"source": SimpleUploadedFile(replacement.name, replacement.read_bytes())},
+            {
+                "source": SimpleUploadedFile(replacement.name, replacement.read_bytes()),
+                "confirm_replace": "on",
+            },
         )
         replacement.unlink(missing_ok=True)
 

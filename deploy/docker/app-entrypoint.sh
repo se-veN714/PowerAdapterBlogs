@@ -9,6 +9,10 @@ case "$mode" in
     python manage.py collectstatic --noinput
     python manage.py init_mongo_audit
     python manage.py check_mongo_audit_deployment
+    if [ "${BOOTSTRAP_FRESH_SITE:-false}" = "true" ]; then
+      python manage.py bootstrap_fresh_site \
+        --owner-username "${BOOTSTRAP_OWNER_USERNAME:?required for fresh bootstrap}"
+    fi
     if [ "${IMPORT_MUSIC_RECORDS:-false}" = "true" ]; then
       python manage.py import_spotify_records
       python manage.py import_apple_music_records

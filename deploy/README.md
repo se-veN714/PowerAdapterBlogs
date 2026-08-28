@@ -45,10 +45,11 @@ binding flow has been tested.
 
 ## Validate and start
 
-The first production release is a migration of the existing site, not an empty
-database bootstrap. Before the first `prepare`, start the stateful services and
-restore the verified PostgreSQL backup containing users, Categories, Boards,
-memberships, posts, and content metadata:
+Choose exactly one first-release mode before the first `prepare`.
+
+For an existing-site migration, keep `BOOTSTRAP_FRESH_SITE=false`, start the
+stateful services, and restore the verified PostgreSQL backup containing users,
+Categories, Boards, memberships, posts, and content metadata:
 
 ```bash
 docker compose --env-file deploy/.env.production -f compose.production.yml up -d postgres redis mongo
@@ -56,10 +57,15 @@ docker compose --env-file deploy/.env.production -f compose.production.yml run -
 # Restore the verified PostgreSQL dump here, then confirm the music Board exists.
 ```
 
-Do not run `seed_boards` in production: it assumes local Category IDs and can
-overwrite editorial metadata. A genuinely empty-site bootstrap is not part of
-this release contract. Set `IMPORT_MUSIC_RECORDS=false` only for recovery work;
-never use it to publish an accidentally empty Music page.
+For an explicitly approved empty site, set `BOOTSTRAP_FRESH_SITE=true` for the
+first successful `prepare` and set `BOOTSTRAP_OWNER_USERNAME` to an existing,
+active superuser created after the initial migration. The bootstrap command
+creates the three missing Board/Category pairs, assigns every Category to that
+superuser, and preserves existing Board editorial fields. Set the flag back to
+`false` after the first release. Do not run `seed_boards` in production: it
+assumes local Category IDs and can overwrite editorial metadata.
+Set `IMPORT_MUSIC_RECORDS=false` only for recovery work; never use it to publish
+an accidentally empty Music page.
 
 All Compose commands must explicitly load the production interpolation file:
 

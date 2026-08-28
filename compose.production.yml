@@ -141,6 +141,8 @@ services:
       <<: *app-environment
       MONGO_DB_USER: ${MONGO_DEPLOY_USERNAME}
       MONGO_DB_PASSWORD: ${MONGO_DEPLOY_PASSWORD}
+      BOOTSTRAP_FRESH_SITE: ${BOOTSTRAP_FRESH_SITE:-false}
+      BOOTSTRAP_OWNER_USERNAME: ${BOOTSTRAP_OWNER_USERNAME:-}
       IMPORT_MUSIC_RECORDS: ${IMPORT_MUSIC_RECORDS:-true}
     command: ["sh", "deploy/docker/app-entrypoint.sh", "prepare"]
     depends_on:

@@ -25,6 +25,19 @@ network.
    the same proxy secret used by Django. Both public and admin vhosts must load
    the SK8 snippet before their generic `/media/` handling.
 
+On a Tencent Cloud mainland host, image builds may time out against Debian or
+PyPI. In that environment only, set these public build-only values in the
+production env file (application containers do not receive them):
+
+```dotenv
+DEBIAN_MIRROR_HOST=mirrors.tencentyun.com
+PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
+```
+
+Keep the example defaults for hosts that can reliably reach the upstream
+repositories. This mirror switch changes package transport, not the pinned
+package requirements or runtime configuration.
+
 The Root Client CA private key remains offline. The server receives only the
 public CA chain and current CRL. Do not enable the admin vhost until Nginx is
 built against the project-approved latest OpenSSL 4.0 patch and the certificate

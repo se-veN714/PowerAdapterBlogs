@@ -1,19 +1,23 @@
 FROM python:3.12-slim-bookworm
 
+ARG DEBIAN_MIRROR_HOST=deb.debian.org
+ARG PIP_INDEX_URL=https://pypi.org/simple
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 
-RUN apt-get update \
+RUN sed -i "s|deb.debian.org|${DEBIAN_MIRROR_HOST}|g" /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
     && apt-get install --yes --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt ./
-RUN python -m pip install --upgrade pip \
-    && python -m pip install --requirement requirements.txt
+RUN python -m pip install --index-url "${PIP_INDEX_URL}" --upgrade pip \
+    && python -m pip install --index-url "${PIP_INDEX_URL}" --requirement requirements.txt
 
 COPY . .
 

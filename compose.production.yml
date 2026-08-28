@@ -52,6 +52,9 @@ x-app: &app
   build:
     context: .
     dockerfile: Dockerfile
+    args:
+      DEBIAN_MIRROR_HOST: ${DEBIAN_MIRROR_HOST:-deb.debian.org}
+      PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
   volumes:
     - ./deploy/var/static:/app/common_static
     - ./deploy/var/media:/app/media

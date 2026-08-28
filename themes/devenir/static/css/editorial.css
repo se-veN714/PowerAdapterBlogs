@@ -146,11 +146,197 @@
 }
 
 .editorial-visual--music {
-    background: linear-gradient(200deg, #141818 0%, #1C2323 50%, #0D1010 100%);
+    background: linear-gradient(200deg, #17131f 0%, #211a2d 50%, #0d0c12 100%);
 }
 
-.editorial-visual--code {
-    padding: 2rem;
+.editorial-visual--coding {
+    background: linear-gradient(150deg, #0b0c0c 0%, #151310 52%, #1b1710 100%);
+}
+
+.coding-editorial-art {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 320px;
+    margin: 0;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.coding-editorial-art__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 52% center;
+    filter: saturate(0.86) contrast(1.05);
+}
+
+.coding-editorial-art::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background:
+        linear-gradient(90deg, rgba(7, 8, 8, 0.38), transparent 42%, rgba(7, 8, 8, 0.08)),
+        linear-gradient(0deg, rgba(7, 8, 8, 0.28), transparent 35%);
+    pointer-events: none;
+}
+
+.coding-editorial-art__signal {
+    position: absolute;
+    z-index: 2;
+    right: 1rem;
+    bottom: 0.85rem;
+    padding-left: 1.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.16em;
+    color: rgba(255, 184, 88, 0.68);
+}
+
+.coding-editorial-art__signal::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 1.2rem;
+    height: 1px;
+    background: rgba(255, 184, 88, 0.72);
+}
+
+.code-terminal.coding-editorial-code {
+    position: absolute;
+    z-index: 3;
+    top: 7%;
+    right: 4%;
+    bottom: 13%;
+    width: min(47%, 280px);
+    height: auto;
+    border-color: rgba(255, 184, 88, 0.24);
+    background: rgba(8, 10, 10, 0.42);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 18px 46px rgba(0, 0, 0, 0.24);
+    -webkit-backdrop-filter: blur(14px) saturate(0.82);
+    backdrop-filter: blur(14px) saturate(0.82);
+}
+
+.coding-editorial-code .code-terminal-bar {
+    height: 30px;
+    padding: 0 0.55rem;
+    gap: 0.4rem;
+    border-bottom-color: rgba(255, 184, 88, 0.16);
+    color: rgba(236, 232, 224, 0.55);
+    font-size: 0.48rem;
+}
+
+.coding-editorial-code .terminal-light {
+    background: #ffad42;
+    box-shadow: 0 0 8px rgba(255, 173, 66, 0.5);
+}
+
+.coding-editorial-code .terminal-status,
+.coding-editorial-code .code-keyword,
+.coding-editorial-code .code-func {
+    color: #ffc267;
+}
+
+.coding-editorial-code .code-string {
+    color: #f0cfa0;
+}
+
+.coding-editorial-code .code-comment,
+.coding-editorial-code .code-ln {
+    color: rgba(231, 226, 216, 0.34);
+}
+
+.coding-editorial-code .code-scroll-window {
+    height: calc(100% - 58px);
+}
+
+.coding-editorial-code .code-marquee-track {
+    animation-duration: 32s;
+}
+
+.coding-editorial-code .code-loop {
+    padding-top: 0.45rem;
+}
+
+.coding-editorial-code .code-row {
+    min-height: 1.25rem;
+    grid-template-columns: 1.8rem minmax(0, 1fr);
+    padding-right: 0.4rem;
+    font-size: clamp(0.46rem, 0.68vw, 0.58rem);
+    line-height: 1.25rem;
+}
+
+.coding-editorial-code .code-row code {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    color: rgba(239, 237, 230, 0.68);
+    white-space: nowrap;
+    text-overflow: clip;
+}
+
+.coding-editorial-code .code-ln {
+    margin-right: 0.4rem;
+    padding-right: 0.4rem;
+    border-right-color: rgba(255, 184, 88, 0.12);
+}
+
+.coding-editorial-code__composer {
+    position: absolute;
+    z-index: 2;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0 0.55rem;
+    border-top: 1px solid rgba(255, 184, 88, 0.14);
+    background: rgba(7, 9, 9, 0.44);
+    box-shadow: 0 -10px 24px rgba(7, 9, 9, 0.28);
+    font-family: var(--font-mono);
+    font-size: 0.52rem;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.coding-editorial-code__prompt {
+    flex: 0 0 auto;
+    color: #ffad42;
+}
+
+.coding-editorial-code__composer code {
+    min-width: 0;
+    overflow: hidden;
+    color: rgba(245, 238, 225, 0.78);
+    text-overflow: clip;
+}
+
+.coding-editorial-code__composer.is-committing code {
+    opacity: 0.28;
+    transform: translateY(-3px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.coding-editorial-code__cursor {
+    flex: 0 0 auto;
+    width: 1px;
+    height: 0.75rem;
+    background: #ffc267;
+    box-shadow: 0 0 5px rgba(255, 194, 103, 0.46);
+    animation: coding-cursor-blink 0.9s steps(2, end) infinite;
+}
+
+@keyframes coding-cursor-blink {
+    50% { opacity: 0; }
 }
 
 /* ===== Glitch Core v4 — fragmented blocks, exaggerated amplitude ===== */
@@ -489,33 +675,51 @@
     letter-spacing: 0.11em;
 }
 
-.board-skateboarder-svg {
+.board-skateboarder-image {
     position: relative; z-index: 1;
-    display: block; width: min(82%, 360px); height: min(92%, 420px);
+    display: block;
+    width: min(92%, 520px);
+    height: min(88%, 340px);
+    object-fit: contain;
+    filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.5))
+            drop-shadow(0 0 18px rgba(255, 64, 85, 0.12));
 }
 
 @keyframes board-orbit-spin {
     to { transform: rotate(360deg); }
 }
 
-/* The panel is the glitch target; individual bars animate one layer deeper. */
+/* Music layers: the live spectrum owns the full cell; Saya is a screen-blended foreground. */
+.music-visual-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 320px;
+    overflow: hidden;
+    isolation: isolate;
+}
+
 .spectrum-panel {
-    position: relative; width: min(88%, 480px); height: 230px;
-    overflow: hidden; border: 1px solid var(--fragment-border);
-    background: rgba(13, 16, 16, 0.68);
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    background: rgba(17, 13, 24, 0.74);
+    box-shadow: inset 0 0 64px rgba(122, 85, 190, 0.12);
 }
 
 .spectrum-grid {
-    position: absolute; inset: 18px 20px 28px;
+    position: absolute; inset: 0 0 28px;
     background:
-        repeating-linear-gradient(to top, transparent 0 35px, rgba(216, 255, 225, 0.06) 35px 36px),
-        repeating-linear-gradient(to right, transparent 0 56px, rgba(216, 255, 225, 0.04) 56px 57px);
-    border-bottom: 1px solid rgba(216, 255, 225, 0.18);
+        repeating-linear-gradient(to top, transparent 0 43px, rgba(183, 148, 244, 0.10) 43px 44px),
+        repeating-linear-gradient(to right, transparent 0 62px, rgba(183, 148, 244, 0.06) 62px 63px);
+    border-bottom: 1px solid rgba(183, 148, 244, 0.24);
 }
 
 .spectrum-bars {
-    position: absolute; inset: 24px 20px 29px;
+    position: absolute; inset: 20px 0 29px;
     display: flex; align-items: stretch; gap: clamp(2px, 0.45vw, 5px);
+    opacity: 0.72;
 }
 
 .spectrum-bin {
@@ -526,17 +730,37 @@
 .spectrum-bar {
     width: 100%; height: 100%; transform: scaleY(0.12);
     transform-origin: center bottom; will-change: transform;
-    background: var(--accent-primary);
-    box-shadow: 0 0 8px rgba(78, 215, 175, 0.13);
+    background: linear-gradient(to top, #6f4ab8 0%, #b794f4 58%, #eadcff 100%);
+    box-shadow: 0 0 10px rgba(183, 148, 244, 0.28);
 }
 
-.spectrum-bin:nth-child(4n) .spectrum-bar { background: var(--accent-soft); }
-.spectrum-bin:nth-child(7n) .spectrum-bar { background: #4ed7af; }
+.spectrum-bin:nth-child(4n) .spectrum-bar {
+    background: linear-gradient(to top, #55358f, #9472dc 62%, #d8c3ff);
+}
+.spectrum-bin:nth-child(7n) .spectrum-bar {
+    background: linear-gradient(to top, #805bc5, #c6a8ff 58%, #f0e8ff);
+}
 
 .spectrum-labels {
-    position: absolute; left: 20px; right: 20px; bottom: 7px;
+    position: absolute; left: 14px; right: 14px; bottom: 7px;
     display: flex; justify-content: space-between;
-    color: var(--text-tertiary); font-size: 0.56rem; letter-spacing: 0.04em;
+    color: rgba(216, 195, 255, 0.58); font-size: 0.56rem; letter-spacing: 0.04em;
+}
+
+.music-listener-image {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 58% center;
+    opacity: 0.9;
+    mix-blend-mode: screen;
+    filter: saturate(0.92) contrast(1.06)
+            drop-shadow(0 0 22px rgba(183, 148, 244, 0.12));
+    pointer-events: none;
 }
 
 /* ===== Continuously scrolling Python terminal ===== */
@@ -635,6 +859,16 @@
 /* ============================================
    Responsive
    ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    .coding-editorial-code .code-marquee-track {
+        animation-duration: 52s;
+    }
+
+    .coding-editorial-code__cursor {
+        animation-duration: 1.8s;
+    }
+}
 
 @media (max-width: 1024px) {
     .editorial-section {

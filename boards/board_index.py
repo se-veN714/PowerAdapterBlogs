@@ -15,6 +15,7 @@ from django.urls import reverse
 
 from boards.models import (
     AppleRecord,
+    Board,
     CodingExperiment,
     CodingPrinciple,
     CodingProject,
@@ -30,6 +31,7 @@ __all__ = [
     "BOARD_TEMPLATES",
     "assemble_context",
     "prepare_skate_clips",
+    "renderable_boards",
 ]
 
 
@@ -38,6 +40,15 @@ BOARD_TEMPLATES = {
     "music": "pages/music/index.html",
     "coding": "pages/coding/index.html",
 }
+
+
+def renderable_boards():
+    """Return active boards whose public index has a registered renderer."""
+    return (
+        Board.objects.filter(is_active=True, slug__in=BOARD_TEMPLATES)
+        .select_related("category")
+        .order_by("sort_order", "pk")
+    )
 
 
 def _format_duration(duration):
@@ -234,6 +245,12 @@ def _cover_url(record):
     return record.cover.url if record.cover else ""
 
 
+def _artist_cover_url(record):
+    if record.artist_id and record.artist.avatar:
+        return record.artist.avatar.url
+    return _cover_url(record)
+
+
 def _minutes(record):
     if record.minutes is not None:
         return record.minutes
@@ -246,15 +263,22 @@ def _artist_rows(records, *kinds):
     return [
         {
             "rank": record.rank or index,
-            "name": record.label,
+            "name": record.artist.name if record.artist_id else record.label,
             "minutes_display": f"{_minutes(record):,}" if _minutes(record) else "",
             "plays": record.play_count,
             "tag": record.value2 or (record.value if record.kind == "period_artist" else ""),
-            "cover_url": _cover_url(record),
+            "cover_url": _artist_cover_url(record),
             "external_url": record.external_url,
         }
         for index, record in enumerate(selected, start=1)
     ]
+
+
+def _preferred_artist_rows(records, primary_kind, fallback_kind):
+    """Prefer normalized rankings while retaining legacy seed compatibility."""
+    if any(record.kind == primary_kind for record in records):
+        return _artist_rows(records, primary_kind)
+    return _artist_rows(records, fallback_kind)
 
 
 def _track_rows(records):
@@ -283,10 +307,12 @@ def assemble_music(board):
     """
     spotify_records = list(
         SpotifyRecord.objects.filter(board=board)
+        .select_related("artist")
         .order_by("-year", "-month", "display_order", "pk")
     )
     apple_records = list(
         AppleRecord.objects.filter(board=board)
+        .select_related("artist")
         .order_by("-year", "-month", "display_order", "pk")
     )
 
@@ -347,6 +373,20 @@ def assemble_music(board):
     if latest_spotify is not None:
         entries = latest_spotify.records
         total = next((entry for entry in entries if entry.kind == "total"), None)
+        ranked_artist_records = [
+            entry for entry in entries if entry.kind == "top_artist"
+        ]
+        if not ranked_artist_records:
+            ranked_artist_records = [
+                entry for entry in entries if entry.kind == "core_artist"
+            ]
+        total_minutes = _minutes(total) if total else 0
+        ranked_minutes = sum(_minutes(entry) for entry in ranked_artist_records)
+        ranked_share = (
+            round(ranked_minutes / total_minutes * 100, 1)
+            if total_minutes
+            else 0
+        )
         unique_artists = next(
             (entry for entry in entries if entry.kind == "unique_artists"), None
         )
@@ -355,7 +395,10 @@ def assemble_music(board):
         )
         spotify_summary = {
             "year": latest_spotify.year,
-            "minutes_display": f"{_minutes(total):,}" if total else "",
+            "minutes_display": f"{total_minutes:,}" if total else "",
+            "ranked_minutes_display": f"{ranked_minutes:,}",
+            "ranked_share": ranked_share,
+            "remainder_minutes_display": f"{max(total_minutes - ranked_minutes, 0):,}",
             "unique_artists": _safe_int(unique_artists.value) if unique_artists else None,
             "unique_tracks": _safe_int(unique_tracks.value) if unique_tracks else None,
             "tags": " / ".join(
@@ -427,7 +470,7 @@ def assemble_music(board):
         apple_current = {
             "label": current_period_label,
             "minutes_display": f"{_minutes(total):,}" if total else "0",
-            "top_artists": _artist_rows(
+            "top_artists": _preferred_artist_rows(
                 latest_apple.records,
                 "top_artist",
                 "period_artist",
@@ -511,8 +554,16 @@ def assemble_coding(board):
     experiments = list(
         CodingExperiment.objects.filter(board=board).order_by("-date", "pk")
     )
+    featured_project = next(
+        (project for project in projects if project["is_featured"]),
+        projects[0] if projects else None,
+    )
     return {
         "projects": projects,
+        "featured_project": featured_project,
+        "project_nodes": [
+            project for project in projects if project is not featured_project
+        ],
         "principles": principles,
         "experiments": experiments,
     }

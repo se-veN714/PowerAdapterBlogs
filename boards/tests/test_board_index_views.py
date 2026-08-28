@@ -23,6 +23,7 @@ from boards.models import (
     CodingExperiment,
     CodingPrinciple,
     CodingProject,
+    MusicArtist,
     SkateClip,
     SkateHomie,
     SpotifyRecord,
@@ -194,8 +195,20 @@ class BoardIndexDispatchTests(TestCase):
 
     def test_music_exposes_ranked_spotify_and_apple_contract(self):
         board = _board("music")
+        artist = MusicArtist.objects.create(board=board, name="Canonical Artist")
         SpotifyRecord.objects.create(
             board=board,
+            title="Spotify Wrapped 2025",
+            year=2025,
+            label="TOTAL MINUTES",
+            value="120",
+            kind="total",
+            minutes=120,
+            display_order=0,
+        )
+        SpotifyRecord.objects.create(
+            board=board,
+            artist=artist,
             title="Spotify Wrapped 2025",
             year=2025,
             label="Artist A",
@@ -241,16 +254,37 @@ class BoardIndexDispatchTests(TestCase):
             minutes=1181,
             display_order=1,
         )
+        AppleRecord.objects.create(
+            board=board,
+            title="Legacy seed",
+            scope="monthly",
+            year=2026,
+            month=7,
+            label="Legacy Placeholder",
+            value="",
+            kind="period_artist",
+            rank=2,
+            display_order=2,
+        )
 
         response = self.client.get(reverse("boards:index", args=["music"]))
 
-        self.assertEqual(response.context["spotify_top_artists"][0]["name"], "Artist A")
+        self.assertEqual(
+            response.context["spotify_top_artists"][0]["name"],
+            "Canonical Artist",
+        )
+        self.assertEqual(response.context["spotify_summary"]["ranked_share"], 100.0)
+        self.assertEqual(
+            response.context["spotify_summary"]["ranked_minutes_display"],
+            "120",
+        )
         self.assertEqual(response.context["spotify_top_tracks"][0]["plays"], 4)
         self.assertEqual(response.context["apple_current"]["minutes_display"], "4,720")
         self.assertEqual(
             response.context["apple_current"]["top_artists"][0]["name"],
             "Artist B",
         )
+        self.assertEqual(len(response.context["apple_current"]["top_artists"]), 1)
 
     def test_coding_renders_lists_data_driven(self):
         board = _board("coding")
@@ -280,6 +314,10 @@ class BoardIndexDispatchTests(TestCase):
         self.assertIn("MONITOR", content)
         self.assertIn("NEED BEFORE FRAMEWORK", content)
         self.assertIn("HTMX partial refresh", content)
+        self.assertEqual(response.context["featured_project"]["name"], "Monitor")
+        self.assertEqual(response.context["project_nodes"], [])
+        self.assertIn("coding-workbench", content)
+        self.assertIn("coding-method__grid", content)
 
     def test_coding_exposes_repository_and_demo_link_contract(self):
         board = _board("coding")
@@ -303,6 +341,8 @@ class BoardIndexDispatchTests(TestCase):
         )
         self.assertEqual(project["demo_url"], "https://example.test/demo")
         self.assertTrue(project["is_featured"])
+        self.assertEqual(response.context["featured_project"], project)
+        self.assertEqual(response.context["project_nodes"], [])
 
 
 class BoardIndexArticleFlowTests(TestCase):

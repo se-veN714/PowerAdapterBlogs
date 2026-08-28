@@ -11,6 +11,9 @@ build/
 *.sqlite3
 *.sqlite
 .env
+/deploy/.env.production
+/deploy/secrets/
+/deploy/var/
 /media/
 /media-private/
 /logs/
@@ -34,6 +37,10 @@ package-lock.json
 # Devenir 视觉源稿与生成中间物；最终优化后的运行时 WebP/SVG 仍须跟踪
 /themes/devenir/static/images/errors/source/
 /themes/devenir/static/images/errors/work/
+
+# Board 视觉只跟踪模板实际引用的最终 WebP；PNG 与未采用候选留在本地。
+/themes/devenir/static/images/boards/*.png
+/themes/devenir/static/images/boards/coding-editorial-saya.webp
 /cb_context.md
 /V2GUIDE.md
 /codex_context.md

@@ -28,6 +28,7 @@ from boards.models import (
     CodingExperiment,
     CodingPrinciple,
     CodingProject,
+    MusicArtist,
     SkateClip,
     SkateClipMedia,
     SkateHomie,
@@ -538,6 +539,13 @@ class SpotifyRecordAdmin(SuperuserBoardContentAdmin):
     list_filter = ["scope", "year", "kind"]
     search_fields = ["title", "label", "value"]
     ordering = ["-year", "-month", "display_order"]
+
+
+@admin.register(MusicArtist)
+class MusicArtistAdmin(SuperuserBoardContentAdmin):
+    list_display = ["name", "spotify_url", "apple_music_url", "updated_at"]
+    search_fields = ["name", "normalized_name"]
+    ordering = ["name"]
 
 
 @admin.register(AppleRecord)

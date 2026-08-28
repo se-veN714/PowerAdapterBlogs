@@ -1,0 +1,17 @@
+<div class="code-loop">
+    <div class="code-row"><span class="code-ln">01</span><code><span class="code-keyword">from</span> desire <span class="code-keyword">import</span> flow</code></div>
+    <div class="code-row"><span class="code-ln">02</span><code><span class="code-keyword">from</span> web <span class="code-keyword">import</span> Page</code></div>
+    <div class="code-row"><span class="code-ln">03</span><code>&nbsp;</code></div>
+    <div class="code-row"><span class="code-ln">04</span><code><span class="code-keyword">def</span> <span class="code-func">become</span>(code, spirit):</code></div>
+    <div class="code-row"><span class="code-ln">05</span><code>&nbsp;&nbsp;view = Page(code)</code></div>
+    <div class="code-row"><span class="code-ln">06</span><code>&nbsp;&nbsp;state = spirit.<span class="code-func">flow</span>()</code></div>
+    <div class="code-row"><span class="code-ln">07</span><code>&nbsp;</code></div>
+    <div class="code-row"><span class="code-ln">08</span><code>&nbsp;&nbsp;<span class="code-keyword">while</span> state.moves:</code></div>
+    <div class="code-row"><span class="code-ln">09</span><code>&nbsp;&nbsp;&nbsp;&nbsp;view.<span class="code-func">connect</span>(state)</code></div>
+    <div class="code-row"><span class="code-ln">10</span><code>&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">yield</span> view</code></div>
+    <div class="code-row"><span class="code-ln">11</span><code>&nbsp;</code></div>
+    <div class="code-row"><span class="code-ln">12</span><code><span class="code-comment"># no final form</span></code></div>
+    <div class="code-row"><span class="code-ln">13</span><code>page = <span class="code-func">become</span>(</code></div>
+    <div class="code-row"><span class="code-ln">14</span><code>&nbsp;&nbsp;code, spirit</code></div>
+    <div class="code-row"><span class="code-ln">15</span><code>)</code></div>
+</div>

@@ -171,7 +171,7 @@ flowchart TD
 | `pages/accounts/profile_form.html` | base.html | 本人编辑资料 | term-bar + 头像预览 + is_public 终端开关 |
 | `pages/accounts/password_change.html` | base.html | 修改密码 | 四阶段 Credential Console + 服务端错误渲染 |
 | `pages/accounts/password_email_verification.html` | base.html | purpose 驱动的通用邮箱验证 | 改密/Board 动态文案、掩码邮箱、TTL/RETRY/RESEND 数据轨 + 6 位验证码 |
-| `pages/site/about.html` | base.html | About | 站点定位、内容、Board、技术与许可说明 |
+| `pages/site/about.html` | base.html | About | 个人与 PowerAdapter 叙事、3+N 场域及未来板块占位 |
 | `pages/site/privacy.html` | base.html | 隐私说明 | 数据用途、保留方式与联系渠道 |
 | `pages/links.html` | base.html | 友链 | Hero+图片+进度条+卡片网格 |
 | `pages/comment/form.html` | — | 评论表单 | inclusion_tag 片段 |
@@ -193,7 +193,8 @@ flowchart TD
 | `css/editorial.css` | ~450 | 首页 Editorial Section + Glitch 文字效果 + Cate Cards |
 | `css/blog.css` | ~1050 | 文章列表/详情/Markdown/TOC/Timeline/Diff/评论/表单/搜索 |
 | `css/accounts.css` | ~739 | 登录 + Profile（ID rail/头像 glitch/徽章/signal bars）+ 表单 + Credential Rotation Console |
-| `css/site_info.css` | ~120 | About / 隐私说明的 Editorial Hero、粘性目录与移动布局 |
+| `css/site_info.css` | ~120 | 隐私说明的 Editorial Hero、粘性目录与移动布局 |
+| `css/about.css` | — | About 的个人叙事、3+N 场域网格、未来占位与响应式布局 |
 | `js/password_rotation.js` | ~75 | 客户端强度信号、匹配提示、授权倒计时和提交动效；不参与服务端有效性判定 |
 | `css/admin_theme.css` | ~440 | Jazzmin 后台 Devenir 视觉覆盖；表格、表单、导航、登录页与移动端适配 |
 | `css/links.css` | ~230 | Links Hero/图片/3层进度条动画/卡片网格 |

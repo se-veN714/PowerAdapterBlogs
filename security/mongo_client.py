@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 from django.conf import settings
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
+from pymongo.errors import CollectionInvalid
 
 from security.audit import (
     IMMUTABLE_EVENT_FIELDS,
@@ -54,8 +55,10 @@ class MongoLogger:
                 connection.update(
                     username=conf["DB_USER"],
                     password=conf["DB_PASSWORD"],
-                    authSource=conf["DB_NAME"],
+                    authSource=conf.get("AUTH_SOURCE") or conf["DB_NAME"],
                 )
+            if conf.get("REPLICA_SET"):
+                connection["replicaSet"] = conf["REPLICA_SET"]
             client = MongoClient(**connection)
         self.client = client
         self.db = client[conf["DB_NAME"]]
@@ -102,6 +105,13 @@ class MongoLogger:
             ],
             name="audit_query_target",
         )
+        # `check_deployment()` also inspects the chain-head collection. On a
+        # fresh database no delivery has created it yet, so establish the
+        # namespace explicitly without granting the deploy role event writes.
+        try:
+            self.db.create_collection(self.heads.name)
+        except CollectionInvalid:
+            pass
 
     def check_deployment(self) -> dict[str, str]:
         hello = self.db.command("hello")

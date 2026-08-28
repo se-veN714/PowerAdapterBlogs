@@ -5,7 +5,7 @@
 > **职责**: Board 领域、板块成员关系、角色规则、跨 App Policy，以及板块申请审批
 > **依赖**: `Blogs.Category` (ForeignKey)  
 > **创建**: 2026-06-22  
-> **最后更新**: 2026-08-27 — SK8 S5 与高德 AutoComplete 人工验收收口
+> **最后更新**: 2026-08-28 — Music 双源 JSON 与共享音乐人身份闭环
 
 ---
 
@@ -13,6 +13,8 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-28 | v3.6 | Music Index 双源展示闭环：Spotify 与 Apple Music 均使用仓库内公开派生 JSON，经共享幂等导入模块同步；新增 `MusicArtist` 作为跨 provider 的音乐人身份与头像库，排行记录只引用音乐人，歌曲/条目封面继续独立维护；Apple 正式 `top_artist` 优先于旧 `period_artist` 种子语义，保留历史数据而不混入当前 Top 5；页面调整为 Spotify 年度宽栏双排行与 Apple 月度 Top 5 + Top 15 连续信息面 |
+| 2026-08-28 | v3.5 | Coding 管理工作区补齐 Principle / Experiment 的 Manager-scoped CRUD 与统一导航；Music 新增 provider-scoped 周期总览；Music/Coding 表单统一居中，封面复用共享拖放及服务端权威校验；SK8、Music 与 Coding Project 表单提供可编辑的场景快捷填写；新增不含原始播放历史的部署级 Spotify JSON 与幂等导入命令，按周期、类型及排名/标签更新并清理同键重复项，不覆盖 JSON 未声明的手工叙事记录；全站菜单和 Board Index 暴露 Policy 派生入口 |
 | 2026-08-06 | v3.4 | 文档一致性收尾：最终工作树重跑 47 项 Board Index/Policy/文章运行时组合回归 + Django check + Ruff + `git diff --check` 全部通过；桌面 1264 与移动 390 viewport 下三板无横向溢出，DISPATCHES/JOIN/参与 CTA 文本标记在 DOM 中确认；V2GUIDE 清理过时的 K3+后端待接线描述，仅保留 REFUSE 统一接入为剩余收尾 |
 | 2026-08-04 | v3.3 | 三个 Index 统一接入公开文章流与后端参与状态；Contributor/Editor/Manager 安全预选 Category 新建文章，Reviewer 跳转 Board-scoped 审核；4 项新文章流测试、47 项组合回归、system check 与 Ruff 完成 |
 | 2026-08-04 | v3.2 | 合并 Music/Coding Devenir 前端；补齐 Skate Clip CRUD、Policy 派生的全站/Index 管理入口、板块色主题、统一通知与删除回归修复；相关定向回归与 Django system check 通过 |
@@ -155,7 +157,7 @@ Board Index 三页（skateboard / music / coding）的内容模型也位于 `boa
 | 组 | 模型 | 所属板块（固定） |
 |----|------|------------------|
 | Skateboard | `SkateHomie`（成员节点）、`SkateClip`（动作片段） | skateboard |
-| Music | `MusicRecordBase`（抽象）+ `SpotifyRecord` / `AppleRecord`（平铺，增加 rank/play_count/minutes/cover/external_url，按 (year, month) 分组） | music |
+| Music | `MusicArtist`（跨 provider 身份、头像与平台链接）+ `MusicRecordBase`（抽象）+ `SpotifyRecord` / `AppleRecord`（平铺，增加 artist/rank/play_count/minutes/cover/external_url，按 (year, month) 分组） | music |
 | Coding | `CodingProject`（GitHub/local_tool/external、仓库/演示链接、封面/精选）、`CodingPrinciple`、`CodingExperiment` | coding |
 
 **关键约束（2026-07-28 用户决策）**：内容模型的 `board` 外键**不由人工选择**，而是由模型类型固定——每个内容模型声明 `BOARD_SLUG` 类属性，`board` 字段的 `default` 通过 `_board_default(slug)` → `_board_for_slug(slug)` 按 slug 自动解析对应 `Board`；`FixedBoardContentModel` 同时在 `clean()` 与 `save()` 层拒绝错误 slug 的 Board，Admin 中 `SuperuserBoardContentAdmin.exclude = ("board",)` 统一隐藏该字段。普通 ORM/脚本写入无法再绕过该归属约束；`bulk_create()` 等绕过 Model `save()` 的批量入口仍不得用于这些内容模型。
@@ -322,9 +324,11 @@ index.html
 - **路由/视图**：`boards/views.py` 的 `BoardIndexView`（`/boards/<slug>/`，按 slug 分派 + 404 未知/下线板块）与 `HomieLineView`（htmx 端点 `/boards/<slug>/homie/<node_index>/`，返回 `_selected_line.html` 片段）。两者属于公开展示面，不要求 BoardMembership；QuerySet 仍必须过滤非公开内容，例如 `SkateClip.is_public=False`。
 - **展示/参与边界**：Membership 不控制 Index 的浏览资格，只控制投稿、编辑、审核、评论管理、成员管理和专属内容维护。公开文章入口、参与 CTA、未来受保护动作的 REFUSE 行为及 K3/Codex 边界以本地 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md` 为准。
 - **管理入口**：`SuperuserBoardContentAdmin` 继续为 `/super_admin/` 应急入口；Skate Clip、Music Spotify/Apple 与 Coding Project 已提供 `/boards/manage/...` 业务 CRUD，只接受对应 Board 的 active Manager 或 active superuser，并将 QuerySet 固定到模型所属 Board。主页桌面 mega menu、移动端二级菜单和各 Board Index 的快捷入口均由同一 Policy 派生；隐藏链接不代替服务端鉴权。Dashboard 不注册这些内容模型。
-- **迁移**：初始内容模型位于 `0005_board_index_content.py`；Music/Coding 闭环字段位于 `0012_music_and_coding_index_contract.py`。
+- **迁移**：初始内容模型位于 `0005_board_index_content.py`；Music/Coding 闭环字段位于 `0012_music_and_coding_index_contract.py`；跨 provider 音乐人身份与记录关联位于 `0017_musicartist_applerecord_artist_spotifyrecord_artist_and_more.py`。
 - **交互**：三类管理页复用 Devenir `manage.css`，以 Board `glitch_color` 作为强调色；成功通知固定显示在导航栏下并自动消失。删除视图显式使用空 `Form`，避免模型表单因无字段 POST 静默失败。
 - **测试**：模型、公开 Index、Spotify 导入及专属内容管理均有定向回归；本阶段最后一轮 10 项内容管理测试与 Django system check 通过。
+- **Music 部署数据**：`boards/data/spotify_records.json` 与 `boards/data/apple_music_records.json` 只保存可公开展示的年度/月度派生汇总，不保存账户资料、原始导出页或逐次播放历史。部署迁移完成且 `music` Board 存在后分别运行 `python manage.py import_spotify_records` 与 `python manage.py import_apple_music_records`；发布前可添加 `--dry-run`。两个命令复用同一导入模块，按 provider、周期、类型及排名/标签幂等更新并清理同键重复项，不删除 JSON 未声明的手工叙事条目。JSON 的 `artist_name` 会解析到共享 `MusicArtist`，头像只需在 Artist Library 上传一次；歌曲封面仍属于具体记录。
+- Docker 生产 `prepare` 在 `IMPORT_MUSIC_RECORDS=true` 时自动执行上述两个幂等命令；缺少 `music` Board 会让发布明确失败。已有站点应先恢复 PostgreSQL，空库则先建立 Category 与 canonical Board，禁止静默跳过后发布空白 Music Index。
 
 当前公开展示与参与边界见本地、git-ignored 的 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（84）。早期后端详细设计、决策记录与模型背景见本地 `boards/guide/`：
 
@@ -341,13 +345,15 @@ index.html
 2. **`SkateHomie.avatar` 图片校验与存储策略（黄色）**：本地公开图片约束未定，参考 `docs/guides/BLOG_FOUNDATION_GUIDE.md`（本地）。
 3. **`CodingProject.status` / experiment 取值表（黄色）**：状态枚举与展示文案未定。
 4. **`SkateHomie.call_sign` 与 `name` 展示区分规则（绿色）**：未定。
-5. **Music 排行与月度总结（✅ 第一阶段完成）**：Spotify 年度总量/艺人/歌曲排行和 Apple 月度总量/艺人/歌曲排行已接入 Devenir 页面；封面/外链可手工维护，不复制 Apple 品牌播放器。
+5. **Music 排行与月度总结（✅ 展示与导入闭环）**：Spotify 年度总量/艺人/歌曲排行和 Apple 月度总量/艺人/歌曲排行均由部署级 JSON 幂等同步并接入 Devenir 页面；独立 Artist Library 统一维护跨平台音乐人头像与链接，歌曲封面仍可逐条维护，不复制 Apple 品牌播放器。
 6. **mock 降级清理决策（绿色）**：后端已接线，决定是否保留模板 `{% empty %}` mock 分支。
 
 7. **板块申请复用 accounts 短时邮箱验证（✅ 已完成）**：`/accounts/security/email/board-access/` 复用 accounts 通用邮箱挑战；验证码按 purpose + 用户 + Session 隔离，60 秒冷却和每小时发送上限按账号共享，错误次数受限。验证成功签发 10 分钟 Board 专用 Session grant，申请成功立即消费；密码修改 grant/code 不可复用，目标路由由服务端固定，不接收外部 `next`。
 8. **Board Index 接入文章入口与文章流（✅ 已闭环）**：三个 Index 统一复用 `Post.publicly_visible_posts()`，每板只展示对应 `Board.category` 最新 5 篇公开已发布文章，不泄露草稿或 staff-only 内容；“查看全部”只在 Category 正常可访问时显示。参与 CTA 由后端根据匿名、可申请、待审核、有效成员和停用状态生成，不在模板推导角色。具备创建能力且 Board 拥有正常、唯一 Category 映射的成员进入带 `?board=<slug>` 的新文章页，服务端再次通过同一 Policy 校验后才预选 Category；Reviewer 进入带 Board 筛选的审核工作区。申请页同样支持安全预选 Board。桌面与移动端自动化视觉检查已完成；REFUSE 模板已存在，后续受保护动作统一接入时不得复制此状态机。
 9. **Skateboard Clip 固定展示编排（✅ 视频方向闭环）**：公开 Index 由后端生成 `clip_groups`，优先按 ready `SkateClipMedia.orientation` 组成每组最多 2 个竖屏 + 3 个横屏（方形进入横向位），不会把已知横屏强塞进竖屏位；旧 URL/无 ready media 的 Clip 才按输入顺序回退 2+3。两条竖屏共用一个 box，中央信息区宽于两侧媒体，并分为左上/右下两层分别展示完整信息；不足时安全降级，移动端转为单列。`/boards/skateboard/clips/` 仍是公开分页浏览入口，不是管理页。
-10. **各 Board 的内容管理工作区（🟡 主体完成）**：Skate Clip、Music Spotify/Apple 与 Coding Project 已有 Devenir 业务 CRUD，服务端仅允许对应 Board Manager/superuser，且 provider 与对象 QuerySet 隔离；可管理入口由 Policy 同步注入全站菜单和 Board Index。Coding Principle/Experiment 与 Board-scoped 文章统一入口仍待实现。Board 创建及前端代码绑定继续为 superuser-only。
+10. **各 Board 的内容管理工作区（🟡 第二阶段）**：Skate Clip、Music Spotify/Apple 与 Coding Project/Principle/Experiment 已有 Devenir 业务 CRUD，服务端仅允许对应 Board Manager/superuser，且 provider、内容类型与对象 QuerySet 隔离；可管理入口由 Policy 同步注入全站菜单和 Board Index。Coding 三类内容已经统一为 Projects / Principles / Experiments 导航。Music 以 provider + 年度/月度周期总览作为主入口，周期行可进入底层记录列表或预填周期追加记录；底层继续复用现有平铺记录。只有实际维护证明逐条编辑成本过高时才增加同周期批量表单，不提前做 schema 重写。Board 创建及前端代码绑定继续为 superuser-only。
+
+   **Coding Index 视觉层级（✅ 2026-08-28 收口）**：主页 Coding Editorial 以独立的沙耶 Web 组装体 WebP 为主体；黑白画面只以 Coding 橙标示页面层、组件边界与状态连接，并在右侧叠加代码循环的窄幅半透明毛玻璃窗，使“生成结果”与“运行过程”同时存在。终端使用适合半宽窗口的紧凑代码行持续上滚，底部 composer 以非匀速逐字生成下一条 trace、短暂停顿后提交；`prefers-reduced-motion` 下保留语义性动画但将滚动和输入明显减速。Coding Index Hero 保持原样，正文将首个 `is_featured` 项目（无显式 featured 时回退首项）提升为 Current Build 工作台，其余项目呈现为相连节点；Principle 与 Experiment 合并为 METHOD / TRACE 双栏，表达“方法产生可观察轨迹”，不再使用三组等权列表。该层级只由 `assemble_coding()` 派生视图上下文，未改变模型、CRUD 或链接权限契约。
 
 板块权限页同时展示当前 active Membership。非 Manager 成员可在复用邮箱短时验证后自助退出；实现只把 `is_active` 设为 False，保留审批记录，并以 Mongo+HMAC 记录退出事件。Manager 退出和存在待审核申请的情况均 fail closed。
 

@@ -93,6 +93,14 @@ python manage.py init_log_hmac --before <UTC-ISO-CUTOFF> --acknowledge-legacy-ba
 - migration/索引/备份角色与运行时账号分离。
 - 核心 events 与 heads 集合禁止 TTL。
 
+Docker 生产映射固定为：`audit-worker` 使用
+`MONGO_DELIVERY_USERNAME/PASSWORD`，web 与非审计 worker 使用
+`MONGO_VERIFIER_USERNAME/PASSWORD`，一次性 `prepare` 使用仅具
+createCollection/createIndex/listIndexes 的 `MONGO_DEPLOY_USERNAME/PASSWORD`
+完成索引和 topology 预检；Mongo root 只用于数据库初始化与 replica-set bootstrap。
+`deploy/.env.production` 只用于 Compose 插值，禁止
+通过统一 `env_file` 把 root 或其他站点秘密注入所有容器。
+
 ## 7. 回滚与边界
 
 - 回滚代码时保留 migration、outbox、checkpoint、历史 `SecureLogEntry`、Mongo events/heads 和旧 key。

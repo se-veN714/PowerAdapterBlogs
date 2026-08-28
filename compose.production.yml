@@ -1,0 +1,206 @@
+name: poweradapter
+
+# `--env-file deploy/.env.production` is used only for Compose interpolation.
+# Every container receives the smallest explicit environment it needs.
+x-app-environment: &app-environment
+  PROJECT_PROFILE: product
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS}
+  DJANGO_TRUST_X_FORWARDED_PROTO: ${DJANGO_TRUST_X_FORWARDED_PROTO}
+  PUBLIC_SITE_URL: ${PUBLIC_SITE_URL}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL}
+  SECURITY_CONTACT_EMAIL: ${SECURITY_CONTACT_EMAIL}
+  EMAIL_HOST: ${EMAIL_HOST}
+  EMAIL_PORT: ${EMAIL_PORT}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD}
+  EMAIL_USE_SSL: ${EMAIL_USE_SSL}
+  EMAIL_USE_TLS: ${EMAIL_USE_TLS}
+  DB_NAME: ${DB_NAME}
+  DB_USER: ${DB_USER}
+  DB_PASSWORD: ${DB_PASSWORD}
+  DB_HOST: ${DB_HOST}
+  DB_PORT: ${DB_PORT}
+  REDIS_CACHE_URL: ${REDIS_CACHE_URL}
+  REDIS_SESSIONS_URL: ${REDIS_SESSIONS_URL}
+  MONGO_HOST: ${MONGO_HOST}
+  MONGO_PORT: ${MONGO_PORT}
+  MONGO_DB_NAME: ${MONGO_DB_NAME}
+  MONGO_AUTH_SOURCE: ${MONGO_AUTH_SOURCE}
+  MONGO_REPLICA_SET: ${MONGO_REPLICA_SET}
+  LOGINTEGRITY_HMAC_KEY_BASE64: ${LOGINTEGRITY_HMAC_KEY_BASE64}
+  MONGO_AUDIT_HMAC_KEY_BASE64: ${MONGO_AUDIT_HMAC_KEY_BASE64}
+  CHECKPOINT_AUDIT_HMAC_KEY_BASE64: ${CHECKPOINT_AUDIT_HMAC_KEY_BASE64}
+  MONGO_AUDIT_ACTIVE_KEY_ID: ${MONGO_AUDIT_ACTIVE_KEY_ID}
+  CHECKPOINT_AUDIT_ACTIVE_KEY_ID: ${CHECKPOINT_AUDIT_ACTIVE_KEY_ID}
+  MFA_ENFORCEMENT_ENABLED: ${MFA_ENFORCEMENT_ENABLED}
+  MFA_TOTP_KEYRING_JSON: ${MFA_TOTP_KEYRING_JSON}
+  MFA_TOTP_ACTIVE_KEY_ID: ${MFA_TOTP_ACTIVE_KEY_ID}
+  MTLS_ENFORCEMENT_ENABLED: ${MTLS_ENFORCEMENT_ENABLED}
+  MTLS_ADMIN_HOST: ${MTLS_ADMIN_HOST}
+  MTLS_TRUSTED_PROXY_NETWORKS: ${MTLS_TRUSTED_PROXY_NETWORKS}
+  MTLS_PROXY_AUTH_SECRET: ${MTLS_PROXY_AUTH_SECRET}
+  MTLS_CERTIFICATE_PROFILE: ${MTLS_CERTIFICATE_PROFILE}
+  SUPER_ADMIN_EXTERNAL_URL: ${SUPER_ADMIN_EXTERNAL_URL}
+  AMAP_JS_API_ENABLED: ${AMAP_JS_API_ENABLED}
+  AMAP_JS_API_KEY: ${AMAP_JS_API_KEY}
+  AMAP_JS_SECURITY_JSCODE: ${AMAP_JS_SECURITY_JSCODE}
+  AMAP_JS_SERVICE_HOST: ${AMAP_JS_SERVICE_HOST}
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  volumes:
+    - ./deploy/var/static:/app/common_static
+    - ./deploy/var/media:/app/media
+    - ./deploy/var/media-private:/app/media-private
+    - ./deploy/var/logs:/app/logs
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mongo:
+    build:
+      context: .
+      dockerfile: deploy/mongo/Dockerfile
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_DB_NAME: ${MONGO_DB_NAME}
+      MONGO_DELIVERY_USERNAME: ${MONGO_DELIVERY_USERNAME}
+      MONGO_DELIVERY_PASSWORD: ${MONGO_DELIVERY_PASSWORD}
+      MONGO_VERIFIER_USERNAME: ${MONGO_VERIFIER_USERNAME}
+      MONGO_VERIFIER_PASSWORD: ${MONGO_VERIFIER_PASSWORD}
+      MONGO_DEPLOY_USERNAME: ${MONGO_DEPLOY_USERNAME}
+      MONGO_DEPLOY_PASSWORD: ${MONGO_DEPLOY_PASSWORD}
+    secrets:
+      - mongo-keyfile
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+      - ./deploy/mongo/init-app-user.js:/docker-entrypoint-initdb.d/10-app-user.js:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --username \"$$MONGO_INITDB_ROOT_USERNAME\" --password \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep 1"]
+      interval: 10s
+      timeout: 8s
+      retries: 20
+    restart: unless-stopped
+
+  mongo-init:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: >-
+      sh -c "mongosh --host mongo --quiet
+      --username \"$$MONGO_INITDB_ROOT_USERNAME\"
+      --password \"$$MONGO_INITDB_ROOT_PASSWORD\"
+      --authenticationDatabase admin
+      --eval 'try { rs.status().ok } catch (error) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"mongo:27017\"}]}) }'"
+    restart: "no"
+
+  prepare:
+    <<: *app
+    environment:
+      <<: *app-environment
+      MONGO_DB_USER: ${MONGO_DEPLOY_USERNAME}
+      MONGO_DB_PASSWORD: ${MONGO_DEPLOY_PASSWORD}
+      IMPORT_MUSIC_RECORDS: ${IMPORT_MUSIC_RECORDS:-true}
+    command: ["sh", "deploy/docker/app-entrypoint.sh", "prepare"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  web:
+    <<: *app
+    environment:
+      <<: *app-environment
+      MONGO_DB_USER: ${MONGO_VERIFIER_USERNAME}
+      MONGO_DB_PASSWORD: ${MONGO_VERIFIER_PASSWORD}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+    command: ["sh", "deploy/docker/app-entrypoint.sh", "web"]
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:18000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; request=urllib.request.Request('http://127.0.0.1:8000/healthz/', headers={'Host':'localhost','X-Forwarded-Proto':'https'}); urllib.request.urlopen(request, timeout=5).read()"]
+      interval: 15s
+      timeout: 8s
+      retries: 10
+
+  audit-worker:
+    <<: *app
+    environment:
+      <<: *app-environment
+      MONGO_DB_USER: ${MONGO_DELIVERY_USERNAME}
+      MONGO_DB_PASSWORD: ${MONGO_DELIVERY_PASSWORD}
+      WORKER_INTERVAL_SECONDS: ${WORKER_INTERVAL_SECONDS:-5}
+      AUDIT_WORKER_BATCH_SIZE: ${AUDIT_WORKER_BATCH_SIZE:-100}
+    command: ["sh", "deploy/docker/worker-loop.sh", "audit"]
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+
+  skate-worker:
+    <<: *app
+    environment:
+      <<: *app-environment
+      MONGO_DB_USER: ${MONGO_VERIFIER_USERNAME}
+      MONGO_DB_PASSWORD: ${MONGO_VERIFIER_PASSWORD}
+      WORKER_INTERVAL_SECONDS: ${WORKER_INTERVAL_SECONDS:-5}
+      SKATE_WORKER_BATCH_SIZE: ${SKATE_WORKER_BATCH_SIZE:-10}
+    command: ["sh", "deploy/docker/worker-loop.sh", "skate"]
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+  redis-data:
+  mongo-data:
+  mongo-config:
+
+secrets:
+  mongo-keyfile:
+    file: ./deploy/secrets/mongo-keyfile

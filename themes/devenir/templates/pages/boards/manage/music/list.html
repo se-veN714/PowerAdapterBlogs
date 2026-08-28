@@ -37,8 +37,10 @@ Boards Manage — Music 记录列表（Devenir 管理壳，待后端授权接线
         </header>
 
         <ul class="bm-tabs" role="list" aria-label="Provider">
+            <li><a class="bm-tab" href="{% url 'boards:music-period-list' provider=provider %}">PERIODS</a></li>
             <li><a class="bm-tab{% if provider == 'spotify' %} is-active{% endif %}" href="{% url 'boards:music-manage-list' provider='spotify' %}"{% if provider == 'spotify' %} aria-current="page"{% endif %}>SPOTIFY</a></li>
             <li><a class="bm-tab{% if provider == 'apple' %} is-active{% endif %}" href="{% url 'boards:music-manage-list' provider='apple' %}"{% if provider == 'apple' %} aria-current="page"{% endif %}>APPLE MUSIC</a></li>
+            <li><a class="bm-tab" href="{% url 'boards:music-artist-list' %}">ARTISTS</a></li>
         </ul>
 
         <form class="bm-filters" method="get" action="{% url 'boards:music-manage-list' provider=provider %}" role="search" aria-label="筛选记录">

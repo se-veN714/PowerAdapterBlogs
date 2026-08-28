@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Music Artists · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}{% endblock %}
+{% block content %}
+<div class="bm-page"><div class="container">
+  <header class="bm-head"><div class="bm-head__titles"><p class="bm-kicker">MANAGE / MUSIC</p><h1 class="bm-title">ARTIST LIBRARY</h1><p class="bm-sub">头像只维护一次，Spotify 与 Apple Music 周期记录共享同一音乐人身份。</p></div><a class="bm-btn bm-btn--primary" href="{% url 'boards:music-artist-create' %}">+ NEW ARTIST</a></header>
+  <ul class="bm-tabs" role="list"><li><a class="bm-tab" href="{% url 'boards:music-period-list' provider='spotify' %}">SPOTIFY</a></li><li><a class="bm-tab" href="{% url 'boards:music-period-list' provider='apple' %}">APPLE MUSIC</a></li><li><a class="bm-tab is-active" href="{% url 'boards:music-artist-list' %}" aria-current="page">ARTISTS</a></li></ul>
+  <form class="bm-filters" method="get" role="search"><div class="bm-filters__field bm-filters__query"><label for="artist-q">SEARCH</label><input id="artist-q" type="search" name="query" value="{{ query }}" placeholder="艺人名称"></div><button class="bm-btn" type="submit">APPLY</button></form>
+  {% if artists %}<div class="bm-table" role="table" aria-label="Music artists">
+    <div class="bm-row bm-row--head" role="row" style="--bm-cols:5rem 1.2fr 1fr 1fr auto;"><span>AVATAR</span><span>ARTIST</span><span>SPOTIFY</span><span>APPLE MUSIC</span><span>ACTIONS</span></div>
+    {% for artist in artists %}<div class="bm-row" role="row" style="--bm-cols:5rem 1.2fr 1fr 1fr auto;">
+      <span class="bm-cell">{% if artist.avatar %}<img class="bm-artist-avatar" src="{{ artist.avatar.url }}" alt="">{% else %}<span class="bm-artist-avatar bm-artist-avatar--empty">{{ artist.name|slice:':2'|upper }}</span>{% endif %}</span>
+      <span class="bm-cell bm-cell--strong">{{ artist.name }}</span><span class="bm-cell">{% if artist.spotify_url %}LINKED{% else %}—{% endif %}</span><span class="bm-cell">{% if artist.apple_music_url %}LINKED{% else %}—{% endif %}</span>
+      <span class="bm-actions"><a href="{% url 'boards:music-artist-update' pk=artist.pk %}">EDIT</a><a class="bm-actions__delete" href="{% url 'boards:music-artist-delete' pk=artist.pk %}">DELETE</a></span>
+    </div>{% endfor %}
+  </div>{% else %}<div class="bm-empty"><strong>NO ARTISTS</strong>尚未建立音乐人资料。</div>{% endif %}
+  {% if artists.paginator.num_pages > 1 %}<nav class="bm-pager"><span>PAGE {{ artists.number }} / {{ artists.paginator.num_pages }}</span><span class="bm-pager__links">{% if artists.has_previous %}<a class="bm-btn" href="?page={{ artists.previous_page_number }}&query={{ query|urlencode }}">&larr; PREV</a>{% endif %}{% if artists.has_next %}<a class="bm-btn" href="?page={{ artists.next_page_number }}&query={{ query|urlencode }}">NEXT &rarr;</a>{% endif %}</span></nav>{% endif %}
+</div></div>
+{% endblock %}

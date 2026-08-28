@@ -19,6 +19,11 @@ Boards Manage — Coding 项目表单（create / update 共用，Devenir 管理�
 {% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
 {% endblock %}
 
+{% block extra_js %}
+<script src="{% static 'js/boards/image-drop.js' %}"></script>
+<script src="{% static 'js/boards/form-presets.js' %}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="bm-page">
     <div class="container">
@@ -31,11 +36,26 @@ Boards Manage — Coding 项目表单（create / update 共用，Devenir 管理�
             <a class="bm-btn" href="{% url 'boards:coding-manage-list' %}">&larr; BACK TO LIST</a>
         </header>
 
-        <form class="bm-form" method="post" enctype="multipart/form-data" novalidate>
+        <form class="bm-form" method="post" enctype="multipart/form-data" novalidate data-coding-project-form>
             {% csrf_token %}
             {% if form.non_field_errors %}
             <div class="bm-form__errors-top" role="alert">{{ form.non_field_errors }}</div>
             {% endif %}
+
+            <fieldset class="bm-group bm-preset">
+                <legend class="bm-group__legend"><span>00 / QUICK FILL</span></legend>
+                <div class="bm-field bm-field--wide">
+                    <label for="coding-project-preset">PROJECT PRESET</label>
+                    <select id="coding-project-preset" data-coding-preset>
+                        <option value="">选择项目模板…</option>
+                        <option value="django_htmx">Django + HTMX 项目</option>
+                        <option value="local_browser">纯前端本地工具</option>
+                        <option value="external">外部项目 / 展示链接</option>
+                        <option value="archived_github">归档 GitHub 项目</option>
+                    </select>
+                    <p class="bm-field__help" data-preset-status>选择后会填写项目类型、常用技术栈与状态；名称、描述和链接仍由你确认。</p>
+                </div>
+            </fieldset>
 
             <fieldset class="bm-group">
                 <legend class="bm-group__legend"><span>01 / IDENTITY</span></legend>
@@ -93,7 +113,7 @@ Boards Manage — Coding 项目表单（create / update 共用，Devenir 管理�
                         {{ form.demo_url }}
                         {% if form.demo_url.errors %}<ul class="bm-field__errors">{{ form.demo_url.errors }}</ul>{% endif %}
                     </div>
-                    <div class="bm-field">
+                    <div class="bm-field bm-field--wide">
                         {{ form.cover.label_tag }}
                         {{ form.cover }}
                         {% if form.cover.errors %}<ul class="bm-field__errors">{{ form.cover.errors }}</ul>{% endif %}

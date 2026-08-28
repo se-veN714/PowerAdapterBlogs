@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ content_title|title }} · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles">
+                <p class="bm-kicker">MANAGE / CODING</p>
+                <h1 class="bm-title">{{ content_title }}</h1>
+                <p class="bm-sub">公开 Index 只读；此处的变更会直接更新对应档案。</p>
+            </div>
+            <a class="bm-btn bm-btn--primary" href="{% url create_url_name %}">+ NEW {{ content_label }}</a>
+        </header>
+
+        {% include 'pages/boards/manage/coding/_tabs.html' %}
+
+        <form class="bm-filters" method="get" action="{% url list_url_name %}" role="search" aria-label="筛选 {{ content_label|lower }}">
+            {% if content_kind == 'experiment' %}
+            <div class="bm-filters__field">
+                <label for="bm-f-year">YEAR</label>
+                <input id="bm-f-year" type="number" name="year" value="{{ filters.year }}" min="2000" max="2100" placeholder="全部">
+            </div>
+            {% endif %}
+            <div class="bm-filters__field bm-filters__query">
+                <label for="bm-f-q">SEARCH</label>
+                <input id="bm-f-q" type="search" name="query" value="{{ filters.query }}" placeholder="{% if content_kind == 'principle' %}标题 / 正文{% else %}实验名称{% endif %}">
+            </div>
+            <button class="bm-btn" type="submit">APPLY</button>
+        </form>
+
+        {% if records %}
+        <div class="bm-table" role="table" aria-label="{{ content_title }}">
+            <div class="bm-row bm-row--head" role="row" style="--bm-cols:5rem minmax(12rem, 1fr) minmax(8rem, auto);">
+                <span role="columnheader">{% if content_kind == 'principle' %}INDEX{% else %}DATE{% endif %}</span>
+                <span role="columnheader">{{ content_label }}</span>
+                <span role="columnheader">ACTIONS</span>
+            </div>
+            {% for record in records %}
+            <div class="bm-row" role="row" style="--bm-cols:5rem minmax(12rem, 1fr) minmax(8rem, auto);">
+                <span class="bm-cell bm-cell--accent" role="cell">{% if content_kind == 'principle' %}{{ record.index|stringformat:"02d" }}{% else %}{{ record.date|date:"Y.m.d" }}{% endif %}</span>
+                <span class="bm-cell bm-cell--strong" role="cell">
+                    {{ record.title }}
+                    {% if content_kind == 'principle' and record.body %}<span class="bm-cell__sub">{{ record.body|truncatechars:120 }}</span>{% endif %}
+                </span>
+                <span class="bm-actions" role="cell">
+                    <a href="{% url update_url_name pk=record.pk %}">EDIT</a>
+                    <a class="bm-actions__delete" href="{% url delete_url_name pk=record.pk %}">DELETE</a>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if records.paginator.num_pages > 1 %}
+        <nav class="bm-pager" aria-label="分页">
+            <span>PAGE {{ records.number }} / {{ records.paginator.num_pages }}</span>
+            <span class="bm-pager__links">
+                {% if records.has_previous %}<a class="bm-btn" href="?page={{ records.previous_page_number }}&year={{ filters.year|urlencode }}&query={{ filters.query|urlencode }}">&larr; PREV</a>{% endif %}
+                {% if records.has_next %}<a class="bm-btn" href="?page={{ records.next_page_number }}&year={{ filters.year|urlencode }}&query={{ filters.query|urlencode }}">NEXT &rarr;</a>{% endif %}
+            </span>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="bm-empty">
+            <strong>NO {{ content_label }}S</strong>
+            {% if filters.query or filters.year %}当前筛选条件下没有记录。<a href="{% url list_url_name %}">清除筛选</a>{% else %}还没有记录，从右上角新建第一条。{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

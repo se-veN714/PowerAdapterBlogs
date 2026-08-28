@@ -20,12 +20,16 @@ board.glitch_color 由后端 Board 模型提供（skateboard 种子值 #ff4d5e�
 {% block mathjax %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/boards/skateboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/boards/skateboard.css' %}?v=20260827.3">
 <link rel="stylesheet" href="{% static 'css/boards/board-common.css' %}">
 {% endblock %}
 
 {% block hero %}
 <section class="sk-hero" data-glitch-color="{{ board.glitch_color }}" aria-label="Homies">
+    <img class="sk-hero-art"
+         src="{% static 'images/boards/skateboard-hero-saya.webp' %}?v=20260827.4"
+         width="1536" height="1024" alt=""
+         fetchpriority="high" decoding="async">
     <div class="container">
         <div class="sk-hero-intro reveal">
             <h1 class="sk-title">
@@ -34,8 +38,10 @@ board.glitch_color 由后端 Board 模型提供（skateboard 种子值 #ff4d5e�
                 <span class="sk-title-word">HOMIES</span>
             </h1>
             <p class="sk-crew">CLOUD CREW</p>
-            <p class="sk-tagline">WE DON'T SKATE THE SAME.<br>THAT'S WHY WE SKATE TOGETHER.</p>
-            <p class="sk-tagline-cn">不在同一座城市，不滑同一种风格，<br>但仍然构成一条线路。</p>
+            <p class="sk-tagline">
+                楼梯与扶杆不再服从安全的秩序。<br>
+                空间在滑行中被重新生产，我们也在其中生成—滑板。
+            </p>
             <p class="sk-scroll" aria-hidden="true"><span class="sk-scroll-line"></span>SCROLL<br>DOWN</p>
         </div>
     </div>

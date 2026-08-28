@@ -2,54 +2,172 @@
 {% load static %}
 
 {% block title %}About · PowerAdapter{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/site_info.css' %}?v=20260726.1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/about.css' %}?v=20260828.2">{% endblock %}
 
 {% block hero %}
-<section class="site-info-hero">
-    <div class="container">
-        <p class="site-info-kicker">NODE / ABOUT</p>
-        <h1>在代码与精神秩序之间</h1>
-        <p>PowerAdapter 是一个个人博客，也是一块持续迭代的技术实验场。</p>
+<section class="about-hero">
+    <div class="about-shell about-hero__grid">
+        <div class="about-hero__copy">
+            <p class="about-kicker">PERSON / SYSTEM / 3+N FIELDS</p>
+            <h1>我通过 PowerAdapter<br>构建自己的数字世界。</h1>
+            <p class="about-hero__lead">
+                这不是把兴趣装进固定分类。滑板、音乐与代码在这里互相连接：
+                空间被重新使用，故事在聆听中生成，人与 AI 组成持续工作的组装体。
+            </p>
+            <div class="about-actions">
+                <a class="about-button about-button--primary" href="#fields">进入 3+N 场域</a>
+                <a class="about-button" href="{% url 'Blogs:post_list' %}">阅读文章</a>
+            </div>
+        </div>
+
+        <figure class="about-portrait">
+            <div class="about-portrait__frame">
+                <img src="{% static 'images/errors/alpha-error-visual-general.webp' %}"
+                     alt="沙耶与植物构成的故障艺术视觉"
+                     width="1024"
+                     height="1536">
+            </div>
+            <figcaption>
+                <span>SAYA / VISUAL PROXY</span>
+                <span>NOT A PROFILE PICTURE</span>
+            </figcaption>
+            <div class="about-portrait__signals" aria-hidden="true">
+                <i></i><i></i><i></i>
+            </div>
+        </figure>
+
+        <div class="about-hero__rail" aria-hidden="true">
+            <span>TRACE</span>
+            <span>CONNECT</span>
+            <span>GENERATE</span>
+            <span>CONTINUE</span>
+        </div>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<article class="container site-info-layout">
-    <aside class="site-info-index" aria-label="页面目录">
-        <span>ABOUT.LOG</span>
-        <a href="#purpose">01 / 定位</a>
-        <a href="#topics">02 / 内容</a>
-        <a href="#boards">03 / 板块</a>
-        <a href="#stack">04 / 技术</a>
-        <a href="#license">05 / 许可</a>
-    </aside>
-    <div class="site-info-body">
-        <section id="purpose">
-            <p class="section-code">01 / PURPOSE</p>
-            <h2>为什么存在</h2>
-            <p>这里用于记录自动化、密码与安全实践、算法、个人工具，以及精神节律相关的长期探索。它首先服务于作者自己的表达和知识整理，而不是面向流量的内容社区。</p>
-        </section>
-        <section id="topics">
-            <p class="section-code">02 / TRANSMISSIONS</p>
-            <h2>内容方向</h2>
-            <p>文章会围绕编码、音乐、滑板及其他阶段性主题展开。投稿功能只服务于受邀请的小规模协作，不开放公共注册、关注、点赞、私信或积分体系。</p>
-        </section>
-        <section id="boards">
-            <p class="section-code">03 / BOARD SYSTEM</p>
-            <h2>每个板块都是独立表达</h2>
-            <p>Board 不只是数据库分类。新增板块意味着新的内容边界、权限范围与前端表达，因此仅由站点所有者随代码发布。协作者通过 BoardMembership 获得特定板块中的投稿、编辑或审核能力。</p>
-        </section>
-        <section id="stack">
-            <p class="section-code">04 / IMPLEMENTATION</p>
-            <h2>技术方式</h2>
-            <p>站点基于 Django Template 与 htmx，采用服务端渲染的 HDA 架构。Devenir 主题使用暗色 CRT 扫描线、绿色信号与 Editorial 排版；后台权限由 Django Group、Permission 和 Board Policy 分层协作。</p>
-        </section>
-        <section id="license">
-            <p class="section-code">05 / LICENSE</p>
-            <h2>内容与代码</h2>
-            <p>站点内容默认遵循 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>；项目代码以仓库中声明的 MIT License 为准。引用时请保留作者与来源。</p>
-        </section>
-    </div>
+<article class="about-page">
+    <section class="about-section about-identity about-shell" id="identity">
+        <header class="about-section__header">
+            <p class="about-code">01 / WHO / POWERADAPTER</p>
+            <h2>PowerAdapter 不是我的静态简介。<br>它是我持续生成自己的方式。</h2>
+        </header>
+        <div class="about-identity__body">
+            <p>
+                我把技术视为表达材料，而不只是交付工具。这个站点由我维护，也反过来塑造我如何写作、
+                聆听、滑行，以及如何与 AI 生成工作。
+            </p>
+            <p>
+                文章、音乐记录、滑板片段与个人工具不是彼此隔离的内容栏目。
+                它们是同一个生活过程留下的不同节点，在这里被保存、连接和重新组织。
+            </p>
+        </div>
+    </section>
+
+    <section class="about-section about-fields about-shell" id="fields">
+        <header class="about-section__header">
+            <p class="about-code">02 / 3+N FIELDS</p>
+            <h2>三个已生成的场域，以及仍未命名的 N。</h2>
+        </header>
+        <div class="about-fields__grid">
+            <a class="about-field about-field--skate" href="{% url 'boards:index' slug='skateboard' %}">
+                <span class="about-field__index">01 / SPACE</span>
+                <span class="about-field__glyph" aria-hidden="true">S</span>
+                <h3>滑板使空间偏离原有用途。</h3>
+                <p>楼梯、扶杆与广场不再只有安全和通行的功能。我们重新占用空间，并在其中生成滑板。</p>
+                <span class="about-field__link">ENTER SKATEBOARD →</span>
+            </a>
+            <a class="about-field about-field--music" href="{% url 'boards:index' slug='music' %}">
+                <span class="about-field__index">02 / STORY</span>
+                <span class="about-field__glyph" aria-hidden="true">M</span>
+                <h3>音乐让另一条故事线发生。</h3>
+                <p>Music Worker 创造背景；我们在聆听中，把记忆、月份与情绪生成自己内部的故事。</p>
+                <span class="about-field__link">ENTER MUSIC →</span>
+            </a>
+            <a class="about-field about-field--code" href="{% url 'boards:index' slug='coding' %}">
+                <span class="about-field__index">03 / ASSEMBLAGE</span>
+                <span class="about-field__glyph" aria-hidden="true">C</span>
+                <h3>人与 AI 成为超级组装体。</h3>
+                <p>精神与代码并行工作，让创造与秩序避开对立，在连接、反馈与迭代中共同生长。</p>
+                <span class="about-field__link">ENTER CODING →</span>
+            </a>
+            {% for board in additional_about_boards %}
+            <a class="about-field about-field--additional"
+               href="{% url 'boards:index' slug=board.slug %}"
+               style="--field-color: {{ board.glitch_color }}">
+                <span class="about-field__index">{{ forloop.counter|add:3|stringformat:"02d" }} / NEW FIELD</span>
+                <span class="about-field__glyph" aria-hidden="true">{{ board.name|first|upper }}</span>
+                <h3>{{ board.name }}</h3>
+                <p>{{ board.description|striptags|truncatechars:120 }}</p>
+                <span class="about-field__link">ENTER {{ board.name|upper }} →</span>
+            </a>
+            {% endfor %}
+            <div class="about-field about-field--future" aria-label="尚未生成的未来场域">
+                <span class="about-field__index">N / UNASSIGNED</span>
+                <span class="about-field__glyph" aria-hidden="true">+</span>
+                <h3>Something will devenir here...</h3>
+                <p>一个尚未命名的兴趣、工具或生活轨迹，会在需要时取得自己的结构、颜色与入口。</p>
+                <span class="about-field__link">WAITING FOR THE NEXT FIELD</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="about-section about-method about-shell">
+        <header class="about-section__header">
+            <p class="about-code">03 / METHOD</p>
+            <h2>适配，不是把一切变成相同的接口。</h2>
+        </header>
+        <div class="about-method__grid">
+            <blockquote>
+                差异仍然保持差异，但可以交换能量，差异本身就是价值。<br>
+                可连接、可变形，结构才会持续活着。
+            </blockquote>
+            <ol class="about-flow">
+                <li><span>01</span><strong>TRACE</strong><small>留下真实活动的轨迹</small></li>
+                <li><span>02</span><strong>CONNECT</strong><small>让异质节点建立连接</small></li>
+                <li><span>03</span><strong>GENERATE</strong><small>从连接中产生下一状态</small></li>
+            </ol>
+        </div>
+    </section>
+
+    <section class="about-section about-system about-shell">
+        <div class="about-system__profile">
+            <p class="about-code">04 / SYSTEM PROFILE</p>
+            <h2>一个长期维护的个人系统。</h2>
+            <dl>
+                <div><dt>RUNTIME</dt><dd>Django Template + HTMX</dd></div>
+                <div><dt>DATA</dt><dd>PostgreSQL / MongoDB</dd></div>
+                <div><dt>DELIVERY</dt><dd>Nginx / Server-rendered HTML</dd></div>
+                <div><dt>MODE</dt><dd>Personal site / Invited collaboration</dd></div>
+            </dl>
+        </div>
+        <div class="about-system__signal">
+            <span>CURRENT SIGNAL</span>
+            <p>
+                持续补齐已有板块的内容维护、媒体流水线与视觉语言，
+                让它们不只被展示，也能被检索、编辑与重新组织。
+            </p>
+            <small><i></i> BUILDING TOWARD MAINTENANCE</small>
+        </div>
+    </section>
+
+    <section class="about-section about-contact about-shell">
+        <div>
+            <p class="about-code">05 / CONTINUE</p>
+            <h2>选择一条线路，继续进入。</h2>
+        </div>
+        <nav class="about-contact__links" aria-label="继续浏览">
+            <a href="{% url 'Blogs:post_list' %}"><span>01</span>文章归档</a>
+            <a href="{% url 'index' %}#skateboard"><span>02</span>板块入口</a>
+            <a href="https://github.com/se-veN714/PowerAdapterBlogs" target="_blank" rel="noopener"><span>03</span>GitHub</a>
+            <a href="mailto:sevencdxxiv@qq.com"><span>04</span>邮件联系</a>
+        </nav>
+        <p class="about-license">
+            内容默认遵循
+            <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>；
+            项目代码许可见仓库声明。
+        </p>
+    </section>
 </article>
 {% endblock %}

@@ -8,6 +8,14 @@ from boards.views import (
     withdraw_membership,
 )
 from boards.content_views import (
+    CodingExperimentCreateView,
+    CodingExperimentDeleteView,
+    CodingExperimentListView,
+    CodingExperimentUpdateView,
+    CodingPrincipleCreateView,
+    CodingPrincipleDeleteView,
+    CodingPrincipleListView,
+    CodingPrincipleUpdateView,
     CodingProjectCreateView,
     CodingProjectDeleteView,
     CodingProjectListView,
@@ -15,6 +23,11 @@ from boards.content_views import (
     MusicRecordCreateView,
     MusicRecordDeleteView,
     MusicRecordListView,
+    MusicPeriodListView,
+    MusicArtistCreateView,
+    MusicArtistDeleteView,
+    MusicArtistListView,
+    MusicArtistUpdateView,
     MusicRecordUpdateView,
     PadifLocalView,
     SkateClipCreateView,
@@ -52,6 +65,31 @@ urlpatterns = [
         "manage/skateboard/clips/<int:pk>/media/upload/",
         SkateClipMediaUploadView.as_view(),
         name="skate-media-upload",
+    ),
+    path(
+        "manage/music/<str:provider>/periods/",
+        MusicPeriodListView.as_view(),
+        name="music-period-list",
+    ),
+    path(
+        "manage/music/artists/",
+        MusicArtistListView.as_view(),
+        name="music-artist-list",
+    ),
+    path(
+        "manage/music/artists/new/",
+        MusicArtistCreateView.as_view(),
+        name="music-artist-create",
+    ),
+    path(
+        "manage/music/artists/<int:pk>/edit/",
+        MusicArtistUpdateView.as_view(),
+        name="music-artist-update",
+    ),
+    path(
+        "manage/music/artists/<int:pk>/delete/",
+        MusicArtistDeleteView.as_view(),
+        name="music-artist-delete",
     ),
     path(
         "manage/music/<str:provider>/",
@@ -92,6 +130,46 @@ urlpatterns = [
         "manage/coding/projects/<int:pk>/delete/",
         CodingProjectDeleteView.as_view(),
         name="coding-manage-delete",
+    ),
+    path(
+        "manage/coding/principles/",
+        CodingPrincipleListView.as_view(),
+        name="coding-principle-list",
+    ),
+    path(
+        "manage/coding/principles/new/",
+        CodingPrincipleCreateView.as_view(),
+        name="coding-principle-create",
+    ),
+    path(
+        "manage/coding/principles/<int:pk>/edit/",
+        CodingPrincipleUpdateView.as_view(),
+        name="coding-principle-update",
+    ),
+    path(
+        "manage/coding/principles/<int:pk>/delete/",
+        CodingPrincipleDeleteView.as_view(),
+        name="coding-principle-delete",
+    ),
+    path(
+        "manage/coding/experiments/",
+        CodingExperimentListView.as_view(),
+        name="coding-experiment-list",
+    ),
+    path(
+        "manage/coding/experiments/new/",
+        CodingExperimentCreateView.as_view(),
+        name="coding-experiment-create",
+    ),
+    path(
+        "manage/coding/experiments/<int:pk>/edit/",
+        CodingExperimentUpdateView.as_view(),
+        name="coding-experiment-update",
+    ),
+    path(
+        "manage/coding/experiments/<int:pk>/delete/",
+        CodingExperimentDeleteView.as_view(),
+        name="coding-experiment-delete",
     ),
     path("access/", BoardAccessRequestView.as_view(), name="access-requests"),
     path(

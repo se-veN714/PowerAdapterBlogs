@@ -32,12 +32,14 @@ from config.views import (
     LinkListView,
     PrivacyView,
     error_preview,
+    healthz,
     robots_txt,
     security_txt,
 )
 from .cus_site import custom_site
 
 urlpatterns = [
+    path("healthz/", healthz, name="healthz"),
     path("_AMapService/<path:resource>", amap_service_proxy, name="amap-service"),
     path("super_admin/", admin.site.urls, name="super_admin"),
     # dashboard

@@ -48,13 +48,33 @@ if EMAIL_USE_SSL and EMAIL_USE_TLS:
 DATABASES = {
     "default": {
         'ENGINE': "django.db.backends.postgresql",
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+        'NAME': required_env('DB_NAME'),
+        'USER': required_env('DB_USER'),
+        'PASSWORD': required_env('DB_PASSWORD'),
+        'HOST': required_env('DB_HOST'),
+        'PORT': required_env('DB_PORT'),
     }
 }
+
+required_env('REDIS_CACHE_URL')
+required_env('REDIS_SESSIONS_URL')
+required_env('MONGO_HOST')
+required_env('MONGO_DB_NAME')
+required_env('MONGO_DB_USER')
+required_env('MONGO_DB_PASSWORD')
+required_env('MONGO_REPLICA_SET')
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+LOGGING["root"]["level"] = "INFO"
+LOGGING["loggers"]["Blogs"]["handlers"].append("console")
+LOGGING["loggers"]["Blogs"]["level"] = "INFO"
+LOGGING["loggers"]["security"]["handlers"].append("console")
 
 key_base64 = required_env('LOGINTEGRITY_HMAC_KEY_BASE64')
 try:
@@ -94,6 +114,19 @@ if len(active_audit_keys) != 2 or LOG_HMAC_KEY in active_audit_keys:
         'MongoDB 与 checkpoint 活跃审计密钥必须相互独立且不同于历史密钥'
     )
 
+if not MFA_ENFORCEMENT_ENABLED:
+    raise ImproperlyConfigured('生产环境必须启用 MFA_ENFORCEMENT_ENABLED')
+if not MTLS_ENFORCEMENT_ENABLED:
+    raise ImproperlyConfigured('生产环境必须启用 MTLS_ENFORCEMENT_ENABLED')
+required_env('MTLS_ADMIN_HOST')
+required_env('MTLS_TRUSTED_PROXY_NETWORKS')
+mtls_proxy_secret = required_env('MTLS_PROXY_AUTH_SECRET')
+if len(mtls_proxy_secret) < 32:
+    raise ImproperlyConfigured('MTLS_PROXY_AUTH_SECRET 至少需要 32 个字符')
+if required_env('MTLS_CERTIFICATE_PROFILE') != 'standard-tls':
+    raise ImproperlyConfigured('生产 mTLS 只接受 standard-tls profile')
+required_env('SUPER_ADMIN_EXTERNAL_URL')
+
 CSRF_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -114,5 +147,6 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # 仅在可信反向代理确实覆盖 X-Forwarded-Proto 时启用。
-if os.getenv('DJANGO_TRUST_X_FORWARDED_PROTO', '').lower() in {'1', 'true', 'yes'}:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+if os.getenv('DJANGO_TRUST_X_FORWARDED_PROTO', '').lower() not in {'1', 'true', 'yes'}:
+    raise ImproperlyConfigured('生产反向代理必须启用 DJANGO_TRUST_X_FORWARDED_PROTO')
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

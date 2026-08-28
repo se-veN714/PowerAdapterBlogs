@@ -13,9 +13,51 @@
     --glitch-c: var(--accent-primary); /* 无 JS 兜底；集成后 = board.glitch_color */
 }
 
-.sk-hero { padding: 7rem 0 2rem; }
+.sk-hero {
+    position: relative;
+    min-height: clamp(620px, 88svh, 760px);
+    padding: 7rem 0 2rem;
+    overflow: hidden;
+    isolation: isolate;
+}
 
-.sk-hero-intro { max-width: 42rem; }
+.sk-hero::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        var(--bg-primary) 0%,
+        var(--bg-primary) 38%,
+        color-mix(in srgb, var(--bg-primary) 86%, transparent) 51%,
+        transparent 72%
+    );
+    pointer-events: none;
+}
+
+.sk-hero > .container {
+    position: relative;
+    z-index: 1;
+}
+
+.sk-hero-art {
+    position: absolute;
+    z-index: -2;
+    inset: 4.1rem 0 auto auto;
+    width: min(72vw, 1100px);
+    height: calc(100% - 4.1rem);
+    display: block;
+    object-fit: cover;
+    object-position: right top;
+    filter: saturate(0.78) contrast(1.06) brightness(0.76);
+}
+
+.sk-hero-intro {
+    position: relative;
+    z-index: 2;
+    max-width: 42rem;
+}
 
 /* ---------- 标题区 ---------- */
 
@@ -752,7 +794,25 @@
 }
 
 @media (max-width: 767px) {
-    .sk-hero { padding: 5.5rem 0 2rem; }
+    .sk-hero {
+        min-height: 650px;
+        padding: 5.5rem 0 2rem;
+    }
+    .sk-hero::after {
+        background: linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--bg-primary) 90%, transparent) 0%,
+            color-mix(in srgb, var(--bg-primary) 76%, transparent) 58%,
+            var(--bg-primary) 100%
+        );
+    }
+    .sk-hero-art {
+        inset-block-start: 4rem;
+        width: 100%;
+        height: calc(100% - 4rem);
+        object-position: 68% top;
+        opacity: 0.62;
+    }
     .sk-tagline { margin-top: 2rem; }
     .sk-scroll { display: none; }
     .sk-constellation-section { padding: 1rem 0 2.5rem; }

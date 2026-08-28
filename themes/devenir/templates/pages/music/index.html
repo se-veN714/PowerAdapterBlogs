@@ -25,7 +25,7 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
 {% block mathjax %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/music/music.css' %}">
+<link rel="stylesheet" href="{% static 'css/music/music.css' %}?v=20260828.1">
 <link rel="stylesheet" href="{% static 'css/boards/board-common.css' %}">
 {# 数据驱动：本板块 glitch 颜色来自 Board.glitch_color（seed_boards 写入库），供 music.css 派生全部强调色 #}
 <style>:root{--glitch-c:{{ board.glitch_color }};}</style>
@@ -33,6 +33,12 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
 
 {% block hero %}
 <section class="music-hero" aria-label="Music">
+    <div class="music-hero__visual" aria-hidden="true">
+        <img class="music-hero__art"
+             src="{% static 'images/boards/music-hero-saya.webp' %}?v=20260827.2"
+             width="1536" height="1024" alt=""
+             fetchpriority="high" decoding="async">
+    </div>
     <div class="container music-hero__grid">
         <div class="music-hero__intro reveal">
             <h1 class="music-title">
@@ -42,9 +48,8 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
             </h1>
             <p class="music-subtitle">LISTENING FIELD</p>
             <p class="music-tagline">
-                SOUNDS DO NOT FORM A SINGLE TIMELINE.<br>
-                SOME RETURN AS YEARS.<br>
-                OTHERS LEAVE TRACES BY MONTH.
+                音乐工作者创造背景，声音在我们之中展开。<br>
+                在重复与差异之间，我们生成自己的故事。
             </p>
             <dl class="music-source">
                 <div class="music-source__row">
@@ -57,24 +62,6 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
                     <dt>LAST MANUAL UPDATE</dt><dd>{{ music_updated|default:"—" }}</dd>
                 </div>
             </dl>
-        </div>
-
-        <div class="music-hero__visual" aria-hidden="true">
-                <svg viewBox="0 0 200 200" class="music-hero__headphones" role="img" aria-label="Headphone silhouette">
-                <defs>
-                    <radialGradient id="music-glow" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stop-color="currentColor" stop-opacity="0.30"/>
-                        <stop offset="70%" stop-color="currentColor" stop-opacity="0.05"/>
-                        <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
-                    </radialGradient>
-                </defs>
-                <circle cx="100" cy="100" r="85" fill="url(#music-glow)"/>
-                <path d="M 60 105 C 60 55 140 55 140 105" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-width="5" stroke-linecap="round"/>
-                <rect x="42" y="95" width="28" height="55" rx="10" fill="currentColor" fill-opacity="0.12" stroke="currentColor" stroke-opacity="0.45" stroke-width="2"/>
-                <rect x="130" y="95" width="28" height="55" rx="10" fill="currentColor" fill-opacity="0.12" stroke="currentColor" stroke-opacity="0.45" stroke-width="2"/>
-                <line x1="70" y1="115" x2="70" y2="135" stroke="currentColor" stroke-opacity="0.25" stroke-width="2"/>
-                <line x1="130" y1="115" x2="130" y2="135" stroke="currentColor" stroke-opacity="0.25" stroke-width="2"/>
-            </svg>
         </div>
 
         <div class="music-hero__period music-card reveal">
@@ -135,12 +122,17 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
                             {% endif %}
                         </dl>
                     </div>
-                    <div class="music-yearly__chart" aria-hidden="true">
-                        <svg viewBox="0 0 300 120" preserveAspectRatio="none">
-                            <polyline points="0,90 20,70 40,80 60,50 80,65 100,40 120,55 140,35 160,60 180,30 200,50 220,25 240,45 260,20 280,40 300,15"/>
-                        </svg>
-                        <p class="music-yearly__summary">YEARLY TRACE SUMMARY</p>
-                        <p class="music-yearly__tags">{{ spotify_summary.tags }}</p>
+                    <div class="music-yearly__coverage">
+                        <p class="music-yearly__coverage-title">RANKED ARTIST COVERAGE</p>
+                        <p class="music-yearly__coverage-share">{{ spotify_summary.ranked_share }}<span>%</span></p>
+                        <div class="music-yearly__coverage-track" aria-label="Top ranked artists account for {{ spotify_summary.ranked_share }} percent of yearly listening">
+                            <span style="--coverage:{{ spotify_summary.ranked_share }}"></span>
+                        </div>
+                        <dl class="music-yearly__coverage-stats">
+                            <div><dt>TOP ARTISTS</dt><dd>{{ spotify_summary.ranked_minutes_display }} MIN</dd></div>
+                            <div><dt>OTHER LISTENING</dt><dd>{{ spotify_summary.remainder_minutes_display }} MIN</dd></div>
+                        </dl>
+                        {% if spotify_summary.tags %}<p class="music-yearly__tags">{{ spotify_summary.tags }}</p>{% endif %}
                     </div>
                 </div>
                 {% else %}
@@ -148,7 +140,8 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
                 {% endif %}
             </section>
 
-            <section class="music-card music-top reveal" aria-labelledby="music-topartists-title">
+            <div class="music-annual-rankings reveal">
+            <section class="music-card music-top" aria-labelledby="music-topartists-title">
                 <div class="music-card__head">
                     <span class="music-card__num">03</span>
                     <h2 id="music-topartists-title" class="music-card__title">TOP ARTISTS</h2>
@@ -179,11 +172,11 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
                 {% endif %}
             </section>
 
-            <section class="music-card music-top reveal" aria-labelledby="music-toptracks-title">
+            <section class="music-card music-top" aria-labelledby="music-toptracks-title">
                 <div class="music-card__head">
                     <span class="music-card__num">04</span>
                     <h2 id="music-toptracks-title" class="music-card__title">TOP TRACKS</h2>
-                    <span class="music-card__hint">SPOTIFY / YEAR · TOP 10</span>
+                    <span class="music-card__hint">SPOTIFY / YEAR · RANKED</span>
                 </div>
                 {% if spotify_top_tracks %}
                 <ol class="music-rows" role="list">
@@ -209,6 +202,7 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
                 <p class="music-empty-line">NO TRACK RANKING YET</p>
                 {% endif %}
             </section>
+            </div>
 
             <section class="music-card music-archive-yearly reveal" aria-labelledby="music-archive-yearly-title">
                 <div class="music-card__head">
@@ -293,10 +287,8 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
                 {% else %}
                 <p class="music-empty-line">当月数据尚未归档。</p>
                 {% endif %}
-            </section>
-
-            <section class="music-card music-tracks reveal" aria-labelledby="music-monthtracks-title">
-                <div class="music-card__head">
+                <div class="music-current__tracks">
+                <div class="music-card__head music-card__head--subsection">
                     <span class="music-card__num">08</span>
                     <h2 id="music-monthtracks-title" class="music-card__title">TOP TRACKS</h2>
                     <span class="music-card__hint">APPLE MUSIC / MONTH · TOP 15</span>
@@ -323,6 +315,7 @@ Music 页面 — 双源一档版（Spotify / Annual + Apple Music / Monthly）�
                 {% else %}
                 <p class="music-empty-line">NO TRACK RANKING THIS MONTH</p>
                 {% endif %}
+                </div>
             </section>
 
             <section class="music-card music-archive-monthly reveal" aria-labelledby="music-archive-monthly-title">

@@ -1,6 +1,9 @@
 from datetime import timedelta
+from uuid import uuid4
 
 from django.conf import settings
+from django.core.cache import caches
+from django.db import connections
 from django.http import Http404, HttpResponse
 from django.template import loader
 from django.urls import reverse
@@ -10,7 +13,32 @@ from django.views.generic import ListView, TemplateView
 
 from Blogs.views import CommonViewMixin
 from PowerAdapterBlogs.public_urls import public_absolute_url
+from boards.board_index import renderable_boards
 from .models import Link
+
+
+@require_safe
+def healthz(request):
+    """Dependency-aware container probe without exposing diagnostic details."""
+    try:
+        with connections["default"].cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        cache = caches["default"]
+        # A fixed probe key lets concurrent health checks delete each other's
+        # value and report a false outage. Keep every probe isolated.
+        token = f"poweradapter-healthz:{uuid4().hex}"
+        cache.set(token, "ok", timeout=5)
+        if cache.get(token) != "ok":
+            raise RuntimeError("cache probe failed")
+        cache.delete(token)
+    except Exception:
+        return HttpResponse(
+            "unavailable\n",
+            status=503,
+            content_type="text/plain; charset=utf-8",
+        )
+    return HttpResponse("ok\n", content_type="text/plain; charset=utf-8")
 
 
 # Create your views here.
@@ -22,6 +50,14 @@ class LinkListView(CommonViewMixin, ListView):
 
 class AboutView(TemplateView):
     template_name = "pages/site/about.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        core_slugs = ("skateboard", "music", "coding")
+        context["additional_about_boards"] = renderable_boards().exclude(
+            slug__in=core_slugs
+        )
+        return context
 
 
 class PrivacyView(TemplateView):

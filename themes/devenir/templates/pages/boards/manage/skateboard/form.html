@@ -22,6 +22,19 @@
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="bm-form__errors-top" role="alert">{{ form.non_field_errors }}</div>{% endif %}
     <section class="skf-layout"><div class="skf-main">
+      <fieldset class="bm-group bm-preset"><legend class="bm-group__legend"><span>00 / QUICK FILL</span></legend>
+        <div class="bm-field bm-field--wide">
+          <label for="skate-clip-preset">CLIP PRESET</label>
+          <select id="skate-clip-preset" data-skate-preset>
+            <option value="">选择录入场景…</option>
+            <option value="landed_clip">已完成的单动作 Clip</option>
+            <option value="unfinished_clip">待完善的单动作 Clip</option>
+            <option value="line">连续动作 Line</option>
+            <option value="b_roll">环境 / 过渡 B-roll</option>
+          </select>
+          <p class="bm-field__help" data-preset-status>选择后会填写内容类型、动作类型、状态与 HUD 建议值；成员、动作名和地点仍由你确认。</p>
+        </div>
+      </fieldset>
       <fieldset class="bm-group skf-source"><legend class="bm-group__legend"><span>01 / SOURCE VIDEO</span></legend>
         {% if existing_media %}<div class="skf-unique" role="note"><strong>ONE CLIP / ONE SOURCE</strong><span>当前源视频：{{ existing_media.get_state_display }} · {{ existing_media.source_size|filesizeformat }}。选择新文件将替换唯一源视频，不会追加第二条。</span></div>{% endif %}
         <label class="skf-drop" for="{{ form.source.id_for_label }}" data-skate-drop>
@@ -71,4 +84,4 @@
   </form>
 </div></div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/boards/skate-form.js' %}"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/boards/skate-form.js' %}"></script><script src="{% static 'js/boards/form-presets.js' %}"></script>{% endblock %}

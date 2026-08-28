@@ -1,0 +1,85 @@
+# Host Nginx boundary. Build/install Nginx against the project-approved OpenSSL
+# 4.0 patch before enabling the admin vhost. Replace every __PLACEHOLDER__.
+
+upstream poweradapter_django {
+    server 127.0.0.1:18000;
+    keepalive 16;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name __PUBLIC_HOST__;
+
+    ssl_certificate __PUBLIC_CERT_PEM__;
+    ssl_certificate_key __PUBLIC_KEY_PEM__;
+    client_max_body_size 150m;
+
+    location = /healthz/ { return 404; }
+    location ^~ /super_admin/ { return 404; }
+
+    # Must appear before the generic /media/ alias. This snippet rejects
+    # /media/skate/tmp/ and serves only immutable derived SK8 assets.
+    include __SKATE_MEDIA_LOCATION_CONF__;
+
+    location /static/ {
+        alias __PROJECT_ROOT__/deploy/var/static/;
+        access_log off;
+        expires 7d;
+    }
+
+    location /media/ {
+        alias __PROJECT_ROOT__/deploy/var/media/;
+        autoindex off;
+        add_header X-Content-Type-Options nosniff always;
+    }
+
+    location / {
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-PA-Proxy-Auth "";
+        proxy_set_header X-PA-MTLS-Verify "";
+        proxy_set_header X-PA-MTLS-Serial "";
+        proxy_set_header X-PA-MTLS-Issuer-DN "";
+        proxy_set_header X-PA-MTLS-Subject-DN "";
+        proxy_set_header X-PA-MTLS-Profile "";
+        proxy_read_timeout 180s;
+        proxy_pass http://poweradapter_django;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name __ADMIN_HOST__;
+
+    ssl_certificate __ADMIN_CERT_PEM__;
+    ssl_certificate_key __ADMIN_KEY_PEM__;
+    ssl_client_certificate __CLIENT_CA_CHAIN_PEM__;
+    ssl_crl __CLIENT_CA_CRL_PEM__;
+    ssl_verify_client on;
+    ssl_verify_depth 2;
+    client_max_body_size 150m;
+
+    location = /healthz/ { return 404; }
+    include __SKATE_MEDIA_LOCATION_CONF__;
+
+    location /media/ {
+        alias __PROJECT_ROOT__/deploy/var/media/;
+        autoindex off;
+        add_header X-Content-Type-Options nosniff always;
+    }
+
+    location / {
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-PA-Proxy-Auth "__MTLS_PROXY_AUTH_SECRET__";
+        proxy_set_header X-PA-MTLS-Verify $ssl_client_verify;
+        proxy_set_header X-PA-MTLS-Serial $ssl_client_serial;
+        proxy_set_header X-PA-MTLS-Issuer-DN $ssl_client_i_dn;
+        proxy_set_header X-PA-MTLS-Subject-DN $ssl_client_s_dn;
+        proxy_set_header X-PA-MTLS-Profile standard-tls;
+        proxy_read_timeout 180s;
+        proxy_pass http://poweradapter_django;
+    }
+}

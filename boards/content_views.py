@@ -2,10 +2,11 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.db.models import Count, Max, Q
 from django.forms import Form, modelform_factory
 from django.http import Http404
 from django.urls import reverse
+from django.utils import timezone
 from django.views.generic import (
     CreateView,
     DeleteView,
@@ -16,15 +17,22 @@ from django.views.generic import (
 )
 
 from boards.content_forms import (
+    CodingExperimentForm,
+    CodingPrincipleForm,
     CodingProjectForm,
     MusicRecordForm,
+    MusicArtistForm,
     SkateClipForm,
     SkateClipMediaUploadForm,
 )
 from boards.models import (
     AppleRecord,
     Board,
+    CodingExperiment,
+    CodingPrinciple,
     CodingProject,
+    MusicScope,
+    MusicArtist,
     SkateClip,
     SkateClipMedia,
     SpotifyRecord,
@@ -143,6 +151,34 @@ class MusicRecordCreateView(MusicModelMixin, CreateView):
     def get_form_class(self):
         return modelform_factory(self.model, form=MusicRecordForm)
 
+    def get_initial(self):
+        initial = super().get_initial()
+        today = timezone.localdate()
+        initial.update(
+            {
+                "scope": (
+                    MusicScope.MONTHLY
+                    if self.provider == "apple"
+                    else MusicScope.YEARLY
+                ),
+                "year": today.year,
+            }
+        )
+        if self.provider == "apple":
+            initial["month"] = today.month
+        scope = self.request.GET.get("scope", "").strip()
+        year = self.request.GET.get("year", "").strip()
+        month = self.request.GET.get("month", "").strip()
+        if scope in MusicScope.values:
+            initial["scope"] = scope
+            if scope == MusicScope.YEARLY:
+                initial["month"] = None
+        if year.isdigit():
+            initial["year"] = int(year)
+        if scope == MusicScope.MONTHLY and month.isdigit() and 1 <= int(month) <= 12:
+            initial["month"] = int(month)
+        return initial
+
     def form_valid(self, form):
         form.instance.board = self.board
         messages.success(self.request, "音乐记录已创建。")
@@ -167,6 +203,104 @@ class MusicRecordDeleteView(MusicModelMixin, DeleteView):
 
     def form_valid(self, form):
         messages.success(self.request, "音乐记录已删除。")
+        return super().form_valid(form)
+
+
+class MusicPeriodListView(MusicModelMixin, ListView):
+    """Provider-scoped overview of the flat records grouped into edit periods."""
+
+    template_name = "pages/boards/manage/music/period_list.html"
+    context_object_name = "periods"
+    paginate_by = 24
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        year = self.request.GET.get("year", "").strip()
+        scope = self.request.GET.get("scope", "").strip()
+        if year.isdigit():
+            queryset = queryset.filter(year=int(year))
+        if scope in MusicScope.values:
+            queryset = queryset.filter(scope=scope)
+        return (
+            queryset.values("scope", "year", "month")
+            .annotate(record_count=Count("pk"), last_updated=Max("updated_at"))
+            .order_by("-year", "-month", "scope")
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(
+            {
+                "periods": context["page_obj"],
+                "filters": {
+                    "year": self.request.GET.get("year", ""),
+                    "scope": self.request.GET.get("scope", ""),
+                },
+            }
+        )
+        return context
+
+
+class MusicArtistMixin(BoardContentManagerMixin):
+    board_slug = "music"
+    model = MusicArtist
+    form_class = MusicArtistForm
+
+    def get_queryset(self):
+        return MusicArtist.objects.filter(board=self.board)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.instance.board = self.board
+        return form
+
+    def get_success_url(self):
+        return reverse("boards:music-artist-list")
+
+
+class MusicArtistListView(MusicArtistMixin, ListView):
+    template_name = "pages/boards/manage/music/artist_list.html"
+    context_object_name = "artists"
+    paginate_by = 30
+
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by("name", "pk")
+        query = self.request.GET.get("query", "").strip()
+        if query:
+            queryset = queryset.filter(name__icontains=query)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["artists"] = context["page_obj"]
+        context["query"] = self.request.GET.get("query", "")
+        return context
+
+
+class MusicArtistCreateView(MusicArtistMixin, CreateView):
+    template_name = "pages/boards/manage/music/artist_form.html"
+
+    def form_valid(self, form):
+        form.instance.board = self.board
+        messages.success(self.request, "音乐人已创建。")
+        return super().form_valid(form)
+
+
+class MusicArtistUpdateView(MusicArtistMixin, UpdateView):
+    template_name = "pages/boards/manage/music/artist_form.html"
+
+    def form_valid(self, form):
+        form.instance.board = self.board
+        messages.success(self.request, "音乐人资料已更新。")
+        return super().form_valid(form)
+
+
+class MusicArtistDeleteView(MusicArtistMixin, DeleteView):
+    template_name = "pages/boards/manage/music/artist_delete_confirm.html"
+    form_class = Form
+
+    def form_valid(self, form):
+        messages.success(self.request, "音乐人已删除；历史记录保留但解除关联。")
         return super().form_valid(form)
 
 
@@ -502,6 +636,204 @@ class CodingProjectDeleteView(CodingProjectMixin, DeleteView):
     def form_valid(self, form):
         messages.success(self.request, "项目已删除。")
         return super().form_valid(form)
+
+
+class CodingPrincipleMixin(BoardContentManagerMixin):
+    board_slug = "coding"
+    model = CodingPrinciple
+    form_class = CodingPrincipleForm
+
+    def get_queryset(self):
+        return CodingPrinciple.objects.filter(board=self.board)
+
+    def get_success_url(self):
+        return reverse("boards:coding-principle-list")
+
+
+class CodingPrincipleListView(CodingPrincipleMixin, ListView):
+    template_name = "pages/boards/manage/coding/secondary_list.html"
+    context_object_name = "records"
+    paginate_by = 30
+
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by("order", "pk")
+        query = self.request.GET.get(
+            "query",
+            self.request.GET.get("q", ""),
+        ).strip()
+        if query:
+            queryset = queryset.filter(
+                Q(title__icontains=query) | Q(body__icontains=query)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(
+            {
+                "records": context["page_obj"],
+                "filters": {"query": self.request.GET.get("query", "")},
+                "content_kind": "principle",
+                "content_title": "CODING PRINCIPLES",
+                "content_label": "PRINCIPLE",
+                "create_url_name": "boards:coding-principle-create",
+                "update_url_name": "boards:coding-principle-update",
+                "delete_url_name": "boards:coding-principle-delete",
+                "list_url_name": "boards:coding-principle-list",
+            }
+        )
+        return context
+
+
+class CodingPrincipleCreateView(CodingPrincipleMixin, CreateView):
+    template_name = "pages/boards/manage/coding/secondary_form.html"
+
+    def form_valid(self, form):
+        form.instance.board = self.board
+        messages.success(self.request, "编码原则已创建。")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(_coding_secondary_form_context("principle"))
+        return context
+
+
+class CodingPrincipleUpdateView(CodingPrincipleMixin, UpdateView):
+    template_name = "pages/boards/manage/coding/secondary_form.html"
+
+    def form_valid(self, form):
+        form.instance.board = self.board
+        messages.success(self.request, "编码原则已更新。")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(_coding_secondary_form_context("principle"))
+        return context
+
+
+class CodingPrincipleDeleteView(CodingPrincipleMixin, DeleteView):
+    template_name = "pages/boards/manage/coding/secondary_delete_confirm.html"
+    form_class = Form
+
+    def form_valid(self, form):
+        messages.success(self.request, "编码原则已删除。")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(_coding_secondary_form_context("principle"))
+        return context
+
+
+class CodingExperimentMixin(BoardContentManagerMixin):
+    board_slug = "coding"
+    model = CodingExperiment
+    form_class = CodingExperimentForm
+
+    def get_queryset(self):
+        return CodingExperiment.objects.filter(board=self.board)
+
+    def get_success_url(self):
+        return reverse("boards:coding-experiment-list")
+
+
+class CodingExperimentListView(CodingExperimentMixin, ListView):
+    template_name = "pages/boards/manage/coding/secondary_list.html"
+    context_object_name = "records"
+    paginate_by = 30
+
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by("-date", "order", "pk")
+        query = self.request.GET.get(
+            "query",
+            self.request.GET.get("q", ""),
+        ).strip()
+        year = self.request.GET.get("year", "").strip()
+        if query:
+            queryset = queryset.filter(title__icontains=query)
+        if year.isdigit():
+            queryset = queryset.filter(date__year=int(year))
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(
+            {
+                "records": context["page_obj"],
+                "filters": {
+                    "query": self.request.GET.get("query", ""),
+                    "year": self.request.GET.get("year", ""),
+                },
+                "content_kind": "experiment",
+                "content_title": "CODING EXPERIMENTS",
+                "content_label": "EXPERIMENT",
+                "create_url_name": "boards:coding-experiment-create",
+                "update_url_name": "boards:coding-experiment-update",
+                "delete_url_name": "boards:coding-experiment-delete",
+                "list_url_name": "boards:coding-experiment-list",
+            }
+        )
+        return context
+
+
+class CodingExperimentCreateView(CodingExperimentMixin, CreateView):
+    template_name = "pages/boards/manage/coding/secondary_form.html"
+
+    def form_valid(self, form):
+        form.instance.board = self.board
+        messages.success(self.request, "实验记录已创建。")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(_coding_secondary_form_context("experiment"))
+        return context
+
+
+class CodingExperimentUpdateView(CodingExperimentMixin, UpdateView):
+    template_name = "pages/boards/manage/coding/secondary_form.html"
+
+    def form_valid(self, form):
+        form.instance.board = self.board
+        messages.success(self.request, "实验记录已更新。")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(_coding_secondary_form_context("experiment"))
+        return context
+
+
+class CodingExperimentDeleteView(CodingExperimentMixin, DeleteView):
+    template_name = "pages/boards/manage/coding/secondary_delete_confirm.html"
+    form_class = Form
+
+    def form_valid(self, form):
+        messages.success(self.request, "实验记录已删除。")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(_coding_secondary_form_context("experiment"))
+        return context
+
+
+def _coding_secondary_form_context(content_kind):
+    if content_kind == "principle":
+        return {
+            "content_kind": content_kind,
+            "content_label": "PRINCIPLE",
+            "list_url_name": "boards:coding-principle-list",
+            "delete_url_name": "boards:coding-principle-delete",
+        }
+    return {
+        "content_kind": content_kind,
+        "content_label": "EXPERIMENT",
+        "list_url_name": "boards:coding-experiment-list",
+        "delete_url_name": "boards:coding-experiment-delete",
+    }
 
 
 class PadifLocalView(TemplateView):

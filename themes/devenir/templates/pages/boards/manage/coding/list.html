@@ -35,6 +35,8 @@ Boards Manage — Coding 项目列表（Devenir 管理壳，待后端授权接�
             {% endif %}
         </header>
 
+        {% include 'pages/boards/manage/coding/_tabs.html' with content_kind='project' %}
+
         <form class="bm-filters" method="get" action="{% url 'boards:coding-manage-list' %}" role="search" aria-label="筛选项目">
             <div class="bm-filters__field">
                 <label for="bm-f-type">TYPE</label>

@@ -404,8 +404,8 @@ LOGGING = {
     },
 }
 
-REDIS_CACHE_URL = "redis://127.0.0.1:6379/1"
-REDIS_SESSIONS_URL = "redis://127.0.0.1:6379/2"
+REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL", "redis://127.0.0.1:6379/1")
+REDIS_SESSIONS_URL = os.getenv("REDIS_SESSIONS_URL", "redis://127.0.0.1:6379/2")
 
 CACHES = {
     "default": {
@@ -520,6 +520,8 @@ MONGO = {
     "DB_NAME": os.getenv("MONGO_DB_NAME", "poweradapter_mongo"),
     "DB_USER": os.getenv("MONGO_DB_USER", ""),
     "DB_PASSWORD": os.getenv("MONGO_DB_PASSWORD", ""),
+    "AUTH_SOURCE": os.getenv("MONGO_AUTH_SOURCE", ""),
+    "REPLICA_SET": os.getenv("MONGO_REPLICA_SET", ""),
     "COLLECTION": os.getenv("MONGO_AUDIT_COLLECTION", "audit_events"),
     "LEGACY_COLLECTION": os.getenv("MONGO_LEGACY_AUDIT_COLLECTION", "logs"),
     "HEAD_COLLECTION": os.getenv("MONGO_AUDIT_HEAD_COLLECTION", "audit_chain_heads"),

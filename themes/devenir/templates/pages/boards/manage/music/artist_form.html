@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{% if object %}Edit{% else %}New{% endif %} Music Artist · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}{% endblock %}
+{% block content %}<div class="bm-page"><div class="container">
+  <header class="bm-head"><div class="bm-head__titles"><p class="bm-kicker">MANAGE / MUSIC / ARTIST</p><h1 class="bm-title">{% if object %}EDIT{% else %}NEW{% endif %} ARTIST</h1><p class="bm-sub">头像会同时用于 Spotify 年度与 Apple Music 月度排行。</p></div><a class="bm-btn" href="{% url 'boards:music-artist-list' %}">&larr; ARTIST LIBRARY</a></header>
+  <form class="bm-form" method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}{% if form.non_field_errors %}<div class="bm-form__errors-top">{{ form.non_field_errors }}</div>{% endif %}
+    <fieldset class="bm-group"><legend class="bm-group__legend"><span>01 / ARTIST IDENTITY</span></legend><div class="bm-group__grid">{% for field in form %}<div class="bm-field{% if field.name == 'avatar' %} bm-field--wide{% endif %}">{{ field.label_tag }}{{ field }}{% if field.errors %}<div class="bm-field__errors">{{ field.errors }}</div>{% endif %}</div>{% endfor %}</div></fieldset>
+    <div class="bm-form__actions"><button class="bm-btn bm-btn--primary" type="submit">{% if object %}SAVE CHANGES{% else %}CREATE ARTIST{% endif %}</button><a class="bm-btn" href="{% url 'boards:music-artist-list' %}">CANCEL</a></div>
+  </form>
+</div></div>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/boards/image-drop.js' %}"></script>{% endblock %}

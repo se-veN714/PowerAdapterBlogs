@@ -19,6 +19,7 @@
 import functools
 from pathlib import Path
 from typing import TYPE_CHECKING
+import unicodedata
 import uuid
 
 from django.conf import settings
@@ -977,6 +978,65 @@ class MusicScope(models.TextChoices):
     MONTHLY = "monthly", "Monthly"
 
 
+def normalize_music_artist_name(value):
+    """Return the stable, provider-independent identity key for an artist."""
+    normalized = unicodedata.normalize("NFKC", str(value or ""))
+    return " ".join(normalized.casefold().split())
+
+
+class MusicArtist(FixedBoardContentModel):
+    """Reusable artist identity shared by Spotify and Apple period records."""
+
+    BOARD_SLUG = "music"
+
+    board = models.ForeignKey(
+        Board,
+        on_delete=models.CASCADE,
+        related_name="music_artists",
+        default=_board_default("music"),
+        verbose_name="板块",
+    )
+    name = models.CharField(max_length=128, verbose_name="艺人名")
+    normalized_name = models.CharField(max_length=128, editable=False)
+    avatar = models.ImageField(
+        upload_to=board_content_cover_upload_to,
+        validators=[validate_uploaded_image],
+        blank=True,
+        verbose_name="艺人头像",
+    )
+    spotify_url = models.URLField(blank=True, verbose_name="Spotify 链接")
+    apple_music_url = models.URLField(blank=True, verbose_name="Apple Music 链接")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        ordering = ["name", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["board", "normalized_name"],
+                name="unique_music_artist_name_per_board",
+            )
+        ]
+        verbose_name = "音乐人"
+        verbose_name_plural = "音乐人"
+
+    def _synchronize_normalized_name(self):
+        self.normalized_name = normalize_music_artist_name(self.name)
+        if not self.normalized_name:
+            raise ValidationError({"name": "艺人名不能为空。"})
+
+    def clean(self):
+        super().clean()
+        self._synchronize_normalized_name()
+
+    def save(self, *args, **kwargs):
+        self._synchronize_normalized_name()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
 class MusicRecordBase(FixedBoardContentModel):
     """某 provider 在某周期的一条音乐指标记录（平铺，无快照/条目拆分）。
 
@@ -999,6 +1059,15 @@ class MusicRecordBase(FixedBoardContentModel):
         verbose_name="板块",
         default=_board_default("music"),
         help_text="由模型类型固定为 music，不可手动选择",
+    )
+    artist = models.ForeignKey(
+        MusicArtist,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="%(class)s_records",
+        verbose_name="关联音乐人",
+        help_text="艺人排行建议选择；歌曲记录可选，用于统一音乐人身份。",
     )
     title = models.CharField(max_length=128, verbose_name="标题")
     scope = models.CharField(
@@ -1036,10 +1105,23 @@ class MusicRecordBase(FixedBoardContentModel):
         blank=True,
         verbose_name="封面",
     )
+
     external_url = models.URLField(blank=True, verbose_name="外部链接")
     display_order = models.PositiveSmallIntegerField(default=0, verbose_name="排序")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    def _validate_artist_board(self):
+        if self.artist_id is not None and self.board_id != self.artist.board_id:
+            raise ValidationError({"artist": "关联音乐人必须归属同一 Music 板块。"})
+
+    def clean(self):
+        super().clean()
+        self._validate_artist_board()
+
+    def save(self, *args, **kwargs):
+        self._validate_artist_board()
+        return super().save(*args, **kwargs)
 
     class Meta:
         abstract = True

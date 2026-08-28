@@ -1,4 +1,5 @@
 from datetime import datetime
+from unittest.mock import patch
 
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
@@ -7,12 +8,64 @@ from config.views import server_error
 
 
 class SiteInformationPageTest(TestCase):
-    def test_about_page_is_public_and_explains_board_boundary(self):
+    @override_settings(
+        CACHES={
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            },
+            "sessions": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            },
+        }
+    )
+    def test_healthz_checks_database_and_cache(self):
+        response = self.client.get(reverse("healthz"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"ok\n")
+
+    @override_settings(
+        CACHES={
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            },
+            "sessions": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            },
+        }
+    )
+    def test_healthz_uses_an_isolated_cache_key_per_probe(self):
+        class RecordingCache:
+            def __init__(self):
+                self.values = {}
+                self.set_keys = []
+
+            def set(self, key, value, timeout):
+                self.set_keys.append(key)
+                self.values[key] = value
+
+            def get(self, key):
+                return self.values.get(key)
+
+            def delete(self, key):
+                self.values.pop(key, None)
+
+        cache = RecordingCache()
+        with patch("config.views.caches", {"default": cache}):
+            first = self.client.get(reverse("healthz"))
+            second = self.client.get(reverse("healthz"))
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(cache.set_keys), 2)
+        self.assertNotEqual(cache.set_keys[0], cache.set_keys[1])
+
+    def test_about_page_is_public_and_explains_three_plus_n_fields(self):
         response = self.client.get(reverse("about"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "每个板块都是独立表达")
-        self.assertContains(response, "BoardMembership")
+        self.assertContains(response, "三个已生成的场域")
+        self.assertContains(response, "Something will devenir here")
 
     def test_privacy_page_is_public_and_documents_retention(self):
         response = self.client.get(reverse("privacy"))

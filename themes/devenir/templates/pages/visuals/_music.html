@@ -1,7 +1,17 @@
-<div class="spectrum-panel" role="img" aria-label="Animated music frequency spectrum">
-    <div class="spectrum-grid" aria-hidden="true"></div>
-    <div class="spectrum-bars" data-spectrum aria-hidden="true"></div>
-    <div class="spectrum-labels" aria-hidden="true">
-        <span>60Hz</span><span>250</span><span>1k</span><span>4k</span><span>16kHz</span>
+{% load static %}
+<div class="music-visual-shell" role="img" aria-label="Saya listening to music over an animated frequency spectrum">
+    <div class="spectrum-panel" aria-hidden="true">
+        <div class="spectrum-grid"></div>
+        <div class="spectrum-bars" data-spectrum></div>
+        <div class="spectrum-labels">
+            <span>60Hz</span><span>250</span><span>1k</span><span>4k</span><span>16kHz</span>
+        </div>
     </div>
+    <img class="music-listener-image"
+         src="{% static 'images/boards/music-editorial-saya.webp' %}"
+         width="1536"
+         height="1024"
+         loading="lazy"
+         decoding="async"
+         alt="">
 </div>

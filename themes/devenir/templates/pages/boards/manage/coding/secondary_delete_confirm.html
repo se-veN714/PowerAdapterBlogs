@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Coding {{ content_label|title }} · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles"><p class="bm-kicker">MANAGE / CODING</p><h1 class="bm-title">DELETE {{ content_label }}</h1></div>
+            <a class="bm-btn" href="{% url list_url_name %}">&larr; BACK TO LIST</a>
+        </header>
+        <div class="bm-danger" role="alertdialog" aria-labelledby="bm-danger-title" aria-describedby="bm-danger-warn">
+            <p class="bm-danger__kicker">DESTRUCTIVE ACTION</p>
+            <h2 class="bm-danger__title" id="bm-danger-title">确认删除这条{% if content_kind == 'principle' %}原则{% else %}实验记录{% endif %}？</h2>
+            <div class="bm-danger__summary">
+                <span><strong>{{ object }}</strong></span>
+                {% if content_kind == 'principle' and object.body %}<span>{{ object.body|truncatechars:120 }}</span>{% endif %}
+            </div>
+            <p class="bm-danger__warn" id="bm-danger-warn">删除后该记录将<em>立即从公开 Coding Index 消失</em>，且不能在管理界面恢复。</p>
+            <form method="post" action="{% url delete_url_name pk=object.pk %}">
+                {% csrf_token %}
+                <div class="bm-danger__actions">
+                    <button class="bm-btn bm-btn--danger" type="submit">CONFIRM DELETE</button>
+                    <a class="bm-btn" href="{% url list_url_name %}">CANCEL</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

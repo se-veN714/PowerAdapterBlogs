@@ -25,7 +25,7 @@ client_max_body_size 150m;
 # =============================================================================
 
 location ^~ /media/skate/ {
-    alias /srv/poweradapter/media/skate/;   # TODO 部署时改为实际派生根目录
+    alias __PROJECT_ROOT__/deploy/var/media/skate/;
 
     autoindex off;
 

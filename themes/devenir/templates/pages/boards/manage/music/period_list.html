@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Music Periods · Manage · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">
+{% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bm-page">
+    <div class="container">
+        <header class="bm-head">
+            <div class="bm-head__titles">
+                <p class="bm-kicker">MANAGE / MUSIC / {{ provider|upper }}</p>
+                <h1 class="bm-title">MUSIC PERIODS</h1>
+                <p class="bm-sub">按年度或月度组织总结；底层记录仍可独立编辑。</p>
+            </div>
+            <a class="bm-btn bm-btn--primary" href="{% url 'boards:music-manage-create' provider=provider %}">+ NEW RECORD</a>
+        </header>
+
+        <ul class="bm-tabs" role="list" aria-label="Provider">
+            <li><a class="bm-tab{% if provider == 'spotify' %} is-active{% endif %}" href="{% url 'boards:music-period-list' provider='spotify' %}"{% if provider == 'spotify' %} aria-current="page"{% endif %}>SPOTIFY</a></li>
+            <li><a class="bm-tab{% if provider == 'apple' %} is-active{% endif %}" href="{% url 'boards:music-period-list' provider='apple' %}"{% if provider == 'apple' %} aria-current="page"{% endif %}>APPLE MUSIC</a></li>
+            <li><a class="bm-tab" href="{% url 'boards:music-manage-list' provider=provider %}">ALL RECORDS</a></li>
+            <li><a class="bm-tab" href="{% url 'boards:music-artist-list' %}">ARTISTS</a></li>
+        </ul>
+
+        <form class="bm-filters" method="get" action="{% url 'boards:music-period-list' provider=provider %}" aria-label="筛选音乐周期">
+            <div class="bm-filters__field">
+                <label for="bm-f-scope">SCOPE</label>
+                <select id="bm-f-scope" name="scope">
+                    <option value="">全部</option>
+                    <option value="yearly"{% if filters.scope == 'yearly' %} selected{% endif %}>YEARLY</option>
+                    <option value="monthly"{% if filters.scope == 'monthly' %} selected{% endif %}>MONTHLY</option>
+                </select>
+            </div>
+            <div class="bm-filters__field">
+                <label for="bm-f-year">YEAR</label>
+                <input id="bm-f-year" type="number" name="year" value="{{ filters.year }}" min="2000" max="2100" placeholder="全部">
+            </div>
+            <button class="bm-btn" type="submit">APPLY</button>
+        </form>
+
+        {% if periods %}
+        <div class="bm-table" role="table" aria-label="Music periods">
+            <div class="bm-row bm-row--head" role="row" style="--bm-cols:7rem 7rem 1fr 10rem auto;">
+                <span role="columnheader">PERIOD</span>
+                <span role="columnheader">SCOPE</span>
+                <span role="columnheader">RECORDS</span>
+                <span role="columnheader">UPDATED</span>
+                <span role="columnheader">ACTIONS</span>
+            </div>
+            {% for period in periods %}
+            <div class="bm-row" role="row" style="--bm-cols:7rem 7rem 1fr 10rem auto;">
+                <span class="bm-cell bm-cell--accent" role="cell">{{ period.year }}{% if period.month %}.{{ period.month|stringformat:"02d" }}{% endif %}</span>
+                <span class="bm-cell" role="cell"><span class="bm-tag">{{ period.scope|upper }}</span></span>
+                <span class="bm-cell bm-cell--strong" role="cell">{{ period.record_count }} RECORD{{ period.record_count|pluralize:"S" }}</span>
+                <span class="bm-cell bm-cell--dim" role="cell">{{ period.last_updated|date:"Y.m.d H:i" }}</span>
+                <span class="bm-actions" role="cell">
+                    <a href="{% url 'boards:music-manage-list' provider=provider %}?year={{ period.year }}{% if period.month %}&month={{ period.month }}{% endif %}">OPEN RECORDS</a>
+                    <a href="{% url 'boards:music-manage-create' provider=provider %}?scope={{ period.scope }}&year={{ period.year }}{% if period.month %}&month={{ period.month }}{% endif %}">+ ADD</a>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if periods.paginator.num_pages > 1 %}
+        <nav class="bm-pager" aria-label="分页">
+            <span>PAGE {{ periods.number }} / {{ periods.paginator.num_pages }}</span>
+            <span class="bm-pager__links">
+                {% if periods.has_previous %}<a class="bm-btn" href="?page={{ periods.previous_page_number }}&scope={{ filters.scope|urlencode }}&year={{ filters.year|urlencode }}">&larr; PREV</a>{% endif %}
+                {% if periods.has_next %}<a class="bm-btn" href="?page={{ periods.next_page_number }}&scope={{ filters.scope|urlencode }}&year={{ filters.year|urlencode }}">NEXT &rarr;</a>{% endif %}
+            </span>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="bm-empty">
+            <strong>NO PERIODS</strong>
+            {% if filters.scope or filters.year %}当前筛选条件下没有周期。<a href="{% url 'boards:music-period-list' provider=provider %}">清除筛选</a>{% else %}该 provider 尚无总结记录，请先新建一条记录。{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

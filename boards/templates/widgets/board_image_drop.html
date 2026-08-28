@@ -1,0 +1,19 @@
+<div class="bm-image-drop" data-board-image-drop>
+    <label class="bm-image-drop__target" for="{{ widget.attrs.id }}" data-board-image-target>
+        <img data-board-image-preview{% if widget.is_initial %} src="{{ widget.value.url }}"{% else %} hidden{% endif %} alt="">
+        <span class="bm-image-drop__idle" data-board-image-idle{% if widget.is_initial %} hidden{% endif %}>
+            <b>DROP COVER / SELECT IMAGE</b>
+            <small>JPEG · PNG · GIF · WEBP / ≤ 5 MiB</small>
+        </span>
+        <input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+    </label>
+    <p class="bm-image-drop__meta" data-board-image-meta aria-live="polite">
+        {% if widget.is_initial %}CURRENT COVER / DROP OR SELECT TO REPLACE{% else %}CLIENT PREVIEW READY · SERVER IMAGE VALIDATION IS AUTHORITATIVE{% endif %}
+    </p>
+    {% if widget.is_initial and not widget.required %}
+    <label class="bm-image-drop__clear" for="{{ widget.checkbox_id }}">
+        <input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}"{% if widget.attrs.disabled %} disabled{% endif %}{% if widget.attrs.checked %} checked{% endif %}>
+        <span>REMOVE CURRENT COVER</span>
+    </label>
+    {% endif %}
+</div>

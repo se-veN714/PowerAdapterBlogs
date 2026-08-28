@@ -1,7 +1,31 @@
 from django import forms
 from django.conf import settings
 
-from boards.models import CodingProject, MusicScope, SkateClip, SpotifyRecord
+from PowerAdapterBlogs.image_validation import MAX_IMAGE_SIZE
+from boards.models import (
+    CodingExperiment,
+    CodingPrinciple,
+    CodingProject,
+    MusicArtist,
+    MusicScope,
+    SkateClip,
+    SpotifyRecord,
+    normalize_music_artist_name,
+)
+
+
+class BoardImageDropInput(forms.ClearableFileInput):
+    template_name = "widgets/board_image_drop.html"
+
+    def __init__(self, attrs=None):
+        defaults = {
+            "accept": "image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp",
+            "data-board-image-input": "",
+            "data-board-image-max-bytes": str(MAX_IMAGE_SIZE),
+        }
+        if attrs:
+            defaults.update(attrs)
+        super().__init__(defaults)
 
 
 class SkateClipForm(forms.ModelForm):
@@ -138,6 +162,7 @@ class MusicRecordForm(forms.ModelForm):
         model = SpotifyRecord
         fields = (
             "title",
+            "artist",
             "scope",
             "year",
             "month",
@@ -154,7 +179,15 @@ class MusicRecordForm(forms.ModelForm):
             "external_url",
             "display_order",
         )
-        widgets = {"note": forms.Textarea(attrs={"rows": 4})}
+        widgets = {
+            "note": forms.Textarea(attrs={"rows": 4}),
+            "cover": BoardImageDropInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["artist"].queryset = MusicArtist.objects.order_by("name")
+        self.fields["cover"].label = "歌曲 / 条目封面"
 
     def clean(self):
         cleaned = super().clean()
@@ -190,7 +223,10 @@ class CodingProjectForm(forms.ModelForm):
             "is_active",
             "order",
         )
-        widgets = {"description": forms.Textarea(attrs={"rows": 4})}
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 4}),
+            "cover": BoardImageDropInput(),
+        }
 
     def clean(self):
         cleaned = super().clean()
@@ -202,3 +238,39 @@ class CodingProjectForm(forms.ModelForm):
         if project_type == CodingProject.ProjectType.EXTERNAL and not demo_url:
             self.add_error("demo_url", "外部项目必须填写演示或项目链接。")
         return cleaned
+
+
+class MusicArtistForm(forms.ModelForm):
+    class Meta:
+        model = MusicArtist
+        fields = ("name", "avatar", "spotify_url", "apple_music_url")
+        widgets = {"avatar": BoardImageDropInput()}
+
+    def clean(self):
+        cleaned = super().clean()
+        normalized_name = normalize_music_artist_name(cleaned.get("name"))
+        board_id = self.instance.board_id
+        if normalized_name and board_id:
+            duplicate = MusicArtist.objects.filter(
+                board_id=board_id,
+                normalized_name=normalized_name,
+            )
+            if self.instance.pk:
+                duplicate = duplicate.exclude(pk=self.instance.pk)
+            if duplicate.exists():
+                self.add_error("name", "该音乐人已存在，请直接编辑已有记录。")
+        return cleaned
+
+
+class CodingPrincipleForm(forms.ModelForm):
+    class Meta:
+        model = CodingPrinciple
+        fields = ("index", "title", "body", "order")
+        widgets = {"body": forms.Textarea(attrs={"rows": 6})}
+
+
+class CodingExperimentForm(forms.ModelForm):
+    class Meta:
+        model = CodingExperiment
+        fields = ("date", "title", "order")
+        widgets = {"date": forms.DateInput(attrs={"type": "date"})}

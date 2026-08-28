@@ -1,13 +1,29 @@
-<div class="code-terminal" role="img" aria-label="Python pseudocode expressing beauty and inner order">
-    <div class="code-terminal-bar">
-        <span class="terminal-light"></span>
-        <span>inner_order.py</span>
-        <span class="terminal-status">CONTEMPLATING</span>
-    </div>
-    <div class="code-scroll-window">
-        <div class="code-marquee-track">
-            {% include 'pages/visuals/_coding_loop.html' %}
-            <div aria-hidden="true">{% include 'pages/visuals/_coding_loop.html' %}</div>
+{% load static %}
+<figure class="coding-editorial-art" role="img" aria-label="沙耶注视着由页面、组件和状态连接共同生成的 Web 系统">
+    <img class="coding-editorial-art__image"
+         src="{% static 'images/boards/coding-editorial-saya-v2.webp' %}"
+         width="1536"
+         height="1024"
+         loading="lazy"
+         decoding="async"
+         alt="">
+    <div class="code-terminal coding-editorial-code" aria-hidden="true">
+        <div class="code-terminal-bar">
+            <span class="terminal-light"></span>
+            <span>inner_order.py</span>
+            <span class="terminal-status">GENERATING</span>
+        </div>
+        <div class="code-scroll-window">
+            <div class="code-marquee-track">
+                {% include 'pages/visuals/_coding_compact_loop.html' %}
+                <div>{% include 'pages/visuals/_coding_compact_loop.html' %}</div>
+            </div>
+        </div>
+        <div class="coding-editorial-code__composer">
+            <span class="coding-editorial-code__prompt">›</span>
+            <code data-code-typing></code>
+            <span class="coding-editorial-code__cursor" aria-hidden="true"></span>
         </div>
     </div>
-</div>
+    <span class="coding-editorial-art__signal" aria-hidden="true">STATE / GENERATING</span>
+</figure>

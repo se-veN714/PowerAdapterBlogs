@@ -24,7 +24,7 @@ Coding 页面 — PowerAdapter 项目档案页。
 {% block mathjax %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/coding/coding.css' %}">
+<link rel="stylesheet" href="{% static 'css/coding/coding.css' %}?v=20260828.1">
 <link rel="stylesheet" href="{% static 'css/boards/board-common.css' %}">
 {# 数据驱动：本板块 glitch 颜色来自 Board.glitch_color（seed_boards 写入库），供 coding.css 派生全部强调色 #}
 <style>:root{--glitch-c:{{ board.glitch_color }};}</style>
@@ -32,6 +32,12 @@ Coding 页面 — PowerAdapter 项目档案页。
 
 {% block hero %}
 <section class="coding-hero" aria-label="Coding">
+    <div class="coding-hero__art-frame" aria-hidden="true">
+        <img class="coding-hero__art"
+             src="{% static 'images/boards/coding-hero-saya.webp' %}?v=20260827.2"
+             width="1536" height="1024" alt=""
+             fetchpriority="high" decoding="async">
+    </div>
     <div class="container coding-hero__grid">
         <div class="coding-hero__intro reveal">
             <h1 class="coding-title">
@@ -41,8 +47,8 @@ Coding 页面 — PowerAdapter 项目档案页。
             </h1>
             <p class="coding-subtitle">BUILT TO BE USED</p>
             <p class="coding-tagline">
-                I build tools from real needs.<br>
-                I reduce until the structure becomes clear.
+                人与 AI 接入同一个超级组装体，精神与代码协行流动。<br>
+                创造与秩序避离对立，协作中共同生成。
             </p>
             <div class="coding-meta">
                 <div class="coding-meta__row">
@@ -113,111 +119,121 @@ Coding 页面 — PowerAdapter 项目档案页。
 {% block content %}
 {% include 'pages/boards/_board_manage_entry.html' %}
 <article class="coding-page">
-    <section class="coding-section" aria-labelledby="coding-projects-title">
+    <section class="coding-section coding-builds" aria-labelledby="coding-projects-title">
         <div class="container">
             <div class="coding-section__head reveal">
                 <h2 id="coding-projects-title" class="coding-section__title">SELECTED PROJECTS</h2>
-                <p class="coding-section__hint">tools / systems / archives</p>
+                <p class="coding-section__hint">current build → connected nodes</p>
             </div>
-            <ul class="coding-projects" role="list">
-                {% for project in projects %}
-                <li class="coding-project reveal{% if project.is_featured %} coding-project--featured{% endif %}">
-                    <span class="coding-project__num">{{ project.index|stringformat:"02d" }}</span>
-                    {% if project.cover_url %}
-                    <img class="coding-project__cover" src="{{ project.cover_url }}" alt="" loading="lazy">
+            {% if featured_project %}
+            <article class="coding-workbench reveal">
+                <div class="coding-workbench__visual{% if not featured_project.cover_url %} coding-workbench__visual--fallback{% endif %}">
+                    {% if featured_project.cover_url %}
+                    <img src="{{ featured_project.cover_url }}" alt="" loading="lazy">
                     {% else %}
-                    <span class="coding-project__cover coding-project__cover--fallback" aria-hidden="true">{{ project.name|slice:":2"|upper }}</span>
+                    <span class="coding-workbench__initials" aria-hidden="true">{{ featured_project.name|slice:":2"|upper }}</span>
                     {% endif %}
-                    <div class="coding-project__main">
-                        <p class="coding-project__name">
-                            {{ project.name|upper }}
-                            {% if project.is_featured %}<span class="coding-project__badge">FEATURED</span>{% endif %}
-                        </p>
-                        <p class="coding-project__desc">{{ project.description }}</p>
+                    <span class="coding-workbench__index">PROJECT / {{ featured_project.index|stringformat:"02d" }}</span>
+                    <span class="coding-workbench__pulse" aria-hidden="true"></span>
+                </div>
+                <div class="coding-workbench__content">
+                    <p class="coding-workbench__eyebrow">CURRENT BUILD / FEATURED</p>
+                    <h3 class="coding-workbench__title">{{ featured_project.name|upper }}</h3>
+                    <p class="coding-workbench__desc">{{ featured_project.description }}</p>
+                    <dl class="coding-workbench__meta">
+                        <div><dt>STACK</dt><dd>{{ featured_project.stack|default:"—"|upper }}</dd></div>
+                        <div><dt>TYPE</dt><dd>{% if featured_project.project_type == 'github' %}GITHUB{% elif featured_project.project_type == 'local_tool' %}LOCAL TOOL{% else %}EXTERNAL{% endif %}</dd></div>
+                        <div><dt>STATE</dt><dd>{{ featured_project.status|default:"ARCHIVED"|upper }}</dd></div>
+                        <div><dt>YEAR</dt><dd>{{ featured_project.year|default:"—" }}</dd></div>
+                    </dl>
+                    <div class="coding-workbench__actions">
+                        {% if featured_project.project_type == 'local_tool' %}
+                        <a href="{% url 'boards:padif-local' %}">OPEN WORKSPACE <span>→</span></a>
+                        {% elif featured_project.repository_url %}
+                        <a href="{{ featured_project.repository_url }}" target="_blank" rel="noopener noreferrer">OPEN REPOSITORY <span>↗</span></a>
+                        {% if featured_project.demo_url %}<a class="coding-workbench__secondary" href="{{ featured_project.demo_url }}" target="_blank" rel="noopener noreferrer">LIVE DEMO ↗</a>{% endif %}
+                        {% elif featured_project.demo_url %}
+                        <a href="{{ featured_project.demo_url }}" target="_blank" rel="noopener noreferrer">OPEN PROJECT <span>↗</span></a>
+                        {% endif %}
                     </div>
-                    <span class="coding-project__stack">{{ project.stack|upper }}</span>
-                    <span class="coding-project__year">{% if project.year %}{{ project.year }}{% endif %}</span>
-                    <span class="coding-project__status">
+                </div>
+            </article>
+            {% endif %}
+
+            {% if project_nodes %}
+            <div class="coding-node-map" role="list" aria-label="Connected project nodes">
+                {% for project in project_nodes %}
+                <article class="coding-node reveal" role="listitem">
+                    <div class="coding-node__head">
+                        <span class="coding-node__num">{{ project.index|stringformat:"02d" }}</span>
                         <span class="coding-project__type coding-project__type--{{ project.project_type|default:'external' }}">
                             {% if project.project_type == 'github' %}GITHUB{% elif project.project_type == 'local_tool' %}LOCAL TOOL{% else %}EXTERNAL{% endif %}
                         </span>
-                        {% if project.status %}STATUS / {{ project.status|upper }}{% endif %}
-                    </span>
-                    <span class="coding-project__actions">
-                        {% if project.project_type == 'local_tool' %}
-                        <a class="coding-project__arrow coding-project__arrow--primary" href="{% url 'boards:padif-local' %}" aria-label="打开 {{ project.name }} 的本地工作区">→</a>
-                        {% elif project.repository_url %}
-                        <a class="coding-project__arrow coding-project__arrow--primary" href="{{ project.repository_url }}" target="_blank" rel="noopener noreferrer" aria-label="打开 {{ project.name }} 仓库">→</a>
-                        {% if project.demo_url %}
-                        <a class="coding-project__demo" href="{{ project.demo_url }}" target="_blank" rel="noopener noreferrer">DEMO ↗</a>
-                        {% endif %}
-                        {% elif project.demo_url %}
-                        <a class="coding-project__arrow coding-project__arrow--primary" href="{{ project.demo_url }}" target="_blank" rel="noopener noreferrer" aria-label="打开 {{ project.name }}">→</a>
-                        {% else %}
-                        <span class="coding-project__arrow" aria-hidden="true">→</span>
-                        {% endif %}
-                    </span>
-                </li>
-                {% empty %}
-                <li class="coding-project coding-project--empty reveal">
-                    <span class="coding-project__num">—</span>
-                    <div class="coding-project__main">
-                        <p class="coding-project__name">NO PROJECTS ON RECORD</p>
-                        <p class="coding-project__desc">项目档案尚未公开。</p>
                     </div>
-                </li>
+                    <h3 class="coding-node__title">{{ project.name|upper }}</h3>
+                    <p class="coding-node__desc">{{ project.description }}</p>
+                    <p class="coding-node__meta">{{ project.stack|default:"NO STACK RECORDED"|upper }}{% if project.year %} / {{ project.year }}{% endif %}</p>
+                    <div class="coding-node__actions">
+                        {% if project.project_type == 'local_tool' %}
+                        <a href="{% url 'boards:padif-local' %}">OPEN →</a>
+                        {% elif project.repository_url %}
+                        <a href="{{ project.repository_url }}" target="_blank" rel="noopener noreferrer">REPOSITORY ↗</a>
+                        {% if project.demo_url %}<a href="{{ project.demo_url }}" target="_blank" rel="noopener noreferrer">DEMO ↗</a>{% endif %}
+                        {% elif project.demo_url %}
+                        <a href="{{ project.demo_url }}" target="_blank" rel="noopener noreferrer">OPEN ↗</a>
+                        {% endif %}
+                    </div>
+                </article>
                 {% endfor %}
-            </ul>
+            </div>
+            {% elif not featured_project %}
+            <div class="coding-empty reveal">NO PROJECTS ON RECORD / 项目档案尚未公开。</div>
+            {% endif %}
         </div>
     </section>
 
-    <section class="coding-section coding-principles" aria-labelledby="coding-principles-title">
+    <section class="coding-section coding-method" aria-labelledby="coding-method-title">
         <div class="container">
             <div class="coding-section__head reveal">
-                <h2 id="coding-principles-title" class="coding-section__title">WORKING PRINCIPLES</h2>
-                <p class="coding-section__hint">how structure emerges</p>
+                <h2 id="coding-method-title" class="coding-section__title">METHOD / TRACE</h2>
+                <p class="coding-section__hint">principles become observable experiments</p>
             </div>
-                <div class="coding-principles__grid">
+            <div class="coding-method__grid">
+                <section class="coding-method__principles" aria-labelledby="coding-principles-title">
+                    <div class="coding-method__label"><span>01</span><h3 id="coding-principles-title">WORKING PRINCIPLES</h3></div>
+                    <div class="coding-principles__flow">
                     {% for principle in principles %}
                     <div class="coding-principle reveal">
                         <div class="coding-principle__num">{{ principle.index|stringformat:"02d" }}</div>
-                        <h3 class="coding-principle__title">{{ principle.title|upper }}</h3>
-                        <p class="coding-principle__body">{{ principle.body|linebreaksbr }}</p>
+                        <div><h4 class="coding-principle__title">{{ principle.title|upper }}</h4><p class="coding-principle__body">{{ principle.body|linebreaksbr }}</p></div>
                     </div>
                     {% empty %}
                     <div class="coding-principle coding-principle--empty reveal">
                         <div class="coding-principle__num">—</div>
-                        <h3 class="coding-principle__title">NO PRINCIPLES RECORDED</h3>
-                        <p class="coding-principle__body">原则尚未归档。</p>
+                        <div><h4 class="coding-principle__title">NO PRINCIPLES RECORDED</h4><p class="coding-principle__body">原则尚未归档。</p></div>
                     </div>
                     {% endfor %}
-                </div>
-        </div>
-    </section>
-
-    <section class="coding-section coding-experiments" aria-labelledby="coding-experiments-title">
-        <div class="container">
-            <div class="coding-section__head reveal">
-                <h2 id="coding-experiments-title" class="coding-section__title">SMALL EXPERIMENTS</h2>
-                <p class="coding-section__hint">notes / traces / side lines</p>
-            </div>
-                <ul class="coding-experiment__list" role="list">
+                    </div>
+                </section>
+                <section class="coding-method__traces" aria-labelledby="coding-experiments-title">
+                    <div class="coding-method__label"><span>02</span><h3 id="coding-experiments-title">RECENT TRACES</h3></div>
+                    <ol class="coding-experiment__list">
                     {% for experiment in experiments %}
                     <li class="coding-experiment reveal">
                         <span class="coding-experiment__dot" aria-hidden="true"></span>
                         <span class="coding-experiment__date">{{ experiment.date|date:"Y.m" }}</span>
                         <span class="coding-experiment__title">{{ experiment.title }}</span>
-                        <span class="coding-experiment__arrow" aria-hidden="true">→</span>
                     </li>
                     {% empty %}
                     <li class="coding-experiment coding-experiment--empty reveal">
                         <span class="coding-experiment__dot" aria-hidden="true"></span>
                         <span class="coding-experiment__date">—</span>
                         <span class="coding-experiment__title">实验记录尚未归档。</span>
-                        <span class="coding-experiment__arrow" aria-hidden="true"></span>
                     </li>
                     {% endfor %}
-                </ul>
+                    </ol>
+                </section>
+            </div>
         </div>
     </section>
 

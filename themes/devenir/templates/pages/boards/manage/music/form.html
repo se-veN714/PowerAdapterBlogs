@@ -20,6 +20,11 @@ ordering（display_order）。
 {% if board.glitch_color %}<style>:root{--glitch-c:{{ board.glitch_color }};}</style>{% endif %}
 {% endblock %}
 
+{% block extra_js %}
+<script src="{% static 'js/boards/image-drop.js' %}"></script>
+<script src="{% static 'js/boards/form-presets.js' %}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="bm-page">
     <div class="container">
@@ -32,11 +37,39 @@ ordering（display_order）。
             <a class="bm-btn" href="{% url 'boards:music-manage-list' provider=provider %}">&larr; BACK TO LIST</a>
         </header>
 
-        <form class="bm-form" method="post" enctype="multipart/form-data" novalidate>
+        <form class="bm-form" method="post" enctype="multipart/form-data" novalidate data-music-record-form data-music-provider="{{ provider }}">
             {% csrf_token %}
             {% if form.non_field_errors %}
             <div class="bm-form__errors-top" role="alert">{{ form.non_field_errors }}</div>
             {% endif %}
+
+            <fieldset class="bm-group bm-preset">
+                <legend class="bm-group__legend"><span>00 / QUICK FILL</span></legend>
+                <div class="bm-field bm-field--wide">
+                    <label for="music-record-preset">RECORD PRESET</label>
+                    <select id="music-record-preset" data-music-preset>
+                        <option value="">选择记录类型…</option>
+                        <optgroup label="通用统计">
+                            <option value="total">总收听分钟</option>
+                            <option value="top_artist">艺人排行</option>
+                            <option value="top_track">歌曲排行</option>
+                            <option value="tag">风格 / 标签</option>
+                        </optgroup>
+                        <optgroup label="Spotify 年度">
+                            <option value="unique_artists">独立艺人数</option>
+                            <option value="unique_tracks">独立歌曲数</option>
+                            <option value="core_artist">年度核心艺人</option>
+                            <option value="cross_scale">跨尺度关系</option>
+                            <option value="companion">长期常伴</option>
+                        </optgroup>
+                        <optgroup label="Apple Music 月度">
+                            <option value="period_artist">当前周期艺人</option>
+                            <option value="gravity">近期引力</option>
+                        </optgroup>
+                    </select>
+                    <p class="bm-field__help" data-preset-status>选择后会填写建议的周期、类型、指标、单位与排序；所有值仍可手动修改。</p>
+                </div>
+            </fieldset>
 
             <fieldset class="bm-group">
                 <legend class="bm-group__legend"><span>01 / PERIOD</span></legend>
@@ -121,7 +154,7 @@ ordering（display_order）。
             <fieldset class="bm-group">
                 <legend class="bm-group__legend"><span>03 / MEDIA &amp; LINK</span></legend>
                 <div class="bm-group__grid">
-                    <div class="bm-field">
+                    <div class="bm-field bm-field--wide">
                         {{ form.cover.label_tag }}
                         {{ form.cover }}
                         {% if form.cover.errors %}<ul class="bm-field__errors">{{ form.cover.errors }}</ul>{% endif %}

@@ -1,0 +1,7 @@
+<nav aria-label="Coding 内容类型">
+    <ul class="bm-tabs">
+        <li><a class="bm-tab{% if content_kind == 'project' %} is-active{% endif %}" href="{% url 'boards:coding-manage-list' %}"{% if content_kind == 'project' %} aria-current="page"{% endif %}>PROJECTS</a></li>
+        <li><a class="bm-tab{% if content_kind == 'principle' %} is-active{% endif %}" href="{% url 'boards:coding-principle-list' %}"{% if content_kind == 'principle' %} aria-current="page"{% endif %}>PRINCIPLES</a></li>
+        <li><a class="bm-tab{% if content_kind == 'experiment' %} is-active{% endif %}" href="{% url 'boards:coding-experiment-list' %}"{% if content_kind == 'experiment' %} aria-current="page"{% endif %}>EXPERIMENTS</a></li>
+    </ul>
+</nav>

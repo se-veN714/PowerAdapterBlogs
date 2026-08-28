@@ -327,4 +327,61 @@ document.addEventListener('DOMContentLoaded', function () {
         window.requestAnimationFrame(renderSpectrum);
     }
 
+    // ===== Coding editorial terminal =====
+    // The archive keeps scrolling while a small composer types the next trace.
+    const typingLines = [
+        'component = compose(state, view)',
+        'route.connect(signal, response)',
+        'await page.become(usable)',
+        'yield from assemblage(user, ai)'
+    ];
+
+    document.querySelectorAll('[data-code-typing]').forEach(function (output) {
+        const composer = output.closest('.coding-editorial-code__composer');
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const baseDelay = reducedMotion ? 92 : 42;
+        const delayVariance = reducedMotion ? 28 : 46;
+
+        let lineIndex = 0;
+        let characterIndex = 0;
+        let active = false;
+        let timer = null;
+
+        function schedule(delay) {
+            window.clearTimeout(timer);
+            timer = window.setTimeout(step, delay);
+        }
+
+        function step() {
+            if (!active || document.hidden) {
+                schedule(260);
+                return;
+            }
+
+            const line = typingLines[lineIndex];
+            if (characterIndex < line.length) {
+                characterIndex += 1;
+                output.textContent = line.slice(0, characterIndex);
+                schedule(baseDelay + Math.floor(Math.random() * delayVariance));
+                return;
+            }
+
+            composer.classList.add('is-committing');
+            window.setTimeout(function () {
+                lineIndex = (lineIndex + 1) % typingLines.length;
+                characterIndex = 0;
+                output.textContent = '';
+                composer.classList.remove('is-committing');
+                schedule(320);
+            }, reducedMotion ? 1200 : 850);
+        }
+
+        const typingObserver = new IntersectionObserver(function (entries) {
+            active = entries[0].isIntersecting;
+            if (active && timer === null) schedule(180);
+        }, { threshold: 0.15 });
+
+        typingObserver.observe(output.closest('.coding-editorial-code'));
+    });
+
 });

@@ -2,7 +2,7 @@
 
 > **文档权重**：100（最高；项目当前版本、架构与路线的首要依据）
 > **版本**: v2.4-planning
-> **更新**: 2026-08-26
+> **更新**: 2026-08-28
 > **状态**: Board Scope Stage 0–8 已完成，遗留 `is_reviewer` 已停止授权并通过 schema migration 删除；`/review/` 承载业务审核，`/operations/security/` 承载 SiteOperators 日志完整性核验，`/dashboard/` 仅供显式 `dashboard_user` 与 superuser 日常运维；生产 MFA/mTLS 开关仍默认关闭，本地 `run.py` 已默认开启完整验证并自动维护独立 Nginx 边缘
 > **继承**: V1 基础设施（Redis、Waitress/Nginx）+ Devenir 主题 + htmx 2.x
 
@@ -39,7 +39,7 @@ superuser 的目标链路固定为项目语境中的“全验证”：Nginx TLS 
 
 双后台的 TOTP 时效按风险分层：`/dashboard/` 是日常运维面，完成 TOTP 后可主动勾选“信任当前浏览器 7 天”；该授权只存在于当前服务端 Session，并绑定账号、TOTP 设备和 `auth_version`，重新登录、MFA 撤销/重绑或身份失效后立即作废。`/super_admin/` 不读取这份长期授权，始终要求 mTLS 证书绑定与短时 TOTP privileged Session：绝对上限 15 分钟、连续闲置 5 分钟即失效，并把管理域 Session Cookie 设置为浏览器关闭失效。单个标签页关闭不作为安全事件；浏览器可能提供会话恢复，不能把该行为替代服务端超时。首页菜单可以向符合资格的账号显示 MFA 设置和系统后台入口；URL 可见性不构成安全边界，服务端认证、授权与独立管理 vhost 才是边界。
 
-证书与 TOTP 明确分离：管理域名的服务器证书继续使用 Let’s Encrypt；superuser 客户端证书由离线私有 Client CA 签发，不复用公网服务器证书。H3 生产链正式固定为 Nginx + OpenSSL 4.0.x 最新补丁版终止 TLS 1.3 mTLS，再由 Django 完成证书映射、密码和 TOTP；初始部署基线为 OpenSSL 4.0.1，并接受其非 LTS、需持续跟进补丁和在 EOL 前迁移的维护成本。主流浏览器可直接使用系统证书容器，不依赖国密浏览器。审计事件继续使用现有 SM3-HMAC 完整性链。SM2/TLCP 降为不接生产、不计入 H3 验收的隔离实验，TOTP 保持 RFC 6238 与 Microsoft Authenticator 兼容。
+证书与 TOTP 明确分离：管理域名的服务器证书继续使用 Let’s Encrypt；superuser 客户端证书由离线私有 Client CA 签发，不复用公网服务器证书。H3 生产链正式固定为 Nginx + OpenSSL 4.0.x 最新补丁版终止 TLS 1.3 mTLS，再由 Django 完成证书映射、密码和 TOTP；截至 2026-08-28 的部署基线更新为 OpenSSL 4.0.2，并接受其非 LTS、需持续跟进补丁和在 EOL 前迁移的维护成本。主流浏览器可直接使用系统证书容器，不依赖国密浏览器。审计事件继续使用现有 SM3-HMAC 完整性链。SM2/TLCP 降为不接生产、不计入 H3 验收的隔离实验，TOTP 保持 RFC 6238 与 Microsoft Authenticator 兼容。
 
 `/super_admin/` 的 mTLS 推荐使用独立管理域名 / Nginx `server`，例如 `admin.poweradapter.xyz`；公网站点不再直接暴露该路径。原因是 Nginx 的 `ssl_verify_client` 作用域为 `http` / `server`，直接在现有站点打开会影响整站 TLS 握手。若暂时只能复用同一域名，必须采用 `ssl_verify_client optional` + location 强制校验，并先验证普通博客访问不会持续弹出客户端证书选择框。
 
@@ -76,7 +76,9 @@ sequenceDiagram
 
 生产运维入口采用 Tailscale：管理员或 Agent 先进入受控 Tailnet，再以专用非 root 账号通过 SSH key 登录并按需 `sudo`。公网安全组不得为临时 Agent 出口长期开放 SSH，也不得通过放宽云主机安全地区/IP 白名单消除告警；云控制台仅作为 break-glass。Tailscale 负责运维网络入口，不能替代 `/super_admin/` 的 TLS 1.3 mTLS、Django 密码和 TOTP 身份验证。
 
-BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。Board Index 专属内容闭环第一阶段已完成：Music 增加 Spotify/Apple 排行、封面与外链字段，并可从本地 Spotify 导出幂等聚合；Coding Project 支持 GitHub、本地工具和外部链接；Skate Clip、Music 与 Coding 均已有按对应 Board Manager Policy 隔离的 Devenir CRUD。三个 Index 现已统一接入对应 Category 的公开已发布文章流和 Policy 派生参与 CTA；新建文章只在服务端同时确认当前 Board 创建权限及正常、唯一的 Category 映射后预选 Category，Reviewer 则进入带 Board 筛选的审核工作区。主页功能菜单和各 Board Index 只向可管理该板块的账号暴露快捷入口，服务端仍逐请求裁决，Padif 固定为无服务端写入的本地浏览器工具。Skateboard S5 已完成 Clip/Line/B-roll、结构化地点、视频上传预检/服务端权威校验、地图内官方输入提示与播放浮层；2026-08-27 用户已在实际登录表单中完成人工 SK8/高德联调并确认候选、地图交互与保存稳定。代理仅放行当前界面使用的高德资源，校验 JSONP callback，并限制单客户端频率、查询长度与响应大小。当前 Board Index 功能缺口仅保留🟡 Coding Principle/Experiment 纳入业务管理工作区。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
+生产部署基线采用 Linux Docker Engine + Compose，Windows 开发机继续由 `run.py` 提供 Waitress 本地运行，不安装 Docker Desktop/WSL 作为发布前提。Compose 承载 Gunicorn、PostgreSQL、Redis、Mongo replica set、审计 outbox worker 与 SK8 媒体 worker；宿主 Nginx 独立终止公网 TLS 与管理域 mTLS，仅代理到 `127.0.0.1` 回环端口。公开静态/派生媒体和私有原片使用不同 bind mount，私有原片永不由 Nginx 暴露。具体环境变量、初始化和验收命令见 `deploy/README.md`，逐项放行清单见本地高权重 `docs/guides/DEPLOYMENT_CHECKLIST.md`。
+
+BoardAccessRequest 提交前复用 accounts 短时邮箱验证已完成：purpose、用户与 Session 三重绑定，密码修改和 Board 申请授权不可互用，发送限流按账号共享，10 分钟 Board grant 在申请成功后立即消费。Board Index 专属内容闭环第一阶段已完成：Music 的 Spotify 年度与 Apple Music 月度公开派生数据均已标准化为仓库内 JSON，并通过共享幂等导入模块同步；`MusicArtist` 统一承载跨平台音乐人身份、头像和链接，歌曲封面仍归具体记录，原始导出页与逐次播放历史不得入库或提交。Coding 的 Project、Principle 与 Experiment 均已纳入带筛选、分页、通知和删除确认的业务 CRUD；Skate Clip、Music 与 Coding 均按对应 Board Manager Policy 隔离。Music 管理入口已从 provider 直接进入年度/月度周期总览，并增加 Artist Library；可按 provider/scope/year 筛选周期、查看每期记录数，并在保持现有平铺记录模型的前提下进入该期记录或预填周期追加记录。三个 Index 现已统一接入对应 Category 的公开已发布文章流和 Policy 派生参与 CTA；新建文章只在服务端同时确认当前 Board 创建权限及正常、唯一的 Category 映射后预选 Category，Reviewer 则进入带 Board 筛选的审核工作区。主页功能菜单和各 Board Index 只向可管理该板块的账号暴露快捷入口，服务端仍逐请求裁决，Padif 固定为无服务端写入的本地浏览器工具。Skateboard S5 已完成 Clip/Line/B-roll、结构化地点、视频上传预检/服务端权威校验、地图内官方输入提示与播放浮层；2026-08-27 用户已在实际登录表单中完成人工 SK8/高德联调并确认候选、地图交互与保存稳定。代理仅放行当前界面使用的高德资源，校验 JSONP callback，并限制单客户端频率、查询长度与响应大小。后续只有在逐条维护确实成为负担时，再为 Music 增加同周期批量编辑，不先改动现有平铺记录模型。详细验收与职责边界记录在 `boards/DEVELOPMENT.md`。
 
 Board Index 的访问边界已重新冻结：`/boards/<slug>/` 及其纯展示 htmx 片段是个人站的公开陈列面，不要求 BoardMembership；Membership 只保护投稿、编辑、审核、评论管理、成员管理和专属内容维护等动作。三个 Index 已统一接入对应 Category 的 `Post.publicly_visible_posts()` 公开文章流（最新 5 篇，草稿、审核中、已下架与 `staff-only` 均不进入），并按服务端 Policy 派生参与 CTA（`anonymous / eligible / pending / member / suspended`）；新建文章由 `PostCreateView.get_initial()` 重新执行板块创建权限及正常、唯一 Category 映射校验后再预选 Category，Reviewer 进入 `/Blogs/review/?board=<slug>`，Board 权限申请页同样支持服务端校验的 Board 预选。详细矩阵和前后端契约见 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（本地，git-ignored）。剩余收尾：所有受保护动作统一接入 REFUSE 模板。
 

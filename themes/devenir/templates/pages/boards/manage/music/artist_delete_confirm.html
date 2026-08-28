@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Delete Music Artist · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block mathjax %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/boards/manage.css' %}">{% endblock %}
+{% block content %}<div class="bm-page"><div class="container"><div class="bm-danger"><p class="bm-kicker">DELETE / MUSIC ARTIST</p><h1>{{ object.name }}</h1><p>删除后历史音乐记录仍会保留，只解除头像和音乐人资料关联。</p><form method="post">{% csrf_token %}<div class="bm-danger__actions"><button class="bm-btn bm-btn--danger" type="submit">CONFIRM DELETE</button><a class="bm-btn" href="{% url 'boards:music-artist-list' %}">CANCEL</a></div></form></div></div></div>{% endblock %}

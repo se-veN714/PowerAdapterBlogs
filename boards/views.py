@@ -26,7 +26,12 @@ from accounts.services import (
     email_verification_is_verified,
     email_verification_remaining_seconds,
 )
-from boards.board_index import ASSEMBLERS, BOARD_TEMPLATES, prepare_skate_clips
+from boards.board_index import (
+    ASSEMBLERS,
+    BOARD_TEMPLATES,
+    prepare_skate_clips,
+    renderable_boards,
+)
 from boards.forms import BoardAccessRequestForm
 from boards.models import (
     Board,
@@ -50,11 +55,14 @@ BOARD_MANAGEMENT_DESTINATIONS = {
         ("Skateboard · Clips", "boards:skate-manage-list", ()),
     ),
     "music": (
-        ("Music · Spotify", "boards:music-manage-list", ("spotify",)),
-        ("Music · Apple Music", "boards:music-manage-list", ("apple",)),
+        ("Music · Spotify", "boards:music-period-list", ("spotify",)),
+        ("Music · Apple Music", "boards:music-period-list", ("apple",)),
+        ("Music · Artists", "boards:music-artist-list", ()),
     ),
     "coding": (
         ("Coding · Projects", "boards:coding-manage-list", ()),
+        ("Coding · Principles", "boards:coding-principle-list", ()),
+        ("Coding · Experiments", "boards:coding-experiment-list", ()),
     ),
 }
 
@@ -291,11 +299,7 @@ class BoardIndexView(TemplateView):
         slug = kwargs["slug"]
         if slug not in BOARD_TEMPLATES:
             raise Http404("Unknown board index slug")
-        board = get_object_or_404(
-            Board.objects.filter(slug__in=BOARD_TEMPLATES).select_related("category"),
-            slug=slug,
-            is_active=True,
-        )
+        board = get_object_or_404(renderable_boards(), slug=slug)
         self.board = board
         self.template_name = BOARD_TEMPLATES[slug]
         return super().get(request, *args, **kwargs)
@@ -387,11 +391,7 @@ def boards_context(request):
     按 sort_order 排序，仅供首页 editorial-section 遍历渲染。
     返回 board 对象，模板可通过 board.glitch_color 等属性使用。
     """
-    boards = (
-        Board.objects.filter(is_active=True, slug__in=BOARD_TEMPLATES)
-        .select_related("category")
-        .order_by("sort_order")
-    )
+    boards = renderable_boards()
     from moderation.policies import can_access_moderation_center
 
     return {

@@ -7,6 +7,7 @@
     <title>{{ error_code }} — {{ error_label }} | PowerAdapter</title>
     <meta name="robots" content="noindex, nofollow">
     <link rel="stylesheet" href="{% static 'css/errors/page-error.css' %}">
+    <link rel="stylesheet" href="{% static 'css/site-compliance.css' %}">
     <script src="{% static 'js/errors/page-error.js' %}" defer></script>
 </head>
 <body class="error-page error-page--{{ error_variant|default:'general' }}">
@@ -88,6 +89,8 @@
     </footer>
 
 </main>
+
+{% include "components/site_compliance.html" %}
 
 </body>
 </html>

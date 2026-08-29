@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{% static 'css/dashboard/tokens.css' %}">
     <link rel="stylesheet" href="{% static 'css/dashboard/shell.css' %}">
     <link rel="stylesheet" href="{% static 'css/dashboard/components.css' %}">
+    <link rel="stylesheet" href="{% static 'css/site-compliance.css' %}">
     {% block dashboard_css %}{% endblock %}
     <noscript>
         <style>
@@ -41,6 +42,7 @@
             </header>
             {% block dashboard_content %}{% endblock %}
         </main>
+        {% include "components/site_compliance.html" %}
     </div>
 </div>
 <div class="dashboard-overlay" data-dashboard-overlay hidden></div>

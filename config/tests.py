@@ -81,6 +81,17 @@ class SiteInformationPageTest(TestCase):
         self.assertContains(response, f'href="{reverse("about")}"')
         self.assertContains(response, f'href="{reverse("privacy")}"')
 
+    def test_public_pages_display_required_regulatory_filing_links(self):
+        response = self.client.get(reverse("about"))
+
+        self.assertContains(response, "滇ICP备2025068499号-1")
+        self.assertContains(response, 'href="https://beian.miit.gov.cn/"')
+        self.assertContains(response, "滇公网安备53010302001568号")
+        self.assertContains(
+            response,
+            'href="https://beian.mps.gov.cn/#/query/webSearch?code=53010302001568"',
+        )
+
 
 @override_settings(DEBUG=False, PUBLIC_SITE_URL="https://blog.example.test")
 class PublicSiteMetadataTest(TestCase):
@@ -134,6 +145,8 @@ class PublicSiteMetadataTest(TestCase):
         self.assertContains(response, "signal absent", status_code=404)
         self.assertNotContains(response, "Traceback", status_code=404)
         self.assertContains(response, "noindex, nofollow", status_code=404)
+        self.assertContains(response, "滇ICP备2025068499号-1", status_code=404)
+        self.assertContains(response, "滇公网安备53010302001568号", status_code=404)
 
     def test_board_404_selects_board_specific_error_visual(self):
         response = self.client.get("/boards/skateboard/not-a-real-route/")

@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="zh-CN" class="dark">
 <head>
@@ -5,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>500 — Code Error | PowerAdapter</title>
     <link rel="stylesheet" href="/static/css/errors/page-error.css">
+    <link rel="stylesheet" href="{% static 'css/site-compliance.css' %}">
 </head>
 <body class="error-page">
 
@@ -135,6 +137,8 @@
     </section>
 
 </main>
+
+{% include "components/site_compliance.html" %}
 
 </body>
 </html>

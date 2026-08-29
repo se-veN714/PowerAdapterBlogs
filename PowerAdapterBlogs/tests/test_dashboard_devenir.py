@@ -74,6 +74,8 @@ class DevenirDashboardTest(TestCase):
         self.assertContains(response, reverse("accounts:my-profile"))
         self.assertContains(response, reverse("accounts:mfa-settings"))
         self.assertContains(response, reverse("cus_admin:index"))
+        self.assertContains(response, "滇ICP备2025068499号-1")
+        self.assertContains(response, "滇公网安备53010302001568号")
         self.assertNotContains(response, reverse("operations:security"))
 
     def test_security_navigation_uses_existing_server_permission(self):

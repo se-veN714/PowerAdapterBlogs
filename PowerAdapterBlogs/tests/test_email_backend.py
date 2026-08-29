@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from django.core.exceptions import ImproperlyConfigured
@@ -63,3 +64,15 @@ class IPv4FailoverEmailBackendTests(SimpleTestCase):
             "EMAIL_SMTP_IPV4_FALLBACKS only accepts IPv4 addresses",
         ):
             backend._configured_fallbacks()
+
+
+class ProductionEmailEnvironmentContractTests(SimpleTestCase):
+    def test_compose_passes_ipv4_failover_settings_to_application(self):
+        project_root = Path(__file__).resolve().parents[2]
+        compose = (project_root / "compose.production.yml").read_text(encoding="utf-8")
+
+        self.assertIn("EMAIL_TIMEOUT: ${EMAIL_TIMEOUT}", compose)
+        self.assertIn(
+            "EMAIL_SMTP_IPV4_FALLBACKS: ${EMAIL_SMTP_IPV4_FALLBACKS}",
+            compose,
+        )

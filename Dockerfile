@@ -21,6 +21,8 @@ RUN python -m pip install --index-url "${PIP_INDEX_URL}" --upgrade pip \
 
 COPY . .
 
+RUN find deploy -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
+
 RUN groupadd --gid 10001 poweradapter \
     && useradd --uid 10001 --gid poweradapter --create-home poweradapter \
     && mkdir -p /app/common_static /app/media /app/media-private /app/logs \

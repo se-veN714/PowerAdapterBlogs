@@ -51,6 +51,10 @@ x-app-environment: &app-environment
   AMAP_JS_SERVICE_HOST: ${AMAP_JS_SERVICE_HOST}
 
 x-app: &app
+  # Every Django process must run the exact same release artifact. Without an
+  # explicit image name Compose creates one image per service, allowing a
+  # rebuilt web service to drift from prepare and the workers.
+  image: poweradapter-app:${APP_IMAGE_TAG:-latest}
   build:
     context: .
     dockerfile: Dockerfile

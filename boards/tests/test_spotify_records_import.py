@@ -6,6 +6,7 @@ from django.core.management import call_command
 from django.test import TestCase
 
 from boards.models import AppleRecord, Board, MusicArtist, SpotifyRecord
+from boards.music_record_import import load_music_payload
 
 
 class SpotifyRecordsImportCommandTests(TestCase):
@@ -124,6 +125,14 @@ class AppleRecordsImportCommandTests(TestCase):
         self.assertEqual(record.minutes, 1200)
         self.assertEqual(artist.apple_music_url, "https://music.apple.com/example")
         self.assertEqual(MusicArtist.objects.count(), 1)
+
+    def test_packaged_payload_labels_fit_the_model_contract(self):
+        source = Path(__file__).resolve().parents[1] / "data" / "apple_music_records.json"
+        records = load_music_payload(source, "apple")
+        max_length = AppleRecord._meta.get_field("label").max_length
+
+        self.assertTrue(records)
+        self.assertLessEqual(max(len(str(record["label"])) for record in records), max_length)
 
     def test_undeclared_artist_does_not_clear_manual_association(self):
         artist = MusicArtist.objects.create(board=self.board, name="Manual Artist")

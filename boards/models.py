@@ -1078,7 +1078,7 @@ class MusicRecordBase(FixedBoardContentModel):
     )
     year = models.PositiveSmallIntegerField(verbose_name="年份")
     month = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="月份")
-    label = models.CharField(max_length=64, verbose_name="指标")
+    label = models.CharField(max_length=128, verbose_name="指标")
     value = models.CharField(max_length=64, verbose_name="值")
     value2 = models.CharField(max_length=64, blank=True, verbose_name="次值")
     unit = models.CharField(max_length=16, blank=True, verbose_name="单位")

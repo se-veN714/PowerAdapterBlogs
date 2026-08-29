@@ -108,8 +108,11 @@ class MongoLogger:
         # `check_deployment()` also inspects the chain-head collection. On a
         # fresh database no delivery has created it yet, so establish the
         # namespace explicitly without granting the deploy role event writes.
+        # Skip PyMongo's existence preflight because it requires the broader
+        # `listCollections` privilege; MongoDB's atomic create result is enough
+        # to keep this operation idempotent.
         try:
-            self.db.create_collection(self.heads.name)
+            self.db.create_collection(self.heads.name, check_exists=False)
         except CollectionInvalid:
             pass
 

@@ -174,6 +174,18 @@ class MongoIdempotencyTests(SimpleTestCase):
         with self.assertRaises(RuntimeError):
             self.writer().insert_log("legacy", {"sensitive": "payload"})
 
+    def test_index_setup_creates_head_namespace_without_collection_preflight(self):
+        writer = MongoLogger.__new__(MongoLogger)
+        writer.collection = mock.Mock()
+        writer.heads = SimpleNamespace(name="audit_chain_heads")
+        writer.db = mock.Mock()
+
+        writer.ensure_indexes()
+
+        writer.db.create_collection.assert_called_once_with(
+            "audit_chain_heads", check_exists=False
+        )
+
 
 @override_settings(
     MONGO_AUDIT_HMAC_KEYS={"mongo-v1": test_key("mongo")},

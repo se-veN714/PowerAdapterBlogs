@@ -20,6 +20,7 @@
         data-skate-form data-skate-max-bytes="{{ max_upload_bytes }}" data-skate-max-duration-ms="{{ max_duration_ms }}"
         data-amap-enabled="{{ amap_enabled|yesno:'true,false' }}" data-amap-key="{{ amap_api_key }}" data-amap-service-host="{{ amap_service_host }}">
     {% csrf_token %}
+    {{ form.submission_token }}
     {% if form.non_field_errors %}<div class="bm-form__errors-top" role="alert">{{ form.non_field_errors }}</div>{% endif %}
     <section class="skf-layout"><div class="skf-main">
       <fieldset class="bm-group bm-preset"><legend class="bm-group__legend"><span>00 / QUICK FILL</span></legend>
@@ -49,7 +50,7 @@
       </fieldset>
 
       <fieldset class="bm-group"><legend class="bm-group__legend"><span>02 / CLIP IDENTITY</span></legend><div class="bm-group__grid">
-        {% for field in form %}{% if field.name != 'source' and field.name != 'confirm_replace' and field.name != 'spot' and field.name != 'spot_address' and field.name != 'spot_longitude' and field.name != 'spot_latitude' and field.name != 'notes' and field.name != 'video_url' and field.name != 'thumbnail_url' %}
+        {% for field in form %}{% if field.name != 'submission_token' and field.name != 'source' and field.name != 'confirm_replace' and field.name != 'spot' and field.name != 'spot_address' and field.name != 'spot_longitude' and field.name != 'spot_latitude' and field.name != 'notes' and field.name != 'video_url' and field.name != 'thumbnail_url' %}
         <div class="bm-field{% if field.name == 'title' %} bm-field--wide{% endif %}">{{ field.label_tag }}{{ field }}{% if field.errors %}<ul class="bm-field__errors">{{ field.errors }}</ul>{% endif %}{% if field.help_text %}<p class="bm-field__help">{{ field.help_text }}</p>{% endif %}</div>
         {% endif %}{% endfor %}
       </div></fieldset>

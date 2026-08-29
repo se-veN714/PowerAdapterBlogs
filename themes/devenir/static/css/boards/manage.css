@@ -574,6 +574,20 @@
     .bm-group { padding: 1.1rem; }
     .bm-danger { padding: 1.25rem; }
     .bm-pager { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+    .bm-table--skate .bm-row {
+        grid-template-columns: 2.5rem minmax(0, 1fr);
+        align-items: start;
+    }
+    .bm-table--skate .bm-cell--clip {
+        white-space: nowrap;
+        overflow: hidden;
+        overflow-wrap: normal;
+        text-overflow: ellipsis;
+    }
+    .bm-table--skate .bm-actions {
+        grid-column: 2;
+        justify-content: flex-start;
+    }
 }
 
 /* ---------- Reduced motion ---------- */

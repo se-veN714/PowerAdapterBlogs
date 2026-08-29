@@ -86,6 +86,51 @@
     }
     window.addEventListener("pagehide", function () { if (objectUrl) URL.revokeObjectURL(objectUrl); });
 
+    var submitting = false;
+    var submitButtons = Array.prototype.slice.call(form.querySelectorAll("button[type=submit]"));
+
+    function resetSubmissionLock() {
+        submitting = false;
+        form.removeAttribute("aria-busy");
+        submitButtons.forEach(function (button) {
+            button.disabled = false;
+            if (button.dataset.skateOriginalLabel) {
+                button.textContent = button.dataset.skateOriginalLabel;
+            }
+        });
+    }
+
+    form.addEventListener("submit", function (event) {
+        if (submitting) {
+            event.preventDefault();
+            return;
+        }
+        submitting = true;
+        form.setAttribute("aria-busy", "true");
+
+        var submitter = event.submitter;
+        if (submitter && submitter.name === "intent") {
+            var intent = form.querySelector("[data-skate-submit-intent]");
+            if (!intent) {
+                intent = document.createElement("input");
+                intent.type = "hidden";
+                intent.name = "intent";
+                intent.dataset.skateSubmitIntent = "";
+                form.appendChild(intent);
+            }
+            intent.value = submitter.value;
+        }
+
+        submitButtons.forEach(function (button) {
+            button.dataset.skateOriginalLabel = button.textContent;
+            button.disabled = true;
+        });
+        if (submitter) {
+            submitter.textContent = submitter.value === "process" ? "UPLOADING…" : "SAVING…";
+        }
+    });
+    window.addEventListener("pageshow", resetSubmissionLock);
+
     var spot = document.getElementById("id_spot");
     var address = document.getElementById("id_spot_address");
     var longitude = document.getElementById("id_spot_longitude");

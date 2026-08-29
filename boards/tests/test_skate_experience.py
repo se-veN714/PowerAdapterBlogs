@@ -1,5 +1,6 @@
 from decimal import Decimal
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -108,6 +109,7 @@ class SkateClipCreateExperienceTests(TestCase):
     def test_form_renders_integrated_upload_without_secret(self):
         response = self.client.get(self.url)
         self.assertContains(response, "UPLOAD &amp; QUEUE PROCESS")
+        self.assertContains(response, 'name="submission_token"', html=False)
         self.assertNotContains(response, "SEARCH MAP")
         self.assertContains(response, "输入地点关键词并从联想候选中选择")
         self.assertContains(response, "data-amap-search-panel")
@@ -158,6 +160,38 @@ class SkateClipCreateExperienceTests(TestCase):
         clip = SkateClip.objects.get(title="Morning Line")
         ingest.assert_called_once()
         self.assertEqual(ingest.call_args.kwargs["clip"], clip)
+
+    @patch("boards.content_views.ingest_skate_source")
+    def test_duplicate_process_submission_creates_only_one_clip(self, ingest):
+        submission_token = uuid4()
+        payload = {
+            "homie": self.homie.pk,
+            "order": 0,
+            "title": "Double Click Line",
+            "clip_format": "line",
+            "category": "displacement",
+            "status": "landed",
+            "is_public": True,
+            "intent": "process",
+            "submission_token": str(submission_token),
+        }
+
+        first = self.client.post(
+            self.url,
+            {**payload, "source": SimpleUploadedFile("line.webm", b"video")},
+        )
+        second = self.client.post(
+            self.url,
+            {**payload, "source": SimpleUploadedFile("line.webm", b"video")},
+        )
+
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+        self.assertEqual(
+            SkateClip.objects.filter(title="Double Click Line").count(),
+            1,
+        )
+        ingest.assert_called_once()
 
     @patch("boards.content_views.ingest_skate_source")
     def test_save_metadata_does_not_ingest_selected_source(self, ingest):

@@ -545,6 +545,14 @@ class SkateHomie(FixedBoardContentModel):
 class SkateClip(models.Model):
     """某个成员的一个滑板动作片段。"""
 
+    submission_token = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="创建提交令牌",
+        help_text="用于阻止创建表单因重复点击或网络重试生成重复片段。",
+    )
     homie = models.ForeignKey(
         SkateHomie,
         on_delete=models.CASCADE,

@@ -1,10 +1,14 @@
+from uuid import uuid4
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Q
 from django.forms import Form, modelform_factory
 from django.http import Http404
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import (
@@ -373,7 +377,31 @@ class SkateClipFormMediaMixin:
             )
             return self.form_invalid(form)
 
-        response = super().form_valid(form)
+        submission_token = form.cleaned_data.get("submission_token")
+        if creating and submission_token:
+            form.instance.submission_token = submission_token
+        try:
+            with transaction.atomic():
+                response = super().form_valid(form)
+        except IntegrityError:
+            duplicate_clip = None
+            if creating and submission_token:
+                duplicate_clip = (
+                    SkateClip.objects.filter(
+                        submission_token=submission_token,
+                        homie__board=self.board,
+                    )
+                    .select_related("homie")
+                    .first()
+                )
+            if duplicate_clip is None:
+                raise
+            self.object = duplicate_clip
+            messages.info(
+                self.request,
+                "已忽略重复提交；原有滑板片段及处理队列保持不变。",
+            )
+            return redirect(self.get_success_url())
         if source:
             try:
                 ingest_skate_source(
@@ -463,6 +491,11 @@ class SkateClipManageListView(SkateClipMixin, ListView):
 
 class SkateClipCreateView(SkateClipFormMediaMixin, SkateClipMixin, CreateView):
     template_name = "pages/boards/manage/skateboard/form.html"
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial["submission_token"] = uuid4()
+        return initial
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)

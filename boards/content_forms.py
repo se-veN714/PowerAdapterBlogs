@@ -29,6 +29,10 @@ class BoardImageDropInput(forms.ClearableFileInput):
 
 
 class SkateClipForm(forms.ModelForm):
+    submission_token = forms.UUIDField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
     source = forms.FileField(
         required=False,
         label="视频原片",

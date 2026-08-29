@@ -178,6 +178,7 @@ class BoardContentManagementTests(TestCase):
 
         self.assertContains(response, ">UPLOAD</a>")
         self.assertContains(response, ">REPLACE MEDIA</a>")
+        self.assertContains(response, "bm-cell--strong bm-cell--clip")
         self.assertContains(response, str(without_media.order).zfill(2))
 
     def test_management_links_follow_board_policy(self):

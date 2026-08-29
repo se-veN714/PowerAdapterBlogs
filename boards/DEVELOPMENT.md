@@ -411,11 +411,13 @@ Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`
 - **S5 New Clip + Playback Experience（2026-08-15 代码完成）**：
   - 迁移 `0016` 为 `SkateClip` 增加 `clip_format`（Clip / Line / B-roll）、`spot_address` 与可空 Decimal 经纬度；坐标必须成对且有界。
   - `SkateClipForm` 直接包含可空原片上传；`SAVE METADATA` 允许只存资料，`UPLOAD & QUEUE PROCESS` 要求已有或新原片。`boards/skate_upload.py` 被新建/编辑与旧替换入口共同复用，避免复制 FFprobe/清理/锁逻辑。
+  - 创建表单携带服务端生成的 `submission_token`；数据库唯一约束保证同一表单因双击或网络重试被重复提交时只创建一个 Clip、只入队一次。前端提交后同步锁定两个操作按钮并保留 `intent`，但前端锁仅用于反馈，不能替代数据库幂等边界。
   - New Clip 页面提供 drag/drop、本地视频预览、大小/时长/方向浏览器预检；服务端大小与 FFprobe 仍是权威裁决。
   - 高德配置只向浏览器输出 Web JS Key 与同源 `serviceHost`；`AMAP_JS_SECURITY_JSCODE` 仅由 `/_AMapService/<path>` 固定目标代理读取并追加到上游请求。禁用、缺 Key 或加载失败时保留纯文本地点输入。
   - Skateboard Index 的 WATCH CLIP 改为原地 `<dialog>`：桌面左视频/右资料与地图，移动端上视频/下资料；支持按钮关闭、背景关闭、Esc 与焦点归还。无地图配置时显示已保存坐标，不阻断播放。
   - 阶段验收：新增 `test_skate_experience.py`；当时全项目 454 项通过（1 项 PostgreSQL 专属测试按设计跳过），迁移无漂移、Django check、Ruff 与 JavaScript 语法通过；浏览器 1440×1000 与 390×844 无页面级横向溢出，播放、响应式和 Esc 焦点闭环通过。2026-08-27 用户又在实际登录表单中完成人工 SK8/高德联调，确认真实候选、地图交互与保存稳定。
   - **媒体/地图 UI 收口（2026-08-15）**：管理区在 PC 端突破站点文章宽度、占满可视 Section；表格按真实 8 列弹性 Grid 展示且不设置强制横向最小宽度，小于 1100px 才折叠次要列。长文本与操作区在各自单元格内换行；所有 Boards CRUD `legend` 使用内部 `span` 提供独立背景/边框和宽度约束。无媒体行显示 `UPLOAD`，已有媒体行显示 `REPLACE MEDIA`。`SkateClipMedia.clip` 的 OneToOne 是持久化唯一性，替换页与编辑页另要求显式勾选确认，避免把替换误解为追加。两条入口复用可点击/可拖放的文件组件。
+  - 小于 560px 时 Clip 列表使用“序号 + 内容”两列：标题单行省略，操作区移到标题下方并自然换行。禁止让操作按钮继续占据独立固有宽度列，否则极窄屏会把标题压成逐字符竖排；按钮仍保留 40px 触控高度。
   - 地点表单按高德 JS API 2.0 官方示例链路使用 `autoOptions.input → AutoComplete → select → PlaceSearch.setCity(adcode) → PlaceSearch.search(name)`，`PlaceSearch({map})` 负责在地图展示相关结果。地点输入框位于地图右上角浮层，输入关键词后应由高德原生候选层直接展示联想；自定义 `SEARCH MAP` 按钮、Enter 精确搜索及重复的 `autocomplete.search()` 已移除。选择候选后才持久化坐标；全地图点击、可拖 Marker 与 `AMap.Geocoder` 反向地址回填继续保留。地图只约束外层容器尺寸，禁止用 `!important` 拉伸 `.amap-maps`/`.amap-layer`，否则显示尺寸与事件命中区会分离。
   - 高德安全边界保持不变：浏览器只获得 Web端（JS API）Key；`AMAP_JS_SECURITY_JSCODE` 仅由同源 `/_AMapService/<path>` 固定目标代理追加到上游。代理只允许 inputtips、地点文本搜索与逆地理编码三个当前资源，校验 JSONP callback，并限制单客户端每分钟请求数、query 长度和上游响应大小。2026-08-15 曾用 JS API Key 直接调用 Web 服务得到 `USERKEY_PLAT_NOMATCH/10009`，该结果只说明 Key 平台不匹配，不能替代真实 JS API 浏览器验收。
   - **✅ 高德 AutoComplete 联调完成（2026-08-27）**：用户已在实际登录表单中确认关键词候选、地图交互和保存稳定。代码继续保证只有候选选择、地图点击或 Marker 拖动写入成对经纬度；用户重新键入地点时先清空旧地址/坐标，避免“新名称 + 旧坐标”。默认不做 IP 定位；未来若增加当前位置，只能使用用户主动授权的浏览器 Geolocation。

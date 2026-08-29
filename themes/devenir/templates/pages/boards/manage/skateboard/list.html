@@ -69,7 +69,7 @@
             <div class="bm-row" role="row">
                 <span class="bm-cell bm-cell--accent" role="cell">{{ record.order|stringformat:"02d" }}</span>
                 <span class="bm-cell bm-cell--strong bm-cell--collapse" role="cell">{{ record.homie.name }}</span>
-                <span class="bm-cell bm-cell--strong" role="cell">{{ record.title }}<span class="bm-cell__sub">{{ record.homie.name }} · {{ record.get_category_display|default:"—" }}{% if record.filmed_at %} · {{ record.filmed_at|date:"Y.m.d" }}{% endif %}</span></span>
+                <span class="bm-cell bm-cell--strong bm-cell--clip" role="cell" title="{{ record.title }}">{{ record.title }}<span class="bm-cell__sub">{{ record.homie.name }} · {{ record.get_category_display|default:"—" }}{% if record.filmed_at %} · {{ record.filmed_at|date:"Y.m.d" }}{% endif %}</span></span>
                 <span class="bm-cell bm-cell--collapse" role="cell">{{ record.spot|default:"—" }}</span>
                 <span class="bm-cell bm-cell--collapse" role="cell"><span class="bm-tag">{{ record.get_status_display|upper }}</span></span>
                 <span class="bm-cell bm-cell--collapse" role="cell">{% if record.is_public %}<span class="bm-tag bm-tag--accent">YES</span>{% else %}<span class="bm-tag bm-tag--off">NO</span>{% endif %}</span>

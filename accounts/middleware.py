@@ -96,8 +96,10 @@ class MfaPrivilegeMiddleware:
         from django.urls import reverse
 
         from .authn.mfa_session import (
+            ENROLLMENT_KEY,
             active_mfa_device,
             dashboard_session_is_valid,
+            enrollment_session_is_valid,
             issue_pending_challenge,
             mfa_required_for_user,
             privileged_session_is_valid,
@@ -115,6 +117,14 @@ class MfaPrivilegeMiddleware:
 
         if not settings.MFA_ENFORCEMENT_ENABLED:
             return self.get_response(request)
+
+        had_enrollment_state = ENROLLMENT_KEY in request.session
+        enrollment_valid = enrollment_session_is_valid(request)
+        if had_enrollment_state and not enrollment_valid:
+            logout(request)
+            return redirect("accounts:login")
+        if enrollment_valid and request.path not in self.recovery_paths:
+            return redirect("accounts:mfa-enrollment-email-verify")
 
         had_recovery_state = "accounts.mfa.recovery" in request.session
         recovery_valid = recovery_session_is_valid(request)

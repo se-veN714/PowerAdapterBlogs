@@ -18,6 +18,7 @@ PENDING_KEY = "accounts.mfa.pending"
 PRIVILEGED_KEY = "accounts.mfa.privileged"
 DASHBOARD_REMEMBER_KEY = "accounts.mfa.dashboard_remember"
 RECOVERY_KEY = "accounts.mfa.recovery"
+ENROLLMENT_KEY = "accounts.mfa.enrollment"
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +85,7 @@ def issue_pending_challenge(
     request.session[PENDING_KEY] = value
     request.session.pop(PRIVILEGED_KEY, None)
     request.session.pop(RECOVERY_KEY, None)
+    request.session.pop(ENROLLMENT_KEY, None)
 
 
 def get_pending_challenge(request) -> PendingMfaChallenge | None:
@@ -235,6 +237,7 @@ def mark_privileged_session(
             request.session.pop(DASHBOARD_REMEMBER_KEY, None)
     request.session.pop(PENDING_KEY, None)
     request.session.pop(RECOVERY_KEY, None)
+    request.session.pop(ENROLLMENT_KEY, None)
 
 
 def privileged_session_is_valid(request, *, require_certificate: bool = False) -> bool:
@@ -360,6 +363,40 @@ def mark_recovery_session(request, device: MfaTotpDevice):
     }
     request.session.pop(PENDING_KEY, None)
     request.session.pop(PRIVILEGED_KEY, None)
+    request.session.pop(ENROLLMENT_KEY, None)
+
+
+def mark_enrollment_session(request, user: MyUser):
+    """Confine a password-authenticated privileged user to initial MFA setup."""
+
+    request.session[ENROLLMENT_KEY] = {
+        "user_id": user.pk,
+        "issued_at": timezone.now().timestamp(),
+    }
+    request.session.pop(PENDING_KEY, None)
+    request.session.pop(PRIVILEGED_KEY, None)
+    request.session.pop(RECOVERY_KEY, None)
+
+
+def enrollment_session_is_valid(request) -> bool:
+    value = request.session.get(ENROLLMENT_KEY)
+    if not isinstance(value, dict) or not request.user.is_authenticated:
+        return False
+    try:
+        age = timezone.now().timestamp() - float(value["issued_at"])
+        user_id = int(value["user_id"])
+    except (KeyError, TypeError, ValueError):
+        request.session.pop(ENROLLMENT_KEY, None)
+        return False
+    valid = (
+        0 <= age <= settings.MFA_TOTP_BINDING_TTL_SECONDS
+        and request.user.pk == user_id
+        and mfa_required_for_user(request.user)
+        and active_mfa_device(request.user) is None
+    )
+    if not valid:
+        request.session.pop(ENROLLMENT_KEY, None)
+    return valid
 
 
 def recovery_session_is_valid(request) -> bool:

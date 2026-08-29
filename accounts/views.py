@@ -55,6 +55,7 @@ from .authn.mfa_session import (
     get_pending_challenge,
     increment_pending_attempts,
     issue_pending_challenge,
+    mark_enrollment_session,
     mark_privileged_session,
     mark_recovery_session,
     mfa_required_for_user,
@@ -175,11 +176,14 @@ class LoginView(FormView):
                         user=user,
                         status=MfaTotpDevice.Status.ACTIVE,
                     ).exists():
-                        form.add_error(
-                            None,
-                            "该特权账号尚未绑定动态验证码，暂时无法登录。请先关闭强制开关并完成绑定。",
+                        login(self.request, user)
+                        mark_enrollment_session(self.request, user)
+                        cache.delete(failure_key)
+                        logger.info(
+                            "User 首次 MFA 绑定登录: user_id=%s",
+                            user.id,
                         )
-                        return self.form_invalid(form)
+                        return redirect("accounts:mfa-enrollment-email-verify")
                     target = self.get_success_url_for_user(user)
                     certificate_binding = None
                     if settings.MTLS_ENFORCEMENT_ENABLED and urlsplit(

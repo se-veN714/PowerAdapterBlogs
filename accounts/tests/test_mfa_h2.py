@@ -23,6 +23,7 @@ from accounts.authn.mfa_services import (
 )
 from accounts.authn.mfa_session import (
     DASHBOARD_REMEMBER_KEY,
+    ENROLLMENT_KEY,
     PENDING_KEY,
     PRIVILEGED_KEY,
     RECOVERY_KEY,
@@ -367,12 +368,48 @@ class H2PrivilegedAuthenticationTest(TestCase):
         self.assertEqual(int(self.client.session[SESSION_KEY]), ordinary.pk)
         self.assertNotIn(PENDING_KEY, self.client.session)
 
-    def test_required_user_without_device_is_not_logged_in(self):
+    def test_required_user_without_device_enters_restricted_enrollment(self):
         self.device.delete()
         response = self._begin_login()
+        self.assertRedirects(
+            response,
+            reverse("accounts:mfa-enrollment-email-verify"),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(int(self.client.session[SESSION_KEY]), self.user.pk)
+        self.assertIn(ENROLLMENT_KEY, self.client.session)
+        self.assertRedirects(
+            self.client.get(reverse("index")),
+            reverse("accounts:mfa-enrollment-email-verify"),
+            fetch_redirect_response=False,
+        )
+
+    def test_initial_enrollment_clears_restriction_after_totp_confirmation(self):
+        self.device.delete()
+        self._begin_login()
+        session = self.client.session
+        session[MFA_ENROLLMENT_EMAIL_VERIFIED_SESSION_KEY] = {
+            "user_id": self.user.pk,
+            "purpose": EMAIL_PURPOSE_MFA_ENROLLMENT,
+            "verified_at": timezone.now().timestamp(),
+        }
+        session.save()
+
+        start_response = self.client.post(
+            reverse("accounts:mfa-settings"),
+            {"action": "start"},
+        )
+        enrollment = start_response.context["enrollment"]
+        new_totp = pyotp.parse_uri(enrollment.provisioning_uri)
+        response = self.client.post(
+            reverse("accounts:mfa-confirm"),
+            {"code": new_totp.now()},
+        )
+
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "尚未绑定动态验证码")
-        self.assertNotIn(SESSION_KEY, self.client.session)
+        session = self.client.session
+        self.assertNotIn(ENROLLMENT_KEY, session)
+        self.assertIn(PRIVILEGED_KEY, session)
 
     def test_readiness_preflight_requires_acknowledgement_and_active_material(self):
         with self.assertRaises(CommandError):

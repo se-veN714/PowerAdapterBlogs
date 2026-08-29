@@ -78,11 +78,11 @@ H2a-0 的 `accounts.authn.mfa_crypto` 不读取数据库或环境。H2a-1 的 `M
 
 #### H2 生产启用顺序
 
-1. 保持 `MFA_ENFORCEMENT_ENABLED=false`，通过环境变量配置 `MFA_TOTP_KEYRING_JSON`、`MFA_TOTP_ACTIVE_KEY_ID` 与可选 `MFA_TOTP_ISSUER`；KEK 不得写入仓库或聊天记录。
+1. 保持 `MFA_ENFORCEMENT_ENABLED=false`，并显式设置 `MFA_ENROLLMENT_MODE_ENABLED=true`；该模式会把已登录特权账号限制在邮箱验证、MFA 绑定/确认与退出路径。通过环境变量配置 `MFA_TOTP_KEYRING_JSON`、`MFA_TOTP_ACTIVE_KEY_ID` 与可选 `MFA_TOTP_ISSUER`；KEK 不得写入仓库或聊天记录。
 2. 执行迁移并由所有 active superuser、显式 dashboard 用户和 Board Manager 在 `/accounts/security/mfa/` 完成真实设备绑定；分别离线保存只展示一次的恢复码。
 3. 人工验证 Microsoft Authenticator 扫码、TOTP 登录、单码恢复重绑、唯一管理员 break-glass 与关闭开关回滚。
 4. 执行 `python manage.py check_mfa_readiness --acknowledge-recovery-material`。命令会检查版本化 keyring、全部强制用户的 active 设备、seed 可解密性和剩余恢复码，但不会输出认证材料。
-5. 仅在上述步骤全部通过后设置 `MFA_ENFORCEMENT_ENABLED=true` 并重启服务；分别从账号登录页、`/dashboard/` 与 `/super_admin/` 验证。紧急回滚只关闭该开关，不删除设备、恢复码或审计记录。
+5. 仅在上述步骤全部通过后设置 `MFA_ENFORCEMENT_ENABLED=true`、`MFA_ENROLLMENT_MODE_ENABLED=false` 并重启服务；两者同时开启或同时关闭都会被生产设置拒绝。分别从账号登录页、`/dashboard/` 与 `/super_admin/` 验证。紧急恢复应显式切换回受限绑定模式，不删除设备、恢复码或审计记录。
 
 | 版本 | 目标 | 是否修改运行时 | 进入条件 |
 |---|---|:---:|---|

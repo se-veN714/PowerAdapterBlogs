@@ -47,6 +47,14 @@ DNS result is attempted first; fallbacks are used only for connection-level
 failures. Recheck the fallback endpoints during every release because provider
 addresses are operational configuration, not permanent application constants.
 
+For first-time privileged TOTP enrollment, use the explicit paired state
+`MFA_ENFORCEMENT_ENABLED=false` and `MFA_ENROLLMENT_MODE_ENABLED=true`.
+Enrollment mode confines an authenticated privileged session to mailbox
+verification, MFA enrollment/confirmation, and logout routes. After every
+required account has an active device and offline recovery material, restore
+`MFA_ENFORCEMENT_ENABLED=true` and `MFA_ENROLLMENT_MODE_ENABLED=false`.
+Production refuses both ambiguous combinations.
+
 The Root Client CA private key remains offline. The server receives only the
 public CA chain and current CRL. Do not enable the admin vhost until Nginx is
 built against the project-approved latest OpenSSL 4.0 patch and the certificate

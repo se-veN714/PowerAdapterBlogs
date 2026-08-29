@@ -120,8 +120,12 @@ if len(active_audit_keys) != 2 or LOG_HMAC_KEY in active_audit_keys:
         'MongoDB 与 checkpoint 活跃审计密钥必须相互独立且不同于历史密钥'
     )
 
-if not MFA_ENFORCEMENT_ENABLED:
-    raise ImproperlyConfigured('生产环境必须启用 MFA_ENFORCEMENT_ENABLED')
+if not MFA_ENFORCEMENT_ENABLED and not MFA_ENROLLMENT_MODE_ENABLED:
+    raise ImproperlyConfigured(
+        '生产环境关闭 MFA 强制时必须显式启用 MFA_ENROLLMENT_MODE_ENABLED'
+    )
+if MFA_ENFORCEMENT_ENABLED and MFA_ENROLLMENT_MODE_ENABLED:
+    raise ImproperlyConfigured('MFA 强制模式与首次绑定模式不能同时启用')
 if not MTLS_ENFORCEMENT_ENABLED:
     raise ImproperlyConfigured('生产环境必须启用 MTLS_ENFORCEMENT_ENABLED')
 required_env('MTLS_ADMIN_HOST')

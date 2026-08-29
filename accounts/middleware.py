@@ -104,6 +104,15 @@ class MfaPrivilegeMiddleware:
             recovery_session_is_valid,
         )
 
+        if settings.MFA_ENROLLMENT_MODE_ENABLED:
+            if (
+                request.user.is_authenticated
+                and mfa_required_for_user(request.user)
+                and request.path not in self.recovery_paths
+            ):
+                return redirect("accounts:mfa-settings")
+            return self.get_response(request)
+
         if not settings.MFA_ENFORCEMENT_ENABLED:
             return self.get_response(request)
 

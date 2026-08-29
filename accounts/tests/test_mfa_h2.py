@@ -398,6 +398,8 @@ class H2PrivilegedAuthenticationTest(TestCase):
     MFA_TOTP_ACTIVE_KEY_ID="test-v1",
     MFA_TOTP_ISSUER="PowerAdapter Test",
     MFA_ENFORCEMENT_ENABLED=False,
+    MFA_ENROLLMENT_MODE_ENABLED=True,
+    SECURE_SSL_REDIRECT=False,
     LOG_HMAC_KEY=os.urandom(32),
     PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"],
 )
@@ -424,6 +426,22 @@ class H2EnrollmentUiTest(TestCase):
         self.assertRedirects(
             response,
             reverse("accounts:mfa-enrollment-email-verify"),
+        )
+
+    def test_enrollment_mode_confines_privileged_session_to_mfa_routes(self):
+        user = MyUser.objects.create_superuser(
+            email="confined-admin@example.test",
+            username="confined_admin",
+            password="test-only-password",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("dashboard:overview"))
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:mfa-settings"),
+            fetch_redirect_response=False,
         )
 
     def test_binding_page_returns_qr_without_persisting_uri(self):

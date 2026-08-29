@@ -483,6 +483,13 @@ MFA_ENFORCEMENT_ENABLED = os.getenv("MFA_ENFORCEMENT_ENABLED", "false").lower() 
     "true",
     "yes",
 }
+MFA_ENROLLMENT_MODE_ENABLED = os.getenv(
+    "MFA_ENROLLMENT_MODE_ENABLED", "false"
+).lower() in {
+    "1",
+    "true",
+    "yes",
+}
 MFA_CHALLENGE_TTL_SECONDS = 5 * 60
 MFA_CHALLENGE_MAX_ATTEMPTS = 5
 MFA_CHALLENGE_COOLDOWN_SECONDS = 15 * 60

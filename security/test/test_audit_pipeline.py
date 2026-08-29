@@ -10,6 +10,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
+from pymongo.errors import OperationFailure
 
 from accounts.models import MyUser
 from security.audit import (
@@ -182,9 +183,18 @@ class MongoIdempotencyTests(SimpleTestCase):
 
         writer.ensure_indexes()
 
-        writer.db.create_collection.assert_called_once_with(
-            "audit_chain_heads", check_exists=False
+        writer.db.command.assert_called_once_with("create", "audit_chain_heads")
+
+    def test_index_setup_accepts_existing_head_namespace(self):
+        writer = MongoLogger.__new__(MongoLogger)
+        writer.collection = mock.Mock()
+        writer.heads = SimpleNamespace(name="audit_chain_heads")
+        writer.db = mock.Mock()
+        writer.db.command.side_effect = OperationFailure(
+            "namespace already exists", code=48
         )
+
+        writer.ensure_indexes()
 
 
 @override_settings(

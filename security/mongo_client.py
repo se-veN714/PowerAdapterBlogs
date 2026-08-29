@@ -7,7 +7,7 @@ from typing import Any, Mapping
 
 from django.conf import settings
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
-from pymongo.errors import CollectionInvalid
+from pymongo.errors import OperationFailure
 
 from security.audit import (
     IMMUTABLE_EVENT_FIELDS,
@@ -108,13 +108,14 @@ class MongoLogger:
         # `check_deployment()` also inspects the chain-head collection. On a
         # fresh database no delivery has created it yet, so establish the
         # namespace explicitly without granting the deploy role event writes.
-        # Skip PyMongo's existence preflight because it requires the broader
-        # `listCollections` privilege; MongoDB's atomic create result is enough
-        # to keep this operation idempotent.
+        # Use the raw command because PyMongo's create_collection helper performs
+        # a `listCollections` preflight. The deploy role intentionally lacks that
+        # broader database-wide privilege.
         try:
-            self.db.create_collection(self.heads.name, check_exists=False)
-        except CollectionInvalid:
-            pass
+            self.db.command("create", self.heads.name)
+        except OperationFailure as exc:
+            if exc.code != 48:  # NamespaceExists
+                raise
 
     def check_deployment(self) -> dict[str, str]:
         hello = self.db.command("hello")

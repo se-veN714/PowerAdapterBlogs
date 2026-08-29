@@ -37,7 +37,7 @@
     .request-item[data-status="approved"] .request-status { color: var(--accent); }
     .request-item[data-status="rejected"] .request-status { color: var(--error-accent); }
     .access-empty { color: var(--text-tertiary); font-size: .82rem; padding: 1rem 0; }
-    .access-dialog { width: min(92vw, 520px); color: var(--text-primary); background: var(--bg-elevated); border: 1px solid var(--accent-deep); padding: 0; box-shadow: 0 24px 80px rgba(0,0,0,.72); }
+    .access-dialog { position: fixed; inset: 0; width: min(92vw, 520px); max-height: min(90dvh, 720px); margin: auto; overflow: auto; color: var(--text-primary); background: var(--bg-elevated); border: 1px solid var(--accent-deep); padding: 0; box-shadow: 0 24px 80px rgba(0,0,0,.72); }
     .access-dialog::backdrop { background: rgba(3, 7, 7, .78); backdrop-filter: blur(4px); }
     .access-dialog-body { padding: 1.75rem; position: relative; }
     .access-dialog-kicker { color: var(--accent-soft); font-size: .7rem; letter-spacing: .18em; }

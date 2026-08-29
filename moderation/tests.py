@@ -109,7 +109,11 @@ class ModerationBoundaryTest(TestCase):
         self.client.force_login(manager)
 
         self.assertFalse(has_dashboard_access(manager))
-        self.assertEqual(self.client.get(reverse("moderation:boards")).status_code, 200)
+        review_page = self.client.get(reverse("moderation:boards"))
+        self.assertEqual(review_page.status_code, 200)
+        self.assertContains(review_page, 'class="moderation-note-field"')
+        self.assertContains(review_page, 'class="moderation-note-input"')
+        self.assertContains(review_page, "<textarea", html=False)
         response = self.client.post(
             reverse("moderation:boards"),
             {"request_id": access_request.pk, "action": "approve"},

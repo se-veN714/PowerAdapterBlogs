@@ -519,6 +519,7 @@ class BoardAccessRequestTest(TestCase):
         self.assertContains(response, "申请已提交")
         self.assertContains(response, "主动联系管理员")
         self.assertContains(response, "access-success-dialog")
+        self.assertContains(response, "margin: auto;")
         refreshed = self.client.get(url)
         self.assertNotContains(refreshed, "access-success-dialog")
         self.assertContains(refreshed, "需要短时邮箱确认")

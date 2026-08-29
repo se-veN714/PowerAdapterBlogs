@@ -13,7 +13,20 @@
         <article class="moderation-row">
             <div class="moderation-row-head"><div><h2>{{ item.applicant.username }} → {{ item.board.name }}</h2><p class="moderation-meta">申请角色：{{ item.get_requested_role_display }} · {{ item.created_at|date:"Y-m-d H:i" }}</p></div><span class="moderation-state">{{ item.get_status_display }}</span></div>
             {% if item.reason %}<p class="moderation-copy">{{ item.reason }}</p>{% endif %}
-            {% if item.status == 'pending' %}<form class="moderation-actions" method="post">{% csrf_token %}<input type="hidden" name="request_id" value="{{ item.pk }}"><input name="note" maxlength="500" placeholder="审核说明（可选）"><button class="btn-ghost" name="action" value="approve">批准</button><button class="btn-ghost" name="action" value="reject">驳回</button></form>{% endif %}
+            {% if item.status == 'pending' %}
+            <form class="moderation-actions" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="request_id" value="{{ item.pk }}">
+                <label class="moderation-note-field">
+                    <span class="moderation-note-label">DECISION NOTE / 审核说明（可选）</span>
+                    <textarea class="moderation-note-input" name="note" maxlength="500" rows="3" placeholder="记录批准条件、驳回原因或后续要求"></textarea>
+                </label>
+                <div class="moderation-decision-buttons">
+                    <button class="btn-accent" name="action" value="approve">批准</button>
+                    <button class="btn-ghost" name="action" value="reject">驳回</button>
+                </div>
+            </form>
+            {% endif %}
         </article>
         {% empty %}<p class="moderation-meta">当前没有待处理申请。</p>{% endfor %}
     </div>

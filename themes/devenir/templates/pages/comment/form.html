@@ -4,9 +4,13 @@
 {% block form %}
 <div class="comment-form">
     <div class="avatar-col">
-        <img src="{% static 'img/avatar.jpg' %}" alt="头像">
+        {% if author_avatar_url %}
+        <img src="{{ author_avatar_url }}" alt="{{ author_name }} 的头像">
+        {% else %}
+        <img src="{% static 'img/default-avatar.webp' %}" alt="匿名默认头像">
+        {% endif %}
     </div>
-    {% if request.user.is_authenticated %}
+    {% if request.user.is_authenticated and identity_verified %}
     <form class="form-col" id="comment-form" action="{% url 'Blogs:post_comment' slug=target.slug %}" method="post">
         {% csrf_token %}
         <p class="comment-identity">以 <strong>{{ author_name }}</strong> 的账号身份评论</p>
@@ -19,6 +23,11 @@
             <span id="button-text">写好了！</span>
         </button>
     </form>
+    {% elif request.user.is_authenticated %}
+    <div class="form-col comment-login-required">
+        <p>发表评论前需要完成后台真实身份核验。本站只记录核验方式与时间，不保存手机号或证件号码原文。</p>
+        <a class="btn-comment" href="{% url 'report-create' %}">联系站点所有者</a>
+    </div>
     {% else %}
     <div class="form-col comment-login-required">
         <p>评论仅对已登录账号开放，不再接受匿名昵称。</p>
@@ -29,5 +38,5 @@
 {% endblock %}
 
 {% block extra_script %}
-{% if request.user.is_authenticated %}<script src="{% static 'js/form-comment.js' %}"></script>{% endif %}
+{% if request.user.is_authenticated and identity_verified %}<script src="{% static 'js/form-comment.js' %}"></script>{% endif %}
 {% endblock %}

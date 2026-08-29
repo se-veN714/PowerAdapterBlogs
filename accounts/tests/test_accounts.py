@@ -10,10 +10,11 @@ from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.admin import CusMyUserAdmin
+from accounts.admin import CusMyUserAdmin, MyUserAdmin
 from accounts.context_processors import account_security_navigation
 from accounts.forms import AccountInvitationCreationForm
 from accounts.models import AccountInvitation, MyUser, UserProfile
+from security.models import AuditOutbox
 from accounts.services import (
     PASSWORD_EMAIL_VERIFIED_SESSION_KEY,
     issue_account_invitation,
@@ -100,6 +101,69 @@ class DashboardAccountAdminBoundaryTest(TestCase):
         self.assertTrue(self.model_admin.has_change_permission(request))
         self.assertTrue(self.model_admin.has_add_permission(request))
         self.assertTrue(self.model_admin.has_delete_permission(request))
+
+
+class CommentIdentityVerificationAdminTest(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.model_admin = MyUserAdmin(MyUser, AdminSite())
+        self.superuser = MyUser.objects.create_superuser(
+            email="identity-root@example.com",
+            username="identity-root",
+            password="test-password",
+        )
+        self.user = MyUser.objects.create_user(
+            email="identity-user@example.com",
+            username="identity-user",
+            password="test-password",
+            is_active=True,
+        )
+
+    def test_selecting_a_supported_method_records_attestation_metadata(self):
+        request = self.factory.post("/super_admin/accounts/myuser/")
+        request.user = self.superuser
+        self.user.identity_verification_method = (
+            MyUser.IdentityVerificationMethod.MOBILE_PHONE
+        )
+
+        self.model_admin.save_model(request, self.user, form=None, change=True)
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_comment_identity_verified)
+        self.assertEqual(self.user.identity_verified_by, self.superuser)
+        self.assertTrue(
+            AuditOutbox.objects.filter(
+                event_type="account.comment_identity.changed",
+                event__target__id=str(self.user.pk),
+            ).exists()
+        )
+
+    def test_clearing_method_revokes_comment_verification(self):
+        self.user.identity_verification_method = (
+            MyUser.IdentityVerificationMethod.IDENTITY_DOCUMENT
+        )
+        self.user.identity_verified_at = timezone.now()
+        self.user.identity_verified_by = self.superuser
+        self.user.save()
+        request = self.factory.post("/super_admin/accounts/myuser/")
+        request.user = self.superuser
+        self.user.identity_verification_method = ""
+
+        self.model_admin.save_model(request, self.user, form=None, change=True)
+
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_comment_identity_verified)
+        self.assertIsNone(self.user.identity_verified_by)
+
+    def test_missing_verifier_fails_closed(self):
+        self.user.identity_verification_method = (
+            MyUser.IdentityVerificationMethod.MOBILE_PHONE
+        )
+        self.user.identity_verified_at = timezone.now()
+        self.user.identity_verified_by = None
+        self.user.save()
+
+        self.assertFalse(self.user.is_comment_identity_verified)
 
 
 class DashboardLoginTest(TestCase):
@@ -420,6 +484,18 @@ class UserProfileTest(TestCase):
         self.assertNotContains(response, self.draft_post.title)
         self.assertNotContains(response, self.owner.email)
         self.assertNotContains(response, "SensitiveRoleName")
+
+    def test_profile_without_avatar_uses_neutral_default_asset(self):
+        self.client.force_login(self.owner)
+
+        detail = self.client.get(self.detail_url)
+        editor = self.client.get(reverse("accounts:profile-update"))
+
+        self.assertContains(detail, "img/default-avatar.webp")
+        self.assertContains(editor, "img/default-avatar.webp")
+        self.assertContains(editor, "profile-editor-shell")
+        self.assertContains(editor, "DROP / SELECT IMAGE")
+        self.assertNotContains(detail, "img/avatar.jpg")
 
     def test_my_profile_creates_private_profile_and_redirects(self):
         UserProfile.objects.filter(user=self.other).delete()

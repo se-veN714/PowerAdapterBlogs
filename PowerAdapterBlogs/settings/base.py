@@ -340,10 +340,45 @@ JAZZMIN_UI_TWEAKS = {
 
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
+LOG_RETENTION_DAYS = max(183, int(os.getenv("LOG_RETENTION_DAYS", "183")))
+LOG_EXTERNAL_ROTATION = os.getenv("LOG_EXTERNAL_ROTATION", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+LOG_SERVICE_NAME = "".join(
+    character
+    for character in os.getenv("LOG_SERVICE_NAME", "local")
+    if character.isalnum() or character in {"-", "_"}
+) or "local"
 
 info_format = "[{asctime}] INFO (✿◕‿◕) {message}"
 warn_format = "[{asctime}] WARN (ಠ_ಠ) {message}"
 error_format = "[{asctime}] ERROR (╯°□°）╯︵ ┻━┻ {message}"
+
+
+def _file_log_handler(filename, formatter, level):
+    handler = {
+        "class": (
+            "logging.handlers.WatchedFileHandler"
+            if LOG_EXTERNAL_ROTATION
+            else "logging.handlers.TimedRotatingFileHandler"
+        ),
+        "filename": os.path.join(LOG_DIR, filename),
+        "formatter": formatter,
+        "level": level,
+        "encoding": "utf-8",
+    }
+    if not LOG_EXTERNAL_ROTATION:
+        handler.update(
+            {
+                "when": "midnight",
+                "interval": 1,
+                "backupCount": LOG_RETENTION_DAYS,
+                "utc": True,
+            }
+        )
+    return handler
 
 LOGGING = {
     "version": 1,
@@ -358,33 +393,15 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "info",
         },
-        "info_file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": os.path.join(LOG_DIR, "info.log"),
-            "maxBytes": 5 * 1024 * 1024,
-            "backupCount": 5,
-            "formatter": "info",
-            "level": "INFO",
-            "encoding": "utf-8",
-        },
-        "warning_file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": os.path.join(LOG_DIR, "warning.log"),
-            "maxBytes": 5 * 1024 * 1024,
-            "backupCount": 5,
-            "formatter": "warning",
-            "level": "WARNING",
-            "encoding": "utf-8",
-        },
-        "error_file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": os.path.join(LOG_DIR, "error.log"),
-            "maxBytes": 5 * 1024 * 1024,
-            "backupCount": 5,
-            "formatter": "error",
-            "level": "ERROR",
-            "encoding": "utf-8",
-        },
+        "info_file": _file_log_handler(
+            f"{LOG_SERVICE_NAME}.info.log", "info", "INFO"
+        ),
+        "warning_file": _file_log_handler(
+            f"{LOG_SERVICE_NAME}.warning.log", "warning", "WARNING"
+        ),
+        "error_file": _file_log_handler(
+            f"{LOG_SERVICE_NAME}.error.log", "error", "ERROR"
+        ),
     },
     "loggers": {
         "Blogs": {
@@ -397,9 +414,14 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        "django.request": {
+            "handlers": ["console", "warning_file", "error_file"],
+            "level": "WARNING",
+            "propagate": False,
+        },
     },
     "root": {
-        "handlers": ["console"],
+        "handlers": ["console", "info_file", "warning_file", "error_file"],
         "level": "DEBUG",
     },
 }

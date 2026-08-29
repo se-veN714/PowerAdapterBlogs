@@ -36,6 +36,8 @@ flowchart LR
 | --- | --- | --- | --- |
 | Django Admin 单条/批量 | `django_admin.object.*` | Admin 保存事务 + outbox | actor/target ID、变更字段名；不复制展示值和字段值 |
 | 评论创建/软删除/审核 | `comment.*` | Comment 状态 + outbox | comment/post/user ID、状态、固定 reason code；不记录正文/IP/UA |
+| 评论真实身份核验 | `account.comment_identity.changed` | MyUser 核验状态 + outbox | user/operator ID 与核验布尔状态；不记录号码或证件原文 |
+| 投诉举报提交/处置 | `content_report.*` | ContentReport 状态 + outbox | 受理编号、类型与状态；不记录说明、邮箱或来源地址 |
 | 板块申请与 Membership | `board.*` | 申请或 MembershipEvent + outbox | board/user/membership ID、角色和状态；不复制自由文本原因 |
 | TOTP 生命周期 | `mfa.*` | 设备状态 + outbox | device/user ID、状态、auth version、固定 reason code；绝不记录 seed/code/recovery code |
 | mTLS 绑定与撤销 | `mtls.*` | binding 状态 + outbox | binding/user ID、profile、状态、auth version；不记录私钥或 DN |

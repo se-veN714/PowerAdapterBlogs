@@ -15,7 +15,7 @@
 > **职责**: 自定义用户模型、认证、账号状态、全局 Group 编排与用户安全；不拥有 Board Policy
 > **依赖**: Django `AbstractBaseUser` + `PermissionsMixin`  
 > **创建**: 2025-07-11  
-> **最后更新**: 2026-08-04 — Dashboard 7 天信任与安全导航入口
+> **最后更新**: 2026-08-29 — 评论真实身份核验最小化元数据
 
 ---
 
@@ -23,6 +23,7 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-29 | v3.29 | MyUser 增加评论真实身份核验方式/时间/操作人；仅 superuser 经显式服务记录核验/撤销并与审计 outbox 同事务，不保存号码原文 |
 | 2026-08-03 | v3.26 | 修正 dashboard 用户必须 MFA 却不能自助绑定 TOTP 的资格矛盾；Membership M2 复用现有防重放与限流服务签发一次性操作 capability |
 | 2026-08-04 | v3.28 | super_admin 增加 5 分钟闲置超时与浏览器关闭失效；Dashboard 长期 grant 接入 Membership 列表及操作级 step-up；`run.py` 成为本地默认完整 MFA/mTLS 入口 |
 | 2026-08-04 | v3.27 | Dashboard challenge 可选当前 Session 信任 7 天；super_admin 仍只接受 mTLS 绑定的 15 分钟 TOTP privileged Session；导航按资格显示 MFA 与独立管理域名入口 |

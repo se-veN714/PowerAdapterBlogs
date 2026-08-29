@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.template.loader import render_to_string
+import uuid
 
 
 # Create your models here.
@@ -86,3 +87,73 @@ class SideBar(models.Model):
             content_result = render_to_string("pages/config/sidebar_comments.html",context)
 
         return content_result
+
+
+class ContentReport(models.Model):
+    """Public complaint/report receipt with a privacy-minimized tracking view."""
+
+    class Category(models.TextChoices):
+        ILLEGAL_HARMFUL = "illegal_harmful", "违法或不良信息"
+        INFRINGEMENT = "infringement", "侵权"
+        PRIVACY = "privacy", "隐私或个人信息"
+        SPAM = "spam", "垃圾信息或骚扰"
+        APPEAL = "appeal", "内容处置申诉"
+        OTHER = "other", "其他"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "待受理"
+        REVIEWING = "reviewing", "处理中"
+        RESOLVED = "resolved", "已处理"
+        REJECTED = "rejected", "不予处理"
+
+    reference = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        verbose_name="受理编号",
+    )
+    category = models.CharField(
+        max_length=32,
+        choices=Category.choices,
+        verbose_name="问题类型",
+    )
+    target_path = models.CharField(max_length=500, blank=True, verbose_name="本站位置")
+    description = models.TextField(max_length=2000, verbose_name="问题说明")
+    contact_email = models.EmailField(blank=True, verbose_name="联系邮箱")
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="submitted_content_reports",
+        verbose_name="提交账号",
+    )
+    source_ip_digest = models.CharField(
+        max_length=64,
+        editable=False,
+        verbose_name="来源地址摘要",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name="处理状态",
+    )
+    internal_note = models.TextField(blank=True, verbose_name="内部处理记录")
+    public_response = models.TextField(blank=True, verbose_name="公开处理反馈")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="提交时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="处理完成时间",
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "投诉举报"
+        verbose_name_plural = "投诉举报"
+
+    def __str__(self):
+        return f"{self.reference} · {self.get_status_display()}"

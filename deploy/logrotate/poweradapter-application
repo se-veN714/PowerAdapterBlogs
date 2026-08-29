@@ -1,0 +1,9 @@
+/opt/blog/deploy/var/logs/*.log {
+    daily
+    rotate 183
+    missingok
+    notifempty
+    compress
+    delaycompress
+    dateext
+}

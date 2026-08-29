@@ -31,6 +31,8 @@ from config.views import (
     AboutView,
     LinkListView,
     PrivacyView,
+    content_report_create,
+    content_report_status,
     error_preview,
     healthz,
     robots_txt,
@@ -68,6 +70,8 @@ urlpatterns = [
     path("links/", LinkListView.as_view(), name="links"),
     path("about/", AboutView.as_view(), name="about"),
     path("privacy/", PrivacyView.as_view(), name="privacy"),
+    path("reports/new/", content_report_create, name="report-create"),
+    path("reports/<uuid:reference>/", content_report_status, name="report-status"),
     path("robots.txt", robots_txt, name="robots"),
     path(".well-known/security.txt", security_txt, name="security-txt"),
     path(

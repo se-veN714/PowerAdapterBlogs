@@ -8,9 +8,10 @@ from django.contrib.auth.models import Permission
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from PowerAdapterBlogs.base_admin import has_dashboard_access
-from accounts.models import MyUser
+from accounts.models import MfaTotpDevice, MyUser
 from accounts.services import (
     EMAIL_PURPOSE_BOARD_ACCESS,
     mark_email_verification_verified,
@@ -86,6 +87,17 @@ class BoardAccessRequestTest(TestCase):
         request.session = self.client.session
         mark_email_verification_verified(request, EMAIL_PURPOSE_BOARD_ACCESS)
         request.session.save()
+
+    def bind_active_totp(self):
+        return MfaTotpDevice.objects.create(
+            user=self.applicant,
+            status=MfaTotpDevice.Status.ACTIVE,
+            secret_ciphertext=b"test-ciphertext",
+            secret_nonce=b"test-nonce12",
+            key_id="test-v1",
+            binding_expires_at=timezone.now(),
+            confirmed_at=timezone.now(),
+        )
 
     def test_verified_user_can_submit_but_receives_no_membership(self):
         access_request = self.submit()
@@ -541,6 +553,87 @@ class BoardAccessRequestTest(TestCase):
             response,
             reverse("accounts:board-access-email-verify"),
         )
+        self.assertFalse(
+            BoardAccessRequest.objects.filter(applicant=self.applicant).exists()
+        )
+
+    def test_active_totp_user_is_offered_totp_instead_of_email(self):
+        self.bind_active_totp()
+        self.client.force_login(self.applicant)
+
+        response = self.client.get(reverse("boards:access-requests"))
+
+        self.assertContains(response, "TOTP REQUIRED")
+        self.assertContains(response, 'name="totp_code"')
+        self.assertNotContains(response, "验证邮箱并继续")
+
+    @patch("boards.views.verify_active_totp")
+    def test_active_totp_user_can_submit_with_fresh_code(self, verify_totp):
+        self.bind_active_totp()
+        self.client.force_login(self.applicant)
+        url = reverse("boards:access-requests")
+
+        response = self.client.post(
+            url,
+            {
+                "board": self.board.pk,
+                "requested_role": BoardMembership.Role.CONTRIBUTOR,
+                "reason": "I can help.",
+                "totp_code": "123456",
+            },
+        )
+
+        self.assertRedirects(response, url)
+        verify_totp.assert_called_once_with(
+            user=self.applicant,
+            actor=self.applicant,
+            code="123456",
+        )
+        self.assertTrue(
+            BoardAccessRequest.objects.filter(applicant=self.applicant).exists()
+        )
+
+    @patch("boards.views.verify_active_totp")
+    def test_active_totp_user_cannot_submit_with_invalid_code(self, verify_totp):
+        from accounts.authn.mfa_services import MfaServiceError
+
+        verify_totp.side_effect = MfaServiceError("invalid_code")
+        self.bind_active_totp()
+        self.client.force_login(self.applicant)
+
+        response = self.client.post(
+            reverse("boards:access-requests"),
+            {
+                "board": self.board.pk,
+                "requested_role": BoardMembership.Role.CONTRIBUTOR,
+                "reason": "I can help.",
+                "totp_code": "000000",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "动态验证码无效、已使用或已过期")
+        self.assertFalse(
+            BoardAccessRequest.objects.filter(applicant=self.applicant).exists()
+        )
+
+    @patch("boards.views.challenge_is_locked", return_value=True)
+    def test_locked_totp_user_cannot_attempt_board_application(self, _locked):
+        self.bind_active_totp()
+        self.client.force_login(self.applicant)
+
+        response = self.client.post(
+            reverse("boards:access-requests"),
+            {
+                "board": self.board.pk,
+                "requested_role": BoardMembership.Role.CONTRIBUTOR,
+                "reason": "I can help.",
+                "totp_code": "123456",
+            },
+        )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertContains(response, "尝试次数过多", status_code=429)
         self.assertFalse(
             BoardAccessRequest.objects.filter(applicant=self.applicant).exists()
         )

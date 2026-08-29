@@ -24,6 +24,9 @@ SENSITIVE_FIELDS = {
     "is_staff",
     "is_dashboard_user",
     "privileged_session_version",
+    "identity_verification_method",
+    "identity_verified_at",
+    "identity_verified_by_id",
 }
 
 
@@ -55,12 +58,39 @@ class UserManager(BaseUserManager):
 
 
 class MyUser(AbstractBaseUser, PermissionsMixin):
+    class IdentityVerificationMethod(models.TextChoices):
+        MOBILE_PHONE = "mobile_phone", "移动电话号码"
+        IDENTITY_DOCUMENT = "identity_document", "身份证件"
+        SOCIAL_CREDIT_CODE = "social_credit_code", "统一社会信用代码"
+
     username = models.CharField(max_length=30, unique=True)
     email = models.EmailField(unique=True)
     cert_sn = models.CharField(max_length=128, blank=True, null=True, unique=True)
     cert_subject_dn = models.TextField(blank=True, null=True)
     is_cert_verified = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
+    identity_verification_method = models.CharField(
+        max_length=24,
+        choices=IdentityVerificationMethod.choices,
+        blank=True,
+        verbose_name="真实身份核验方式",
+        help_text="只记录核验方式，不在本站保存手机号或证件号码。",
+    )
+    identity_verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="真实身份核验时间",
+    )
+    identity_verified_by = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        editable=False,
+        on_delete=models.PROTECT,
+        related_name="identity_verifications_performed",
+        verbose_name="核验操作人",
+    )
 
     # 账号与入口状态；具体业务能力由 Django Group 与 BoardMembership 决定。
     is_active = models.BooleanField(default=False, verbose_name="账号启用")
@@ -81,6 +111,14 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
         permissions = [
             ("manage_user_accounts", "可管理用户账号"),
         ]
+
+    @property
+    def is_comment_identity_verified(self):
+        return bool(
+            self.identity_verification_method
+            and self.identity_verified_at
+            and self.identity_verified_by_id
+        )
 
     def __str__(self):
         return self.username

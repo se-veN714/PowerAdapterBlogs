@@ -14,8 +14,8 @@
     .access-panel h2 { color: var(--accent-soft); font-size: .85rem; letter-spacing: .12em; margin-bottom: 1.25rem; }
     .access-field { margin-bottom: 1rem; }
     .access-field label { display: block; color: var(--text-secondary); font-size: .8rem; margin-bottom: .4rem; }
-    .access-field select, .access-field textarea { width: 100%; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--fragment-border); padding: .75rem; font: inherit; }
-    .access-field select:focus, .access-field textarea:focus { outline: 1px solid var(--accent-soft); border-color: var(--accent-soft); }
+    .access-field select, .access-field textarea, .access-field input { width: 100%; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--fragment-border); padding: .75rem; font: inherit; }
+    .access-field select:focus, .access-field textarea:focus, .access-field input:focus { outline: 1px solid var(--accent-soft); border-color: var(--accent-soft); }
     .access-help { color: var(--text-tertiary); font-size: .72rem; margin-top: .4rem; }
     .access-errors { color: var(--error-accent); font-size: .78rem; margin-bottom: 1rem; }
     .access-verification { border: 1px dashed var(--accent-deep); background: var(--bg-primary); padding: 1rem; }
@@ -93,9 +93,13 @@
         </section>
         <section class="access-panel" aria-labelledby="new-request-title">
             <h2 id="new-request-title">NEW REQUEST</h2>
-            {% if email_verified %}
+            {% if verification_ready %}
             <p class="access-verification-status">
-                MAIL VERIFIED · <span data-email-grant-countdown data-seconds="{{ email_verification_remaining }}">{{ email_verification_remaining }}s</span>
+                {% if totp_required %}
+                    TOTP REQUIRED · ONE-TIME STEP-UP
+                {% else %}
+                    MAIL VERIFIED · <span data-email-grant-countdown data-seconds="{{ email_verification_remaining }}">{{ email_verification_remaining }}s</span>
+                {% endif %}
             </p>
             <form method="post">
                 {% csrf_token %}
@@ -112,7 +116,7 @@
             </form>
             {% else %}
             <div class="access-verification">
-                <p><strong>需要短时邮箱确认。</strong><br>验证账号邮箱后，可在 10 分钟内提交一次申请；申请成功后授权立即失效。</p>
+                <p><strong>需要短时邮箱确认。</strong><br>当前账号尚未绑定 TOTP。验证账号邮箱后，可在 10 分钟内提交一次申请；申请成功后授权立即失效。</p>
                 <a class="btn-accent" href="{{ email_verification_url }}">验证邮箱并继续</a>
             </div>
             {% endif %}

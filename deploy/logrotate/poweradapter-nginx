@@ -1,0 +1,15 @@
+/var/log/nginx/poweradapter-*.log {
+    daily
+    rotate 183
+    missingok
+    notifempty
+    compress
+    delaycompress
+    dateext
+    sharedscripts
+    postrotate
+        if [ -f /run/nginx.pid ]; then
+            kill -USR1 $(cat /run/nginx.pid)
+        fi
+    endscript
+}

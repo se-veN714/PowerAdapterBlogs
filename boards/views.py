@@ -20,6 +20,13 @@ from django.views.generic import FormView, ListView, TemplateView
 
 from Blogs.models import Category, Post
 from PowerAdapterBlogs.base_admin import has_dashboard_access
+from accounts.authn.mfa_services import MfaServiceError, verify_active_totp
+from accounts.authn.mfa_session import (
+    challenge_is_locked,
+    clear_challenge_failures,
+    record_challenge_failure,
+)
+from accounts.models import MfaTotpDevice
 from accounts.services import (
     EMAIL_PURPOSE_BOARD_ACCESS,
     clear_email_verification,
@@ -199,6 +206,19 @@ class BoardAccessRequestView(
     raise_exception = True
     success_url = reverse_lazy("boards:access-requests")
 
+    def _has_active_totp(self):
+        if not hasattr(self, "_active_totp_cache"):
+            self._active_totp_cache = MfaTotpDevice.objects.filter(
+                user=self.request.user,
+                status=MfaTotpDevice.Status.ACTIVE,
+            ).exists()
+        return self._active_totp_cache
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["require_totp"] = self._has_active_totp()
+        return kwargs
+
     def get_initial(self):
         initial = super().get_initial()
         board_slug = self.request.GET.get("board", "")[:64]
@@ -222,9 +242,16 @@ class BoardAccessRequestView(
             "board_access_request_submitted",
             False,
         )
-        context["email_verified"] = email_verification_is_verified(
-            self.request,
-            EMAIL_PURPOSE_BOARD_ACCESS,
+        context["totp_required"] = self._has_active_totp()
+        context["email_verified"] = (
+            not context["totp_required"]
+            and email_verification_is_verified(
+                self.request,
+                EMAIL_PURPOSE_BOARD_ACCESS,
+            )
+        )
+        context["verification_ready"] = (
+            context["totp_required"] or context["email_verified"]
         )
         context["email_verification_remaining"] = (
             email_verification_remaining_seconds(
@@ -238,7 +265,41 @@ class BoardAccessRequestView(
         return context
 
     def form_valid(self, form):
-        if not email_verification_is_verified(
+        if self._has_active_totp():
+            if challenge_is_locked(self.request, self.request.user.pk):
+                form.add_error(
+                    "totp_code",
+                    "动态验证码尝试次数过多，请在冷却期后重试。",
+                )
+                return self.render_to_response(
+                    self.get_context_data(form=form),
+                    status=429,
+                )
+            try:
+                verify_active_totp(
+                    user=self.request.user,
+                    actor=self.request.user,
+                    code=form.cleaned_data["totp_code"],
+                )
+            except MfaServiceError:
+                attempts = record_challenge_failure(
+                    self.request,
+                    self.request.user.pk,
+                )
+                form.add_error(
+                    "totp_code",
+                    "动态验证码无效、已使用或已过期。",
+                )
+                return self.render_to_response(
+                    self.get_context_data(form=form),
+                    status=(
+                        429
+                        if attempts >= settings.MFA_CHALLENGE_MAX_ATTEMPTS
+                        else 200
+                    ),
+                )
+            clear_challenge_failures(self.request, self.request.user.pk)
+        elif not email_verification_is_verified(
             self.request,
             EMAIL_PURPOSE_BOARD_ACCESS,
         ):
@@ -254,7 +315,8 @@ class BoardAccessRequestView(
         except ValidationError as exc:
             form.add_error(None, exc)
             return self.form_invalid(form)
-        clear_email_verification(self.request, EMAIL_PURPOSE_BOARD_ACCESS)
+        if not self._has_active_totp():
+            clear_email_verification(self.request, EMAIL_PURPOSE_BOARD_ACCESS)
         self.request.session["board_access_request_submitted"] = True
         messages.success(self.request, "板块权限申请已提交。")
         return super().form_valid(form)

@@ -1,7 +1,11 @@
 {% load static %}
 
 <div class="comment-item" data-comment-id="{{ comment.id }}">
-    <img class="comment-avatar" src="{% static 'img/avatar.jpg' %}" alt="评论头像">
+    {% if comment.author_avatar_url %}
+    <img class="comment-avatar" src="{{ comment.author_avatar_url }}" alt="{{ comment.author_name }} 的头像">
+    {% else %}
+    <img class="comment-avatar" src="{% static 'img/default-avatar.webp' %}" alt="匿名默认头像">
+    {% endif %}
     <div class="comment-body">
         <div>
             <strong class="comment-nickname">
@@ -15,5 +19,6 @@
             <button class="comment-delete" type="button"
                     data-delete-url="{% url 'Blogs:comment_delete' pk=comment.id %}">删除</button>
         {% endif %}
+        <a class="comment-report-link" href="{% url 'report-create' %}?target={{ comment.post.get_absolute_url|urlencode }}%23comment-{{ comment.pk }}">投诉 / 举报</a>
     </div>
 </div>

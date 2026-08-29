@@ -20,9 +20,50 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import AccountInvitation
+from security.outbox import enqueue_audit_event
+
+from .models import AccountInvitation, MyUser
 
 logger = logging.getLogger(__name__)
+
+
+@transaction.atomic
+def set_comment_identity_verification(*, actor, target, method):
+    """Atomically attest or revoke the identity gate used for comments."""
+    if not actor.is_active or not actor.is_superuser:
+        raise PermissionDenied("仅超级管理员可记录真实身份核验。")
+    supported_methods = {value for value, _label in MyUser.IdentityVerificationMethod.choices}
+    if method and method not in supported_methods:
+        raise ValidationError("不支持的真实身份核验方式。")
+
+    locked = MyUser.objects.select_for_update().get(pk=target.pk)
+    before_verified = locked.is_comment_identity_verified
+    locked.identity_verification_method = method
+    if method:
+        locked.identity_verified_at = timezone.now()
+        locked.identity_verified_by = actor
+    else:
+        locked.identity_verified_at = None
+        locked.identity_verified_by = None
+    locked.save(
+        update_fields=(
+            "identity_verification_method",
+            "identity_verified_at",
+            "identity_verified_by",
+        )
+    )
+    enqueue_audit_event(
+        event_type="account.comment_identity.changed",
+        actor={"type": "user", "id": str(actor.pk)},
+        target={"type": "user", "id": str(locked.pk)},
+        context={"source": "django-admin"},
+        change={
+            "before": {"verified": before_verified},
+            "after": {"verified": locked.is_comment_identity_verified},
+        },
+        outcome={"status": "success", "error_code": None},
+    )
+    return locked
 
 
 @transaction.atomic

@@ -40,7 +40,11 @@
                                 <br>
                             <div class="is-flex is-align-items-center mt-2">
                                 <figure class="image is-24x24 mr-2 mb-0">
-                                    <img class="is-rounded" src="{% static 'img/avatar.jpg' %}" alt="作者头像">
+                                    {% if post.owner.is_active and post.owner.profile.is_public and post.owner.profile.avatar %}
+                                    <img class="is-rounded" src="{{ post.owner.profile.avatar.url }}" alt="{{ post.owner.profile.public_name }} 的头像">
+                                    {% else %}
+                                    <img class="is-rounded" src="{% static 'img/default-avatar.webp' %}" alt="匿名默认头像">
+                                    {% endif %}
                                 </figure>
                                 <small class="has-text-grey">{{ post.owner.username }}</small>
                                 <small class="ml-3 has-text-grey-light">| 分类：{{ post.category.name }}</small>

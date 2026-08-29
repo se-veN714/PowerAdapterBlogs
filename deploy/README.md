@@ -24,6 +24,15 @@ network.
    with the snippet path, real absolute paths, domains, certificates, CRL, and
    the same proxy secret used by Django. Both public and admin vhosts must load
    the SK8 snippet before their generic `/media/` handling.
+7. Install both files under `deploy/logrotate/` as
+   `/etc/logrotate.d/poweradapter-application` and
+   `/etc/logrotate.d/poweradapter-nginx`, keep them root-owned, and run
+   `logrotate --debug` against each file before launch. Production application
+   processes use `WatchedFileHandler`, so the host owns rotation and multiple
+   Gunicorn workers never rename the same file. Both configurations retain 183
+   daily rotations. Backups must include `deploy/var/logs`; container stdout is
+   a diagnostic duplicate and is not the six-month retention record. If the
+   checkout is not `/opt/blog`, update the application logrotate path first.
 
 On a Tencent Cloud mainland host, image builds may time out against Debian or
 PyPI. In that environment only, set these public build-only values in the

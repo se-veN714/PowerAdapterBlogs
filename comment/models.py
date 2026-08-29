@@ -47,6 +47,19 @@ class Comment(models.Model):
         profile = getattr(self.user, "profile", None)
         return profile.public_name if profile is not None else self.user.username
 
+    @property
+    def author_avatar_url(self):
+        """Expose an uploaded avatar only when the account profile is public."""
+        profile = getattr(self.user, "profile", None)
+        if (
+            self.user.is_active
+            and profile is not None
+            and profile.is_public
+            and profile.avatar
+        ):
+            return profile.avatar.url
+        return ""
+
     @classmethod
     def get_by_target(cls, post):
         """

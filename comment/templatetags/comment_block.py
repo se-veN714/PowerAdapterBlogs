@@ -24,15 +24,23 @@ def form_block(context, target):
     request = context["request"]
     profile = getattr(request.user, "profile", None)
     author_name = None
+    author_avatar_url = ""
     if request.user.is_authenticated:
         author_name = (
             profile.public_name if profile is not None else request.user.username
         )
+        if profile is not None and profile.is_public and profile.avatar:
+            author_avatar_url = profile.avatar.url
     return {
         'target': target,
         'comment_form': CommentForm(),
         'request': request,
         'author_name': author_name,
+        'author_avatar_url': author_avatar_url,
+        'identity_verified': (
+            request.user.is_authenticated
+            and request.user.is_comment_identity_verified
+        ),
     }
 
 

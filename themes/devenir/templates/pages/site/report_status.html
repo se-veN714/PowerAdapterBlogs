@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}受理进度 · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/site_info.css' %}?v=20260829.1">{% endblock %}
+
+{% block hero %}
+<section class="site-info-hero report-hero">
+    <div class="container">
+        <p class="site-info-kicker">REPORT / RECEIPT</p>
+        <h1>{{ report.get_status_display }}</h1>
+        <p>请保存本页地址。受理编号不应公开转发。</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<article class="container site-info-layout report-layout">
+    <aside class="site-info-index" aria-label="进度摘要">
+        <span>REPORT.STATE</span>
+        <a href="#status">01 / 状态</a>
+        <a href="#response">02 / 反馈</a>
+    </aside>
+    <div class="site-info-body">
+        <section id="status" class="report-receipt">
+            <p class="section-code">01 / RECEIPT</p>
+            <h2>{{ report.get_status_display }}</h2>
+            <dl>
+                <div><dt>受理编号</dt><dd>{{ report.reference }}</dd></div>
+                <div><dt>问题类型</dt><dd>{{ report.get_category_display }}</dd></div>
+                <div><dt>本站位置</dt><dd>{{ report.target_path|default:"未指定" }}</dd></div>
+                <div><dt>提交时间</dt><dd>{{ report.created_at|date:"Y-m-d H:i" }}</dd></div>
+                <div><dt>更新时间</dt><dd>{{ report.updated_at|date:"Y-m-d H:i" }}</dd></div>
+            </dl>
+        </section>
+        <section id="response">
+            <p class="section-code">02 / RESPONSE</p>
+            <h2>处理反馈</h2>
+            {% if report.public_response %}
+                <p>{{ report.public_response|linebreaksbr }}</p>
+            {% else %}
+                <p>尚无公开处理反馈。站点不会在此页面展示提交说明、联系邮箱或内部核查记录。</p>
+            {% endif %}
+        </section>
+    </div>
+</article>
+{% endblock %}

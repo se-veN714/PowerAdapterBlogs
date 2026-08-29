@@ -269,7 +269,7 @@ Stage 5 已恢复审核/发布/驳回和评论 action，但每个对象都会在
 
 Board 独立 Index 的 Music/Coding 前端已由受限 K3 分支完成并合并；路由、QuerySet、Policy 与上下文组装继续由 boards 后端所有。本地 HANDOFF 仅用于临时交接，不进入 Git；长期边界以本节和 V2 指南为准。
 
-板块权限申请与审批属于 boards：accounts 只确认用户已登录、激活和完成邮箱验证，boards 负责申请的目标 Board、目标角色、审批人边界、结果及 Membership 更新。
+板块权限申请与审批属于 boards：accounts 提供登录身份、活动 TOTP 的原子验证与未绑定用户的邮箱验证兜底；boards 负责选择验证方式，并管理申请的目标 Board、目标角色、审批人边界、结果及 Membership 更新。
 
 ---
 
@@ -348,7 +348,7 @@ index.html
 5. **Music 排行与月度总结（✅ 展示与导入闭环）**：Spotify 年度总量/艺人/歌曲排行和 Apple 月度总量/艺人/歌曲排行均由部署级 JSON 幂等同步并接入 Devenir 页面；独立 Artist Library 统一维护跨平台音乐人头像与链接，歌曲封面仍可逐条维护，不复制 Apple 品牌播放器。
 6. **mock 降级清理决策（绿色）**：后端已接线，决定是否保留模板 `{% empty %}` mock 分支。
 
-7. **板块申请复用 accounts 短时邮箱验证（✅ 已完成）**：`/accounts/security/email/board-access/` 复用 accounts 通用邮箱挑战；验证码按 purpose + 用户 + Session 隔离，60 秒冷却和每小时发送上限按账号共享，错误次数受限。验证成功签发 10 分钟 Board 专用 Session grant，申请成功立即消费；密码修改 grant/code 不可复用，目标路由由服务端固定，不接收外部 `next`。
+7. **板块申请采用 TOTP 优先、邮箱兜底（✅ 已完成）**：已有活动 TOTP 的账号必须在申请表中完成一次新鲜动态验证码校验，并复用设备级防重放状态；未绑定 TOTP 的账号才进入 `/accounts/security/email/board-access/` 通用邮箱挑战。邮箱验证码按 purpose + 用户 + Session 隔离，60 秒冷却和每小时发送上限按账号共享，错误次数受限；验证成功签发 10 分钟 Board 专用 Session grant，申请成功立即消费。密码修改 grant/code 不可复用，目标路由由服务端固定，不接收外部 `next`。
 8. **Board Index 接入文章入口与文章流（✅ 已闭环）**：三个 Index 统一复用 `Post.publicly_visible_posts()`，每板只展示对应 `Board.category` 最新 5 篇公开已发布文章，不泄露草稿或 staff-only 内容；“查看全部”只在 Category 正常可访问时显示。参与 CTA 由后端根据匿名、可申请、待审核、有效成员和停用状态生成，不在模板推导角色。具备创建能力且 Board 拥有正常、唯一 Category 映射的成员进入带 `?board=<slug>` 的新文章页，服务端再次通过同一 Policy 校验后才预选 Category；Reviewer 进入带 Board 筛选的审核工作区。申请页同样支持安全预选 Board。桌面与移动端自动化视觉检查已完成；REFUSE 模板已存在，后续受保护动作统一接入时不得复制此状态机。
 9. **Skateboard Clip 固定展示编排（✅ 视频方向闭环）**：公开 Index 由后端生成 `clip_groups`，优先按 ready `SkateClipMedia.orientation` 组成每组最多 2 个竖屏 + 3 个横屏（方形进入横向位），不会把已知横屏强塞进竖屏位；旧 URL/无 ready media 的 Clip 才按输入顺序回退 2+3。两条竖屏共用一个 box，中央信息区宽于两侧媒体，并分为左上/右下两层分别展示完整信息；不足时安全降级，移动端转为单列。`/boards/skateboard/clips/` 仍是公开分页浏览入口，不是管理页。
 10. **各 Board 的内容管理工作区（🟡 第二阶段）**：Skate Clip、Music Spotify/Apple 与 Coding Project/Principle/Experiment 已有 Devenir 业务 CRUD，服务端仅允许对应 Board Manager/superuser，且 provider、内容类型与对象 QuerySet 隔离；可管理入口由 Policy 同步注入全站菜单和 Board Index。Coding 三类内容已经统一为 Projects / Principles / Experiments 导航。Music 以 provider + 年度/月度周期总览作为主入口，周期行可进入底层记录列表或预填周期追加记录；底层继续复用现有平铺记录。只有实际维护证明逐条编辑成本过高时才增加同周期批量表单，不提前做 schema 重写。Board 创建及前端代码绑定继续为 superuser-only。

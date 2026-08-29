@@ -3,8 +3,13 @@
 <article class="media">
     <figure class="media-left">
         <p class="image is-48x48">
-            <img class="is-rounded"
-                 src="{% static 'img/avatar.jpg' %}" alt="评论头像">
+            {% if comment.author_avatar_url %}
+            <img class="is-rounded" src="{{ comment.author_avatar_url }}"
+                 alt="{{ comment.author_name }} 的头像">
+            {% else %}
+            <img class="is-rounded" src="{% static 'img/default-avatar.webp' %}"
+                 alt="匿名默认头像">
+            {% endif %}
         </p>
     </figure>
 

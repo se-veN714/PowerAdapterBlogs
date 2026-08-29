@@ -4,7 +4,7 @@ from django.contrib import messages
 
 from .forms import AccountInvitationCreationForm
 from .models import AccountInvitation, ClientCertificateBinding, MyUser, UserProfile
-from .services import issue_account_invitation
+from .services import issue_account_invitation, set_comment_identity_verification
 
 from PowerAdapterBlogs.base_admin import DashboardAdminMixin
 
@@ -18,8 +18,14 @@ class MyUserAdmin(UserAdmin):
         "is_active",
         "is_dashboard_user",
         "is_superuser",
+        "identity_verification_method",
     )
-    list_filter = ("is_active", "is_dashboard_user", "is_superuser")
+    list_filter = (
+        "is_active",
+        "is_dashboard_user",
+        "is_superuser",
+        "identity_verification_method",
+    )
     ordering = ("date_joined",)
 
     fieldsets = (
@@ -37,6 +43,20 @@ class MyUserAdmin(UserAdmin):
             },
         ),
         ("其他信息", {"fields": ("last_login",)}),
+        (
+            "评论真实身份核验",
+            {
+                "description": (
+                    "仅在已通过手机号、身份证件或统一社会信用代码完成真实核验后选择方式；"
+                    "本站不保存号码原文。"
+                ),
+                "fields": (
+                    "identity_verification_method",
+                    "identity_verified_at",
+                    "identity_verified_by",
+                ),
+            },
+        ),
     )
 
     add_fieldsets = (
@@ -53,7 +73,29 @@ class MyUserAdmin(UserAdmin):
     actions = ("resend_account_invitation",)
 
     def save_model(self, request, obj, form, change):
+        previous_method = ""
+        if change and obj.pk:
+            previous = MyUser.objects.only(
+                "identity_verification_method",
+                "identity_verified_at",
+                "identity_verified_by",
+            ).get(pk=obj.pk)
+            previous_method = previous.identity_verification_method
+        requested_method = obj.identity_verification_method
+        if change and requested_method != previous_method:
+            obj.identity_verification_method = previous.identity_verification_method
+            obj.identity_verified_at = previous.identity_verified_at
+            obj.identity_verified_by = previous.identity_verified_by
         super().save_model(request, obj, form, change)
+        if change and requested_method != previous_method:
+            verified = set_comment_identity_verification(
+                actor=request.user,
+                target=obj,
+                method=requested_method,
+            )
+            obj.identity_verification_method = verified.identity_verification_method
+            obj.identity_verified_at = verified.identity_verified_at
+            obj.identity_verified_by = verified.identity_verified_by
         if not change:
             issue_account_invitation(obj, created_by=request.user)
 
@@ -81,7 +123,7 @@ class MyUserAdmin(UserAdmin):
         权限颗粒化：非 superuser 仅可编辑 is_active（用户启停）。
         """
         if request.user.is_superuser:
-            return self.readonly_fields
+            return (*self.readonly_fields, "identity_verified_at", "identity_verified_by")
         model_fields = {f.name for f in self.model._meta.fields}
         m2m_fields = {"groups", "user_permissions"}
         all_fields = model_fields | m2m_fields

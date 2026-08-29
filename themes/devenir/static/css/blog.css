@@ -1785,8 +1785,19 @@
     background: transparent;
     color: var(--error-accent);
     font: 0.7rem var(--font-mono);
-    cursor: pointer;
+  cursor: pointer;
 }
+
+.comment-report-link {
+  display: inline-block;
+  margin: 0.35rem 0 0 0.65rem;
+  color: var(--text-tertiary);
+  font: 0.65rem var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.comment-report-link:hover { color: var(--error-accent); }
 
 /* Comment empty */
 .comment-empty {

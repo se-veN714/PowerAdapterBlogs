@@ -3,8 +3,11 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.core.cache import caches
+from django.core.cache import cache
+from django.core.signing import salted_hmac
 from django.db import connections
 from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template import loader
 from django.urls import reverse
 from django.utils import timezone
@@ -14,7 +17,9 @@ from django.views.generic import ListView, TemplateView
 from Blogs.views import CommonViewMixin
 from PowerAdapterBlogs.public_urls import public_absolute_url
 from boards.board_index import renderable_boards
-from .models import Link
+from .forms import ContentReportForm
+from .models import ContentReport, Link
+from .services import submit_content_report
 
 
 @require_safe
@@ -64,6 +69,72 @@ class PrivacyView(TemplateView):
     template_name = "pages/site/privacy.html"
 
 
+def _content_report_rate_key(request):
+    client_ip = getattr(request, "client_ip", None) or request.META.get(
+        "REMOTE_ADDR", "unknown"
+    )
+    digest = salted_hmac("content-report-rate", client_ip).hexdigest()
+    return f"content-report-rate:{digest}"
+
+
+def _consume_content_report_quota(request):
+    limit = getattr(settings, "CONTENT_REPORT_RATE_LIMIT", 5)
+    window = getattr(settings, "CONTENT_REPORT_RATE_WINDOW", 3600)
+    key = _content_report_rate_key(request)
+    if cache.add(key, 1, timeout=window):
+        return True, window
+    try:
+        attempts = cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=window)
+        attempts = 1
+    return attempts <= limit, window
+
+
+def content_report_create(request):
+    initial = {"target_path": request.GET.get("target", "")[:500]}
+    form = ContentReportForm(request.POST or None, initial=initial)
+    status = 200
+    if request.method == "POST":
+        allowed, retry_after = _consume_content_report_quota(request)
+        if not allowed:
+            response = render(
+                request,
+                "pages/site/report_form.html",
+                {"form": form, "rate_limited": True},
+                status=429,
+            )
+            response["Retry-After"] = str(retry_after)
+            return response
+        if form.is_valid():
+            client_ip = getattr(request, "client_ip", None) or request.META.get(
+                "REMOTE_ADDR", "unknown"
+            )
+            report = submit_content_report(
+                reporter=request.user if request.user.is_authenticated else None,
+                client_ip_digest=salted_hmac(
+                    "content-report-source", client_ip
+                ).hexdigest(),
+                **form.cleaned_data,
+            )
+            return redirect("report-status", reference=report.reference)
+        status = 400
+    return render(
+        request,
+        "pages/site/report_form.html",
+        {"form": form, "rate_limited": False},
+        status=status,
+    )
+
+
+def content_report_status(request, reference):
+    report = get_object_or_404(ContentReport, reference=reference)
+    response = render(request, "pages/site/report_status.html", {"report": report})
+    response["Cache-Control"] = "private, no-store"
+    response["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 @require_safe
 def robots_txt(request):
     lines = (
@@ -74,6 +145,7 @@ def robots_txt(request):
         "Disallow: /accounts/invitation/",
         "Disallow: /accounts/settings/",
         "Disallow: /Blogs/img_upload/",
+        "Disallow: /reports/",
         f"Sitemap: {public_absolute_url(reverse('sitemap'))}",
     )
     return HttpResponse("\n".join(lines) + "\n", content_type="text/plain")

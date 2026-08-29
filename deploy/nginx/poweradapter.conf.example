@@ -13,6 +13,8 @@ server {
     ssl_certificate __PUBLIC_CERT_PEM__;
     ssl_certificate_key __PUBLIC_KEY_PEM__;
     client_max_body_size 150m;
+    access_log /var/log/nginx/poweradapter-public.access.log combined;
+    error_log /var/log/nginx/poweradapter-public.error.log warn;
 
     location = /healthz/ { return 404; }
     location ^~ /super_admin/ { return 404; }
@@ -59,6 +61,8 @@ server {
     ssl_verify_client on;
     ssl_verify_depth 2;
     client_max_body_size 150m;
+    access_log /var/log/nginx/poweradapter-admin.access.log combined;
+    error_log /var/log/nginx/poweradapter-admin.error.log warn;
 
     location = /healthz/ { return 404; }
     include __SKATE_MEDIA_LOCATION_CONF__;

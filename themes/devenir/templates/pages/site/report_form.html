@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}投诉举报与申诉 · PowerAdapter{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/site_info.css' %}?v=20260829.1">{% endblock %}
+
+{% block hero %}
+<section class="site-info-hero report-hero">
+    <div class="container">
+        <p class="site-info-kicker">PUBLIC / REPORT</p>
+        <h1>投诉举报与申诉</h1>
+        <p>提交违法或不良信息线索、侵权与隐私问题，或对内容处置提出申诉。</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<article class="container site-info-layout report-layout">
+    <aside class="site-info-index" aria-label="处理流程">
+        <span>REPORT.FLOW</span>
+        <a href="#submit">01 / 提交</a>
+        <a href="#process">02 / 流程</a>
+        <a href="#scope">03 / 边界</a>
+    </aside>
+    <div class="site-info-body">
+        <section id="submit">
+            <p class="section-code">01 / SIGNAL INPUT</p>
+            <h2>说明需要核查的问题</h2>
+            {% if rate_limited %}
+                <p class="report-alert" role="alert">提交过于频繁，请稍后再试。</p>
+            {% endif %}
+            <form method="post" class="report-form" novalidate>
+                {% csrf_token %}
+                {% for field in form %}
+                    <label class="report-field" for="{{ field.id_for_label }}">
+                        <span>{{ field.label }}{% if field.field.required %} <b aria-hidden="true">*</b>{% endif %}</span>
+                        {{ field }}
+                        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                        {% for error in field.errors %}<small class="report-error">{{ error }}</small>{% endfor %}
+                    </label>
+                {% endfor %}
+                <p class="report-privacy">联系邮箱用于必要的核查沟通，不在公开进度页展示。请勿提交与问题无关的身份证件、密码或验证码。</p>
+                <button type="submit" class="report-submit">提交并生成受理编号</button>
+            </form>
+        </section>
+        <section id="process">
+            <p class="section-code">02 / REVIEW PROCESS</p>
+            <h2>受理、核查、处置、反馈</h2>
+            <p>提交后会生成不可预测的受理编号及查询地址。站点所有者将核查目标内容，按情况采取维持、隐藏、删除、限制账号功能或其他必要措施，并在状态页保留面向提交人的处理反馈。</p>
+        </section>
+        <section id="scope">
+            <p class="section-code">03 / SCOPE</p>
+            <h2>紧急情况与监管渠道</h2>
+            <p>此入口不是紧急报警服务。若人身安全正受到威胁，请直接联系所在地紧急服务；任何组织和个人也可以依法向主管部门投诉举报。</p>
+        </section>
+    </div>
+</article>
+{% endblock %}

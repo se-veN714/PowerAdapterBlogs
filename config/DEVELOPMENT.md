@@ -5,7 +5,7 @@
 > **职责**: 管理博客站点全局配置项、静态说明页、公开元数据上下文、robots 与错误响应
 > **依赖**: `Blogs.models.Post`, `comment.models.Comment`, `base_admin.BaseOwnerAdmin`  
 > **创建**: 2026-06-22  
-> **更新**: 2026-07-27 — blog_foundation_linear F5 security.txt
+> **更新**: 2026-08-29 — 公众投诉举报与申诉闭环
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.4 | 2026-08-29 | 新增公开投诉举报表单、随机受理编号、最小状态查询、后台处置及事务型审计留痕 |
 | v1.3 | 2026-07-27 | 新增 RFC 9116 `/.well-known/security.txt`，包含 Contact、Expires、Preferred-Languages 与 Canonical |
 | v1.2 | 2026-07-27 | 新增固定公网 canonical 上下文、`robots.txt`、生产 404/500 handler 与 4 项契约测试 |
 | v1.1 | 2026-07-26 | 新增 `/about/`、`/privacy/` 与公开页面测试 |
@@ -38,6 +39,7 @@ flowchart TD
         LLV["LinkListView<br/>友链展示页<br/>/links/"]
         ABOUT["AboutView<br/>站点说明<br/>/about/"]
         PRIVACY["PrivacyView<br/>隐私说明<br/>/privacy/"]
+        REPORT["ContentReport<br/>投诉举报与申诉<br/>/reports/"]
     end
 
     subgraph render["动态渲染"]
@@ -72,9 +74,12 @@ flowchart TD
 |------|---------|------|
 | `models.py` | `Link` | 友链模型（title/href/status/weight/owner） |
 | `models.py` | `SideBar` | 侧边栏模型（title/display_type/content，含 `content_html` 属性） |
+| `models.py` | `ContentReport` | 公众投诉举报、受理状态、内部记录与公开反馈；来源只保存摘要 |
+| `services.py` | `submit_content_report/review_content_report` | 业务状态与最小化审计 outbox 同事务写入 |
 | `admin.py` | `LinkAdmin` | 友链 Admin（BaseOwnerAdmin 子类，含日志） |
 | `admin.py` | `SideBarAdmin` | 侧边栏 Admin（BaseOwnerAdmin 子类，含日志） |
 | `views.py` | `LinkListView` | 友链展示页（ListView + CommonViewMixin） |
+| `views.py` | `content_report_create/status` | 公开提交、来源限流及最小化状态查询 |
 | `apps.py` | `ConfigConfig` | App 配置 |
 
 ---

@@ -24,7 +24,7 @@
                 {% if profile.avatar %}
                     <img src="{{ profile.avatar.url }}" alt="{{ profile.public_name }} 的头像">
                 {% else %}
-                    <img src="{% static 'img/avatar.jpg' %}" alt="默认作者头像">
+                    <img src="{% static 'img/default-avatar.webp' %}" alt="匿名默认头像">
                 {% endif %}
                 <div class="avatar-scanline" aria-hidden="true"></div>
             </div>

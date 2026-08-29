@@ -116,6 +116,7 @@ class PublicSiteMetadataTest(TestCase):
         self.assertIn("Disallow: /super_admin/", content)
         self.assertIn("Disallow: /dashboard/", content)
         self.assertIn("Disallow: /accounts/invitation/", content)
+        self.assertIn("Disallow: /reports/", content)
         self.assertIn("Sitemap: https://blog.example.test/sitemap.xml/", content)
 
     @override_settings(SECURITY_CONTACT_EMAIL="security@example.test")

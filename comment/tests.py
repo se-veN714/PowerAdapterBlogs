@@ -1,6 +1,7 @@
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.test.client import RequestFactory
+from django.utils import timezone
 
 from accounts.models import MyUser
 from Blogs.models import Category, Post
@@ -20,17 +21,51 @@ from security.services import moderate_comment
 class CommentSafetyTest(TestCase):
     def setUp(self):
         cache.clear()
+        self.verifier = MyUser.objects.create_superuser(
+            email="verifier@example.com",
+            username="verifier",
+            password="pass",
+        )
         self.owner = MyUser.objects.create_user(
-            email='owner@example.com', username='owner', password='pass', is_active=True
+            email='owner@example.com',
+            username='owner',
+            password='pass',
+            is_active=True,
+            identity_verification_method=MyUser.IdentityVerificationMethod.MOBILE_PHONE,
+            identity_verified_at=timezone.now(),
+            identity_verified_by=self.verifier,
         )
         self.other = MyUser.objects.create_user(
-            email='other@example.com', username='other', password='pass', is_active=True
+            email='other@example.com',
+            username='other',
+            password='pass',
+            is_active=True,
+            identity_verification_method=MyUser.IdentityVerificationMethod.MOBILE_PHONE,
+            identity_verified_at=timezone.now(),
+            identity_verified_by=self.verifier,
         )
         category = Category.objects.create(name='Test', owner=self.owner)
         self.post = Post.objects.create(
             title='Post', slug='post', content='body', category=category, owner=self.owner
         )
         self.submit_url = f'/Blogs/post/{self.post.slug}/comment/'
+
+    def test_unverified_account_cannot_submit_comment(self):
+        self.owner.identity_verification_method = ""
+        self.owner.identity_verified_at = None
+        self.owner.save(
+            update_fields=("identity_verification_method", "identity_verified_at")
+        )
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            self.submit_url,
+            {"content": "这是未完成真实身份核验的评论内容"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("真实身份核验", response.json()["message"])
+        self.assertFalse(Comment.objects.exists())
 
     def test_comment_submission_is_rate_limited(self):
         self.client.force_login(self.owner)
@@ -61,6 +96,8 @@ class CommentSafetyTest(TestCase):
         audit_event = AuditOutbox.objects.get(event_type="comment.created")
         self.assertEqual(audit_event.event["target"]["id"], str(comment.pk))
         self.assertNotIn("content", audit_event.event["change"]["after"])
+        self.assertNotIn("source_ip", audit_event.event["context"])
+        self.assertNotIn("client_fingerprint", audit_event.event["context"])
 
     def test_only_owner_can_soft_delete_comment(self):
         comment = Comment.objects.create(

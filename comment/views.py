@@ -69,6 +69,15 @@ class CommentView(LoginRequiredMixin, TemplateView):
                 status=404,
             )
 
+        if not request.user.is_comment_identity_verified:
+            return JsonResponse(
+                {
+                    'success': False,
+                    'message': '发表评论前需要完成真实身份核验，请联系站点所有者。',
+                },
+                status=403,
+            )
+
         allowed, retry_after = _consume_comment_quota(request)
         if not allowed:
             logger.warning("Comment 提交限流: post_slug=%s user=%s", post_slug, request.user.id)

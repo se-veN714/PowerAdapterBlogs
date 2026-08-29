@@ -46,11 +46,11 @@ if (!applicationDatabase.getRole(verifierRole)) {
     privileges: [
       {
         resource: { db: databaseName, collection: "audit_events" },
-        actions: ["find"],
+        actions: ["find", "listIndexes"],
       },
       {
         resource: { db: databaseName, collection: "audit_chain_heads" },
-        actions: ["find"],
+        actions: ["find", "listIndexes"],
       },
     ],
     roles: [],

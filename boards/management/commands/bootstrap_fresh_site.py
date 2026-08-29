@@ -57,9 +57,17 @@ class Command(BaseCommand):
         for defaults in FRESH_BOARDS:
             category, _ = Category.objects.get_or_create(
                 name=defaults["name"],
-                owner=owner,
-                defaults={"is_nav": True},
+                defaults={"owner": owner, "is_nav": True},
             )
+            category_updates = []
+            if category.owner_id != owner.pk:
+                category.owner = owner
+                category_updates.append("owner")
+            if not category.is_nav:
+                category.is_nav = True
+                category_updates.append("is_nav")
+            if category_updates:
+                category.save(update_fields=category_updates)
             board_defaults = {**defaults, "category": category}
             board, was_created = Board.objects.get_or_create(
                 slug=defaults["slug"],

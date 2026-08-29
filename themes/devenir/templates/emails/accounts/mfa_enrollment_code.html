@@ -1,6 +1,7 @@
-<p>{{ user.username }}，你好：</p>
-<p>你的 PowerAdapter 动态验证码绑定验证码是：</p>
-<p style="font-size: 24px; letter-spacing: 6px;"><strong>{{ code }}</strong></p>
-<p>验证码将在 {{ ttl_minutes }} 分钟后失效。验证通过后才能生成新的 Authenticator 绑定材料。</p>
-<p>请勿将验证码、二维码、TOTP seed 或恢复码转发给任何人。</p>
-<p>如果不是你本人发起，请忽略本邮件并检查账号安全。</p>
+{% extends "emails/accounts/verification_code_base.html" %}
+
+{% block email_title %}Authenticator 绑定邮箱验证{% endblock %}
+{% block heading %}确认动态验证码绑定{% endblock %}
+{% block introduction %}使用以下验证码继续绑定 Authenticator。{% endblock %}
+{% block expiry_note %}验证通过后才会生成新的绑定材料。{% endblock %}
+{% block security_note %}如果这不是你的操作，请忽略此邮件并检查账号安全。不要透露验证码、二维码、TOTP seed 或恢复码。{% endblock %}

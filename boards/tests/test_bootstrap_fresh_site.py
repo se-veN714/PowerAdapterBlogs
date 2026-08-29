@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 
+from Blogs.models import Category
 from boards.models import Board
 
 
@@ -44,3 +45,21 @@ class BootstrapFreshSiteTests(TestCase):
         self.assertEqual(board.sort_order, 99)
         self.assertEqual(board.category.owner, self.owner)
         self.assertEqual(Board.objects.count(), 3)
+
+    def test_reassigns_existing_board_categories_to_superuser(self):
+        previous_owner = get_user_model().objects.create_user(
+            username="previous-owner",
+            email="previous-owner@example.com",
+            password="test-only-password",
+        )
+        category = Category.objects.create(
+            name="Music",
+            owner=previous_owner,
+            is_nav=False,
+        )
+
+        call_command("bootstrap_fresh_site", owner_username=self.owner.username)
+
+        category.refresh_from_db()
+        self.assertEqual(category.owner, self.owner)
+        self.assertTrue(category.is_nav)

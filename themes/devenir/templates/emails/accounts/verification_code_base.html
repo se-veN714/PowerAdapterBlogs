@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="supported-color-schemes" content="dark">
+    <title>{% block email_title %}确认你的邮箱{% endblock %}</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #080c0b; color: #dce8df;">
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; color: transparent;">
+      PowerAdapter 邮箱验证码，有效期 {{ ttl_minutes }} 分钟。
+    </div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width: 100%; background-color: #080c0b;">
+      <tr>
+        <td align="center" style="padding: 32px 12px;">
+          <table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0" style="width: 100%; max-width: 640px; border: 1px solid #2d3934; background-color: #101615; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'Microsoft YaHei', Arial, sans-serif;">
+            <tr>
+              <td style="padding: 24px 32px; border-bottom: 1px solid #2d3934; background-color: #0d1211;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 15px; line-height: 20px; letter-spacing: 4px; color: #edf6ef; font-weight: 700;">
+                      POWERADAPTER
+                    </td>
+                    <td align="right" style="white-space: nowrap; font-size: 0;">
+                      <span style="display: inline-block; width: 22px; height: 3px; margin-left: 8px; background-color: #8de0ac;">&nbsp;</span>
+                      <span style="display: inline-block; width: 22px; height: 3px; margin-left: 8px; background-color: #b794f4;">&nbsp;</span>
+                      <span style="display: inline-block; width: 22px; height: 3px; margin-left: 8px; background-color: #ff5b6e;">&nbsp;</span>
+                      <span style="display: inline-block; width: 22px; height: 3px; margin-left: 8px; background-color: #f6ad55;">&nbsp;</span>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 44px 32px 36px;">
+                <p style="margin: 0 0 12px; font-size: 13px; line-height: 20px; letter-spacing: 2px; color: #7f9589;">
+                  MAIL / IDENTITY CHECK
+                </p>
+                <h1 style="margin: 0; font-size: 30px; line-height: 42px; color: #edf6ef; font-weight: 700;">
+                  {% block heading %}确认你的邮箱{% endblock %}
+                </h1>
+                <p style="margin: 14px 0 0; font-size: 16px; line-height: 28px; color: #b6c4bc;">
+                  {{ user.username }}，你好。{% block introduction %}使用以下验证码继续完成验证。{% endblock %}
+                </p>
+
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 30px; border: 1px solid #52655b; background-color: #121b18;">
+                  <tr>
+                    <td align="center" style="padding: 26px 16px;">
+                      <div style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 36px; line-height: 46px; letter-spacing: 10px; color: #e7f6e9; font-weight: 700; white-space: nowrap;">
+                        {{ code }}
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 26px;">
+                  <tr>
+                    <td width="28" valign="top" style="padding-top: 2px; font-family: 'SFMono-Regular', Consolas, monospace; color: #8de0ac; font-size: 16px;">◷</td>
+                    <td style="font-size: 14px; line-height: 24px; color: #b6c4bc;">
+                      验证码将在 <strong style="color: #8de0ac; font-weight: 600;">{{ ttl_minutes }} 分钟</strong>后失效。{% block expiry_note %}{% endblock %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td width="28" valign="top" style="padding-top: 14px; font-family: 'SFMono-Regular', Consolas, monospace; color: #8de0ac; font-size: 16px;">◇</td>
+                    <td style="padding-top: 12px; font-size: 14px; line-height: 24px; color: #9eada5;">
+                      {% block security_note %}如果这不是你的操作，请忽略此邮件。不要向任何人透露验证码。{% endblock %}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 24px 32px 28px; border-top: 1px solid #2d3934; background-color: #0d1211;">
+                <p style="margin: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 12px; line-height: 20px; color: #72847a;">
+                  &gt;_ 此邮件由系统自动发送，请勿直接回复
+                </p>
+                <p style="margin: 8px 0 0; font-size: 13px; line-height: 20px; color: #8de0ac;">
+                  poweradapter.xyz
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

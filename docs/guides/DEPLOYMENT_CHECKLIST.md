@@ -16,6 +16,7 @@
 - [ ] 确认 `DJANGO_SECRET_KEY`、数据库、Redis、MongoDB、邮件和 HMAC 密钥来自生产环境变量，而非开发默认值。
 - [ ] `PUBLIC_SITE_URL` 为最终 HTTPS Origin，不包含后台域名或尾部路径。
 - [ ] `SECURITY_CONTACT_EMAIL` 可正常收件，且允许接收外部联系人的安全报告。
+- [ ] 无 IPv6 出口的主机设置有界 `EMAIL_TIMEOUT`，并验证至少两个 `EMAIL_SMTP_IPV4_FALLBACKS` 节点可达；TLS 仍以 `EMAIL_HOST` 校验证书，禁止使用不校验证书的 IP 直连。
 - [ ] `DJANGO_ALLOWED_HOSTS` 与 `DJANGO_CSRF_TRUSTED_ORIGINS` 只包含实际域名。
 
 ## 2. Docker 部署步骤
@@ -40,7 +41,7 @@
 - [ ] `/.well-known/security.txt` 包含可用 Contact、未来 Expires、`zh/en/ja` 语言偏好与当前域名 Canonical。
 - [ ] 页面 canonical、Open Graph URL 与图片 URL 使用生产 HTTPS 域名。
 - [ ] 随机不存在路径返回 Devenir 404 且不包含 Debug/Traceback。
-- [ ] 邀请邮件和修改密码验证码邮件中的链接、发件人和有效期正确。
+- [ ] 邀请邮件和修改密码验证码邮件中的链接、发件人和有效期正确；模拟首个 SMTP IPv4 节点不可达时，备用节点仍能完成投递。
 - [ ] 普通访客无法访问 Dashboard、系统后台、内部文章、草稿和修订端点。
 
 ## 4. 安全与运行状态

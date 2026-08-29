@@ -35,13 +35,19 @@ ALLOWED_HOSTS = [host.strip() for host in required_env('DJANGO_ALLOWED_HOSTS').s
 
 PUBLIC_SITE_URL = required_env('PUBLIC_SITE_URL')
 DEFAULT_FROM_EMAIL = required_env('DEFAULT_FROM_EMAIL')
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'PowerAdapterBlogs.email_backends.IPv4FailoverEmailBackend'
 EMAIL_HOST = required_env('EMAIL_HOST')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))
 EMAIL_HOST_USER = required_env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = required_env('EMAIL_HOST_PASSWORD')
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'true').lower() in {'1', 'true', 'yes'}
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false').lower() in {'1', 'true', 'yes'}
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
+EMAIL_SMTP_IPV4_FALLBACKS = tuple(
+    address.strip()
+    for address in os.getenv('EMAIL_SMTP_IPV4_FALLBACKS', '').split(',')
+    if address.strip()
+)
 if EMAIL_USE_SSL and EMAIL_USE_TLS:
     raise ImproperlyConfigured('EMAIL_USE_SSL 与 EMAIL_USE_TLS 不能同时启用')
 

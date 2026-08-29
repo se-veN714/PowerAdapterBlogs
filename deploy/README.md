@@ -38,6 +38,15 @@ Keep the example defaults for hosts that can reliably reach the upstream
 repositories. This mirror switch changes package transport, not the pinned
 package requirements or runtime configuration.
 
+The initial Tencent lightweight host has no IPv6 route. Production SMTP uses
+`IPv4FailoverEmailBackend`, resolves only A records, and preserves
+`EMAIL_HOST` for TLS/SNI verification while connecting to each IPv4 candidate.
+Set `EMAIL_TIMEOUT` to a bounded value and provide at least two independently
+verified Google SMTP IPv4 endpoints in `EMAIL_SMTP_IPV4_FALLBACKS`. The normal
+DNS result is attempted first; fallbacks are used only for connection-level
+failures. Recheck the fallback endpoints during every release because provider
+addresses are operational configuration, not permanent application constants.
+
 The Root Client CA private key remains offline. The server receives only the
 public CA chain and current CRL. Do not enable the admin vhost until Nginx is
 built against the project-approved latest OpenSSL 4.0 patch and the certificate

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "releases": [
+    {
+      "version": "2026.08.30",
+      "date": "2026-08-30",
+      "status": "CURRENT",
+      "title": "上传与窄屏体验收口",
+      "summary": "让 SK8 内容提交在重复操作和细屏设备上都保持稳定，并统一公开站点的 GitHub 指向。",
+      "tags": ["GENERAL", "SK8"],
+      "details": [
+        "Clip 的重复提交现在只会进入一次处理队列。",
+        "管理列表在窄屏设备上截断长标题，不再逐字挤压。",
+        "全站公开 GitHub 入口统一指向站点维护者主页。"
+      ]
+    },
+    {
+      "version": "2026.08.29",
+      "date": "2026-08-29",
+      "status": "STABLE",
+      "title": "PowerAdapter 进入公开运行阶段",
+      "summary": "站点完成生产环境切换，公开域名、邮件验证与合规信息开始共同工作。",
+      "tags": ["GENERAL"],
+      "details": [
+        "公开域名启用 HTTPS，并建立可重复执行的容器化发布流程。",
+        "验证码邮件采用新的 Devenir 通知版式。",
+        "所有公开页面统一展示备案与投诉举报入口。"
+      ]
+    },
+    {
+      "version": "2026.08.28",
+      "date": "2026-08-28",
+      "status": "STABLE",
+      "title": "Devenir 视觉语言完成一次重组",
+      "summary": "主页、About、板块 Hero 与错误页面开始共享同一套生成式视觉语法。",
+      "tags": ["GENERAL", "SK8", "MUSIC", "CODE"],
+      "details": [
+        "About 以 3+N 场域重新说明 PowerAdapter 的结构。",
+        "三个板块拥有各自的 Hero 概念视觉与强调色。",
+        "通用及板块错误页使用统一的故障艺术构图。"
+      ]
+    },
+    {
+      "version": "2026.08.27",
+      "date": "2026-08-27",
+      "status": "STABLE",
+      "title": "SK8 地图与视频链路稳定",
+      "summary": "地点搜索、地图选点与视频处理从概念界面进入可持续使用的内容流程。",
+      "tags": ["SK8"],
+      "details": [
+        "高德关键词提示、地图拖动和坐标回填形成完整闭环。",
+        "浏览器预检与服务端裁决共同守住视频上传边界。",
+        "耗时的视频派生处理离开页面请求，交由独立队列执行。"
+      ]
+    },
+    {
+      "version": "2026.08.15",
+      "date": "2026-08-15",
+      "status": "STABLE",
+      "title": "SK8 Clip 观看体验成形",
+      "summary": "Clip、Line 与 B-roll 获得统一的记录方式，视频可以在板块页面原地观看。",
+      "tags": ["SK8"],
+      "details": [
+        "New Clip 将元数据、原片选择和本地预览整合为同一表单。",
+        "WATCH CLIP 使用响应式浮层呈现视频、资料与地点信息。",
+        "公开播放资源采用适合网页分发的 WebM 与 WebP。"
+      ]
+    },
+    {
+      "version": "2026.08.04",
+      "date": "2026-08-04",
+      "status": "STABLE",
+      "title": "Music 与 Coding 内容开始形成",
+      "summary": "两个板块从静态展示走向结构化记录，并获得各自的内容管理入口。",
+      "tags": ["MUSIC", "CODE"],
+      "details": [
+        "Music 开始呈现年度、月份、艺人与曲目记录。",
+        "Coding Project 支持项目类型、封面、仓库与演示链接。",
+        "板块内容管理继续遵守各自的成员权限边界。"
+      ]
+    }
+  ]
+}

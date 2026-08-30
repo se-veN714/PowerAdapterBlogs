@@ -29,6 +29,7 @@ from Blogs.views import IndexView
 from boards.amap_proxy import amap_service_proxy
 from config.views import (
     AboutView,
+    ChangelogView,
     LinkListView,
     PrivacyView,
     content_report_create,
@@ -69,6 +70,7 @@ urlpatterns = [
     # LinksPage
     path("links/", LinkListView.as_view(), name="links"),
     path("about/", AboutView.as_view(), name="about"),
+    path("changelog/", ChangelogView.as_view(), name="changelog"),
     path("privacy/", PrivacyView.as_view(), name="privacy"),
     path("reports/new/", content_report_create, name="report-create"),
     path("reports/<uuid:reference>/", content_report_status, name="report-status"),

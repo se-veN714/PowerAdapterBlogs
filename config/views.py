@@ -19,6 +19,7 @@ from PowerAdapterBlogs.public_urls import public_absolute_url
 from boards.board_index import renderable_boards
 from .forms import ContentReportForm
 from .models import ContentReport, Link
+from .public_changelog import load_public_changelog
 from .services import submit_content_report
 
 
@@ -61,6 +62,22 @@ class AboutView(TemplateView):
         core_slugs = ("skateboard", "music", "coding")
         context["additional_about_boards"] = renderable_boards().exclude(
             slug__in=core_slugs
+        )
+        return context
+
+
+class ChangelogView(TemplateView):
+    template_name = "pages/site/changelog.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        releases = load_public_changelog()
+        context.update(
+            {
+                "current_release": releases[0],
+                "releases": releases,
+                "release_count": len(releases),
+            }
         )
         return context
 

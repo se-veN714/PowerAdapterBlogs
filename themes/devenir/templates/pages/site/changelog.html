@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Version Trace · PowerAdapter{% endblock %}
+{% block meta_description %}PowerAdapter 的公开版本轨迹：记录影响访客体验的站点、滑板、音乐与代码板块迭代。{% endblock %}
+{% block og_title %}Version Trace · PowerAdapter{% endblock %}
+{% block og_description %}版本不是终点，而是持续生成留下的节点。{% endblock %}
+{% block mathjax %}{% endblock %}
+{% block head_script %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/changelog.css' %}?v=20260830.1">{% endblock %}
+
+{% block hero %}
+<section class="changelog-hero">
+    <div class="changelog-shell changelog-hero__grid">
+        <div class="changelog-hero__copy">
+            <p class="changelog-kicker">CHANGE / TRACE / DEVENIR</p>
+            <h1>VERSION<br>TRACE</h1>
+            <p class="changelog-hero__lead">版本不是终点，而是持续生成留下的节点。</p>
+        </div>
+
+        <aside class="changelog-signal" aria-label="当前公开版本">
+            <div class="changelog-signal__header">
+                <span>CURRENT SIGNAL</span>
+                <span>{{ release_count|stringformat:"02d" }} TRACES</span>
+            </div>
+            <div class="changelog-signal__body">
+                <div>
+                    <strong>{{ current_release.version }}</strong>
+                    <span>PUBLIC / {{ current_release.status }}</span>
+                </div>
+                <ul aria-label="场域信号">
+                    <li class="is-general"><span>GENERAL</span><i></i></li>
+                    <li class="is-sk8"><span>SK8</span><i></i></li>
+                    <li class="is-music"><span>MUSIC</span><i></i></li>
+                    <li class="is-code"><span>CODE</span><i></i></li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<article class="changelog-page changelog-shell">
+    <header class="changelog-intro">
+        <div>
+            <p class="changelog-kicker">PUBLIC RELEASE NOTES</p>
+            <h2>只记录会改变访问体验的节点。</h2>
+        </div>
+        <p>
+            这里是经过整理的公开轨迹。完整工程记录仍保留在仓库中，
+            内部安全配置、运维细节与普通维护提交不会出现在此页。
+        </p>
+    </header>
+
+    <ol class="changelog-timeline" aria-label="公开版本轨迹">
+        {% for release in releases %}
+        <li class="changelog-release{% if release.status == 'CURRENT' %} is-current{% endif %}">
+            <div class="changelog-release__identity">
+                <time datetime="{{ release.date }}">{{ release.version }}</time>
+                <span>#{{ forloop.revcounter|stringformat:"03d" }}</span>
+                <b>{{ release.status }}</b>
+            </div>
+
+            <span class="changelog-release__node" aria-hidden="true"></span>
+
+            <section class="changelog-release__card">
+                <div class="changelog-release__summary">
+                    <div>
+                        <h3>{{ release.title }}</h3>
+                        <p>{{ release.summary }}</p>
+                    </div>
+                    <ul class="changelog-tags" aria-label="涉及板块">
+                        {% for tag in release.tags %}
+                        <li class="changelog-tag changelog-tag--{{ tag|lower }}">{{ tag }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <details class="changelog-release__details">
+                    <summary>EXPAND TRACE</summary>
+                    <ul>
+                        {% for detail in release.details %}<li>{{ detail }}</li>{% endfor %}
+                    </ul>
+                </details>
+            </section>
+        </li>
+        {% endfor %}
+    </ol>
+
+    <footer class="changelog-end" aria-label="轨迹结束">
+        <span>TRACE CONTINUES</span>
+        <p>新的场域、新的连接与新的版本仍会继续在这里生成。</p>
+    </footer>
+</article>
+{% endblock %}

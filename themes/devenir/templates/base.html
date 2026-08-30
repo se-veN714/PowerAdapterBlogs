@@ -387,6 +387,11 @@
         }
         @media (max-width: 768px) {
             .container { padding: 0 1.25rem; }
+            .footer-legal {
+                flex-wrap: wrap;
+                gap: 0.5rem 0.75rem;
+                padding-inline: 1rem;
+            }
         }
     </style>
 </head>
@@ -407,6 +412,7 @@
         <nav class="nav">
             <a href="{% url 'Blogs:post_list' %}" class="{% if '/posts' in request.path %}active{% endif %}">Posts</a>
             <a href="{% url 'Blogs:post_archive' %}" class="{% if '/archive/' in request.path %}active{% endif %}">Archive</a>
+            <a href="{% url 'changelog' %}" class="{% if request.path == '/changelog/' %}active{% endif %}">Changes</a>
             <a href="{% url 'about' %}" class="{% if request.path == '/about/' %}active{% endif %}">About</a>
             <a href="{% url 'links' %}" class="{% if '/links' in request.path %}active{% endif %}">Links</a>
             <div class="nav-buttons">
@@ -478,6 +484,7 @@
     <nav class="sidebar-nav">
         <a href="{% url 'Blogs:post_list' %}">Posts</a>
         <a href="{% url 'Blogs:post_archive' %}">Archive</a>
+        <a href="{% url 'changelog' %}" class="{% if request.path == '/changelog/' %}active{% endif %}">Changes</a>
         <a href="{% url 'about' %}">About</a>
         <a href="{% url 'links' %}">Links</a>
         {% if user.is_authenticated %}
@@ -566,6 +573,8 @@
         <a href="{% url 'about' %}">About</a>
         <span>|</span>
         <a href="{% url 'Blogs:post_archive' %}">文章归档</a>
+        <span>|</span>
+        <a href="{% url 'changelog' %}">版本轨迹</a>
         <span>|</span>
         <a href="{% url 'feed' %}">Feed</a>
         <span>|</span>

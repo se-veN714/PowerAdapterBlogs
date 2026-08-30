@@ -5,7 +5,7 @@
 > **职责**: 管理博客站点全局配置项、静态说明页、公开元数据上下文、robots 与错误响应
 > **依赖**: `Blogs.models.Post`, `comment.models.Comment`, `base_admin.BaseOwnerAdmin`  
 > **创建**: 2026-06-22  
-> **更新**: 2026-08-29 — 公众投诉举报与申诉闭环
+> **更新**: 2026-08-30 — 公开版本轨迹页
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.5 | 2026-08-30 | 新增 `/changelog/` 公开版本轨迹；独立 JSON 只收录访客可感知里程碑，不直接暴露完整工程日志 |
 | v1.4 | 2026-08-29 | 新增公开投诉举报表单、随机受理编号、最小状态查询、后台处置及事务型审计留痕 |
 | v1.3 | 2026-07-27 | 新增 RFC 9116 `/.well-known/security.txt`，包含 Contact、Expires、Preferred-Languages 与 Canonical |
 | v1.2 | 2026-07-27 | 新增固定公网 canonical 上下文、`robots.txt`、生产 404/500 handler 与 4 项契约测试 |
@@ -39,6 +40,7 @@ flowchart TD
         LLV["LinkListView<br/>友链展示页<br/>/links/"]
         ABOUT["AboutView<br/>站点说明<br/>/about/"]
         PRIVACY["PrivacyView<br/>隐私说明<br/>/privacy/"]
+        CHANGELOG["ChangelogView<br/>公开版本轨迹<br/>/changelog/"]
         REPORT["ContentReport<br/>投诉举报与申诉<br/>/reports/"]
     end
 
@@ -76,6 +78,8 @@ flowchart TD
 | `models.py` | `SideBar` | 侧边栏模型（title/display_type/content，含 `content_html` 属性） |
 | `models.py` | `ContentReport` | 公众投诉举报、受理状态、内部记录与公开反馈；来源只保存摘要 |
 | `services.py` | `submit_content_report/review_content_report` | 业务状态与最小化审计 outbox 同事务写入 |
+| `public_changelog.py` | `load_public_changelog` | 校验并读取公开、安全裁剪后的版本轨迹 JSON |
+| `data/public_changelog.json` | schema v1 | 访客可感知的版本摘要、板块标签与最多三条展开详情 |
 | `admin.py` | `LinkAdmin` | 友链 Admin（BaseOwnerAdmin 子类，含日志） |
 | `admin.py` | `SideBarAdmin` | 侧边栏 Admin（BaseOwnerAdmin 子类，含日志） |
 | `views.py` | `LinkListView` | 友链展示页（ListView + CommonViewMixin） |
@@ -200,6 +204,7 @@ sequenceDiagram
 | 端点 | 方法 | 模板 | 说明 |
 |------|------|------|------|
 | `/links/` | GET | `pages/links.html` | 友链展示页 |
+| `/changelog/` | GET | `pages/site/changelog.html` | 公开版本轨迹；不直接渲染仓库 `CHANGELOG.md` |
 
 > 侧边栏无独立端点，作为模板片段嵌入所有页面（通过 `CommonViewMixin` 上下文）。
 

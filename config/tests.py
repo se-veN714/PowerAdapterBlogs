@@ -75,10 +75,27 @@ class SiteInformationPageTest(TestCase):
         self.assertContains(response, "10 分钟失效")
         self.assertContains(response, "MongoDB")
 
+    def test_changelog_is_public_curated_and_newest_first(self):
+        response = self.client.get(reverse("changelog"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "VERSION")
+        self.assertContains(response, "TRACE")
+        self.assertContains(response, "2026.08.30")
+        self.assertContains(response, "EXPAND TRACE", count=6)
+        self.assertEqual(response.context["current_release"]["status"], "CURRENT")
+        self.assertEqual(response.context["release_count"], 6)
+        self.assertNotContains(response, "mathjax@3")
+        self.assertNotContains(response, "htmx.org")
+        self.assertNotContains(response, "42.192.115.111")
+        self.assertNotContains(response, "/opt/blog")
+        self.assertNotContains(response, "mTLS")
+
     def test_global_navigation_links_about_and_privacy(self):
         response = self.client.get(reverse("about"))
 
         self.assertContains(response, f'href="{reverse("about")}"')
+        self.assertContains(response, f'href="{reverse("changelog")}"')
         self.assertContains(response, f'href="{reverse("privacy")}"')
 
     def test_public_pages_display_required_regulatory_filing_links(self):

@@ -2,6 +2,14 @@
 
 > **文档权重**：60（历史变更记录；不覆盖当前架构文档）
 
+## [2026-09-02]
+
+### 依赖漏洞修复（CNB TCA 扫描清零）
+
+- 依据 CNB 仓库安全扫描（TCA）修复 `requirements.txt` 依赖漏洞：Pillow 11.1.0 → 12.3.0（CVE-2026-40192，FITS 解压炸弹 DoS 高危）、python-dotenv 1.1.1 → 1.2.3、Pygments 2.19.2 → 2.21.0、sqlparse 0.5.3 → 0.6.0。
+- 修复本地 venv 半损坏状态（双版本 dist-info、丢失 RECORD 的 sqlparse、孤儿 pymongo/bson 与 pip 卸载残留），`pip check` 与 `manage.py check` 均无问题。
+- Blogs 41 项（Pygments/Markdown 渲染路径）与 SK8 上传 27 项（Pillow WebP poster 生成路径）定向回归全部通过；B703 `mark_safe` 四条经核实为转义后拼接或依赖库转义，维持观察不修。
+
 ## [2026-08-27]
 
 ### SK8 / 高德联调收口与错误页审查修复

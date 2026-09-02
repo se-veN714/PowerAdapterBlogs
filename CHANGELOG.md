@@ -10,6 +10,12 @@
 - 修复本地 venv 半损坏状态（双版本 dist-info、丢失 RECORD 的 sqlparse、孤儿 pymongo/bson 与 pip 卸载残留），`pip check` 与 `manage.py check` 均无问题。
 - Blogs 41 项（Pygments/Markdown 渲染路径）与 SK8 上传 27 项（Pillow WebP poster 生成路径）定向回归全部通过；B703 `mark_safe` 四条经核实为转义后拼接或依赖库转义，维持观察不修。
 
+### SCA 组件漏洞清零与敏感信息误报核证
+
+- 依据 CNB SCA 组件扫描（26 条 open）与本地 pip-audit 交叉定位，修复依赖树 CVE：cryptography 49.0.0 → 50.0.1（PYSEC-2026-3552）、Django 5.2.16 → 5.2.17（PYSEC-2026-3717）、setuptools 80.9.0 → 84.0.0（PYSEC-2026-3447）；venv 内 pip 升至 26.2、卸载无引用孤儿包 mistune 3.1.3（约 16 条 PYSEC）。修复后 requirements 与全环境 pip-audit 均报告零已知漏洞。
+- CNB 敏感信息 4 条 high 经本地 detect-secrets 全插件扫描（git 跟踪文件 0 命中）、git 全历史密钥文件核查与真实密钥模式检索，确认为测试假值/占位符误报，无真实凭据泄露；`.local/deploy-tmp/.env.production` 含真实凭据但已被 `.gitignore` 覆盖且从未提交。
+- accounts+Blogs 158 项回归中 157 项通过，唯一失败 `test_dashboard_flag_alone_does_not_expose_audit_log` 源自工作区未提交的 dashboard 权限语义调整（`has_compatibility_admin_access`），与本次升级无关；boards 全量回归通过（1 项 PostgreSQL 专属测试按设计跳过）。
+
 ## [2026-08-27]
 
 ### SK8 / 高德联调收口与错误页审查修复

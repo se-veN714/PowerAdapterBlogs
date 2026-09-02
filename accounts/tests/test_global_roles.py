@@ -145,7 +145,7 @@ class GlobalRoleRuntimeBoundaryTest(TestCase):
         self.assertFalse(self.audit_admin.has_change_permission(request))
         self.assertFalse(operator.has_perm("accounts.manage_user_accounts"))
 
-    def test_dashboard_flag_alone_does_not_expose_audit_log(self):
+    def test_dashboard_flag_alone_cannot_enter_compatibility_admin(self):
         dashboard_user = MyUser.objects.create_user(
             email="dashboard@example.test",
             username="dashboard",
@@ -158,7 +158,7 @@ class GlobalRoleRuntimeBoundaryTest(TestCase):
             "/dashboard/security/securelogentry/",
         )
 
-        self.assertTrue(custom_site.has_permission(request))
+        self.assertFalse(custom_site.has_permission(request))
         self.assertFalse(self.audit_admin.has_module_permission(request))
         self.assertFalse(self.audit_admin.has_view_permission(request))
         self.assertFalse(self.audit_admin.has_run_integrity_audit_permission(request))

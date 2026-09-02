@@ -3,9 +3,9 @@
 > **文档权重**：85（config 当前实现与模块 TODO）
 > **模块**: `config/`  
 > **职责**: 管理博客站点全局配置项、静态说明页、公开元数据上下文、robots 与错误响应
-> **依赖**: `Blogs.models.Post`, `comment.models.Comment`, `base_admin.BaseOwnerAdmin`  
+> **依赖**: `Blogs.models.Post`, `comment.models.Comment`, `config.policies.is_site_owner`
 > **创建**: 2026-06-22  
-> **更新**: 2026-08-30 — 公开版本轨迹页
+> **更新**: 2026-09-02 — Site Owner Policy 与公开版本轨迹页
 
 ---
 
@@ -13,6 +13,7 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.6 | 2026-08-30 | Link/SideBar 明确为单站点资源；Admin 自身只允许 active superuser，`owner` 仅记录创建者而非授权事实 |
 | v1.5 | 2026-08-30 | 新增 `/changelog/` 公开版本轨迹；独立 JSON 只收录访客可感知里程碑，不直接暴露完整工程日志 |
 | v1.4 | 2026-08-29 | 新增公开投诉举报表单、随机受理编号、最小状态查询、后台处置及事务型审计留痕 |
 | v1.3 | 2026-07-27 | 新增 RFC 9116 `/.well-known/security.txt`，包含 Contact、Expires、Preferred-Languages 与 Canonical |
@@ -64,6 +65,7 @@ flowchart TD
 
 **设计原则**:
 - 友链和侧边栏均为站长配置型数据，非用户内容
+- Link/SideBar 的写权限由 `is_site_owner()` 显式判断；`/super_admin/` 外层认证不是唯一防线
 - 侧边栏通过 `display_type` 枚举实现多类型动态渲染
 - 所有 Admin 写操作记录日志（操作频率极低，无洪水风险）
 - 读操作无日志（每次请求都触发）
@@ -80,8 +82,8 @@ flowchart TD
 | `services.py` | `submit_content_report/review_content_report` | 业务状态与最小化审计 outbox 同事务写入 |
 | `public_changelog.py` | `load_public_changelog` | 校验并读取公开、安全裁剪后的版本轨迹 JSON |
 | `data/public_changelog.json` | schema v1 | 访客可感知的版本摘要、板块标签与最多三条展开详情 |
-| `admin.py` | `LinkAdmin` | 友链 Admin（BaseOwnerAdmin 子类，含日志） |
-| `admin.py` | `SideBarAdmin` | 侧边栏 Admin（BaseOwnerAdmin 子类，含日志） |
+| `admin.py` | `SiteOwnerAdmin` / `LinkAdmin` | active superuser-only 友链 Admin（含日志） |
+| `admin.py` | `SiteOwnerAdmin` / `SideBarAdmin` | active superuser-only 侧边栏 Admin（含日志） |
 | `views.py` | `LinkListView` | 友链展示页（ListView + CommonViewMixin） |
 | `views.py` | `content_report_create/status` | 公开提交、来源限流及最小化状态查询 |
 | `apps.py` | `ConfigConfig` | App 配置 |
@@ -214,20 +216,20 @@ sequenceDiagram
 
 ```python
 @admin.register(Link)
-class LinkAdmin(BaseOwnerAdmin):
+class LinkAdmin(SiteOwnerAdmin):
     list_display = ('title', 'href', 'status', 'weight', 'created_time')
     fields = ('title', 'href', 'status', 'weight')
 
 @admin.register(SideBar)
-class SideBarAdmin(BaseOwnerAdmin):
+class SideBarAdmin(SiteOwnerAdmin):
     list_display = ('title', 'display_type', 'content', 'created_time')
     fields = ('title', 'display_type', 'content')
 ```
 
 | Admin | 继承 | 特殊配置 | 日志 |
 |-------|------|---------|------|
-| `LinkAdmin` | `BaseOwnerAdmin` | 自动设置 owner | 增删改 INFO |
-| `SideBarAdmin` | `BaseOwnerAdmin` | 自动设置 owner | 增删改 INFO |
+| `LinkAdmin` | `SiteOwnerAdmin` | active superuser-only；owner 仅记录创建者 | 增删改 INFO |
+| `SideBarAdmin` | `SiteOwnerAdmin` | active superuser-only；owner 仅记录创建者 | 增删改 INFO |
 
 ---
 
@@ -237,10 +239,10 @@ class SideBarAdmin(BaseOwnerAdmin):
 |------|:---:|:---:|:---:|:---:|
 | 匿名 | ✅ | ✖ | ✖ | ✖ |
 | 登录用户 | ✅ | ✖ | ✖ | ✖ |
-| 管理员 | ✅ | ✅ | ✅ | ✅ |
+| 普通 staff / Dashboard Operator | ✅ | ❌ | ❌ | ❌ |
 | 超级用户 | ✅ | ✅ | ✅ | ✅ |
 
-> 权限控制依赖 `BaseOwnerAdmin` 的 `has_change_permission` / `has_delete_permission`，无需额外配置。
+> 权限控制统一依赖 `config.policies.is_site_owner()`；模块入口、查询集和所有写动作都只接受 active superuser。`owner` 是审计元数据，不是授权来源。
 
 ---
 

@@ -92,7 +92,7 @@ SiteOperators 的运行时入口已经从 Dashboard 收敛到 `/operations/secur
 
 特权账号登录采用“最新会话唯一”策略：superuser 与显式 `dashboard_user` 每次完成登录后原子递增 `privileged_session_version`，旧浏览器在下一次请求时退出；普通账号仍允许多设备 Session。该控制与 MFA 正交——启用 MFA 时只在动态验证码成功并正式建立登录 Session 后轮换，不在密码阶段提前踢出旧会话。
 
-Board 权限生命周期已补齐成员主动退出：审批记录不回写、不删除；Contributor、Editor、Reviewer 在板块权限页完成短时邮箱验证后可停用自己的 Membership，并记录 Mongo+HMAC 审计。Manager 或存在同板块待审核申请时禁止自助退出，由 superuser/审核流程先处理，避免治理真空或退出后被旧申请意外恢复。
+Board 权限生命周期已补齐成员主动退出：审批记录不回写、不删除；Contributor、Editor、Reviewer 已绑定 active TOTP 时必须使用新鲜动态验证码且不得降级到邮箱。只有通过账户恢复流程取消原 TOTP、设备不再 active 后，才允许使用短时邮箱验证；退出表单本身不提供恢复旁路。验证授权在业务写入前消费，Membership 由事务服务再次加锁复核，并记录与实际验证方式一致的 Mongo+HMAC 审计。Manager 或存在同板块待审核申请时禁止自助退出，由 superuser/审核流程先处理，避免治理真空或退出后被旧申请意外恢复。
 
 BoardMembership 全生命周期管理已于 2026-08-03 重新冻结为 **Devenir Dashboard 日常能力**。M1 已新增 append-only `BoardMembershipEvent`、Membership `updated_at`、统一事务状态内核和迁移；申请批准与成员自助退出已接入同事务关系型事件及提交后 Mongo HMAC 镜像，39 项定向测试通过。M2 已实现 `/dashboard/memberships/` 的筛选列表、直接授予、角色调整、停用、恢复和 Manager 原子交接；入口同时要求 dashboard 身份、独立 `boards.manage_all_board_memberships` Permission、有效 privileged Session，并为每次写操作重新校验 TOTP，签发绑定用户、Session、动作和目标且只能消费一次的短时 capability。M3 已增加全局/单 Membership 不可变事件时间线，并把“最后一名 Manager 不能停用或降级”下沉到统一状态内核；`/super_admin/boards/boardmembership/` 的默认 CRUD 继续只读，唯一自定义写入口只允许在 MFA 与 mTLS 强制均开启、当前证书与账号/privileged Session 一致、重新验证 TOTP 并输入精确确认短语后停用最后一名 Manager。pending 申请仍必须先处理，Membership 不物理删除。56 项 M3 定向回归通过；PostgreSQL 双 Manager 竞争测试已编写，但因本地 SQLite 不支持 `select_for_update()` 而明确跳过，必须在 PostgreSQL CI/预发布补验后才能宣称并发验收完成。完整状态机、冲突规则和分阶段验收见 `accounts/PERMISSIONS_GUIDE.md` 的 `membership_admin_linear` 与 `boards/DEVELOPMENT.md`。
 

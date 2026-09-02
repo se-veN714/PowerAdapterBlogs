@@ -1,6 +1,7 @@
 """H0 regression tests for privileged administration entry points."""
 
 from django.contrib import admin
+from django.contrib.admin.models import LogEntry
 from django.core.exceptions import ImproperlyConfigured
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -62,6 +63,10 @@ class PrivilegedAdminEntryBoundaryTest(TestCase):
         }
         self.assertEqual(registered_labels, DASHBOARD_MODEL_ALLOWLIST)
 
+    def test_compatibility_dashboard_does_not_expose_global_admin_log(self):
+        self.assertNotIn("admin.logentry", DASHBOARD_MODEL_ALLOWLIST)
+        self.assertNotIn(LogEntry, custom_site._registry)
+
     def test_dashboard_rejects_unapproved_model_registration(self):
         with self.assertRaisesMessage(
             ImproperlyConfigured,
@@ -91,10 +96,10 @@ class PrivilegedAdminEntryBoundaryTest(TestCase):
                     login_url=login_url,
                 )
 
-    def test_only_dashboard_user_and_superuser_can_enter_dashboard(self):
+    def test_shell_only_dashboard_user_cannot_enter_compatibility_admin(self):
         entry_url = reverse("cus_admin:index")
         login_url = reverse("cus_admin:login")
-        for user in (self.regular_user, self.staff_user):
+        for user in (self.regular_user, self.staff_user, self.dashboard_user):
             with self.subTest(username=user.username):
                 self.assert_entry_denied(
                     user=user,
@@ -102,11 +107,9 @@ class PrivilegedAdminEntryBoundaryTest(TestCase):
                     login_url=login_url,
                 )
 
-        for user in (self.dashboard_user, self.superuser):
-            with self.subTest(username=user.username):
-                self.client.force_login(user)
-                self.assertEqual(self.client.get(entry_url).status_code, 200)
-                self.client.logout()
+        self.client.force_login(self.superuser)
+        self.assertEqual(self.client.get(entry_url).status_code, 200)
+        self.client.logout()
 
     def test_active_superuser_can_enter_system_admin(self):
         self.client.force_login(self.superuser)

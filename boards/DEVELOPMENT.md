@@ -355,7 +355,7 @@ index.html
 
    **Coding Index 视觉层级（✅ 2026-08-28 收口）**：主页 Coding Editorial 以独立的沙耶 Web 组装体 WebP 为主体；黑白画面只以 Coding 橙标示页面层、组件边界与状态连接，并在右侧叠加代码循环的窄幅半透明毛玻璃窗，使“生成结果”与“运行过程”同时存在。终端使用适合半宽窗口的紧凑代码行持续上滚，底部 composer 以非匀速逐字生成下一条 trace、短暂停顿后提交；`prefers-reduced-motion` 下保留语义性动画但将滚动和输入明显减速。Coding Index Hero 保持原样，正文将首个 `is_featured` 项目（无显式 featured 时回退首项）提升为 Current Build 工作台，其余项目呈现为相连节点；Principle 与 Experiment 合并为 METHOD / TRACE 双栏，表达“方法产生可观察轨迹”，不再使用三组等权列表。该层级只由 `assemble_coding()` 派生视图上下文，未改变模型、CRUD 或链接权限契约。
 
-板块权限页同时展示当前 active Membership。非 Manager 成员可在复用邮箱短时验证后自助退出；实现只把 `is_active` 设为 False，保留审批记录，并以 Mongo+HMAC 记录退出事件。Manager 退出和存在待审核申请的情况均 fail closed。
+板块权限页同时展示当前 active Membership。非 Manager 成员自助退出采用 active TOTP 强制优先：设备有效时必须提交新鲜动态验证码，不能在退出流程中降级；忘记或丢失验证器时，须先走账户恢复并取消原 TOTP，设备不再 active 后才可使用邮箱短时验证。服务在消费 step-up 前预检本人、有效状态、角色和待审申请，业务事务内再次加锁复核；实现只把 `is_active` 设为 False，保留审批记录，并以实际验证方式写入 Mongo+HMAC 退出事件。Manager 退出和存在待审核申请的情况均 fail closed。
 
 Skate Clip 的展示排序属于受保护写操作，只能从 `BoardMembership`/Policy 判定的板块成员工作区进入；公开 Clip List 不展示排序控件，也不能复用为管理入口。
 11. **Skate Spot 结构化位置与 PostGIS（🟢 低）**：当前 `SkateClip.spot` 文本足够用于地点展示，不为此新增 MongoDB 业务集合。只有地图视口、附近 Spot、距离排序等需求真实出现后，才评估独立 `SkateSpot`（名称、城市、可空坐标、`exact/approximate/city_only/hidden` 精度与公开状态）并在现有 PostgreSQL 上启用 PostGIS/GeoDjango；精确坐标默认不公开，国内地图供应商坐标不得未经统一转换混存。

@@ -121,10 +121,15 @@ class DevenirDashboardTest(TestCase):
         self.assertEqual(buckets[5], 0)
 
     def test_first_party_pages_keep_dashboard_permission_boundary(self):
-        for name in ("posts", "audit", "media", "settings"):
+        for name in ("posts", "audit", "media"):
             with self.subTest(name=name):
                 response = self.client.get(reverse(f"dashboard:{name}"))
                 self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            self.client.get(reverse("dashboard:settings")).status_code,
+            403,
+        )
 
         regular = MyUser.objects.create_user(
             email="regular-ui@example.test",
@@ -135,6 +140,45 @@ class DevenirDashboardTest(TestCase):
         self.client.force_login(regular)
         response = self.client.get(reverse("dashboard:posts"))
         self.assertEqual(response.status_code, 403)
+
+    def test_dashboard_shell_does_not_grant_page_capabilities(self):
+        shell_only = MyUser.objects.create_user(
+            email="shell-only@example.test",
+            username="shell-only",
+            password=self.password,
+            is_active=True,
+            is_dashboard_user=True,
+        )
+        self.client.force_login(shell_only)
+
+        overview = self.client.get(reverse("dashboard:overview"))
+        self.assertEqual(overview.status_code, 200)
+        self.assertNotContains(overview, reverse("cus_admin:index"))
+        compatibility = self.client.get(reverse("cus_admin:index"))
+        self.assertEqual(compatibility.status_code, 302)
+        for name in ("posts", "audit", "comments", "media", "settings"):
+            with self.subTest(name=name):
+                self.assertEqual(
+                    self.client.get(reverse(f"dashboard:{name}")).status_code,
+                    403,
+                )
+                self.assertNotContains(
+                    overview,
+                    reverse(f"dashboard:{name}"),
+                )
+
+    def test_site_settings_are_visible_only_to_site_owner(self):
+        owner = MyUser.objects.create_superuser(
+            email="dashboard-owner@example.test",
+            username="dashboard-owner",
+            password=self.password,
+        )
+        self.client.force_login(owner)
+
+        response = self.client.get(reverse("dashboard:settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "站点设置")
 
     def test_legacy_admin_is_available_only_at_compatibility_route(self):
         compatibility_url = reverse("cus_admin:index")

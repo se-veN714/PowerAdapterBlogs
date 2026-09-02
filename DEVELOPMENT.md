@@ -4,7 +4,7 @@
 > **项目**: 基于 Django 5.2 的个人博客系统  
 > **作者**: seveN1foR / PowerAdapter  
 > **许可证**: MIT  
-> **最后更新**: 2026-08-26 — 固定 Django Template + HTMX 单体架构并移除旧 Data API
+> **最后更新**: 2026-08-30 — 新增跨 App 功能逻辑、站点所有权与工作台整改索引
 
 ---
 
@@ -15,7 +15,8 @@ DjangoProject/                 # 项目根目录
 ├── PowerAdapterBlogs/         # Django 项目配置
 │   ├── settings/              # 多环境 settings
 │   ├── urls.py                # 根路由（⭐ 路由排查入口）
-│   ├── cus_site.py            # 自定义 AdminSite（dashboard 后台）
+│   ├── dashboard_views.py     # 第一方 Devenir 工作台
+│   ├── cus_site.py            # /dashboard/compatibility/ 兼容 AdminSite
 │   └── wsgi.py
 ├── accounts/                  # 自定义用户模块
 ├── Blogs/                     # 博客核心（文章/分类/标签/HTMX fragments）
@@ -58,6 +59,10 @@ DjangoProject/                 # 项目根目录
 
 Devenir 的全局视觉边界以 `V2GUIDE.md` 为上位决策，具体组件和静态资源规范以下位主题开发文档为准。页面必需的压缩静态资产必须随代码发布；设计源稿、生成中间物和用户媒体留在 Git 之外。
 
+跨 App 的当前功能流、角色边界、站点级内容所有权和工作台缺口统一见
+`FUNCTIONAL_LOGIC_GUIDE.md`（文档权重 88）。新增 Dashboard 或管理功能前必须先按该文档判断
+它属于站点级、Board 级、用户自身还是审核对象，不能仅凭页面入口或 Model Permission 决定权限。
+
 ---
 
 ## 2. 路由总览
@@ -80,6 +85,7 @@ Devenir 的全局视觉边界以 `V2GUIDE.md` 为上位决策，具体组件和�
 | `/Blogs/img_upload/` | `post_img_upload` | 图片上传 |
 | `/links/` | `LinkListView` | 友链页 |
 | `/about/` | `AboutView` | 站点定位、内容、Board 与技术说明 |
+| `/changelog/` | `ChangelogView` | 公开版本轨迹，仅展示访客可感知里程碑 |
 | `/privacy/` | `PrivacyView` | 数据用途和保留方式说明 |
 | `/_errors/<variant>/<status_code>/` | `error_preview` | 仅 DEBUG 可用的 General/Skateboard/Music/Coding 真实状态预览；生产统一返回 404 |
 | `/boards/access/` | `BoardAccessRequestView` | 已验证用户提交并查看自己的板块权限申请 |
@@ -90,12 +96,13 @@ Devenir 的全局视觉边界以 `V2GUIDE.md` 为上位决策，具体组件和�
 | URL | 后台 | 权限要求 |
 |-----|------|---------|
 | `/super_admin/` | Django 原生 Admin | active superuser；开启 H2/H3 后还需受信客户端证书；TOTP Session 最长 15 分钟、闲置 5 分钟失效、浏览器关闭失效，且不接受 Dashboard 7 天授权 |
-| `/dashboard/` | 日常运维 AdminSite | active `is_dashboard_user` 或 superuser；模型受 `DASHBOARD_MODEL_ALLOWLIST` 限制；启用强制开关后要求 MFA，可由用户选择在当前 Session 信任 7 天 |
+| `/dashboard/` | 第一方 Devenir 日常工作台 | active `is_dashboard_user` 或 superuser；入口旗标不替代页面 capability、对象 Policy 与写操作 step-up |
+| `/dashboard/compatibility/` | 过渡期兼容 AdminSite | 需 active Dashboard 壳层身份 + Post/Tag/站长真实能力；模型受 allowlist 限制 |
 | `/dashboard/memberships/` | Devenir 板块成员管理 | dashboard 身份 + `boards.manage_all_board_memberships` + privileged Session；每次写操作另需新鲜 TOTP step-up |
 | `/dashboard/memberships/events/` | Membership 不可变事件时间线 | 与成员管理相同的身份、Permission 与 privileged Session；只读 |
 | `/review/` | 统一审核中心 | 按账号 Permission 与 Board Membership 分别显示账号、板块权限、稿件、评论审核入口 |
 | `/operations/security/` | 安全运维 | `security.view_audit_log` 查看；`security.run_integrity_audit` 核验选中记录 |
-> **反向解析**：AdminSite 的 URL 必须通过 `namespace:name` 形式反向解析，如 `reverse("cus_admin:index")` → `/dashboard/`。`custom_site.name = 'cus_admin'`。
+> **反向解析**：兼容 AdminSite 使用 `reverse("cus_admin:index")` → `/dashboard/compatibility/`；第一方工作台使用 `dashboard:*` namespace。
 
 ### 2.3 账号路由
 
@@ -130,13 +137,14 @@ Devenir 的全局视觉边界以 `V2GUIDE.md` 为上位决策，具体组件和�
 
 | 字段 | 作用 |
 |------|------|
-| `is_staff` | 访问 `/super_admin/` (Django 原生 Admin) |
-| `is_dashboard_user` | 访问 `/dashboard/` (自定义 AdminSite) |
-| `is_superuser` | 拥有所有权限（可管理用户、日志等） |
+| `is_staff` | Django 原生 staff 语义；单独设置不足以获得本项目 `/super_admin/` Session |
+| `is_dashboard_user` | 只进入 `/dashboard/` 壳层；兼容 Admin 还要求具体 Post/Tag/站长能力 |
+| `is_superuser` | 当前单站点的站长身份；拥有站点级结构与最高权限，生产敏感入口仍需 MFA/mTLS |
 
 > 权限检查入口：
-> - `/super_admin/` → Django 默认 `AdminSite.has_permission()` → `is_staff`
-> - `/dashboard/` → `CustomSite.has_permission()` → `is_dashboard_user`
+> - `/super_admin/` → 项目认证边缘与应用层共同要求 active superuser，不能仅依据 `is_staff`
+> - `/dashboard/` → `dashboard_access_required()` 先检查 `is_dashboard_user`/superuser，再由页面 capability 与对象 Policy 收窄
+> - `/dashboard/compatibility/` → `has_compatibility_admin_access()` + 固定模型 allowlist；不注册全局 `LogEntry`
 >
 > 见 `PowerAdapterBlogs/cus_site.py` 和 `PowerAdapterBlogs/urls.py:31-33`
 

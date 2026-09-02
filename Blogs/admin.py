@@ -1,5 +1,4 @@
 from django.contrib import admin, messages
-from django.contrib.admin.models import LogEntry
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.urls import reverse
 from django.utils.html import format_html
@@ -37,7 +36,6 @@ from boards.policies import (
 admin.site.register(Post)
 admin.site.register(Category)
 admin.site.register(Tag)
-admin.site.register(LogEntry)
 admin.site.register(PostRevision)
 
 
@@ -112,6 +110,12 @@ class CategoryAdmin(DashboardAdminMixin, BaseOwnerAdmin):
 class TagAdmin(DashboardAdminMixin, BaseOwnerAdmin):
     list_display = ('name', 'status', 'created_time')
     field = ('name', 'status')
+
+    def has_module_permission(self, request):
+        return request.user.has_perm('Blogs.manage_tag')
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.has_perm('Blogs.manage_tag')
 
     def has_add_permission(self, request):
         return request.user.has_perm('Blogs.manage_tag')
@@ -632,20 +636,4 @@ class PostWorkflowEventAdmin(DashboardAdminMixin, admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
-
-
-@admin.register(LogEntry,site=custom_site)
-class LogEntryAdmin(DashboardAdminMixin, admin.ModelAdmin):
-    list_display = ('action_time', 'object_repr', 'object_id', 'action_flag', 'user', 'change_message')
-
-    # DashboardAdminMixin 已提供 has_module_permission/has_view_permission 基于 is_dashboard_user
-    # 这里只收紧 change/delete 到 superuser
-
-    def has_change_permission(self, request, obj=None):
-        """仅超级管理员可修改日志"""
-        return request.user.is_superuser
-
-    def has_delete_permission(self, request, obj=None):
-        """仅超级管理员可删除日志"""
-        return request.user.is_superuser
 

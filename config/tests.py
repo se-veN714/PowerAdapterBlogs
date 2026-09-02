@@ -1,10 +1,72 @@
 from datetime import datetime
 from unittest.mock import patch
 
+from django.contrib import admin
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
+from accounts.models import MyUser
+from config.admin import LinkAdmin, SideBarAdmin
+from config.models import Link, SideBar
 from config.views import server_error
+
+
+class SiteConfigurationOwnershipTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.owner = MyUser.objects.create_superuser(
+            email="site-owner@example.test",
+            username="site-owner",
+            password="test-password",
+        )
+        cls.operator = MyUser.objects.create_user(
+            email="dashboard-operator@example.test",
+            username="dashboard-operator",
+            password="test-password",
+            is_active=True,
+            is_dashboard_user=True,
+        )
+        cls.link = Link.objects.create(
+            title="PowerAdapter",
+            href="https://example.test/",
+            owner=cls.owner,
+        )
+        cls.sidebar = SideBar.objects.create(
+            title="Trusted HTML",
+            display_type=SideBar.DISPLAY_HTML,
+            content="<p>site owner content</p>",
+            owner=cls.owner,
+        )
+
+    def _request(self, user):
+        request = RequestFactory().get("/super_admin/config/")
+        request.user = user
+        return request
+
+    def test_site_owner_admins_reject_dashboard_operator(self):
+        request = self._request(self.operator)
+        for model_admin, model in (
+            (LinkAdmin(Link, admin.site), Link),
+            (SideBarAdmin(SideBar, admin.site), SideBar),
+        ):
+            with self.subTest(model=model.__name__):
+                self.assertFalse(model_admin.has_module_permission(request))
+                self.assertFalse(model_admin.has_view_permission(request))
+                self.assertFalse(model_admin.has_add_permission(request))
+                self.assertFalse(model_admin.has_change_permission(request))
+                self.assertFalse(model_admin.has_delete_permission(request))
+                self.assertFalse(model_admin.get_queryset(request).exists())
+
+    def test_site_owner_admins_allow_active_superuser(self):
+        request = self._request(self.owner)
+        for model_admin, expected_object in (
+            (LinkAdmin(Link, admin.site), self.link),
+            (SideBarAdmin(SideBar, admin.site), self.sidebar),
+        ):
+            with self.subTest(model=type(expected_object).__name__):
+                self.assertTrue(model_admin.has_module_permission(request))
+                self.assertTrue(model_admin.has_change_permission(request))
+                self.assertIn(expected_object, model_admin.get_queryset(request))
 
 
 class SiteInformationPageTest(TestCase):

@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.admin.sites import AdminSite
+from django.contrib.auth.models import Permission
 from django.core import mail
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -177,7 +178,10 @@ class DashboardLoginTest(TestCase):
             is_dashboard_user=True,
         )
 
-    def test_non_staff_dashboard_user_can_log_in_to_custom_admin(self):
+    def test_non_staff_dashboard_user_with_model_capability_can_log_in(self):
+        self.dashboard_user.user_permissions.add(
+            Permission.objects.get(codename="manage_tag"),
+        )
         response = self.client.post(
             reverse('cus_admin:login'),
             {'username': self.dashboard_user.username, 'password': self.password},

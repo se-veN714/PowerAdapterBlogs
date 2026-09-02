@@ -76,10 +76,21 @@
                             <p class="access-dialog-kicker">MEMBERSHIP / DEACTIVATE</p>
                             <h2 id="withdraw-title-{{ membership.pk }}">退出 {{ membership.board.name }}？</h2>
                             <p>退出后将立即失去该板块的 {{ membership.get_role_display }} 权限。审批记录会保留；如需恢复，必须重新提交申请并审核。</p>
+                            {% if totp_required %}
+                            <p class="membership-note">当前账号已绑定 TOTP。退出操作只接受 Authenticator 的一次性验证码，不再发送邮箱验证码。</p>
+                            {% else %}
+                            <p class="membership-note">当前账号未绑定 TOTP。确认后将进入短时邮箱验证流程。</p>
+                            {% endif %}
                             <div class="access-dialog-actions" style="gap:.6rem">
                                 <button class="btn-ghost" type="button" data-withdraw-close>取消</button>
                                 <form method="post" action="{% url 'boards:withdraw-membership' membership.pk %}">
                                     {% csrf_token %}
+                                    {% if totp_required %}
+                                    <div class="access-field">
+                                        <label for="withdraw-totp-{{ membership.pk }}">动态验证码</label>
+                                        <input id="withdraw-totp-{{ membership.pk }}" name="totp_code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" minlength="6" placeholder="000000" required>
+                                    </div>
+                                    {% endif %}
                                     <button class="btn-accent" type="submit">确认退出</button>
                                 </form>
                             </div>

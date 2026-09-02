@@ -7,11 +7,11 @@
 > **状态**：`accounts_linear` 阶段 0–8 已完成，遗留 `is_reviewer` 字段已删除；`membership_admin_linear` M0–M3 代码已完成，PostgreSQL 真实并发验收尚未执行
 > **日期**：2026-08-03（重定 BoardMembership 日常管理与 break-glass 边界）
 
-> **Stage 7 入口收敛（当前规则，优先于下方历史阶段记录）**：`/review/` 是账号、板块权限、稿件、评论审核的统一业务入口；`UserManagers`、`SiteOperators`、Board Reviewer/Manager 均不因 Group 或 Membership 自动获得 `/dashboard/`。`/dashboard/` 只接受 active `is_dashboard_user` 或 active superuser，并在启用强制开关后要求 MFA；其模型注册也受 `DASHBOARD_MODEL_ALLOWLIST` 显式白名单约束，新增 Admin 模型必须经过代码审查。`/super_admin/` 继续作为低频最高权限入口。UserManager 只能在审核中心启停非 staff、非 dashboard、非 superuser 的普通账号，且不能绕过未完成的邮箱邀请；Board Manager 只审批自己板块内可授予的角色。
+> **当前入口收敛（优先于下方历史阶段记录）**：`/review/` 是账号、板块权限、稿件、评论审核的统一业务入口；`UserManagers`、`SiteOperators`、Board Reviewer/Manager 均不因 Group 或 Membership 自动获得 `/dashboard/`。active `is_dashboard_user`/superuser 只能打开 `/dashboard/` 壳层，各页另经 Capability Map 授权；`/dashboard/compatibility/` 还需 Post/Tag/站长真实能力，模型受 allowlist 约束，不暴露全局 `LogEntry`。`/super_admin/` 继续作为低频最高权限入口。UserManager 只能在审核中心启停非 staff、非 dashboard、非 superuser 的普通账号，且不能绕过未完成的邮箱邀请；Board Manager 只审批自己板块内可授予的角色。
 
 > **审核中心与投稿边界**：`VerifiedUsers` 和 Contributor 只拥有申请/投稿能力，不得进入 `/review/`；文章审核入口只授予 Board Reviewer/Manager 或 superuser。作者提审与编辑继续在个人主页和文章详情等作者工作面完成。
 
-> **成员退出边界**：已批准的申请记录保持不可变；Contributor、Editor、Reviewer 可在板块权限页通过短时邮箱验证自助停用自己的 `BoardMembership`，不得删除历史。Manager 不能自助退出：存在其他 active Manager 时可由 Dashboard 停用，否则必须原子交接；只有全验证 superuser break-glass 能强制移除最后一名 Manager。存在同板块待审核申请时仍不得退出。
+> **成员退出边界**：已批准的申请记录保持不可变；Contributor、Editor、Reviewer 自助停用 `BoardMembership` 时，已有 active TOTP 必须使用动态验证码且不能在退出流程中降级。忘记或丢失验证器时必须先通过账户恢复取消原 TOTP，设备不再 active 后才允许短时邮箱验证；历史不得删除。Manager 不能自助退出：存在其他 active Manager 时可由 Dashboard 停用，否则必须原子交接；只有全验证 superuser break-glass 能强制移除最后一名 Manager。存在同板块待审核申请时仍不得退出。
 
 > **Membership 管理边界（M2/M3 已实现）**：日常管理进入 Devenir `/dashboard/memberships/`，要求 active `is_dashboard_user`、独立 Permission、有效 privileged Session 和操作级新鲜 TOTP step-up；`/super_admin/` 保持低频只读观察，仅通过独立的全验证 break-glass URL 停用最后一名 Manager。两者都不开放默认 ModelAdmin CRUD。
 > **目标**：以后续功能围绕 Board 展开，在不引入第三方对象权限库的前提下实现最小权限、职责分离和可测试的板块级授权。
@@ -555,7 +555,7 @@ Stage 7 的等价流程与代码审计已经完成，Stage 8 删除迁移已建�
 
 截至 2026-08-03，`BoardMembership` 已注册到 `/super_admin/`，但 `BoardMembershipObservationAdmin` 的新增、修改和删除权限均返回 False，所有字段也只读。这不是迁移或注册遗漏，而是 Stage 2 为防止 Admin 绕过 Policy/Service 而保留的观察模式。
 
-Stage 6b 的申请审批可以创建、变更或恢复 Membership，普通非 Manager 成员也可在短时邮箱验证后自助停用自己。M1/M2 已补齐下列日常站务入口，并继续禁止通用 ModelAdmin CRUD：
+Stage 6b 的申请审批可以创建、变更或恢复 Membership。普通非 Manager 成员自助停用时，已有 active TOTP 必须使用动态验证码且禁止降级；只有先通过账户恢复流程取消原设备后，才允许使用短时邮箱验证。验证授权先消费，事务服务再复核并停用 Membership。M1/M2 已补齐下列日常站务入口，并继续禁止通用 ModelAdmin CRUD：
 
 - 首位 Manager 或应急成员的直接授予；
 - Manager 的停用、降级与交接；

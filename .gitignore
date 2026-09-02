@@ -46,6 +46,7 @@ package-lock.json
 /codex_context.md
 /GITGUIDE.md
 /.codebuddy/
+/skills-lock.json
 
 # ====== Agent handoff artifacts ======
 **/*HANDOFF*.md

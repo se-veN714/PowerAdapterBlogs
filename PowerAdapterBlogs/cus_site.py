@@ -26,7 +26,6 @@ from PowerAdapterBlogs.base_admin import has_dashboard_access
 
 DASHBOARD_MODEL_ALLOWLIST = frozenset(
     {
-        "admin.logentry",
         "blogs.category",
         "blogs.post",
         "blogs.postrevision",
@@ -34,6 +33,19 @@ DASHBOARD_MODEL_ALLOWLIST = frozenset(
         "blogs.tag",
     }
 )
+
+
+def has_compatibility_admin_access(user):
+    """Require a real business capability in addition to shell access."""
+    if not has_dashboard_access(user):
+        return False
+    if user.is_superuser or user.has_perm("Blogs.manage_tag"):
+        return True
+
+    # Lazy import avoids a cycle while Blogs Admin classes register here.
+    from boards.policies import can_access_post_admin
+
+    return can_access_post_admin(user)
 
 
 class DashboardAuthenticationForm(AdminAuthenticationForm):
@@ -45,7 +57,7 @@ class DashboardAuthenticationForm(AdminAuthenticationForm):
     }
 
     def confirm_login_allowed(self, user):
-        if not has_dashboard_access(user):
+        if not has_compatibility_admin_access(user):
             raise ValidationError(
                 self.error_messages["invalid_login"],
                 code="invalid_login",
@@ -97,8 +109,8 @@ class CustomSite(AdminSite):
         return super().login(request, extra_context)
 
     def has_permission(self, request):
-        """dashboard 入口：检查 is_dashboard_user（与 /super_admin/ 的 is_staff 分离）"""
-        return has_dashboard_access(request.user)
+        """Compatibility Admin requires shell access and a real capability."""
+        return has_compatibility_admin_access(request.user)
 
 
 custom_site = CustomSite(name="cus_admin")

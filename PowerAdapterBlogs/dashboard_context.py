@@ -18,6 +18,7 @@ from boards.membership_step_up import MANAGE_MEMBERSHIP_PERMISSION
 from boards.models import BoardMembershipEvent
 from boards.policies import (
     can_access_comment_admin,
+    can_access_post_admin,
     can_create_post_in_any_board,
     comments_visible_to_moderator,
     posts_editable_by,
@@ -25,6 +26,7 @@ from boards.policies import (
 )
 from comment.models import Comment
 from operations.policies import can_view_security_operations
+from PowerAdapterBlogs.cus_site import has_compatibility_admin_access
 from security.models import SecureLogEntry
 
 
@@ -35,33 +37,74 @@ def _url(name: str, fallback: str | None = None) -> str | None:
         return fallback
 
 
+def dashboard_capabilities(user) -> dict[str, bool]:
+    """Return page capabilities independently from the dashboard shell flag."""
+
+    can_posts = can_access_post_admin(user)
+    can_memberships = user.has_perm(MANAGE_MEMBERSHIP_PERMISSION)
+    can_security = can_view_security_operations(user)
+    return {
+        "overview": True,
+        "memberships": can_memberships,
+        "audit": can_posts or can_memberships or can_security,
+        "posts": can_posts,
+        "comments": can_access_comment_admin(user),
+        "media": can_posts,
+        "settings": bool(user.is_active and user.is_superuser),
+    }
+
+
+def dashboard_page_allowed(user, page: str) -> bool:
+    """Fail closed for unknown or unauthorized first-party dashboard pages."""
+
+    return dashboard_capabilities(user).get(page, False)
+
+
 def dashboard_navigation(request) -> list[dict]:
     user = request.user
+    capabilities = dashboard_capabilities(user)
     return [
-        {"key": "overview", "label": "Overview", "url": _url("dashboard:overview")},
+        {
+            "key": "overview",
+            "label": "Overview",
+            "url": _url("dashboard:overview"),
+            "visible": capabilities["overview"],
+        },
         {
             "key": "memberships",
             "label": "Memberships",
             "url": _url("board-dashboard:memberships"),
-            "visible": user.has_perm(MANAGE_MEMBERSHIP_PERMISSION),
+            "visible": capabilities["memberships"],
         },
         {
             "key": "audit",
             "label": "Audit Events",
             "url": _url("dashboard:audit"),
+            "visible": capabilities["audit"],
         },
-        {"key": "posts", "label": "Posts", "url": _url("dashboard:posts")},
+        {
+            "key": "posts",
+            "label": "Posts",
+            "url": _url("dashboard:posts"),
+            "visible": capabilities["posts"],
+        },
         {
             "key": "comments",
             "label": "Comments",
             "url": _url("dashboard:comments"),
-            "visible": can_access_comment_admin(user),
+            "visible": capabilities["comments"],
         },
-        {"key": "media", "label": "Media", "url": _url("dashboard:media")},
+        {
+            "key": "media",
+            "label": "Media",
+            "url": _url("dashboard:media"),
+            "visible": capabilities["media"],
+        },
         {
             "key": "settings",
             "label": "Site Settings",
             "url": _url("dashboard:settings"),
+            "visible": capabilities["settings"],
         },
     ]
 
@@ -82,7 +125,11 @@ def dashboard_shell_context(request, *, active: str, title: str) -> dict:
             {"label": "Public Home", "url": _url("index")},
             {"label": "My Profile", "url": _url("accounts:my-profile")},
             {"label": "MFA Security", "url": _url("accounts:mfa-settings")},
-            {"label": "Legacy Admin", "url": _url("cus_admin:index")},
+            *(
+                [{"label": "Legacy Admin", "url": _url("cus_admin:index")}]
+                if has_compatibility_admin_access(user)
+                else []
+            ),
             *(
                 [{"label": "Security Ops", "url": _url("operations:security")}]
                 if can_view_security_operations(user)
@@ -114,6 +161,7 @@ def _hourly_visits(start, visible_posts) -> list[int]:
 def overview_context(request) -> dict:
     now = timezone.now()
     shell = dashboard_shell_context(request, active="overview", title="控制台总览")
+    capabilities = dashboard_capabilities(request.user)
     today = timezone.localtime(now).replace(hour=0, minute=0, second=0, microsecond=0)
     month = today.replace(day=1)
     visible_posts = posts_visible_to(request.user, Post.objects.all())
@@ -157,7 +205,9 @@ def overview_context(request) -> dict:
             "monthly_completion": (
                 round(month_published / month_total * 100) if month_total else None
             ),
-            "posts_url": _url("dashboard:posts"),
+            "posts_url": (
+                _url("dashboard:posts") if capabilities["posts"] else None
+            ),
         },
         "moderation_summary": {
             "visible": moderation_visible,
@@ -185,7 +235,9 @@ def overview_context(request) -> dict:
             "storage_label": None,
             "unused_count": None,
             "optimization_count": None,
-            "media_url": _url("dashboard:media"),
+            "media_url": (
+                _url("dashboard:media") if capabilities["media"] else None
+            ),
         },
         "security_summary": {
             "visible": security_visible,
@@ -212,8 +264,11 @@ def overview_context(request) -> dict:
             {
                 "key": "U",
                 "label": "文章媒体",
-                "url": _url("dashboard:media"),
-                "enabled": True,
+                "url": (
+                    _url("dashboard:media") if capabilities["media"] else None
+                ),
+                "enabled": capabilities["media"],
+                "disabled_reason": "当前账号没有可查看的文章媒体范围",
             },
             {
                 "key": "R",
@@ -225,8 +280,13 @@ def overview_context(request) -> dict:
             {
                 "key": "A",
                 "label": "兼容管理区",
-                "url": _url("cus_admin:index"),
-                "enabled": True,
+                "url": (
+                    _url("cus_admin:index")
+                    if has_compatibility_admin_access(request.user)
+                    else None
+                ),
+                "enabled": has_compatibility_admin_access(request.user),
+                "disabled_reason": "当前账号没有兼容模型管理能力",
             },
         ],
     }

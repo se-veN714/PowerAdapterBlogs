@@ -11,6 +11,7 @@ from PowerAdapterBlogs.base_admin import has_dashboard_access
 from PowerAdapterBlogs.dashboard_context import (
     audit_context,
     comments_context,
+    dashboard_page_allowed,
     media_context,
     overview_context,
     posts_context,
@@ -32,18 +33,32 @@ def dashboard_access_required(view_func):
     return wrapped
 
 
-def _dashboard_view(template_name, context_builder):
+def _dashboard_view(template_name, context_builder, *, capability):
     @never_cache
     @dashboard_access_required
     def view(request):
+        if not dashboard_page_allowed(request.user, capability):
+            raise PermissionDenied("当前账号没有此工作台页面的能力。")
         return render(request, template_name, context_builder(request))
 
     return view
 
 
-overview = _dashboard_view("pages/dashboard/overview.html", overview_context)
-posts = _dashboard_view("pages/dashboard/posts.html", posts_context)
-audit = _dashboard_view("pages/dashboard/audit.html", audit_context)
-comments = _dashboard_view("pages/dashboard/comments.html", comments_context)
-media = _dashboard_view("pages/dashboard/media.html", media_context)
-settings = _dashboard_view("pages/dashboard/settings.html", settings_context)
+overview = _dashboard_view(
+    "pages/dashboard/overview.html", overview_context, capability="overview"
+)
+posts = _dashboard_view(
+    "pages/dashboard/posts.html", posts_context, capability="posts"
+)
+audit = _dashboard_view(
+    "pages/dashboard/audit.html", audit_context, capability="audit"
+)
+comments = _dashboard_view(
+    "pages/dashboard/comments.html", comments_context, capability="comments"
+)
+media = _dashboard_view(
+    "pages/dashboard/media.html", media_context, capability="media"
+)
+settings = _dashboard_view(
+    "pages/dashboard/settings.html", settings_context, capability="settings"
+)

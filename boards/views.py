@@ -39,7 +39,7 @@ from boards.board_index import (
     prepare_skate_clips,
     renderable_boards,
 )
-from boards.forms import BoardAccessRequestForm
+from boards.forms import BoardAccessRequestForm, BoardMembershipWithdrawForm
 from boards.models import (
     Board,
     BoardAccessRequest,
@@ -54,7 +54,11 @@ from boards.policies import (
     can_create_post_in_any_board,
     can_view_review_queue,
 )
-from boards.services import submit_board_access_request, withdraw_board_membership
+from boards.services import (
+    submit_board_access_request,
+    validate_board_membership_withdrawal,
+    withdraw_board_membership,
+)
 
 
 BOARD_MANAGEMENT_DESTINATIONS = {
@@ -325,26 +329,73 @@ class BoardAccessRequestView(
 @login_required
 @require_POST
 def withdraw_membership(request, pk):
-    """Consume a short email grant and deactivate the caller's Membership."""
-    if not email_verification_is_verified(request, EMAIL_PURPOSE_BOARD_ACCESS):
-        messages.info(request, "退出板块前，请先完成账号邮箱验证。")
-        return redirect("accounts:board-access-email-verify")
+    """Require active TOTP, or email only after the device was revoked."""
     membership = get_object_or_404(
         BoardMembership,
         pk=pk,
         user=request.user,
     )
     try:
+        validate_board_membership_withdrawal(
+            membership=membership,
+            actor=request.user,
+        )
+    except PermissionDenied as exc:
+        messages.error(request, str(exc))
+        return redirect("boards:access-requests")
+    except ValidationError as exc:
+        messages.warning(request, exc.messages[0])
+        return redirect("boards:access-requests")
+
+    has_active_totp = MfaTotpDevice.objects.filter(
+        user=request.user,
+        status=MfaTotpDevice.Status.ACTIVE,
+    ).exists()
+    if has_active_totp:
+        form = BoardMembershipWithdrawForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "退出板块前，请输入 6 位动态验证码。")
+            return redirect("boards:access-requests")
+        if challenge_is_locked(request, request.user.pk):
+            messages.error(request, "动态验证码尝试次数过多，请在冷却期后重试。")
+            return redirect("boards:access-requests")
+        try:
+            verify_active_totp(
+                user=request.user,
+                actor=request.user,
+                code=form.cleaned_data["totp_code"],
+            )
+        except MfaServiceError:
+            attempts = record_challenge_failure(request, request.user.pk)
+            messages.error(
+                request,
+                "动态验证码尝试次数过多，请在冷却期后重试。"
+                if attempts >= settings.MFA_CHALLENGE_MAX_ATTEMPTS
+                else "动态验证码无效、已使用或已过期。",
+            )
+            return redirect("boards:access-requests")
+        clear_challenge_failures(request, request.user.pk)
+        verification_method = "totp"
+    elif not email_verification_is_verified(request, EMAIL_PURPOSE_BOARD_ACCESS):
+        messages.info(request, "退出板块前，请先完成账号邮箱验证。")
+        return redirect("accounts:board-access-email-verify")
+    else:
+        # Persist consumption before the protected write. A concurrent or failed
+        # request may require verification again, but cannot reuse this grant.
+        clear_email_verification(request, EMAIL_PURPOSE_BOARD_ACCESS)
+        request.session.save()
+        verification_method = "email"
+    try:
         withdrawn = withdraw_board_membership(
             membership=membership,
             actor=request.user,
+            verification_method=verification_method,
         )
     except PermissionDenied as exc:
         messages.error(request, str(exc))
     except ValidationError as exc:
         messages.warning(request, exc.messages[0])
     else:
-        clear_email_verification(request, EMAIL_PURPOSE_BOARD_ACCESS)
         messages.success(request, f"已退出 {withdrawn.board.name} 板块。")
     return redirect("boards:access-requests")
 

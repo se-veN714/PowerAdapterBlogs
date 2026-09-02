@@ -2,10 +2,10 @@
 
 > **文档权重**：30（已停用空壳模块，仅作历史参考）
 > **模块**: `music/`  
-> **职责**: 音乐模块占位（空壳，无运行时功能）  
-> **依赖**: 无  
+> **职责**: 记录 `music/` 兼容 App 边界；当前 Music Board 运行时模型、CRUD 与展示装配归 `boards`
+> **依赖**: `boards.models`, `boards.content_views`, `boards.board_index`
 > **创建**: 2026-06-22  
-> **更新**: 2026-06-22 — 新建文档
+> **更新**: 2026-08-30 — 校正 Music Board 已落地但不由本 App 承载的事实
 
 ---
 
@@ -14,33 +14,24 @@
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0 | 2026-06-22 | 新建文档，标记为空壳状态 |
+| v1.1 | 2026-08-30 | 明确 `music/` 仍是兼容壳，但 Music Board 的 Record、Artist、导入与 Index 已由 `boards` 实现 |
 
 ---
 
 ## 1. 模块架构概览
 
 ```mermaid
-flowchart TD
-    subgraph current["当前状态 — 空壳"]
-        APPS["apps.py<br/>MusicConfig 仅注册"]
-        MODELS["models.py<br/>空（import 占位）"]
-        VIEWS["views.py<br/>空（import 占位）"]
-        ADMIN["admin.py<br/>空（import 占位）"]
-    end
-
-    subgraph future["未来规划 (V2)"]
-        TRACK["Track 模型"]
-        LIST["播放列表/上传"]
-        PLAYER["音频播放"]
-    end
-
-    current -.->|"尚未规划"| future
-
-    style current fill:#f5f5f5,stroke:#9e9e9e
-    style future fill:#fff3e0,stroke:#f57c00,stroke-dasharray: 5 5
+flowchart LR
+    SHELL["music/<br/>兼容 App 身份"]
+    MODEL["boards.models<br/>Artist / Records"]
+    CRUD["boards.content_views<br/>Manager CRUD"]
+    INDEX["boards.board_index<br/>公开 Music Index"]
+    MODEL --> CRUD
+    MODEL --> INDEX
+    SHELL -.->|"不复制业务模型"| MODEL
 ```
 
-**当前状态**: Music app 仅有 Django 应用骨架（`apps.py` 中的 `MusicConfig`），其他所有文件均为空占位。该模块不在 V1/V2 开发范围内。
+**当前状态**：`music/` 包本身仍是兼容壳，不拥有运行时模型和路由；但 Music 功能并非空白。Spotify/Apple Music 记录、周期聚合、Artist 头像、JSON 导入、公开 Index 和 Manager CRUD 均已在 `boards` App 中实现。新增功能不得因为名称相似就同时写入两个 App。
 
 ---
 
@@ -65,13 +56,13 @@ erDiagram
     }
 ```
 
-> 当前无数据模型。建议未来模型：`Track`（曲目）、`Album`（专辑）、`Playlist`（播放列表）。
+> `music/` 当前无数据模型。运行时事实见 `boards.models.MusicArtist`、`MusicRecordBase` 及 provider 子类；本文不再规划一套平行的 Track/Playlist 模型。
 
 ---
 
 ## 4. 详细工作流
 
-无运行时工作流。
+本 App 无独立工作流。公开与管理流程由 `boards` 负责：JSON 导入/人工 CRUD → provider 记录与 Artist → Music Board Index 聚合展示。
 
 ---
 
@@ -89,7 +80,7 @@ erDiagram
 
 ## 7. 权限矩阵
 
-无权限控制需求。
+本 App 无独立权限入口。Music 固定内容通过 `boards.policies.can_manage_board_content()` 限定 Music Board Manager 或 active superuser。
 
 ---
 
@@ -101,31 +92,21 @@ erDiagram
 
 ## 9. 演进路径
 
-### 当前状态 (v1.0)
+### 当前状态
 
-空壳 app，注册在 `INSTALLED_APPS` 中但无功能代码。
-
-### 建议激活路线 (V2+)
-
-| 阶段 | 内容 | 依赖 |
-|------|------|------|
-| 1 | 创建 `Track` 模型（title/artist/file/cover/duration） | `django.db.models` |
-| 2 | 音乐上传端点 + Admin | `accounts` (用户认证) |
-| 3 | 前端播放器 + 播放列表 | `themes/devenir` 前端 |
-| 4 | 播放统计 + 缓存 | Redis |
+`music` App 只保留稳定的 Django App 身份；运行时 Music Board 已在 `boards` 内完成。未来若出现与“听歌记录/Board 展示”不同的独立领域，例如站内音频播放或曲库，再先做领域边界评审，不能直接在本 App 创建与 `boards` 重叠的模型。
 
 ---
 
 ## 10. 文件依赖图
 
 ```mermaid
-flowchart TD
-    APPS["apps.py"] 
-    
-    style APPS fill:#e8f5e9,stroke:#388e3c
+flowchart LR
+    APPS["music.apps"] --> INSTALLED["INSTALLED_APPS"]
+    BOARDS["boards Music models"] --> TEMPLATE["Music Index / Manage templates"]
 ```
 
-> 仅有 `apps.py` 一个有效文件，无外部依赖。
+> `music` 与运行时 Music Board 是两个不同边界：前者保留 App 身份，后者由 `boards` 持有业务事实。
 
 ---
 
@@ -133,7 +114,7 @@ flowchart TD
 
 | 严重度 | 问题 | 说明 |
 |--------|------|------|
-| 🟢 低 | app 为空壳 | 等待 V2 或后续版本激活 |
+| 🟢 P2 | 包职责容易误导 | 保留兼容 App 但不复制 `boards` 中已经存在的 Music 模型、路由或权限；若确认无迁移依赖再单独评估删除 |
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **文档权重**：85（accounts 当前实现与模块 TODO）
 
-> **2026-08-02 Stage 7 入口边界**：账号、板块权限、稿件、评论审核统一从 `/review/` 进入；UserManager 与 Board Manager 不再因此进入 Django Dashboard。`/dashboard/` 仅供 active `is_dashboard_user`/superuser 日常运维，并以 `DASHBOARD_MODEL_ALLOWLIST` 拒绝未审查的模型注册；启用 `MFA_ENFORCEMENT_ENABLED` 后 `dashboard_user` 也必须完成 TOTP。`/super_admin/` 为低频最高权限入口。
+> **2026-08-30 当前入口边界（优先于历史记录）**：`is_dashboard_user` 只打开第一方 `/dashboard/` 壳层，各页另经 Capability Map 授权。`/dashboard/compatibility/` 还要求 Post/Tag/站长真实能力，模型受 allowlist 限制，且不暴露全局 Django `LogEntry`。账号、板块权限、稿件和评论审核仍以 `/review/` 为业务入口；`/super_admin/` 为低频最高权限入口。
 
 > **2026-08-03 特权 Session 边界**：superuser 与显式 `dashboard_user` 只保留最新一次成功登录；新浏览器完成密码及必要的 MFA 后递增账号会话版本，旧浏览器下一请求即退出。普通用户不受单会话限制。
 

@@ -1,13 +1,13 @@
 # PowerAdapterBlogs 文档治理与阅读顺序
 
 > **文档权重**：95（文档权重、阅读顺序与冲突处理总则；不覆盖 V2 当前架构决策）
-> **更新**：2026-07-29
+> **更新**：2026-08-30
 
 ## 1. Agent 阅读顺序
 
 1. `V2GUIDE.md`（100）：当前版本、跨 App 架构、路线和用户已确认决策的唯一最高依据。
 2. `DOCUMENTATION_GUIDE.md`（95）：文档权重、冲突处理和维护规则。
-3. 专项安全/架构与运维 Guide（86–90）：例如 `deploy/mtls/README.md`（90）、`docs/guides/GIT_AGENT_WORKFLOW_GUIDE.md`（89，本地、git-ignored）、`accounts/SECURITY_ROADMAP.md`（88）。
+3. 专项安全、功能逻辑、架构与运维 Guide（86–90）：例如 `deploy/mtls/README.md`（90）、`docs/guides/GIT_AGENT_WORKFLOW_GUIDE.md`（89，本地、git-ignored）、`FUNCTIONAL_LOGIC_GUIDE.md`（88）、`accounts/SECURITY_ROADMAP.md`（88）。`FUNCTIONAL_LOGIC_GUIDE.md` 统一说明跨 App 功能所有权、控制面边界、实际缺口和修复顺序。
 4. App `DEVELOPMENT.md`（85）：当前模块实现、测试入口、模型和 TODO。
 5. 根 `DEVELOPMENT.md`（82）与专项设计文档（78–84）：开发入口、部署清单和受限任务边界；Board 展示/参与边界以 `docs/guides/BOARD_CONTENT_VISIBILITY_GUIDE.md`（84，本地、git-ignored）为准。
 6. `CHANGELOG.md`（60）：历史记录，不覆盖当前代码和高权重文档。
@@ -26,6 +26,8 @@
 - 新增文档必须声明权重、职责和更新时间，并加入根 `DEVELOPMENT.md` 索引。
 - TODO 使用红/黄/绿严重度，分别表示安全/一致性、重要设计债务、可选优化。
 - Mermaid 用于三个及以上组件之间的权限、状态或请求流程。
+- 功能逻辑文档必须区分当前实现、目标边界和缺口，并按当前可达性与实际影响排序；入口、页面 capability、对象 Policy 和写操作 step-up/审计分别说明。
+- Mermaid 按层级或单一状态机拆分，单图通常不超过 10 个节点；复杂关系改用多图和权限矩阵。
 - `.venv`、依赖包、构建产物、Agent 临时上下文和归档副本不纳入项目文档权重体系。
 
 ## 4. Agent 临时交接材料不得跟踪

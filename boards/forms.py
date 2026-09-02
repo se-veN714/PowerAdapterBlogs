@@ -49,3 +49,22 @@ class BoardAccessRequestForm(forms.ModelForm):
             "Contributor 可投稿，Editor 可维护自己的文章，Reviewer 负责审核；"
             "Manager 申请仅能由 superuser 批准。"
         )
+
+
+class BoardMembershipWithdrawForm(forms.Form):
+    totp_code = forms.RegexField(
+        regex=r"^\d{6}$",
+        label="动态验证码",
+        max_length=6,
+        min_length=6,
+        error_messages={"invalid": "请输入 Authenticator 中的 6 位动态验证码。"},
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "one-time-code",
+                "inputmode": "numeric",
+                "pattern": "[0-9]{6}",
+                "placeholder": "000000",
+                "aria-label": "退出板块动态验证码",
+            }
+        ),
+    )

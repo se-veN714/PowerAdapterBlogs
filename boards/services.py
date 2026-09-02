@@ -792,8 +792,23 @@ def reject_board_access_request(*, access_request, actor, note=""):
     )
 
 
-def withdraw_board_membership(*, membership, actor):
-    """Deactivate one's own non-manager Membership without deleting history."""
+def _validate_locked_self_service_withdrawal(*, membership, actor):
+    if membership.user_id != actor.pk:
+        raise PermissionDenied("只能退出自己的板块权限。")
+    if not membership.is_active:
+        raise ValidationError("该板块权限已经停用。")
+    if membership.role == BoardMembership.Role.MANAGER:
+        raise PermissionDenied("Manager 不能自助退出，请由站长管理入口处理。")
+    if BoardAccessRequest.objects.filter(
+        board_id=membership.board_id,
+        applicant_id=membership.user_id,
+        status=BoardAccessRequest.Status.PENDING,
+    ).exists():
+        raise ValidationError("该用户在此板块仍有待审核申请，请先处理申请。")
+
+
+def validate_board_membership_withdrawal(*, membership, actor):
+    """Fail closed before consuming a fresh account step-up credential."""
     if not _is_active_authenticated(actor):
         raise PermissionDenied("账号未登录或已停用。")
     membership_id = getattr(membership, "pk", membership)
@@ -803,12 +818,30 @@ def withdraw_board_membership(*, membership, actor):
             .select_related("board", "user")
             .get(pk=membership_id)
         )
-        if locked.user_id != actor.pk:
-            raise PermissionDenied("只能退出自己的板块权限。")
-        if not locked.is_active:
-            raise ValidationError("该板块权限已经停用。")
-        if locked.role == BoardMembership.Role.MANAGER:
-            raise PermissionDenied("Manager 不能自助退出，请由站长管理入口处理。")
+        _validate_locked_self_service_withdrawal(
+            membership=locked,
+            actor=actor,
+        )
+        return locked
+
+
+def withdraw_board_membership(*, membership, actor, verification_method):
+    """Deactivate one's own non-manager Membership without deleting history."""
+    if not _is_active_authenticated(actor):
+        raise PermissionDenied("账号未登录或已停用。")
+    if verification_method not in {"totp", "email"}:
+        raise ValidationError("退出板块缺少有效的账户验证方式。")
+    membership_id = getattr(membership, "pk", membership)
+    with transaction.atomic():
+        locked = (
+            BoardMembership.objects.select_for_update()
+            .select_related("board", "user")
+            .get(pk=membership_id)
+        )
+        _validate_locked_self_service_withdrawal(
+            membership=locked,
+            actor=actor,
+        )
         locked, _event = _transition_board_membership(
             board=locked.board,
             user=locked.user,
@@ -816,7 +849,11 @@ def withdraw_board_membership(*, membership, actor):
             target_role=locked.role,
             target_is_active=False,
             source=BoardMembershipEvent.Source.SELF_SERVICE,
-            reason="成员通过短时邮箱验证主动退出板块。",
+            reason=(
+                "成员通过动态验证码主动退出板块。"
+                if verification_method == "totp"
+                else "成员通过短时邮箱验证主动退出板块。"
+            ),
             membership=locked,
         )
         return locked

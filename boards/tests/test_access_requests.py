@@ -461,6 +461,7 @@ class BoardAccessRequestTest(TestCase):
             BoardMembershipEvent.EventType.DEACTIVATED,
         )
         self.assertEqual(event.source, BoardMembershipEvent.Source.SELF_SERVICE)
+        self.assertEqual(event.reason, "成员通过短时邮箱验证主动退出板块。")
         self.assertTrue(event.previous_is_active)
         self.assertFalse(event.new_is_active)
         audit_event = AuditOutbox.objects.get(
@@ -470,6 +471,131 @@ class BoardAccessRequestTest(TestCase):
             audit_event.event["target"]["id"],
             str(membership.pk),
         )
+
+    @patch("boards.views.verify_active_totp")
+    def test_active_totp_member_withdraws_without_email_grant(self, verify_totp):
+        membership = BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.EDITOR,
+            created_by=self.superuser,
+        )
+        self.bind_active_totp()
+        self.client.force_login(self.applicant)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse("boards:withdraw-membership", args=(membership.pk,)),
+                {"totp_code": "123456"},
+                follow=True,
+            )
+
+        membership.refresh_from_db()
+        self.assertFalse(membership.is_active)
+        verify_totp.assert_called_once_with(
+            user=self.applicant,
+            actor=self.applicant,
+            code="123456",
+        )
+        self.assertContains(response, f"已退出 {self.board.name} 板块")
+        event = BoardMembershipEvent.objects.get(membership=membership)
+        self.assertEqual(event.reason, "成员通过动态验证码主动退出板块。")
+
+    @patch("boards.views.verify_active_totp")
+    def test_active_totp_member_cannot_fall_back_to_email(self, verify_totp):
+        membership = BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.EDITOR,
+            created_by=self.superuser,
+        )
+        self.bind_active_totp()
+        self.client.force_login(self.applicant)
+        self.grant_board_email_verification()
+
+        response = self.client.post(
+            reverse("boards:withdraw-membership", args=(membership.pk,)),
+            follow=True,
+        )
+
+        membership.refresh_from_db()
+        self.assertTrue(membership.is_active)
+        verify_totp.assert_not_called()
+        self.assertContains(response, "请输入 6 位动态验证码")
+
+    @patch("boards.views.verify_active_totp")
+    def test_invalid_totp_does_not_withdraw_membership(self, verify_totp):
+        from accounts.authn.mfa_services import MfaServiceError
+
+        membership = BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.REVIEWER,
+            created_by=self.superuser,
+        )
+        self.bind_active_totp()
+        verify_totp.side_effect = MfaServiceError("invalid_code")
+        self.client.force_login(self.applicant)
+
+        response = self.client.post(
+            reverse("boards:withdraw-membership", args=(membership.pk,)),
+            {"totp_code": "000000"},
+            follow=True,
+        )
+
+        membership.refresh_from_db()
+        self.assertTrue(membership.is_active)
+        self.assertContains(response, "动态验证码无效、已使用或已过期")
+
+    @patch("boards.views.verify_active_totp")
+    @patch("boards.views.challenge_is_locked", return_value=True)
+    def test_locked_totp_member_cannot_attempt_withdrawal(
+        self,
+        _locked,
+        verify_totp,
+    ):
+        membership = BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.REVIEWER,
+            created_by=self.superuser,
+        )
+        self.bind_active_totp()
+        self.client.force_login(self.applicant)
+
+        response = self.client.post(
+            reverse("boards:withdraw-membership", args=(membership.pk,)),
+            {"totp_code": "123456"},
+            follow=True,
+        )
+
+        membership.refresh_from_db()
+        self.assertTrue(membership.is_active)
+        verify_totp.assert_not_called()
+        self.assertContains(response, "尝试次数过多")
+
+    def test_revoked_totp_member_can_use_email_recovery_path(self):
+        membership = BoardMembership.objects.create(
+            board=self.board,
+            user=self.applicant,
+            role=BoardMembership.Role.REVIEWER,
+            created_by=self.superuser,
+        )
+        device = self.bind_active_totp()
+        device.status = MfaTotpDevice.Status.REVOKED
+        device.revoked_at = timezone.now()
+        device.save(update_fields=("status", "revoked_at", "updated_at"))
+        self.client.force_login(self.applicant)
+        self.grant_board_email_verification()
+
+        response = self.client.post(
+            reverse("boards:withdraw-membership", args=(membership.pk,)),
+            follow=True,
+        )
+
+        membership.refresh_from_db()
+        self.assertFalse(membership.is_active)
+        self.assertContains(response, f"已退出 {self.board.name} 板块")
 
     def test_member_cannot_withdraw_another_users_or_manager_membership(self):
         another_membership = BoardMembership.objects.create(
@@ -487,11 +613,13 @@ class BoardAccessRequestTest(TestCase):
             withdraw_board_membership(
                 membership=another_membership,
                 actor=self.other_applicant,
+                verification_method="email",
             )
         with self.assertRaisesMessage(PermissionDenied, "Manager 不能自助退出"):
             withdraw_board_membership(
                 membership=manager_membership,
                 actor=self.manager,
+                verification_method="totp",
             )
 
     def test_member_cannot_withdraw_while_same_board_request_is_pending(self):
@@ -507,6 +635,7 @@ class BoardAccessRequestTest(TestCase):
             withdraw_board_membership(
                 membership=membership,
                 actor=self.applicant,
+                verification_method="email",
             )
 
         membership.refresh_from_db()

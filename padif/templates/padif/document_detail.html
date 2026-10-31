@@ -3,43 +3,73 @@
 {% block content %}
 <div class="app-layout">
   {% include "padif/sidebar.html" %}
-  <main class="col-right">
-    <section class="panel version-panel">
-      <div class="document-heading">
-        <div><p class="panel-h">版本与差异</p><h1>{{ document.title }}</h1></div>
-        <span class="source-name">{{ document.source_name|default:"在线文档" }}</span>
+  <main class="col-right document-layout">
+    <div class="document-main">
+      <section class="panel version-panel">
+        <div class="document-heading">
+          <div>
+            <p class="panel-h">共享文档 · 版本差异</p>
+            <h1>{{ document.title }}</h1>
+            <p class="document-heading__meta">{{ document.source_name|default:"在线文档" }} · {{ document.versions.count }} 个版本</p>
+          </div>
+          <a class="back-link" href="{% url 'padif:workspace' %}">← 文档列表</a>
+        </div>
+        <div class="diff-section-head">
+          <div>
+            <p class="panel-h">COMPARE</p>
+            <h2>比较两个版本</h2>
+          </div>
+          <span id="diff-loading" class="diff-loading" aria-live="polite">正在计算…</span>
+        </div>
+        <form class="diff-controls" hx-get="{% url 'padif:diff_fragment' document.pk %}" hx-target="#diff-result" hx-swap="innerHTML" hx-indicator="#diff-loading">
+          <p><label for="{{ diff_form.from_version.id_for_label }}">旧版本</label>{{ diff_form.from_version }}</p>
+          <p><label for="{{ diff_form.to_version.id_for_label }}">新版本</label>{{ diff_form.to_version }}</p>
+          <p><label for="{{ diff_form.mode.id_for_label }}">视图</label>{{ diff_form.mode }}</p>
+          <button type="submit">查看差异</button>
+        </form>
+        <div id="diff-result" class="diff-result" aria-live="polite"><p class="muted">选择两个版本查看句子级差异。</p></div>
+      </section>
+
+      <section class="panel add-version-panel">
+        <div class="section-heading">
+          <div><p class="panel-h">ADD VERSION</p><h2>从本地 Markdown 追加版本</h2></div>
+          <span class="section-heading__hint">最大 2 MB · UTF-8</span>
+        </div>
+        <p class="muted">把另一份稿件加入当前文档，保留原始版本和提交说明。</p>
+        <form class="compact-form" method="post" enctype="multipart/form-data" action="{% url 'padif:upload_version' document.pk %}">
+          {% csrf_token %}{{ upload_form.as_p }}
+          <button type="submit">添加版本</button>
+        </form>
+      </section>
+
+      <details class="panel editor-panel">
+        <summary><span><span class="panel-h">ONLINE EDITOR</span><strong>在线编辑 · 提交新版本</strong></span><span class="muted">展开编辑 ↓</span></summary>
+        <form method="post" action="{% url 'padif:commit_version' document.pk %}">
+          {% csrf_token %}{{ commit_form.as_p }}
+          <button type="submit">保存新版本</button>
+        </form>
+      </details>
+    </div>
+
+    <aside class="version-rail panel" aria-label="版本时间线">
+      <div class="section-heading section-heading--rail">
+        <div><p class="panel-h">VERSION LOG</p><h2>版本轨</h2></div>
+        <span class="version-count">{{ document.versions.count }}</span>
       </div>
       <ol class="version-strip">
         {% for version in document.versions.all %}
           <li{% if version.pk == document.current_version_id %} class="current"{% endif %}>
-            <b>v{{ version.semantic_version }}</b>
-            <span>{{ version.commit_message }}</span>
-            <small>{{ version.created_by }} · {{ version.created_at|date:"m-d H:i" }}</small>
+            <span class="version-strip__dot" aria-hidden="true"></span>
+            <div class="version-strip__body">
+              <b>v{{ version.semantic_version }}</b>
+              <span>{{ version.commit_message }}</span>
+              <small>{{ version.created_by }} · {{ version.created_at|date:"m-d H:i" }}</small>
+            </div>
           </li>
         {% endfor %}
       </ol>
-      <form class="diff-controls" hx-get="{% url 'padif:diff_fragment' document.pk %}" hx-target="#diff-result" hx-swap="innerHTML">
-        {{ diff_form.as_p }}<button type="submit">查看差异</button>
-      </form>
-      <div id="diff-result" class="diff-result"><p class="muted">选择两个版本查看句子级差异。</p></div>
-    </section>
-
-    <section class="panel add-version-panel">
-      <h2 class="panel-h">添加版本 · 从本地文件</h2>
-      <p class="muted">把另一份本地 Markdown 追加为当前文档的新版本，保留原 PAdif 的多稿件归档流程。</p>
-      <form class="compact-form" method="post" enctype="multipart/form-data" action="{% url 'padif:upload_version' document.pk %}">
-        {% csrf_token %}{{ upload_form.as_p }}
-        <button type="submit">添加版本</button>
-      </form>
-    </section>
-
-    <details class="panel editor-panel">
-      <summary><span class="panel-h">在线编辑 · 提交新版本</span><span class="muted">可选入口</span></summary>
-      <form method="post" action="{% url 'padif:commit_version' document.pk %}">
-        {% csrf_token %}{{ commit_form.as_p }}
-        <button type="submit">保存新版本</button>
-      </form>
-    </details>
+      <div class="version-rail__note">版本轨固定在右侧，主编辑区保持连续阅读宽度。</div>
+    </aside>
   </main>
 </div>
 {% endblock %}

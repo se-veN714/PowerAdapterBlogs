@@ -21,11 +21,13 @@
           </div>
           <a class="back-link" href="{% url 'padif:workspace' %}">← 文档列表</a>
         </div>
-        <div class="diff-section-head">
-          <div><p class="panel-h">DIFF RESULT</p><h2>句子级差异</h2></div>
-          <span id="diff-loading" class="diff-loading" aria-live="polite">正在计算…</span>
+        <div id="diff-output" class="diff-output" hidden>
+          <div class="diff-section-head">
+            <div><p class="panel-h">DIFF RESULT</p><h2>句子级差异</h2></div>
+            <span id="diff-loading" class="diff-loading" aria-live="polite">正在计算…</span>
+          </div>
+          <div id="diff-result" class="diff-result" aria-live="polite"></div>
         </div>
-        <div id="diff-result" class="diff-result" aria-live="polite"><p class="muted">选择两个版本查看句子级差异。</p></div>
       </section>
 
       <section class="panel add-version-panel">
@@ -41,12 +43,22 @@
       </section>
 
       <details class="panel editor-panel">
-        <summary><span><span class="panel-h">ONLINE EDITOR</span><strong>在线编辑 · 提交新版本</strong></span><span class="muted">Markdown / 预览 / 保存 ↓</span></summary>
+        <summary><span><span class="panel-h">ONLINE EDITOR</span><strong>在线编辑器</strong></span><span class="editor-panel__state">点击展开</span></summary>
         <form id="padif-editor-form" method="post" action="{% url 'padif:commit_version' document.pk %}">
           {% csrf_token %}
           {{ commit_form.content.as_hidden }}
           {{ commit_form.content.errors }}
           {{ commit_form.content.value|default_if_none:""|json_script:"padif-initial-content" }}
+          <div class="padif-editor-tools">
+            <div>
+              <p class="panel-h">EDITOR / PREVIEW</p>
+              <span>Markdown 编辑 · WYSIWYG 预览 · 当前文档版本提交</span>
+            </div>
+            <div class="padif-editor-tools__actions">
+              <button type="button" data-padif-preview>全屏预览</button>
+              <button type="button" data-padif-toc-toggle>预览目录</button>
+            </div>
+          </div>
           <div id="padif-editor" class="padif-editor"></div>
           <div class="padif-editor__fields">
             <p><label for="{{ commit_form.commit_message.id_for_label }}">本次修改</label>{{ commit_form.commit_message }}</p>
@@ -55,6 +67,21 @@
           <button type="submit">保存新版本</button>
         </form>
       </details>
+      <div id="padif-preview-modal" class="padif-preview-modal" hidden role="dialog" aria-modal="true" aria-labelledby="padif-preview-title">
+        <div class="padif-preview-modal__shell">
+          <header class="padif-preview-modal__head">
+            <div><p class="panel-h">FULLSCREEN PREVIEW</p><h2 id="padif-preview-title">{{ document.title }}</h2></div>
+            <button type="button" data-padif-preview-close>关闭预览</button>
+          </header>
+          <div class="padif-preview-modal__body">
+            <aside class="padif-preview-toc" data-padif-preview-toc>
+              <p class="panel-h">CHAPTERS</p>
+              <nav aria-label="章节目录"><ol id="padif-preview-toc-list"></ol></nav>
+            </aside>
+            <article id="padif-preview-content" class="padif-preview-content"></article>
+          </div>
+        </div>
+      </div>
     </div>
 
     <aside class="version-rail panel" aria-label="版本时间线">
@@ -106,6 +133,73 @@
       previewStyle: 'vertical',
       theme: 'dark',
       initialValue: JSON.parse(initialElement.textContent || '""')
+    });
+    var previewModal = document.getElementById('padif-preview-modal');
+    var previewContent = document.getElementById('padif-preview-content');
+    var tocList = document.getElementById('padif-preview-toc-list');
+    var toc = document.querySelector('[data-padif-preview-toc]');
+    var previewButton = document.querySelector('[data-padif-preview]');
+    var tocButton = document.querySelector('[data-padif-toc-toggle]');
+    var closeButton = document.querySelector('[data-padif-preview-close]');
+    var diffForm = document.querySelector('.diff-controls');
+    var diffOutput = document.getElementById('diff-output');
+
+    if (diffForm && diffOutput) {
+      diffForm.addEventListener('htmx:afterRequest', function () {
+        diffOutput.hidden = false;
+      });
+    }
+
+    function headingId(text, index) {
+      var slug = String(text || '').toLowerCase().replace(/[^\w\u4e00-\u9fff]+/g, '-').replace(/^-+|-+$/g, '');
+      return 'padif-preview-heading-' + (slug || index);
+    }
+
+    function renderPreview() {
+      previewContent.innerHTML = editor.getHTML();
+      tocList.innerHTML = '';
+      var headings = previewContent.querySelectorAll('h1, h2, h3');
+      headings.forEach(function (heading, index) {
+        var id = headingId(heading.textContent, index + 1);
+        heading.id = id;
+        var item = document.createElement('li');
+        item.className = 'padif-preview-toc__item padif-preview-toc__item--' + heading.tagName.toLowerCase();
+        var link = document.createElement('a');
+        link.href = '#' + id;
+        link.textContent = heading.textContent;
+        item.appendChild(link);
+        tocList.appendChild(item);
+      });
+      if (!headings.length) {
+        var empty = document.createElement('li');
+        empty.className = 'muted';
+        empty.textContent = '暂无章节标题。';
+        tocList.appendChild(empty);
+      }
+    }
+
+    function closePreview() {
+      previewModal.hidden = true;
+      document.body.classList.remove('padif-preview-open');
+    }
+
+    previewButton.addEventListener('click', function () {
+      renderPreview();
+      previewModal.hidden = false;
+      document.body.classList.add('padif-preview-open');
+      closeButton.focus();
+    });
+    closeButton.addEventListener('click', closePreview);
+    tocButton.addEventListener('click', function () {
+      if (previewModal.hidden) {
+        renderPreview();
+        previewModal.hidden = false;
+        document.body.classList.add('padif-preview-open');
+      }
+      toc.hidden = !toc.hidden;
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !previewModal.hidden) closePreview();
     });
     form.addEventListener('submit', function () {
       contentField.value = editor.getMarkdown();

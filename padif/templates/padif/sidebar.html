@@ -1,0 +1,24 @@
+<aside class="col-left">
+  <section class="panel">
+    <h2 class="panel-h">导入 · 新建文档</h2>
+    <p class="muted">选择本地 Markdown 建档，并生成 v1.0.0 首版快照。</p>
+    <form method="post" enctype="multipart/form-data" action="{% url 'padif:workspace' %}">
+      {% csrf_token %}{{ document_form.as_p }}
+      <p class="hint">UTF-8 · .md / .markdown · 最大 2 MB</p>
+      <button type="submit">导入</button>
+    </form>
+  </section>
+  <section class="panel">
+    <h2 class="panel-h">文档</h2>
+    <ul class="document-list">
+      {% for item in documents %}
+        <li{% if document.pk == item.pk %} class="active"{% endif %}>
+          <a href="{% url 'padif:document_detail' item.pk %}">
+            <span>{{ item.title }}</span><b>v{{ item.current_version.semantic_version }}</b>
+          </a>
+          <small>{{ item.updated_at|date:"m-d H:i" }} · {{ item.created_by }}</small>
+        </li>
+      {% empty %}<li class="muted">暂无文档。</li>{% endfor %}
+    </ul>
+  </section>
+</aside>

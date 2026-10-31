@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     "comment",
     "accounts",
     "boards.apps.BoardsConfig",
+    "padif",
     "moderation.apps.ModerationConfig",
     "operations.apps.OperationsConfig",
 ]

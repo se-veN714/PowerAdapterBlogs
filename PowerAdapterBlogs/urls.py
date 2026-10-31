@@ -90,6 +90,7 @@ urlpatterns = [
     ),
     # accounts
     path("accounts/", include(("accounts.urls", "accounts"), namespace="accounts")),
+    path("padif/", include(("padif.urls", "padif"), namespace="padif")),
     path("boards/", include(("boards.urls", "boards"), namespace="boards")),
     path("review/", include(("moderation.urls", "moderation"), namespace="moderation")),
     path(

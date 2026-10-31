@@ -1,0 +1,20 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PAdif{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'padif/padif.css' %}?v=1.5">
+  <script defer src="{% static 'padif/htmx.min.js' %}"></script>
+</head>
+<body>
+  <div class="scanline-layer"></div>
+  <header class="topbar">
+    <a class="brand" href="{% url 'padif:workspace' %}"><span class="signal-dot"></span>PAdif</a>
+    <span class="subtitle">轻量化文章版本监管 · 句子级差异</span>
+    <nav><a href="/">返回博客</a><span>{{ request.user.get_username }}</span></nav>
+  </header>
+  {% if messages %}<div class="message-stack">{% for message in messages %}<p class="notice {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+  {% block content %}{% endblock %}
+</body>
+</html>

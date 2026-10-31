@@ -1,0 +1,23 @@
+<p class="stats-line">句 +{{ stats.sentences_added }} / −{{ stats.sentences_removed }} · 字 +{{ stats.chars_added }} / −{{ stats.chars_removed }}</p>
+{% if mode == "stats" %}
+  <div class="summary-grid">
+    <article><b>v{{ old.semantic_version }}</b><span>{{ old_summary.chars }} 字</span><span>{{ old_summary.sentences }} 句</span><span>{{ old_summary.paragraphs }} 段</span></article>
+    <article><b>v{{ new.semantic_version }}</b><span>{{ new_summary.chars }} 字</span><span>{{ new_summary.sentences }} 句</span><span>{{ new_summary.paragraphs }} 段</span></article>
+  </div>
+{% elif mode == "split" %}
+  <div class="split-head"><b>v{{ old.semantic_version }}</b><b>v{{ new.semantic_version }}</b></div>
+  <div class="split-view">
+    {% for op in ops %}
+      {% if op.op == "equal" or op.op == "moved" %}<span class="{{ op.op }}">{{ op.text }}</span><span class="{{ op.op }}">{{ op.text }}</span>
+      {% elif op.op == "delete" %}<span class="delete">{{ op.text }}</span><span></span>
+      {% elif op.op == "insert" %}<span></span><span class="insert">{{ op.text }}</span>
+      {% else %}<span class="delete">{% for inner in op.inner %}{% if inner.op != "insert" %}{{ inner.text }}{% endif %}{% endfor %}</span><span class="insert">{% for inner in op.inner %}{% if inner.op != "delete" %}{{ inner.text }}{% endif %}{% endfor %}</span>{% endif %}
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="inline-view">
+    {% for op in ops %}
+      {% if op.op == "replace" %}<span class="replace">{% for inner in op.inner %}<span class="{{ inner.op }}">{{ inner.text }}</span>{% endfor %}</span>{% else %}<span class="{{ op.op }}">{{ op.text }}</span>{% endif %}
+    {% endfor %}
+  </div>
+{% endif %}

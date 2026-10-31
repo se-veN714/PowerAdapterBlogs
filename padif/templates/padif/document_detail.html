@@ -1,0 +1,45 @@
+{% extends "padif/base.html" %}
+{% block title %}{{ document.title }} · PAdif{% endblock %}
+{% block content %}
+<div class="app-layout">
+  {% include "padif/sidebar.html" %}
+  <main class="col-right">
+    <section class="panel version-panel">
+      <div class="document-heading">
+        <div><p class="panel-h">版本与差异</p><h1>{{ document.title }}</h1></div>
+        <span class="source-name">{{ document.source_name|default:"在线文档" }}</span>
+      </div>
+      <ol class="version-strip">
+        {% for version in document.versions.all %}
+          <li{% if version.pk == document.current_version_id %} class="current"{% endif %}>
+            <b>v{{ version.semantic_version }}</b>
+            <span>{{ version.commit_message }}</span>
+            <small>{{ version.created_by }} · {{ version.created_at|date:"m-d H:i" }}</small>
+          </li>
+        {% endfor %}
+      </ol>
+      <form class="diff-controls" hx-get="{% url 'padif:diff_fragment' document.pk %}" hx-target="#diff-result" hx-swap="innerHTML">
+        {{ diff_form.as_p }}<button type="submit">查看差异</button>
+      </form>
+      <div id="diff-result" class="diff-result"><p class="muted">选择两个版本查看句子级差异。</p></div>
+    </section>
+
+    <section class="panel add-version-panel">
+      <h2 class="panel-h">添加版本 · 从本地文件</h2>
+      <p class="muted">把另一份本地 Markdown 追加为当前文档的新版本，保留原 PAdif 的多稿件归档流程。</p>
+      <form class="compact-form" method="post" enctype="multipart/form-data" action="{% url 'padif:upload_version' document.pk %}">
+        {% csrf_token %}{{ upload_form.as_p }}
+        <button type="submit">添加版本</button>
+      </form>
+    </section>
+
+    <details class="panel editor-panel">
+      <summary><span class="panel-h">在线编辑 · 提交新版本</span><span class="muted">可选入口</span></summary>
+      <form method="post" action="{% url 'padif:commit_version' document.pk %}">
+        {% csrf_token %}{{ commit_form.as_p }}
+        <button type="submit">保存新版本</button>
+      </form>
+    </details>
+  </main>
+</div>
+{% endblock %}

@@ -1,0 +1,1 @@
+"""PAdif Django app tests."""

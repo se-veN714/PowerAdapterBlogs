@@ -84,6 +84,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .document-list small { display: block; margin-top: 3px; color: var(--muted); font: 10px var(--mono); }
 
 .document-heading { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.document-heading__status { display: flex; align-items: center; gap: 7px; margin: 2px 0 8px; color: var(--soft); font: 11px var(--mono); letter-spacing: .08em; }
+.status-square { width: 8px; height: 8px; background: var(--warn); border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(207,181,126,.10); }
 .document-heading__meta { margin: 8px 0 0; color: var(--muted); font: 11px var(--mono); }
 .source-name { max-width: 240px; color: var(--muted); font: 11px var(--mono); overflow-wrap: anywhere; }
 .back-link { flex: 0 0 auto; color: var(--text2); font: 11px var(--mono); text-decoration: none; }
@@ -134,6 +136,21 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .editor-panel summary > span:first-child { display: grid; gap: 3px; }
 .editor-panel summary .panel-h { margin: 0; }
 .editor-panel[open] summary { padding-bottom: 13px; margin-bottom: 13px; border-bottom: 1px solid var(--line); }
+.padif-editor { margin: 16px 0 12px; border: 1px solid var(--line2); }
+.padif-editor__fields { display: grid; grid-template-columns: minmax(0, 1.5fr) 180px; gap: 10px; margin-bottom: 12px; }
+.padif-editor__fields p { margin: 0; }
+#padif-editor .toastui-editor-defaultUI,
+#padif-editor .toastui-editor-toolbar,
+#padif-editor .toastui-editor-main-container,
+#padif-editor .toastui-editor-md-container,
+#padif-editor .toastui-editor-ww-container,
+#padif-editor .toastui-editor-mode-switch { border-radius: 0; }
+#padif-editor .toastui-editor-defaultUI { border-color: var(--line2); background: var(--bg2); }
+#padif-editor .toastui-editor-toolbar { background: var(--panel); border-bottom-color: var(--line); }
+#padif-editor .toastui-editor-md-container,
+#padif-editor .toastui-editor-ww-container { background: var(--bg2); }
+#padif-editor .toastui-editor-md-preview { border-left-color: var(--line); }
+#padif-editor .toastui-editor-mode-switch { background: var(--panel); border-top-color: var(--line); }
 .message-stack { position: fixed; z-index: 5; top: 76px; right: 20px; width: min(420px, calc(100vw - 40px)); }
 .notice { padding: 10px 14px; background: rgb(34, 51, 46); border: 1px solid var(--line2); box-shadow: 0 8px 30px #0007; }
 .notice.warning { border-color: var(--warn); }
@@ -167,5 +184,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .back-link { display: inline-block; margin-top: 12px; }
   .diff-controls, .compact-form, .summary-grid { grid-template-columns: 1fr; }
   .diff-controls button, .compact-form button { width: 100%; }
+  .padif-editor__fields { grid-template-columns: 1fr; }
   textarea { min-height: 260px; }
 }

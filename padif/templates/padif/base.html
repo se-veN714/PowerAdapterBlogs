@@ -5,6 +5,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PAdif{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'padif/padif.css' %}?v=2.0">
+  {% block head_extra %}{% endblock %}
   <script defer src="{% static 'padif/htmx.min.js' %}"></script>
 </head>
 <body>
@@ -16,5 +17,6 @@
   </header>
   {% if messages %}<div class="message-stack">{% for message in messages %}<p class="notice {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
   {% block content %}{% endblock %}
+  {% block extra_scripts %}{% endblock %}
 </body>
 </html>

@@ -1,5 +1,11 @@
 {% extends "padif/base.html" %}
+{% load static %}
 {% block title %}{{ document.title }} · PAdif{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
+  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/theme/toastui-editor-dark.min.css">
+  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+{% endblock %}
 {% block content %}
 <div class="app-layout">
   {% include "padif/sidebar.html" %}
@@ -9,6 +15,7 @@
         <div class="document-heading">
           <div>
             <p class="panel-h">共享文档 · 版本差异</p>
+            <p class="document-heading__status"><span class="status-square" aria-hidden="true"></span>PRIVATE / 仅授权用户可见</p>
             <h1>{{ document.title }}</h1>
             <p class="document-heading__meta">{{ document.source_name|default:"在线文档" }} · {{ document.versions.count }} 个版本</p>
           </div>
@@ -34,9 +41,17 @@
       </section>
 
       <details class="panel editor-panel">
-        <summary><span><span class="panel-h">ONLINE EDITOR</span><strong>在线编辑 · 提交新版本</strong></span><span class="muted">展开编辑 ↓</span></summary>
-        <form method="post" action="{% url 'padif:commit_version' document.pk %}">
-          {% csrf_token %}{{ commit_form.as_p }}
+        <summary><span><span class="panel-h">ONLINE EDITOR</span><strong>在线编辑 · 提交新版本</strong></span><span class="muted">Markdown / 预览 / 保存 ↓</span></summary>
+        <form id="padif-editor-form" method="post" action="{% url 'padif:commit_version' document.pk %}">
+          {% csrf_token %}
+          {{ commit_form.content.as_hidden }}
+          {{ commit_form.content.errors }}
+          {{ commit_form.content.value|default_if_none:""|json_script:"padif-initial-content" }}
+          <div id="padif-editor" class="padif-editor"></div>
+          <div class="padif-editor__fields">
+            <p><label for="{{ commit_form.commit_message.id_for_label }}">本次修改</label>{{ commit_form.commit_message }}</p>
+            <p><label for="{{ commit_form.version_kind.id_for_label }}">版本级别</label>{{ commit_form.version_kind }}</p>
+          </div>
           <button type="submit">保存新版本</button>
         </form>
       </details>
@@ -75,4 +90,26 @@
     </aside>
   </main>
 </div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var editorElement = document.getElementById('padif-editor');
+    var form = document.getElementById('padif-editor-form');
+    var contentField = form && form.querySelector('input[name="content"]');
+    var initialElement = document.getElementById('padif-initial-content');
+    if (!editorElement || !form || !contentField || !window.toastui || !initialElement) return;
+    var editor = new toastui.Editor({
+      el: editorElement,
+      height: '560px',
+      initialEditType: 'markdown',
+      previewStyle: 'vertical',
+      theme: 'dark',
+      initialValue: JSON.parse(initialElement.textContent || '""')
+    });
+    form.addEventListener('submit', function () {
+      contentField.value = editor.getMarkdown();
+    });
+  });
+</script>
 {% endblock %}

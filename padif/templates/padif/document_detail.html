@@ -15,18 +15,9 @@
           <a class="back-link" href="{% url 'padif:workspace' %}">← 文档列表</a>
         </div>
         <div class="diff-section-head">
-          <div>
-            <p class="panel-h">COMPARE</p>
-            <h2>比较两个版本</h2>
-          </div>
+          <div><p class="panel-h">DIFF RESULT</p><h2>句子级差异</h2></div>
           <span id="diff-loading" class="diff-loading" aria-live="polite">正在计算…</span>
         </div>
-        <form class="diff-controls" hx-get="{% url 'padif:diff_fragment' document.pk %}" hx-target="#diff-result" hx-swap="innerHTML" hx-indicator="#diff-loading">
-          <p><label for="{{ diff_form.from_version.id_for_label }}">旧版本</label>{{ diff_form.from_version }}</p>
-          <p><label for="{{ diff_form.to_version.id_for_label }}">新版本</label>{{ diff_form.to_version }}</p>
-          <p><label for="{{ diff_form.mode.id_for_label }}">视图</label>{{ diff_form.mode }}</p>
-          <button type="submit">查看差异</button>
-        </form>
         <div id="diff-result" class="diff-result" aria-live="polite"><p class="muted">选择两个版本查看句子级差异。</p></div>
       </section>
 
@@ -56,6 +47,18 @@
         <div><p class="panel-h">VERSION LOG</p><h2>版本轨</h2></div>
         <span class="version-count">{{ document.versions.count }}</span>
       </div>
+      <section class="rail-compare" aria-labelledby="compare-title">
+        <div class="rail-compare__head">
+          <p class="panel-h">COMPARE</p>
+          <h2 id="compare-title">比较两个版本</h2>
+        </div>
+        <form class="diff-controls" hx-get="{% url 'padif:diff_fragment' document.pk %}" hx-target="#diff-result" hx-swap="innerHTML" hx-indicator="#diff-loading">
+          <p><label for="{{ diff_form.from_version.id_for_label }}">旧版本</label>{{ diff_form.from_version }}</p>
+          <p><label for="{{ diff_form.to_version.id_for_label }}">新版本</label>{{ diff_form.to_version }}</p>
+          <p><label for="{{ diff_form.mode.id_for_label }}">视图</label>{{ diff_form.mode }}</p>
+          <button type="submit">查看差异</button>
+        </form>
+      </section>
       <ol class="version-strip">
         {% for version in document.versions.all %}
           <li{% if version.pk == document.current_version_id %} class="current"{% endif %}>

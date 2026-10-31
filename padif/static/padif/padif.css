@@ -24,6 +24,11 @@ html, body { margin: 0; min-height: 100%; }
 body { background: var(--bg); color: var(--text); font: 14px/1.6 var(--sans); }
 a { color: inherit; }
 button, input, select, textarea { font: inherit; }
+* { scrollbar-color: var(--soft) transparent; scrollbar-width: thin; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--soft); border: 2px solid var(--bg); }
+*::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
 .scanline-layer {
   position: fixed;
@@ -50,7 +55,7 @@ button, input, select, textarea { font: inherit; }
 .topbar nav a { text-decoration: none; }
 .topbar nav a:hover, .back-link:hover { color: var(--accent); }
 
-.app-layout { position: relative; z-index: 1; display: grid; grid-template-columns: 286px minmax(0, 1fr); min-height: calc(100vh - 62px); }
+.app-layout { position: relative; display: grid; grid-template-columns: 286px minmax(0, 1fr); min-height: calc(100vh - 62px); }
 .col-left { padding: 18px; border-right: 1px solid var(--line); }
 .col-right { min-width: 0; padding: 22px 28px 40px; }
 .document-layout { display: grid; grid-template-columns: minmax(0, 1fr) 258px; gap: 18px; align-items: start; }
@@ -118,6 +123,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .rail-compare__head h2 { font-size: 16px; }
 .version-rail .diff-controls { display: grid; grid-template-columns: 1fr; gap: 9px; margin-top: 12px; }
 .version-rail .diff-controls button { width: 100%; }
+.rail-action { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--line); }
+.rail-action__head h2 { font-size: 16px; }
+.version-rail .compact-form { display: grid; grid-template-columns: 1fr; gap: 9px; }
+.version-rail .compact-form button { width: 100%; }
 .version-strip { position: relative; list-style: none; margin: 10px 0 0; padding: 3px 0 3px 19px; }
 .version-strip::before { position: absolute; top: 10px; bottom: 10px; left: 5px; width: 1px; background: var(--line2); content: ""; }
 .version-strip li { position: relative; display: flex; gap: 10px; min-width: 0; padding: 11px 0; }
@@ -158,7 +167,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 #padif-editor .toastui-editor-md-preview { border-left-color: var(--line); }
 #padif-editor .toastui-editor-mode-switch { background: var(--panel); border-top-color: var(--line); }
 .padif-preview-open { overflow: hidden; }
-.padif-preview-modal { position: fixed; z-index: 20; inset: 0; padding: 20px; background: rgba(13,16,16,.96); }
+.padif-preview-modal { position: fixed; z-index: 9999; inset: 0; padding: 20px; background: rgba(13,16,16,.98); }
 .padif-preview-modal[hidden] { display: none; }
 .padif-preview-modal__shell { display: flex; flex-direction: column; width: 100%; height: 100%; background: var(--bg); border: 1px solid var(--line2); }
 .padif-preview-modal__head { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--line); }

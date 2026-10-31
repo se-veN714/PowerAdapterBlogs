@@ -30,18 +30,6 @@
         </div>
       </section>
 
-      <section class="panel add-version-panel">
-        <div class="section-heading">
-          <div><p class="panel-h">ADD VERSION</p><h2>从本地 Markdown 追加版本</h2></div>
-          <span class="section-heading__hint">最大 2 MB · UTF-8</span>
-        </div>
-        <p class="muted">把另一份稿件加入当前文档，保留原始版本和提交说明。</p>
-        <form class="compact-form" method="post" enctype="multipart/form-data" action="{% url 'padif:upload_version' document.pk %}">
-          {% csrf_token %}{{ upload_form.as_p }}
-          <button type="submit">添加版本</button>
-        </form>
-      </section>
-
       <details class="panel editor-panel">
         <summary><span><span class="panel-h">ONLINE EDITOR</span><strong>在线编辑器</strong></span><span class="editor-panel__state">点击展开</span></summary>
         <form id="padif-editor-form" method="post" action="{% url 'padif:commit_version' document.pk %}">
@@ -56,7 +44,6 @@
             </div>
             <div class="padif-editor-tools__actions">
               <button type="button" data-padif-preview>全屏预览</button>
-              <button type="button" data-padif-toc-toggle>预览目录</button>
             </div>
           </div>
           <div id="padif-editor" class="padif-editor"></div>
@@ -101,6 +88,17 @@
           <button type="submit">查看差异</button>
         </form>
       </section>
+      <section class="rail-action" aria-labelledby="add-version-title">
+        <div class="rail-action__head">
+          <p class="panel-h">ADD VERSION</p>
+          <h2 id="add-version-title">追加版本</h2>
+        </div>
+        <p class="muted">从本地 Markdown 添加一版，保留原始稿件。</p>
+        <form class="compact-form" method="post" enctype="multipart/form-data" action="{% url 'padif:upload_version' document.pk %}">
+          {% csrf_token %}{{ upload_form.as_p }}
+          <button type="submit">添加版本</button>
+        </form>
+      </section>
       <ol class="version-strip">
         {% for version in document.versions.all %}
           <li{% if version.pk == document.current_version_id %} class="current"{% endif %}>
@@ -137,9 +135,7 @@
     var previewModal = document.getElementById('padif-preview-modal');
     var previewContent = document.getElementById('padif-preview-content');
     var tocList = document.getElementById('padif-preview-toc-list');
-    var toc = document.querySelector('[data-padif-preview-toc]');
     var previewButton = document.querySelector('[data-padif-preview]');
-    var tocButton = document.querySelector('[data-padif-toc-toggle]');
     var closeButton = document.querySelector('[data-padif-preview-close]');
     var diffForm = document.querySelector('.diff-controls');
     var diffOutput = document.getElementById('diff-output');
@@ -190,14 +186,6 @@
       closeButton.focus();
     });
     closeButton.addEventListener('click', closePreview);
-    tocButton.addEventListener('click', function () {
-      if (previewModal.hidden) {
-        renderPreview();
-        previewModal.hidden = false;
-        document.body.classList.add('padif-preview-open');
-      }
-      toc.hidden = !toc.hidden;
-    });
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && !previewModal.hidden) closePreview();
     });

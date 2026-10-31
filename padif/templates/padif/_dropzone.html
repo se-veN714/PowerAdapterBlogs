@@ -1,0 +1,12 @@
+<div class="padif-dropzone" data-padif-dropzone>
+  {{ field }}
+  <label class="padif-dropzone__label" for="{{ field.id_for_label }}">
+    <svg class="padif-dropzone__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M8 19h8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+    </svg>
+    <span class="padif-dropzone__title">拖入 Markdown 文件</span>
+    <span class="padif-dropzone__hint">或点击选择 · .md / .markdown · 最大 2 MB</span>
+    <span class="padif-dropzone__filename" data-padif-file-name>未选择文件</span>
+  </label>
+</div>

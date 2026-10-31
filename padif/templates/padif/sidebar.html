@@ -3,8 +3,10 @@
     <h2 class="panel-h">导入 · 新建文档</h2>
     <p class="muted">选择本地 Markdown 建档，并生成 v1.0.0 首版快照。</p>
     <form method="post" enctype="multipart/form-data" action="{% url 'padif:workspace' %}">
-      {% csrf_token %}{{ document_form.as_p }}
-      <p class="hint">UTF-8 · .md / .markdown · 最大 2 MB</p>
+      {% csrf_token %}
+      <p><label for="{{ document_form.title.id_for_label }}">标题</label>{{ document_form.title }}</p>
+      <p><label>Markdown 文件</label>{% include "padif/_dropzone.html" with field=document_form.markdown_file %}</p>
+      <p><label for="{{ document_form.commit_message.id_for_label }}">初始说明</label>{{ document_form.commit_message }}</p>
       <button type="submit">导入</button>
     </form>
   </section>

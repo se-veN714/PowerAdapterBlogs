@@ -95,7 +95,10 @@
         </div>
         <p class="muted">从本地 Markdown 添加一版，保留原始稿件。</p>
         <form class="compact-form" method="post" enctype="multipart/form-data" action="{% url 'padif:upload_version' document.pk %}">
-          {% csrf_token %}{{ upload_form.as_p }}
+          {% csrf_token %}
+          <p><label>Markdown 文件</label>{% include "padif/_dropzone.html" with field=upload_form.markdown_file %}</p>
+          <p><label for="{{ upload_form.commit_message.id_for_label }}">本次修改</label>{{ upload_form.commit_message }}</p>
+          <p><label for="{{ upload_form.version_kind.id_for_label }}">版本级别</label>{{ upload_form.version_kind }}</p>
           <button type="submit">添加版本</button>
         </form>
       </section>

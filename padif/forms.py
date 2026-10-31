@@ -7,7 +7,12 @@ from .models import Document, Version
 
 class DocumentUploadForm(forms.Form):
     title = forms.CharField(label="标题", max_length=200, required=False)
-    markdown_file = forms.FileField(label="Markdown 文件")
+    markdown_file = forms.FileField(
+        label="Markdown 文件",
+        widget=forms.ClearableFileInput(
+            attrs={"accept": ".md,.markdown,text/markdown"}
+        ),
+    )
     commit_message = forms.CharField(
         label="初始说明",
         max_length=300,
@@ -22,7 +27,12 @@ class VersionCommitForm(forms.Form):
 
 
 class VersionUploadForm(forms.Form):
-    markdown_file = forms.FileField(label="Markdown 文件")
+    markdown_file = forms.FileField(
+        label="Markdown 文件",
+        widget=forms.ClearableFileInput(
+            attrs={"accept": ".md,.markdown,text/markdown"}
+        ),
+    )
     commit_message = forms.CharField(label="本次修改", max_length=300)
     version_kind = forms.ChoiceField(label="版本级别", choices=Version.Kind.choices)
 

@@ -87,6 +87,14 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .document-list a { display: flex; justify-content: space-between; gap: 8px; text-decoration: none; }
 .document-list b { color: var(--accent); font: 11px var(--mono); }
 .document-list small { display: block; margin-top: 3px; color: var(--muted); font: 10px var(--mono); }
+.padif-dropzone { position: relative; }
+.padif-dropzone > input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.padif-dropzone__label { display: grid; gap: 4px; min-height: 108px; padding: 14px; color: var(--text2); border: 1px dashed var(--line2); cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.padif-dropzone__label:hover, .padif-dropzone.is-dragging .padif-dropzone__label, .padif-dropzone:focus-within .padif-dropzone__label { color: var(--accent); border-color: var(--soft); background: rgba(216,255,225,.05); }
+.padif-dropzone__icon { width: 24px; height: 24px; color: var(--soft); }
+.padif-dropzone__title { color: var(--text); font: 600 12px var(--mono); }
+.padif-dropzone__hint, .padif-dropzone__filename { color: var(--muted); font: 10px var(--mono); overflow-wrap: anywhere; }
+.padif-dropzone.has-file .padif-dropzone__filename { color: var(--accent); }
 
 .document-heading { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .document-heading__status { display: flex; align-items: center; gap: 7px; margin: 2px 0 8px; color: var(--soft); font: 11px var(--mono); letter-spacing: .08em; }
@@ -127,6 +135,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .rail-action__head h2 { font-size: 16px; }
 .version-rail .compact-form { display: grid; grid-template-columns: 1fr; gap: 9px; }
 .version-rail .compact-form button { width: 100%; }
+.version-rail .padif-dropzone__label { min-height: 92px; }
 .version-strip { position: relative; list-style: none; margin: 10px 0 0; padding: 3px 0 3px 19px; }
 .version-strip::before { position: absolute; top: 10px; bottom: 10px; left: 5px; width: 1px; background: var(--line2); content: ""; }
 .version-strip li { position: relative; display: flex; gap: 10px; min-width: 0; padding: 11px 0; }

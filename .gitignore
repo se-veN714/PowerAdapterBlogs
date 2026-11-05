@@ -61,3 +61,6 @@ package-lock.json
 /boards_*_out.txt
 /commit_msg.tmp
 /themes/devenir/static/js/music/music-mock-data.js
+
+# ====== Nested standalone site workspaces (own git repos) ======
+/sites/

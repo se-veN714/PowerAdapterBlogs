@@ -41,6 +41,7 @@ flowchart LR
 | 板块申请与 Membership | `board.*` | 申请或 MembershipEvent + outbox | board/user/membership ID、角色和状态；不复制自由文本原因 |
 | TOTP 生命周期 | `mfa.*` | 设备状态 + outbox | device/user ID、状态、auth version、固定 reason code；绝不记录 seed/code/recovery code |
 | mTLS 绑定与撤销 | `mtls.*` | binding 状态 + outbox | binding/user ID、profile、状态、auth version；不记录私钥或 DN |
+| Agent 设备授权与令牌 | `agent.authorization.*` / `agent.token.*` | 授权、签发、撤销或清理事务 + outbox | actor/目标 ID、状态、scope 和固定 reason code；不记录 device/access token 或 digest |
 
 新增安全相关状态修改入口时，必须经过显式服务并在业务事务内调用
 `enqueue_audit_event()`；不要用泛化 model signal 猜测业务语义。

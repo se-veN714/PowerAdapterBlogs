@@ -356,6 +356,24 @@
             transition: all 0.3s; font-size: 0.85rem;
         }
         .social-links a:hover { border-color: var(--accent); color: var(--accent); }
+        .social-links .social-link--github {
+            color: #f0f6fc;
+            border-color: rgba(240, 246, 252, 0.28);
+        }
+        .social-links .social-link--github:hover {
+            color: #ffffff;
+            border-color: #f0f6fc;
+            box-shadow: 0 0 18px rgba(240, 246, 252, 0.12);
+        }
+        .social-links .social-link--cnb {
+            color: #ff8a3d;
+            border-color: rgba(255, 138, 61, 0.38);
+        }
+        .social-links .social-link--cnb:hover {
+            color: #ffad73;
+            border-color: #ff8a3d;
+            box-shadow: 0 0 18px rgba(255, 138, 61, 0.18);
+        }
         .footer-copy { font-size: 0.8rem; color: var(--text-muted); opacity: 0.5; }
         .footer-legal {
             display: flex; justify-content: center; align-items: center;
@@ -448,6 +466,7 @@
                             <section class="nav-menu-group">
                                 <p class="nav-menu-label">账户</p>
                                 <a href="{% url 'accounts:my-profile' %}">个人主页</a>
+                                <a href="{% url 'accounts:agent-token-management' %}">Agent 授权</a>
                                 <form action="{% url 'accounts:logout' %}" method="post">
                                     {% csrf_token %}<button type="submit">登出</button>
                                 </form>
@@ -518,6 +537,7 @@
                 <summary>账户</summary>
                 <div class="sidebar-submenu">
                     <a href="{% url 'accounts:my-profile' %}">个人主页</a>
+                    <a href="{% url 'accounts:agent-token-management' %}">Agent 授权</a>
                     <form action="{% url 'accounts:logout' %}" method="post">
                         {% csrf_token %}<button type="submit">登出</button>
                     </form>
@@ -560,8 +580,9 @@
                 &#9776; Stay in Touch
             </p>
             <div class="social-links" style="justify-content: flex-start; margin-bottom:0;">
-                <a href="mailto:sevencdxxiv@qq.com" title="Email">EM</a>
-                <a href="https://github.com/se-veN714/" title="GitHub" target="_blank" rel="noopener">GH</a>
+                <a href="mailto:sevencdxxiv@qq.com" title="Email" aria-label="通过邮件联系 PowerAdapter">EM</a>
+                <a class="social-link--github" href="https://github.com/se-veN714/" title="GitHub" aria-label="访问 PowerAdapter 的 GitHub 主页" target="_blank" rel="noopener noreferrer">GH</a>
+                <a class="social-link--cnb" href="https://cnb.cool/u/PowerAdapter" title="CNB" aria-label="访问 PowerAdapter 的 CNB 主页" target="_blank" rel="noopener noreferrer">CNB</a>
             </div>
         </div>
     </div>

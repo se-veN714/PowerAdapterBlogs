@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Agent 授权管理{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20261101.1">
+{% endblock %}
+
+{% block hero %}
+<div class="page-header">
+    <p class="profile-kicker">SECURITY / AGENT ACCESS</p>
+    <h1 class="page-title">Agent 授权</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="auth-page agent-token-page">
+    <section class="auth-card agent-token-card">
+        <div class="agent-token-intro">
+            <p>管理已通过设备码流程授权给 Agent 的访问令牌。</p>
+            <small>令牌正文只在签发时返回一次；此处仅显示不可逆指纹。</small>
+        </div>
+
+        {% if agent_tokens %}
+        <div class="agent-token-list">
+            {% for token in agent_tokens %}
+            <article class="agent-token-item agent-token-item--{{ token.display_status_code }}">
+                <header class="agent-token-item__header">
+                    <div>
+                        <p class="agent-token-kicker">{{ token.authorization.client_name }}</p>
+                        <h2>{{ token.display_status }}</h2>
+                    </div>
+                    <span class="agent-token-status">{{ token.display_status|upper }}</span>
+                </header>
+                <dl class="agent-token-meta">
+                    <div><dt>SCOPE</dt><dd>{% for scope in token.scopes %}<code>{{ scope }}</code>{% if not forloop.last %} {% endif %}{% endfor %}</dd></div>
+                    <div><dt>FINGERPRINT</dt><dd><code>{{ token.fingerprint }}</code></dd></div>
+                    <div><dt>CREATED</dt><dd>{{ token.created_at|date:"Y-m-d H:i" }}</dd></div>
+                    <div><dt>EXPIRES</dt><dd>{{ token.expires_at|date:"Y-m-d H:i" }}</dd></div>
+                    <div><dt>LAST USED</dt><dd>{% if token.last_used_at %}{{ token.last_used_at|date:"Y-m-d H:i" }}{% else %}尚未使用{% endif %}</dd></div>
+                </dl>
+                {% if token.display_status_code == 'active' %}
+                <form method="post" class="agent-token-revoke-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="token_id" value="{{ token.pk }}">
+                    <button type="submit" class="btn-ghost">撤销此令牌</button>
+                </form>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="agent-token-empty">
+            <p>当前账号还没有 Agent 授权记录。</p>
+            <small>Agent 发起设备码授权后，批准的令牌会显示在这里。</small>
+        </div>
+        {% endif %}
+
+        <p class="agent-token-back"><a href="{% url 'accounts:my-profile' %}">← 返回个人主页</a></p>
+    </section>
+</div>
+{% endblock %}

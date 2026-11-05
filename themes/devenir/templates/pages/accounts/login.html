@@ -30,7 +30,7 @@
             {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
 
             <div class="field">
-                <label for="id_username">账号</label>
+                <label for="id_username">账号或邮箱</label>
                 {{ form.username|add_class:"input" }}
             </div>
 

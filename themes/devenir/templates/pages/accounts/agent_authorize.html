@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}授权 Agent{% endblock %}
+
+{% block hero %}
+<div class="page-header">
+    <p class="page-subtitle">SECURITY / AGENT AUTHORIZATION</p>
+    <h1 class="page-title">授权 Agent</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card">
+        {% if invalid %}
+            <div class="auth-title">授权请求无效</div>
+            <p class="error-msg">授权码已过期、已使用或不存在。</p>
+        {% elif denied_by_permission %}
+            <div class="auth-title">权限不足</div>
+            <p class="error-msg">当前账号没有请求范围所需的 PAdif 权限。</p>
+        {% elif completed %}
+            <div class="auth-title">{% if approved %}授权完成{% else %}已拒绝授权{% endif %}</div>
+            <p>{% if approved %}Agent 可以按批准的范围访问你的账号。{% else %}Agent 不会获得访问令牌。{% endif %}</p>
+        {% else %}
+            <div class="auth-title">确认 Agent 授权</div>
+            <p>Agent <strong>{{ authorization.client_name }}</strong> 请求代表账号 <strong>{{ request.user.username }}</strong> 执行操作。</p>
+            <p>授权范围：</p>
+            <ul>
+                {% for scope in authorization.scopes %}<li>{{ scope }}</li>{% endfor %}
+            </ul>
+            <p class="field-help">授权仅对本次设备请求生效，令牌会过期，也可以撤销。</p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="user_code" value="{{ request.GET.user_code }}">
+                <button class="btn-login" type="submit" name="action" value="approve">批准授权</button>
+                <button class="btn-login" type="submit" name="action" value="deny">拒绝</button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

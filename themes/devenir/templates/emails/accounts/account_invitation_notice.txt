@@ -1,0 +1,6 @@
+{{ created_by.username }}，你好：
+
+你已成功为 {{ user.username }}（{{ user.email }}）发出 PowerAdapter 账号邀请。
+
+激活邮件已发送到受邀人的邮箱，邀请有效期至 {{ expires_at }}。
+本通知不包含激活链接；受邀人需要使用自己的邮箱完成密码设置和账号激活。

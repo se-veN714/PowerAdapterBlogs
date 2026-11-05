@@ -5,7 +5,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
-from padif.models import Document, Version
+from padif.models import Annotation, AnnotationReply, Document, Version
 
 
 class PadifWorkflowTests(TestCase):
@@ -77,6 +77,32 @@ class PadifWorkflowTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_diff_fragment_renders_all_modes_with_source_lines(self) -> None:
+        self.client.force_login(self.member)
+        upload = SimpleUploadedFile("draft.md", "第一句。\n\n第二句。".encode(), "text/markdown")
+        self.client.post(
+            reverse("padif:workspace"),
+            {"markdown_file": upload, "commit_message": "初稿"},
+        )
+        document = Document.objects.get()
+        old_version = document.current_version
+        self.client.post(
+            reverse("padif:commit_version", args=[document.pk]),
+            {"content": "第一句。\n\n第二句有修订。\n\n第三句。", "commit_message": "修订", "version_kind": "minor"},
+        )
+        new_version = document.versions.order_by("-id").first()
+
+        for mode in ("inline", "split", "stats"):
+            with self.subTest(mode=mode):
+                response = self.client.get(
+                    reverse("padif:diff_fragment", args=[document.pk]),
+                    {"from_version": old_version.pk, "to_version": new_version.pk, "mode": mode},
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "stats-line")
+                if mode != "stats":
+                    self.assertContains(response, "data-source-line")
+
     def test_existing_document_accepts_markdown_as_new_version(self) -> None:
         self.client.force_login(self.member)
         initial = SimpleUploadedFile("draft-v1.md", "第一版。".encode(), "text/markdown")
@@ -114,3 +140,73 @@ class PadifWorkflowTests(TestCase):
         permission = Permission.objects.get(codename="use_padif", content_type__app_label="padif")
         self.assertTrue(group.permissions.filter(pk=permission.pk).exists())
         self.assertEqual(self.member.groups.filter(pk=group.pk).count(), 1)
+
+    def test_member_can_add_annotation_to_a_version(self) -> None:
+        self.client.force_login(self.member)
+        upload = SimpleUploadedFile("annotated.md", "第一句。\n\n第二句。".encode(), "text/markdown")
+        self.client.post(
+            reverse("padif:workspace"),
+            {"markdown_file": upload, "commit_message": "初稿"},
+        )
+        document = Document.objects.get()
+        version = document.current_version
+        response = self.client.post(
+            reverse(
+                "padif:create_annotation",
+                args=[document.pk, version.pk],
+            ),
+            {
+                "kind": "suggestion",
+                "body": "这里可以更具体。",
+                "start_line": 1,
+                "end_line": 1,
+                "selected_text": "第一句。",
+            },
+        )
+        self.assertRedirects(
+            response,
+            reverse("padif:document_detail", args=[document.pk]),
+            fetch_redirect_response=False,
+        )
+        annotation = Annotation.objects.get()
+        self.assertEqual(annotation.version_id, version.pk)
+        self.assertEqual(annotation.author_id, self.member.pk)
+        self.assertEqual(annotation.selected_text, "第一句。")
+
+        invalid = self.client.post(
+            reverse("padif:update_annotation", args=[document.pk, annotation.pk]),
+            {"status": "resolved", "resolution_note": ""},
+        )
+        self.assertEqual(invalid.status_code, 400)
+
+        response = self.client.post(
+            reverse("padif:update_annotation", args=[document.pk, annotation.pk]),
+            {"status": "rejected", "resolution_note": "保留原句，不采用这条建议。"},
+        )
+        self.assertRedirects(
+            response,
+            reverse("padif:document_detail", args=[document.pk]),
+            fetch_redirect_response=False,
+        )
+        annotation.refresh_from_db()
+        self.assertEqual(annotation.status, Annotation.Status.REJECTED)
+        self.assertEqual(annotation.resolved_by_id, self.member.pk)
+        self.assertEqual(annotation.resolution_note, "保留原句，不采用这条建议。")
+
+        invalid_reply = self.client.post(
+            reverse("padif:create_annotation_reply", args=[document.pk, annotation.pk]),
+            {"body": ""},
+        )
+        self.assertEqual(invalid_reply.status_code, 400)
+        reply_response = self.client.post(
+            reverse("padif:create_annotation_reply", args=[document.pk, annotation.pk]),
+            {"body": "收到，我会在下一版保留这个讨论。"},
+        )
+        self.assertRedirects(
+            reply_response,
+            reverse("padif:document_detail", args=[document.pk]),
+            fetch_redirect_response=False,
+        )
+        reply = AnnotationReply.objects.get()
+        self.assertEqual(reply.annotation_id, annotation.pk)
+        self.assertEqual(reply.author_id, self.member.pk)

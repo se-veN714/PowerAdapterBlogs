@@ -74,3 +74,84 @@ class Version(models.Model):
 
     def __str__(self) -> str:
         return f"{self.document.title} v{self.semantic_version}"
+
+
+class Annotation(models.Model):
+    class Kind(models.TextChoices):
+        SUGGESTION = "suggestion", "修改建议"
+        EXPLANATION = "explanation", "解释"
+        QUESTION = "question", "提问"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "开放"
+        RESOLVED = "resolved", "已处理"
+        REJECTED = "rejected", "驳回"
+
+    version = models.ForeignKey(
+        Version,
+        on_delete=models.CASCADE,
+        related_name="annotations",
+        verbose_name="版本",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="padif_annotations",
+        verbose_name="作者",
+    )
+    kind = models.CharField(max_length=16, choices=Kind.choices, verbose_name="类型")
+    body = models.TextField(verbose_name="批注内容")
+    start_line = models.PositiveIntegerField(verbose_name="起始行")
+    end_line = models.PositiveIntegerField(verbose_name="结束行")
+    selected_text = models.TextField(blank=True, verbose_name="选中文字")
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.OPEN,
+        verbose_name="状态",
+    )
+    resolution_note = models.TextField(blank=True, verbose_name="处理说明")
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="padif_resolved_annotations",
+        verbose_name="处理人",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True, verbose_name="处理时间")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["start_line", "created_at", "pk"]
+        verbose_name = "PAdif 批注"
+        verbose_name_plural = "PAdif 批注"
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} · {self.version} · {self.start_line}"
+
+
+class AnnotationReply(models.Model):
+    annotation = models.ForeignKey(
+        Annotation,
+        on_delete=models.CASCADE,
+        related_name="replies",
+        verbose_name="批注",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="padif_annotation_replies",
+        verbose_name="作者",
+    )
+    body = models.TextField(verbose_name="回复内容")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        verbose_name = "PAdif 批注回复"
+        verbose_name_plural = "PAdif 批注回复"
+
+    def __str__(self) -> str:
+        return f"回复 · {self.annotation_id} · {self.author}"

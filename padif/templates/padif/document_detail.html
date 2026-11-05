@@ -21,14 +21,19 @@
           </div>
           <a class="back-link" href="{% url 'padif:workspace' %}">← 文档列表</a>
         </div>
-        <div id="diff-output" class="diff-output" hidden>
-          <div class="diff-section-head">
-            <div><p class="panel-h">DIFF RESULT</p><h2>句子级差异</h2></div>
-            <span id="diff-loading" class="diff-loading" aria-live="polite">正在计算…</span>
-          </div>
-          <div id="diff-result" class="diff-result" aria-live="polite"></div>
-        </div>
+        <section class="main-add-version" aria-labelledby="add-version-title">
+          <div class="rail-action__head"><p class="panel-h">ADD VERSION</p><h2 id="add-version-title">追加版本</h2></div>
+          <p class="muted">从本地 Markdown 添加一版，保留原始稿件。</p>
+          <form class="main-add-version__grid" method="post" enctype="multipart/form-data" action="{% url 'padif:upload_version' document.pk %}">
+            {% csrf_token %}
+            <div class="main-add-version__cell"><label>Markdown 文件</label>{% include "padif/_dropzone.html" with field=upload_form.markdown_file %}</div>
+            <p class="main-add-version__cell"><label for="{{ upload_form.commit_message.id_for_label }}">本次修改</label>{{ upload_form.commit_message }}</p>
+            <p class="main-add-version__cell"><label for="{{ upload_form.version_kind.id_for_label }}">版本级别</label>{{ upload_form.version_kind }}</p>
+            <div class="main-add-version__cell main-add-version__submit"><span class="panel-h">COMMIT</span><button type="submit">添加版本</button></div>
+          </form>
+        </section>
       </section>
+      <div id="diff-result" hidden aria-hidden="true"></div>
 
       <details class="panel editor-panel">
         <summary><span><span class="panel-h">ONLINE EDITOR</span><strong>在线编辑器</strong></span><span class="editor-panel__state">点击展开</span></summary>
@@ -65,7 +70,72 @@
               <p class="panel-h">CHAPTERS</p>
               <nav aria-label="章节目录"><ol id="padif-preview-toc-list"></ol></nav>
             </aside>
-            <article id="padif-preview-content" class="padif-preview-content"></article>
+            <div class="padif-preview-reader">
+              <aside class="padif-preview-gutter" aria-hidden="true">
+                <ol id="padif-preview-line-numbers" class="padif-preview-gutter__list"></ol>
+              </aside>
+              <article id="padif-preview-content" class="padif-preview-content"></article>
+            </div>
+            <aside class="padif-annotation-panel" aria-label="版本批注">
+              <div class="section-heading">
+                <div><p class="panel-h">ANNOTATIONS</p><h2>批注</h2></div>
+                <span class="annotation-count">{{ annotations|length }}</span>
+              </div>
+              <p class="padif-annotation-selection" data-padif-selection-state>选择正文后添加批注。</p>
+              <div class="padif-annotation-list" data-padif-annotation-list>
+                {% for annotation in annotations %}
+                  <article class="padif-annotation-card padif-annotation-card--{{ annotation.status }}" data-start-line="{{ annotation.start_line }}" data-end-line="{{ annotation.end_line }}">
+                    <div class="padif-annotation-card__head">
+                      <span class="annotation-kind annotation-kind--{{ annotation.kind }}">{{ annotation.get_kind_display }}</span>
+                      <span>L{{ annotation.start_line }}{% if annotation.end_line != annotation.start_line %}–{{ annotation.end_line }}{% endif %} · {{ annotation.get_status_display }}</span>
+                    </div>
+                    {% if annotation.selected_text %}<blockquote>{{ annotation.selected_text }}</blockquote>{% endif %}
+                    <p>{{ annotation.body }}</p>
+                    <small>{{ annotation.author }} · {{ annotation.created_at|date:"m-d H:i" }}</small>
+                    {% if annotation.status != "open" %}
+                      <div class="padif-annotation-resolution">
+                        <strong>处理说明</strong><p>{{ annotation.resolution_note }}</p>
+                        <small>{{ annotation.resolved_by }} · {{ annotation.resolved_at|date:"m-d H:i" }}</small>
+                      </div>
+                    {% else %}
+                      <form class="padif-annotation-status-form" method="post" action="{% url 'padif:update_annotation' document.pk annotation.pk %}">
+                        {% csrf_token %}
+                        <label>处理结果<select name="status"><option value="resolved">已处理</option><option value="rejected">驳回</option></select></label>
+                        <label>处理说明<textarea name="resolution_note" rows="2" required placeholder="必须填写处理说明"></textarea></label>
+                        <button type="submit">提交处理</button>
+                      </form>
+                    {% endif %}
+                    <div class="padif-annotation-replies">
+                      <strong>回复{% if annotation.replies.count %} · {{ annotation.replies.count }}{% endif %}</strong>
+                      {% for reply in annotation.replies.all %}
+                        <div class="padif-annotation-reply">
+                          <p>{{ reply.body }}</p>
+                          <small>{{ reply.author }} · {{ reply.created_at|date:"m-d H:i" }}</small>
+                        </div>
+                      {% empty %}
+                        <small class="muted">暂无回复。</small>
+                      {% endfor %}
+                      <form class="padif-annotation-reply-form" method="post" action="{% url 'padif:create_annotation_reply' document.pk annotation.pk %}">
+                        {% csrf_token %}
+                        <textarea name="body" rows="2" required placeholder="追加回复…"></textarea>
+                        <button type="submit">回复</button>
+                      </form>
+                    </div>
+                  </article>
+                {% empty %}
+                  <p class="muted" data-padif-annotation-empty>当前版本还没有批注。</p>
+                {% endfor %}
+              </div>
+              <form class="padif-annotation-form" data-padif-annotation-form method="post" action="{% url 'padif:create_annotation' document.pk current_version.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="start_line" data-padif-start-line value="1">
+                <input type="hidden" name="end_line" data-padif-end-line value="1">
+                <input type="hidden" name="selected_text" data-padif-selected-text>
+                <p><label for="{{ annotation_form.kind.id_for_label }}">类型</label>{{ annotation_form.kind }}</p>
+                <p><label for="{{ annotation_form.body.id_for_label }}">批注内容</label>{{ annotation_form.body }}</p>
+                <button type="submit" data-padif-annotation-submit disabled>添加批注</button>
+              </form>
+            </aside>
           </div>
         </div>
       </div>
@@ -76,32 +146,6 @@
         <div><p class="panel-h">VERSION LOG</p><h2>版本轨</h2></div>
         <span class="version-count">{{ document.versions.count }}</span>
       </div>
-      <section class="rail-compare" aria-labelledby="compare-title">
-        <div class="rail-compare__head">
-          <p class="panel-h">COMPARE</p>
-          <h2 id="compare-title">比较两个版本</h2>
-        </div>
-        <form class="diff-controls" hx-get="{% url 'padif:diff_fragment' document.pk %}" hx-target="#diff-result" hx-swap="innerHTML" hx-indicator="#diff-loading">
-          <p><label for="{{ diff_form.from_version.id_for_label }}">旧版本</label>{{ diff_form.from_version }}</p>
-          <p><label for="{{ diff_form.to_version.id_for_label }}">新版本</label>{{ diff_form.to_version }}</p>
-          <p><label for="{{ diff_form.mode.id_for_label }}">视图</label>{{ diff_form.mode }}</p>
-          <button type="submit">查看差异</button>
-        </form>
-      </section>
-      <section class="rail-action" aria-labelledby="add-version-title">
-        <div class="rail-action__head">
-          <p class="panel-h">ADD VERSION</p>
-          <h2 id="add-version-title">追加版本</h2>
-        </div>
-        <p class="muted">从本地 Markdown 添加一版，保留原始稿件。</p>
-        <form class="compact-form" method="post" enctype="multipart/form-data" action="{% url 'padif:upload_version' document.pk %}">
-          {% csrf_token %}
-          <p><label>Markdown 文件</label>{% include "padif/_dropzone.html" with field=upload_form.markdown_file %}</p>
-          <p><label for="{{ upload_form.commit_message.id_for_label }}">本次修改</label>{{ upload_form.commit_message }}</p>
-          <p><label for="{{ upload_form.version_kind.id_for_label }}">版本级别</label>{{ upload_form.version_kind }}</p>
-          <button type="submit">添加版本</button>
-        </form>
-      </section>
       <ol class="version-strip">
         {% for version in document.versions.all %}
           <li{% if version.pk == document.current_version_id %} class="current"{% endif %}>
@@ -114,6 +158,18 @@
           </li>
         {% endfor %}
       </ol>
+      <section class="rail-compare" aria-labelledby="compare-title">
+        <div class="rail-compare__head">
+          <p class="panel-h">COMPARE</p>
+          <h2 id="compare-title">比较两个版本</h2>
+        </div>
+        <form class="diff-controls" hx-get="{% url 'padif:diff_fragment' document.pk %}" hx-target="#diff-result" hx-swap="innerHTML">
+          <p><label for="{{ diff_form.from_version.id_for_label }}">旧版本</label>{{ diff_form.from_version }}</p>
+          <p><label for="{{ diff_form.to_version.id_for_label }}">新版本</label>{{ diff_form.to_version }}</p>
+          <p><label for="{{ diff_form.mode.id_for_label }}">视图</label>{{ diff_form.mode }}</p>
+          <button type="submit">查看差异</button>
+        </form>
+      </section>
       <div class="version-rail__note">版本轨固定在右侧，主编辑区保持连续阅读宽度。</div>
     </aside>
   </main>
@@ -137,15 +193,170 @@
     });
     var previewModal = document.getElementById('padif-preview-modal');
     var previewContent = document.getElementById('padif-preview-content');
+    var lineNumbers = document.getElementById('padif-preview-line-numbers');
     var tocList = document.getElementById('padif-preview-toc-list');
     var previewButton = document.querySelector('[data-padif-preview]');
     var closeButton = document.querySelector('[data-padif-preview-close]');
     var diffForm = document.querySelector('.diff-controls');
-    var diffOutput = document.getElementById('diff-output');
+    var diffResult = document.getElementById('diff-result');
+    var annotationForm = document.querySelector('[data-padif-annotation-form]');
+    var annotationSelectionState = document.querySelector('[data-padif-selection-state]');
+    var annotationSubmit = annotationForm && annotationForm.querySelector('[data-padif-annotation-submit]');
+    var annotationStart = annotationForm && annotationForm.querySelector('[data-padif-start-line]');
+    var annotationEnd = annotationForm && annotationForm.querySelector('[data-padif-end-line]');
+    var annotationSelectedText = annotationForm && annotationForm.querySelector('[data-padif-selected-text]');
 
-    if (diffForm && diffOutput) {
+    function normalizeText(text) {
+      return String(text || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function sourceRangeForSelection(text) {
+      var lines = editor.getMarkdown().split(/\r?\n/);
+      var normalized = normalizeText(text);
+      var words = normalized.split(' ').filter(Boolean);
+      var head = words.slice(0, 8).join(' ');
+      var tail = words.slice(-8).join(' ');
+      var start = lines.findIndex(function (line) {
+        return normalizeText(line.replace(/^\s{0,3}(?:#{1,6}|>|[-+*]|\d+[.)])\s+/, '')).indexOf(head) !== -1;
+      });
+      if (start < 0) start = 0;
+      var end = start;
+      for (var index = start; index < lines.length; index += 1) {
+        if (normalizeText(lines[index]).indexOf(tail) !== -1) end = index;
+      }
+      return { start: start + 1, end: end + 1 };
+    }
+
+    function clearPendingAnnotationMarker() {
+      if (!lineNumbers) return;
+      lineNumbers.querySelectorAll('.is-pending').forEach(function (item) {
+        item.classList.remove('is-pending');
+      });
+    }
+
+    function markAnnotationLines() {
+      if (!lineNumbers) return;
+      lineNumbers.querySelectorAll('.has-annotation').forEach(function (item) {
+        item.classList.remove('has-annotation');
+      });
+      document.querySelectorAll('.padif-annotation-card').forEach(function (card) {
+        var start = Number(card.dataset.startLine || 0);
+        var end = Number(card.dataset.endLine || start);
+        lineNumbers.querySelectorAll('li[data-line]').forEach(function (item) {
+          var line = Number(item.dataset.line);
+          if (line >= start && line <= end) item.classList.add('has-annotation');
+        });
+      });
+    }
+
+    function renderLineNumbers() {
+      if (!lineNumbers || !previewContent || previewModal.hidden) return;
+      lineNumbers.innerHTML = '';
+      var sourceLines = editor.getMarkdown().split(/\r?\n/);
+      var styles = window.getComputedStyle(previewContent);
+      var lineHeight = parseFloat(styles.lineHeight) || 28;
+      var paddingTop = parseFloat(styles.paddingTop) || 0;
+      var contentRect = previewContent.getBoundingClientRect();
+      var blocks = Array.prototype.slice.call(previewContent.querySelectorAll('h1, h2, h3, p, pre, blockquote, li, td, th'));
+      var blockCursor = 0;
+      var blockLineCounts = {};
+      var lastPosition = null;
+
+      function cleanSourceLine(line) {
+        return line.replace(/^\s{0,3}(?:#{1,6}|>|[-+*]|\d+[.)])\s+/, '').replace(/^```.*$/, '').trim();
+      }
+
+      function cleanRenderedText(text) {
+        return String(text || '').replace(/\s+/g, ' ').trim();
+      }
+
+      function blockPosition(block) {
+        var rect = block.getBoundingClientRect();
+        return {
+          top: rect.top - contentRect.top + previewContent.scrollTop,
+          bottom: rect.bottom - contentRect.top + previewContent.scrollTop
+        };
+      }
+
+      function findBlock(sourceLine) {
+        var needle = cleanRenderedText(cleanSourceLine(sourceLine));
+        if (!needle) return Math.min(blockCursor + 1, Math.max(blocks.length - 1, 0));
+        for (var index = blockCursor; index < blocks.length; index += 1) {
+          if (cleanRenderedText(blocks[index].textContent).indexOf(needle) !== -1) return index;
+        }
+        return Math.max(blockCursor, 0);
+      }
+
+      var positions = sourceLines.map(function (line, index) {
+        if (!line.trim()) return null;
+        var blockIndex = findBlock(line);
+        var block = blocks[blockIndex];
+        if (!block) return { top: paddingTop + (index * lineHeight), bottom: paddingTop + ((index + 1) * lineHeight) };
+        var position = blockPosition(block);
+        var lineOffset = blockLineCounts[blockIndex] || 0;
+        blockLineCounts[blockIndex] = lineOffset + 1;
+        blockCursor = blockIndex;
+        lastPosition = { top: position.top + (lineOffset * lineHeight), bottom: position.bottom };
+        return lastPosition;
+      });
+
+      var nextPosition = null;
+      for (var reverseIndex = positions.length - 1; reverseIndex >= 0; reverseIndex -= 1) {
+        if (positions[reverseIndex]) nextPosition = positions[reverseIndex];
+        else if (nextPosition) positions[reverseIndex] = { top: nextPosition.top - lineHeight, bottom: nextPosition.top };
+      }
+      positions = positions.map(function (position, index) {
+        if (position) return position;
+        var previous = index > 0 ? positions[index - 1] : null;
+        return previous
+          ? { top: previous.bottom + lineHeight * 0.2, bottom: previous.bottom + lineHeight }
+          : { top: paddingTop + (index * lineHeight), bottom: paddingTop + ((index + 1) * lineHeight) };
+      });
+
+      positions.forEach(function (position, index) {
+        var item = document.createElement('li');
+        item.textContent = index + 1;
+        item.style.top = Math.round(position.top) + 'px';
+        item.style.height = Math.ceil(lineHeight) + 'px';
+        item.style.lineHeight = Math.ceil(lineHeight) + 'px';
+        item.dataset.line = index + 1;
+        lineNumbers.appendChild(item);
+      });
+      lineNumbers.style.height = Math.max(previewContent.scrollHeight, positions.length ? positions[positions.length - 1].bottom : paddingTop) + 'px';
+      lineNumbers.style.transform = 'translateY(-' + previewContent.scrollTop + 'px)';
+      markAnnotationLines();
+    }
+
+    function scheduleLineNumbers() {
+      if (previewModal.hidden) return;
+      window.requestAnimationFrame(renderLineNumbers);
+    }
+
+    if (diffForm) {
       diffForm.addEventListener('htmx:afterRequest', function () {
-        diffOutput.hidden = false;
+        openDiffPreview();
+      });
+    }
+
+    function scrollEditorToLine(line) {
+      var targetLine = Number(line || 0);
+      if (!targetLine) return;
+      var textarea = editorElement.querySelector('textarea');
+      var editorScroll = editorElement.querySelector('.toastui-editor-md-container, .toastui-editor-ww-container');
+      if (textarea) {
+        var lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 22;
+        textarea.scrollTop = Math.max(0, (targetLine - 1) * lineHeight - 120);
+        textarea.focus();
+        return;
+      }
+      if (editorScroll) editorScroll.scrollTop = Math.max(0, (targetLine - 1) * 24 - 120);
+      editorElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    if (diffResult) {
+      diffResult.addEventListener('click', function (event) {
+        var lineNode = event.target.closest('[data-source-line]');
+        if (lineNode && lineNode.dataset.sourceLine) scrollEditorToLine(lineNode.dataset.sourceLine);
       });
     }
 
@@ -155,6 +366,7 @@
     }
 
     function renderPreview() {
+      previewModal.classList.remove('is-diff-preview');
       previewContent.innerHTML = editor.getHTML();
       tocList.innerHTML = '';
       var headings = previewContent.querySelectorAll('h1, h2, h3');
@@ -175,6 +387,39 @@
         empty.textContent = '暂无章节标题。';
         tocList.appendChild(empty);
       }
+      scheduleLineNumbers();
+    }
+
+    function openDiffPreview() {
+      if (!diffResult || !diffResult.innerHTML.trim()) return;
+      previewModal.classList.add('is-diff-preview');
+      previewContent.innerHTML = diffResult.innerHTML;
+      tocList.innerHTML = '<li class="padif-preview-toc__item"><a href="#padif-diff-reading">差异结果</a></li>';
+      previewContent.firstElementChild && previewContent.firstElementChild.setAttribute('id', 'padif-diff-reading');
+      lineNumbers.innerHTML = '';
+      lineNumbers.style.height = '0';
+      previewModal.hidden = false;
+      document.body.classList.add('padif-preview-open');
+      closeButton.focus();
+    }
+
+    function captureSelection() {
+      if (!annotationForm || previewModal.hidden) return;
+      var selection = window.getSelection();
+      if (!selection || !selection.rangeCount || !selection.toString().trim()) return;
+      if (!previewContent.contains(selection.anchorNode) || !previewContent.contains(selection.focusNode)) return;
+      var selectedText = selection.toString().trim();
+      var range = sourceRangeForSelection(selectedText);
+      annotationStart.value = range.start;
+      annotationEnd.value = range.end;
+      annotationSelectedText.value = selectedText;
+      annotationSubmit.disabled = false;
+      annotationSelectionState.textContent = '已选择 L' + range.start + (range.end !== range.start ? '–' + range.end : '') + '，填写批注后提交。';
+      clearPendingAnnotationMarker();
+      if (lineNumbers) lineNumbers.querySelectorAll('li[data-line]').forEach(function (item) {
+        var line = Number(item.dataset.line);
+        if (line >= range.start && line <= range.end) item.classList.add('is-pending');
+      });
     }
 
     function closePreview() {
@@ -183,12 +428,24 @@
     }
 
     previewButton.addEventListener('click', function () {
-      renderPreview();
       previewModal.hidden = false;
       document.body.classList.add('padif-preview-open');
+      renderPreview();
       closeButton.focus();
     });
     closeButton.addEventListener('click', closePreview);
+    previewContent.addEventListener('mouseup', captureSelection);
+    previewContent.addEventListener('keyup', captureSelection);
+    document.querySelectorAll('.padif-annotation-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        var marker = lineNumbers && lineNumbers.querySelector('li[data-line="' + card.dataset.startLine + '"]');
+        if (marker) previewContent.scrollTop = Math.max(0, marker.offsetTop - 30);
+      });
+    });
+    previewContent.addEventListener('scroll', function () {
+      if (lineNumbers) lineNumbers.style.transform = 'translateY(-' + previewContent.scrollTop + 'px)';
+    });
+    window.addEventListener('resize', scheduleLineNumbers);
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && !previewModal.hidden) closePreview();
     });

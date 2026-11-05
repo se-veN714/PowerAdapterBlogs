@@ -8,16 +8,16 @@
   <div class="split-head"><b>v{{ old.semantic_version }}</b><b>v{{ new.semantic_version }}</b></div>
   <div class="split-view">
     {% for op in ops %}
-      {% if op.op == "equal" or op.op == "moved" %}<span class="{{ op.op }}">{{ op.text }}</span><span class="{{ op.op }}">{{ op.text }}</span>
-      {% elif op.op == "delete" %}<span class="delete">{{ op.text }}</span><span></span>
-      {% elif op.op == "insert" %}<span></span><span class="insert">{{ op.text }}</span>
-      {% else %}<span class="delete">{% for inner in op.inner %}{% if inner.op != "insert" %}{{ inner.text }}{% endif %}{% endfor %}</span><span class="insert">{% for inner in op.inner %}{% if inner.op != "delete" %}{{ inner.text }}{% endif %}{% endfor %}</span>{% endif %}
+      {% if op.op == "equal" or op.op == "moved" %}<span class="{{ op.op }}" data-source-line="{{ op.new_line|default:'' }}">{{ op.text }}</span><span class="{{ op.op }}" data-source-line="{{ op.new_line|default:'' }}">{{ op.text }}</span>
+      {% elif op.op == "delete" %}<span class="delete" data-source-line="{{ op.old_line|default:'' }}">{{ op.text }}</span><span></span>
+      {% elif op.op == "insert" %}<span></span><span class="insert" data-source-line="{{ op.new_line|default:'' }}">{{ op.text }}</span>
+      {% else %}<span class="delete" data-source-line="{{ op.old_line|default:'' }}">{% for inner in op.inner %}{% if inner.op != "insert" %}{{ inner.text }}{% endif %}{% endfor %}</span><span class="insert" data-source-line="{{ op.new_line|default:'' }}">{% for inner in op.inner %}{% if inner.op != "delete" %}{{ inner.text }}{% endif %}{% endfor %}</span>{% endif %}
     {% endfor %}
   </div>
 {% else %}
   <div class="inline-view">
     {% for op in ops %}
-      {% if op.op == "replace" %}<span class="replace">{% for inner in op.inner %}<span class="{{ inner.op }}">{{ inner.text }}</span>{% endfor %}</span>{% else %}<span class="{{ op.op }}">{{ op.text }}</span>{% endif %}
+      {% if op.op == "replace" %}<span class="replace" data-source-line="{% firstof op.new_line op.old_line '' %}">{% for inner in op.inner %}<span class="{{ inner.op }}">{{ inner.text }}</span>{% endfor %}</span>{% else %}<span class="{{ op.op }}" data-source-line="{% firstof op.new_line op.old_line '' %}">{{ op.text }}</span>{% endif %}
     {% endfor %}
   </div>
 {% endif %}

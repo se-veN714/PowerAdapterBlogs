@@ -2,7 +2,7 @@ from typing import Any
 
 from django import forms
 
-from .models import Document, Version
+from .models import Annotation, AnnotationReply, Document, Version
 
 
 class DocumentUploadForm(forms.Form):
@@ -61,3 +61,57 @@ class DiffSelectionForm(forms.Form):
         if cleaned.get("from_version") == cleaned.get("to_version"):
             raise forms.ValidationError("请选择两个不同版本。")
         return cleaned
+
+
+class AnnotationForm(forms.ModelForm):
+    class Meta:
+        model = Annotation
+        fields = ("kind", "body", "start_line", "end_line", "selected_text")
+        widgets = {
+            "body": forms.Textarea(attrs={"rows": 4}),
+            "selected_text": forms.HiddenInput(),
+        }
+        labels = {
+            "kind": "批注类型",
+            "body": "内容",
+            "start_line": "起始行",
+            "end_line": "结束行",
+            "selected_text": "选中文字",
+        }
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean()
+        if (
+            cleaned.get("start_line")
+            and cleaned.get("end_line")
+            and cleaned["end_line"] < cleaned["start_line"]
+        ):
+            raise forms.ValidationError("结束行不能早于起始行。")
+        return cleaned
+
+
+class AnnotationStatusForm(forms.Form):
+    status = forms.ChoiceField(
+        label="处理结果",
+        choices=(
+            (Annotation.Status.RESOLVED, "已处理"),
+            (Annotation.Status.REJECTED, "驳回"),
+        ),
+    )
+    resolution_note = forms.CharField(
+        label="处理说明",
+        min_length=1,
+        widget=forms.Textarea(attrs={"rows": 2, "required": True}),
+    )
+
+
+class AnnotationReplyForm(forms.ModelForm):
+    class Meta:
+        model = AnnotationReply
+        fields = ("body",)
+        labels = {"body": "回复"}
+        widgets = {
+            "body": forms.Textarea(
+                attrs={"rows": 2, "required": True, "placeholder": "写下回复…"}
+            )
+        }

@@ -44,5 +44,27 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll("[data-padif-dropzone]").forEach(initDropzone);
+    document.querySelectorAll(".message-stack .notice").forEach(function (notice) {
+      window.setTimeout(function () {
+        notice.classList.add("is-dismissed");
+        window.setTimeout(function () { notice.remove(); }, 240);
+      }, 4200);
+    });
+
+    document.body.addEventListener("htmx:afterRequest", function (event) {
+      if (!event.detail || !event.detail.elt || !event.detail.elt.closest(".diff-controls")) return;
+      window.setTimeout(function () {
+        var result = document.getElementById("diff-result");
+        var modal = document.getElementById("padif-preview-modal");
+        var content = document.getElementById("padif-preview-content");
+        var toc = document.getElementById("padif-preview-toc-list");
+        if (!result || !result.innerHTML.trim() || !modal || !content) return;
+        modal.classList.add("is-diff-preview");
+        content.innerHTML = result.innerHTML;
+        if (toc) toc.innerHTML = '<li class="padif-preview-toc__item"><span>差异结果</span></li>';
+        modal.hidden = false;
+        document.body.classList.add("padif-preview-open");
+      }, 0);
+    });
   });
 }());

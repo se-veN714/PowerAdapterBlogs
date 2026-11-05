@@ -4,3 +4,5 @@
 !.gitignore
 !README.md
 !openssl-client-ca.cnf.example
+!Refresh-ClientCrl.ps1
+!Install-ClientCrlRenewalTask.ps1

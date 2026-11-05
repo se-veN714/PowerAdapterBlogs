@@ -1,0 +1,9 @@
+[Unit]
+Description=PowerAdapter Agent authorization cleanup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/blog
+ExecStart=/usr/bin/docker compose --env-file deploy/.env.production -f compose.production.yml exec -T web python manage.py cleanup_agent_authorizations

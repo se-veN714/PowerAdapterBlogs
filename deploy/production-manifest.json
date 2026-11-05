@@ -1,0 +1,2990 @@
+{
+  "schema_version": 1,
+  "files": [
+    {
+      "path": "Blogs/DEVELOPMENT.md",
+      "size": 39303,
+      "sha256": "f80ecadd39c15d095aa0941e76baae04733c2663555c93c1d1fa92a286049475"
+    },
+    {
+      "path": "Blogs/LOGGUIDE.md",
+      "size": 5940,
+      "sha256": "a3b6cbad0548b3f8664605331dcc6a02cfb127b5e3b066bd08fb791f06e44c44"
+    },
+    {
+      "path": "Blogs/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Blogs/admin.py",
+      "size": 21755,
+      "sha256": "420067a105f1788d5cba513c2cb952793ba1b0b58fce1e672511952bab83ddb7"
+    },
+    {
+      "path": "Blogs/adminforms.py",
+      "size": 995,
+      "sha256": "df61f55f7c8462a04129e9a284d595dd5674c354bdc1000f5b63a2c2e34e765a"
+    },
+    {
+      "path": "Blogs/apps.py",
+      "size": 148,
+      "sha256": "dd7db2cbca69d42e886621f2109ef45dcd7d1c1bd042a5793d81f2138b897b64"
+    },
+    {
+      "path": "Blogs/autocomplete.py",
+      "size": 1057,
+      "sha256": "454c0be338a64998cc393bec0b02dadd8d1519f01b301cdabae0c148b1b14220"
+    },
+    {
+      "path": "Blogs/blog_utils/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Blogs/blog_utils/md_latex.py",
+      "size": 3617,
+      "sha256": "839d0ec684c02ec56464feaa1d171ec2b2cca752515d4015bac2631031ce8315"
+    },
+    {
+      "path": "Blogs/covers.py",
+      "size": 868,
+      "sha256": "c9650f6e2970d48c6c671eed33fadc9b2c720777d98b95cb7065707ece78bfad"
+    },
+    {
+      "path": "Blogs/feed.py",
+      "size": 1268,
+      "sha256": "9245fd01263bdab42f4a33667b5e89d33ebd7b313d5db1bc5752fdb9ccb0b76f"
+    },
+    {
+      "path": "Blogs/forms.py",
+      "size": 3921,
+      "sha256": "f90a1c683e3c7ed8e169b7a620bd7c9d706631cf8d8192711e0e228f2a4b8319"
+    },
+    {
+      "path": "Blogs/image_validation.py",
+      "size": 248,
+      "sha256": "ae8d30b70a4f3588c21f12fab61a8daf1d865c8a6990a47fc63c69ceae64ddc4"
+    },
+    {
+      "path": "Blogs/management/commands/backfill_diffs.py",
+      "size": 3847,
+      "sha256": "baaf609d60fe2371b5872a6b5e55416f8f7c2e86db922a589352c9875fd41a3f"
+    },
+    {
+      "path": "Blogs/management/commands/bump_versions.py",
+      "size": 4555,
+      "sha256": "b7c185a3f576a7123261d0e04ba214460d05882e5a0bd28b69a4887dbb1216f3"
+    },
+    {
+      "path": "Blogs/management/commands/generate_posts.py",
+      "size": 4022,
+      "sha256": "3378e1cadeb1f3d5b131c98f26d3fd74fea092b4db1432548c5a7b4a01de625b"
+    },
+    {
+      "path": "Blogs/management/commands/init_slug.py",
+      "size": 1572,
+      "sha256": "22c398142bbf1b31bace281645d3a4f5bc5dc0a746c73c943a7c019e782367c3"
+    },
+    {
+      "path": "Blogs/management/commands/rewrap_posts.py",
+      "size": 5608,
+      "sha256": "dba4dec5985a0bbc59d611b78d360490d3617928df8b5457b18e7bd23c15c62c"
+    },
+    {
+      "path": "Blogs/middleware/__init__.py",
+      "size": 268,
+      "sha256": "93790358b397615553a8f1f0796a4154d260df30fe6d44b5ce0e6646a6a5140c"
+    },
+    {
+      "path": "Blogs/middleware/user_id.py",
+      "size": 1044,
+      "sha256": "c2774b4a086c5a099ee43dbaa6f8ab72f61f8143f2eed9fc46d5e6802f13432d"
+    },
+    {
+      "path": "Blogs/migrations/0001_initial.py",
+      "size": 6616,
+      "sha256": "969be8307090396cca19279904faa9f2946b7e1baa7c356ecb15b1a1206d2d2b"
+    },
+    {
+      "path": "Blogs/migrations/0002_initial.py",
+      "size": 2611,
+      "sha256": "1d3812d06f2ec93c3746c2560aa40b8d60eac919df607bed1ee764dba2e677b9"
+    },
+    {
+      "path": "Blogs/migrations/0003_post_visibility_postrevision.py",
+      "size": 3707,
+      "sha256": "28d186c443bc3077b196f12c069aeb5c63fd0ce8e3e0a80eefd142b902874d58"
+    },
+    {
+      "path": "Blogs/migrations/0004_create_initial_revisions.py",
+      "size": 1321,
+      "sha256": "184b952b66ce90b65662be98fd8acf5ecbef35fa9981d9f60e3101ed5dacbcbd"
+    },
+    {
+      "path": "Blogs/migrations/0005_add_diff_from_previous.py",
+      "size": 502,
+      "sha256": "a56fac42d19e2ec903cb72927f1ca45b1f0c5c72e9cb245c385ac65062be905a"
+    },
+    {
+      "path": "Blogs/migrations/0006_add_post_status_and_permissions.py",
+      "size": 1580,
+      "sha256": "c0b65c6da79eb37316f6f9b0c317aca43683c9777ca34d8a0fdf66c2c308a791"
+    },
+    {
+      "path": "Blogs/migrations/0007_postworkflowevent.py",
+      "size": 4184,
+      "sha256": "8c1389fd0f5a03457c96547bbc639f4f52754de868f4e2efe69e677d3df8bf3c"
+    },
+    {
+      "path": "Blogs/migrations/0008_postrevision_structured_diff.py",
+      "size": 1054,
+      "sha256": "b31660b90755a6da6350ba8ea7520aeaf0f9d0691ad9f7faaecfe91d43f47342"
+    },
+    {
+      "path": "Blogs/migrations/0009_post_status_created_idx.py",
+      "size": 433,
+      "sha256": "303773ca5058ac372f21bf8c1fb51a93103af44e971610c4056a356120b858aa"
+    },
+    {
+      "path": "Blogs/migrations/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Blogs/models.py",
+      "size": 15419,
+      "sha256": "e0d6d8240962fabe245421351593828dfd8b0a656fd784df419c7eb1cd12ccc0"
+    },
+    {
+      "path": "Blogs/revisions.py",
+      "size": 15312,
+      "sha256": "8091ea3e5787cc79ce4233f6a2e7565f01da0ddc1b59f862ba7f3493d0fabb4c"
+    },
+    {
+      "path": "Blogs/services.py",
+      "size": 6808,
+      "sha256": "b905fb0db83a0e7dea070d83b195ef5394d74b133da061d8bba38f3d23a8f499"
+    },
+    {
+      "path": "Blogs/sitemap.py",
+      "size": 651,
+      "sha256": "d6ff6e397fb9e2ff1e6c9760632eb302831da0640db9163c5964cf6106e1cca9"
+    },
+    {
+      "path": "Blogs/templatetags/__init__.py",
+      "size": 268,
+      "sha256": "cf28aad50932bd6ac28c53c40c002bbf79c4411a40e44e4ab456df8438d757b2"
+    },
+    {
+      "path": "Blogs/templatetags/dashboard_tags.py",
+      "size": 1538,
+      "sha256": "7e1bce5536fc03ee90cd93fbfb350f0782cd2cbf1ae6e8d37d24b7398d1a91b5"
+    },
+    {
+      "path": "Blogs/templatetags/md_extras.py",
+      "size": 1215,
+      "sha256": "69789781f17bb86e680271779e04f94ee874b1fdd4abafa4e973e70a240c922c"
+    },
+    {
+      "path": "Blogs/tests.py",
+      "size": 37934,
+      "sha256": "e85a9d46c4cd65eb1dac5ad168cb48b74d1de92044db225b3a297ea10637532d"
+    },
+    {
+      "path": "Blogs/urls.py",
+      "size": 2110,
+      "sha256": "242d4b93a1dcc6083222bb0e7a27dc7f61e70d2a8eae919904e6a21cc5f2e990"
+    },
+    {
+      "path": "Blogs/views.py",
+      "size": 36889,
+      "sha256": "d6bae47b23b230d2e3f7be9b383e1e742354f619b6c4fdca40991ebec4fa0793"
+    },
+    {
+      "path": "Dockerfile",
+      "size": 1204,
+      "sha256": "dc79b8cb7e8884686a22d1e15bc9db37316f245593f6d2f593d36cf25c16dffc"
+    },
+    {
+      "path": "PowerAdapterBlogs/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "PowerAdapterBlogs/admin_config.py",
+      "size": 286,
+      "sha256": "a824708fd114980d376115d0174de770b0b97a459792e18f3c77d3e87e9aa375"
+    },
+    {
+      "path": "PowerAdapterBlogs/admin_site.py",
+      "size": 1951,
+      "sha256": "41d555949117d5bbf2968b06bab744f60fd10057c3c2df37183b240eb6ee79df"
+    },
+    {
+      "path": "PowerAdapterBlogs/asgi.py",
+      "size": 427,
+      "sha256": "9d1db0c4c265fbe63a3bd73eaee662425e08b9274938284da2c7fc23b504371b"
+    },
+    {
+      "path": "PowerAdapterBlogs/base_admin.py",
+      "size": 2748,
+      "sha256": "68ee821c3759fdd7ae513d9bdfc115d0c00c81a21fed540b672e6b36c92b2a00"
+    },
+    {
+      "path": "PowerAdapterBlogs/cus_site.py",
+      "size": 4036,
+      "sha256": "065d30d68e817b5e463f128c7967284a740a4b76ae7049364f7d4759aa10fe9b"
+    },
+    {
+      "path": "PowerAdapterBlogs/dashboard_context.py",
+      "size": 17417,
+      "sha256": "fd45eed8673853d053f75a23e192d448b886ddc1e02a311f7fe0a748f1158893"
+    },
+    {
+      "path": "PowerAdapterBlogs/dashboard_urls.py",
+      "size": 558,
+      "sha256": "962a8488d91009be8af8a3bb129f0c4e98b760e4e621abd1344722bce1d86530"
+    },
+    {
+      "path": "PowerAdapterBlogs/dashboard_views.py",
+      "size": 2115,
+      "sha256": "ed7d67a65e5d8203dd46f03919f671f291407fce1368bcd5e99aa68b08e1aba5"
+    },
+    {
+      "path": "PowerAdapterBlogs/db.sqlite3",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "PowerAdapterBlogs/email_backends.py",
+      "size": 4625,
+      "sha256": "858d259eb1d8ad3c32f5d69ced6b6da96b8d4e7f2ba487e841e945606f0f5fcc"
+    },
+    {
+      "path": "PowerAdapterBlogs/image_validation.py",
+      "size": 2401,
+      "sha256": "9b35a2e45d38e66f7320fcae6eb2d35b83012d7b44776256ca02a36d2dc57856"
+    },
+    {
+      "path": "PowerAdapterBlogs/public_urls.py",
+      "size": 272,
+      "sha256": "8158bf01e74f08fcd6c560d621127f8cd2e52f18ca620b5464b241abb9b078ed"
+    },
+    {
+      "path": "PowerAdapterBlogs/settings/__init__.py",
+      "size": 268,
+      "sha256": "9b935858b20667dc62f994acfae5f4aeb09217d94351e49331f71b273376512e"
+    },
+    {
+      "path": "PowerAdapterBlogs/settings/base.py",
+      "size": 19924,
+      "sha256": "4d0a1c0e66c77ebdb9522fdbdfd59b0ecae8d856ceb591ad07d6c4d30ea66063"
+    },
+    {
+      "path": "PowerAdapterBlogs/settings/develop.py",
+      "size": 2108,
+      "sha256": "13b922e4ce6014df1594850dfa52880cc2e43fc88600a68d36a66cf8ced07e5a"
+    },
+    {
+      "path": "PowerAdapterBlogs/settings/product.py",
+      "size": 5995,
+      "sha256": "7780d9547a6d5c1203b36773da3e86f1c4c23ff553bf80fd2f7fe9c285498701"
+    },
+    {
+      "path": "PowerAdapterBlogs/tests/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "PowerAdapterBlogs/tests/test_container_scripts.py",
+      "size": 985,
+      "sha256": "65dd434eb3b1e27b97bbd7ce81e16fb41861a80288dc5efb17b39afdbdcebfa3"
+    },
+    {
+      "path": "PowerAdapterBlogs/tests/test_dashboard_devenir.py",
+      "size": 9726,
+      "sha256": "5b037710e5aa1f9f8b81a022f441d1e73e84dab22a6b576c20ba77cbadfdeb38"
+    },
+    {
+      "path": "PowerAdapterBlogs/tests/test_email_backend.py",
+      "size": 2824,
+      "sha256": "16aab2b2aec6a85c4378fbd619e8be38fe2d314be6596aefffe3edb44e34e598"
+    },
+    {
+      "path": "PowerAdapterBlogs/urls.py",
+      "size": 4218,
+      "sha256": "5e74d9ab84d9563079fa15cb89a98ab1941472b68e7cefca8989113535924824"
+    },
+    {
+      "path": "PowerAdapterBlogs/wsgi.py",
+      "size": 497,
+      "sha256": "8f240f8cb206b9d19929efe049353d51d5aea08616d15ccc09557919577d29c9"
+    },
+    {
+      "path": "accounts/DEVELOPMENT.md",
+      "size": 41401,
+      "sha256": "a17beaec879ef8ea6772ef30f72e2190ec5c4d4bd0ba15455e22cb7528012dec"
+    },
+    {
+      "path": "accounts/LOGGUIDE.md",
+      "size": 5992,
+      "sha256": "9c6a8f5f47dfd78e899b5c5071a5a4ecca4d9afe7609b591a283169321661b05"
+    },
+    {
+      "path": "accounts/PERMISSIONS_GUIDE.md",
+      "size": 46598,
+      "sha256": "d8d0259742b13650fb464707805ffd3c402ab49913001ea99ad3c473552b6854"
+    },
+    {
+      "path": "accounts/SECURITY_ROADMAP.md",
+      "size": 40665,
+      "sha256": "c104c01a4a6fae5acb81d03f793d0f4c254380e044250f40814ca567614caaff"
+    },
+    {
+      "path": "accounts/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "accounts/admin.py",
+      "size": 13436,
+      "sha256": "2734c75110a49def90b2dc9a268211cd3d28abd2994456a65a409d92a8e25b0f"
+    },
+    {
+      "path": "accounts/agent_auth.py",
+      "size": 8414,
+      "sha256": "ae7b099f2395bd5e6f390143ca48e20372ab258bafec44c60bd4c1289da597df"
+    },
+    {
+      "path": "accounts/apps.py",
+      "size": 223,
+      "sha256": "beba092472ab0b8e26b7a41d10cda4eed21ecc07e4562ac6331b0c065ed7a280"
+    },
+    {
+      "path": "accounts/authn/__init__.py",
+      "size": 72,
+      "sha256": "7529d65f59f5c9bca70bd60e85124db53e9a0095d5667dc85696c9e0830bb73f"
+    },
+    {
+      "path": "accounts/authn/mfa_crypto.py",
+      "size": 3602,
+      "sha256": "41f2881a54fa9b85c77b4b8b2fc883b8bec74cc3cf41a1f3ad811ad09ad51b18"
+    },
+    {
+      "path": "accounts/authn/mfa_services.py",
+      "size": 17702,
+      "sha256": "5d0fad1bbd958c1d3cacfa6610450f90d8cde4b7d1ceb33f1cc6338f3c220d27"
+    },
+    {
+      "path": "accounts/authn/mfa_session.py",
+      "size": 14602,
+      "sha256": "21c9bab7875fdd7cb49edbeca9243433b1948868d083ba48366296a023cdf854"
+    },
+    {
+      "path": "accounts/authn/mtls_services.py",
+      "size": 9875,
+      "sha256": "887cf10fcb9d13ce90f7c3924ee28fcebae801c553e3fe663c2e54ea078ac6a8"
+    },
+    {
+      "path": "accounts/context_processors.py",
+      "size": 611,
+      "sha256": "eb02feb27e05fc6f1589e15994d5bdfc52788eef2112a1beb6f219df49dba811"
+    },
+    {
+      "path": "accounts/forms.py",
+      "size": 4370,
+      "sha256": "34b1718b6e6082c14e043333461c5c01af502353e558464d55241fe4c3ef9140"
+    },
+    {
+      "path": "accounts/management/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "accounts/management/commands/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "accounts/management/commands/bind_client_certificate.py",
+      "size": 2319,
+      "sha256": "55b393f91ec38008cd89150cbe923ee9ec875e52c280aeec9862ce1303e72714"
+    },
+    {
+      "path": "accounts/management/commands/check_mfa_readiness.py",
+      "size": 2812,
+      "sha256": "71b4942e2a46d81409fe102a75b381c9c9c61770cdaba381d1d207e0fbbca1e7"
+    },
+    {
+      "path": "accounts/management/commands/check_mtls_readiness.py",
+      "size": 4150,
+      "sha256": "8748dffa383203e5836b44604a6b00a0d46cf5be78f1c71b6ecd608f7565cec9"
+    },
+    {
+      "path": "accounts/management/commands/cleanup_agent_authorizations.py",
+      "size": 3013,
+      "sha256": "e62e9066629cfaddc8106543d22a890e51f8c12db8134d1fcfe31d60670ab18b"
+    },
+    {
+      "path": "accounts/management/commands/revoke_client_certificate.py",
+      "size": 1542,
+      "sha256": "3433f151948f8e8715f76318d1ce038314678278fc6937228bd69b7bc6144014"
+    },
+    {
+      "path": "accounts/management/commands/verify_deployment_manifest.py",
+      "size": 1425,
+      "sha256": "c234769e62b4092afd4ba7a58bf9fdc62327a2617f249f97f3f5545dc6e021cb"
+    },
+    {
+      "path": "accounts/middleware.py",
+      "size": 6785,
+      "sha256": "65d182568d67c109306a4683d625d82c2c60d0d4271f982826b56f65acd1a8fc"
+    },
+    {
+      "path": "accounts/migrations/0001_initial.py",
+      "size": 3208,
+      "sha256": "cffb7bc6592e62bd8b1c08e58005c6c934b776b62fc0f31fba590956e0e9107f"
+    },
+    {
+      "path": "accounts/migrations/0002_add_is_reviewer.py",
+      "size": 1033,
+      "sha256": "5dd4605022b1eef658e228939f6dc62eda26675077fe7d956535858d41d21fa6"
+    },
+    {
+      "path": "accounts/migrations/0003_accountinvitation.py",
+      "size": 1497,
+      "sha256": "95ab8a469ba549d4c128f718246e17b0c05509fd963bab5d06fb594a938f7ac0"
+    },
+    {
+      "path": "accounts/migrations/0004_userprofile.py",
+      "size": 1671,
+      "sha256": "7aed7c58f3a84edbabf879c2edf78f04419324f43d0cbf6bc2c1aab661c2529d"
+    },
+    {
+      "path": "accounts/migrations/0005_alter_myuser_options.py",
+      "size": 402,
+      "sha256": "d78ffc87521eb3eef0044cfe88f892345a27e5ee41f04d1b1b95abbef7b01fff"
+    },
+    {
+      "path": "accounts/migrations/0006_initialize_global_groups.py",
+      "size": 2599,
+      "sha256": "9c2f16fbdfe437cbaf28f54541987b6e6716d4c750def691cfc77ff5b3db89ea"
+    },
+    {
+      "path": "accounts/migrations/0007_mfatotpdevice.py",
+      "size": 2823,
+      "sha256": "ac469ca240361939587a7c8caee5fe60b13a9270d6242e4d77b53f7adb499397"
+    },
+    {
+      "path": "accounts/migrations/0008_mfarecoverycode.py",
+      "size": 1286,
+      "sha256": "8ccab78a0f38faec6c0e7e4bdf81bc27fff8d709445c15f07c0febe7aef8ae16"
+    },
+    {
+      "path": "accounts/migrations/0009_clientcertificatebinding.py",
+      "size": 5419,
+      "sha256": "492d5063865be3d1fbfe907f183ef19089c16e30c2d6e3db89a0580bc964dbe2"
+    },
+    {
+      "path": "accounts/migrations/0010_myuser_privileged_session_version.py",
+      "size": 506,
+      "sha256": "2624ecc92abd924981f501a24de565a4564427731dd4bee2981da469a65e7c5e"
+    },
+    {
+      "path": "accounts/migrations/0011_remove_myuser_is_reviewer.py",
+      "size": 313,
+      "sha256": "cde251e9120d14e0c5dcdc73ad77fd4fe48c184f801b7e44b4b72fc95952465a"
+    },
+    {
+      "path": "accounts/migrations/0012_myuser_identity_verification.py",
+      "size": 1666,
+      "sha256": "4d45fb1495b29a8e9d7e070667eec0ffcb3548937767ba9228e2a23c526d4f48"
+    },
+    {
+      "path": "accounts/migrations/0013_agentdeviceauthorization_agentaccesstoken.py",
+      "size": 3054,
+      "sha256": "f86ac9a921b5022ca560785106051f7c23e9a011affefa974d94c30d877ed3b0"
+    },
+    {
+      "path": "accounts/migrations/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "accounts/models.py",
+      "size": 19164,
+      "sha256": "fce691dbb5d27aa99faa1fbcd90db09c96998978f922f8029a364892e6d448f8"
+    },
+    {
+      "path": "accounts/services.py",
+      "size": 19113,
+      "sha256": "5e65671142dae1ee6c7dbeb6b791fd0d6e8bb78344a5831f84c21dd4ff72675c"
+    },
+    {
+      "path": "accounts/signals.py",
+      "size": 1383,
+      "sha256": "2f3e432d9bf3d9ee2683a36c6c4de39ae53e947302f91e9c5e6f30f5e50f78b4"
+    },
+    {
+      "path": "accounts/tests/__init__.py",
+      "size": 80,
+      "sha256": "237912546fde484890fcf1d5c6086f19d4f539ff21ff0e634432dbdca03c2371"
+    },
+    {
+      "path": "accounts/tests/test_accounts.py",
+      "size": 31490,
+      "sha256": "6bc7826e51fff0f2b89e6d2439213fb582ca023a2e69b7f39b215978102d30fb"
+    },
+    {
+      "path": "accounts/tests/test_admin_hardening.py",
+      "size": 6756,
+      "sha256": "374e9777033d794a81b08544d3b3ca3381127e25b85f91e127e256e261743f09"
+    },
+    {
+      "path": "accounts/tests/test_agent_auth.py",
+      "size": 17739,
+      "sha256": "c8a4829aba5edcae4f70eadd8ef10b39e62a2cf00c79df0fc79220047204b921"
+    },
+    {
+      "path": "accounts/tests/test_deployment_manifest.py",
+      "size": 1996,
+      "sha256": "d73534439735cc6d4c76fe1d78e896959927afc200833a35e61f51cfecba5cf5"
+    },
+    {
+      "path": "accounts/tests/test_email_templates.py",
+      "size": 1241,
+      "sha256": "ece2518ef63f7a5c5ab08e6063cd1a880836c640d64566fcf87de9056fe3262c"
+    },
+    {
+      "path": "accounts/tests/test_global_roles.py",
+      "size": 7842,
+      "sha256": "2febd97a27edccf687db0a9238401e6862f388c6fe3720dcaebb0fa4fda43b07"
+    },
+    {
+      "path": "accounts/tests/test_mfa_crypto.py",
+      "size": 3574,
+      "sha256": "bdd9a018920dbae999a3ab2cca092711d766ed01b2b8a81155764dfcd92aa298"
+    },
+    {
+      "path": "accounts/tests/test_mfa_device_model.py",
+      "size": 5034,
+      "sha256": "151fa626bf4c21b1d2421da259d7907df05bfc92245c8883f77e4ee5a9ae11b5"
+    },
+    {
+      "path": "accounts/tests/test_mfa_h2.py",
+      "size": 19675,
+      "sha256": "273d89d1cbbfa12bbff4491cc06930929eddc8b4806c4b516827a891e1d13879"
+    },
+    {
+      "path": "accounts/tests/test_mfa_services.py",
+      "size": 13008,
+      "sha256": "62eff4d8b13db4cdbe992bbaa2111864f8250da2beb39dad963ad89aec8fd7ff"
+    },
+    {
+      "path": "accounts/tests/test_mtls_h3.py",
+      "size": 16964,
+      "sha256": "0e2aff4f7fffe7e69e686cbed29292f37e4bfc4d299983cead3012687d38ec76"
+    },
+    {
+      "path": "accounts/thread_local.py",
+      "size": 693,
+      "sha256": "11d3c9520fc0cac141763e35db7441bf2ba1c0591679a4f6842d300fe231094d"
+    },
+    {
+      "path": "accounts/urls.py",
+      "size": 2721,
+      "sha256": "d53893d58b354d2a268d884092bdb79768158fc6095f311be89701c0620fc38e"
+    },
+    {
+      "path": "accounts/views.py",
+      "size": 45139,
+      "sha256": "5c3bd2368d87d0ccf27f45c53f947c73791e34b201d3e040cfe7ff20ca94374e"
+    },
+    {
+      "path": "boards/DEVELOPMENT.md",
+      "size": 52055,
+      "sha256": "071db6f048ab93c8c82f36817b9d20e72c0f680f40f81df1be6a5001019e4133"
+    },
+    {
+      "path": "boards/LOGGUIDE.md",
+      "size": 4242,
+      "sha256": "5fc19b04f5240b4c1196f37a509556b1a42b499dee7d731818429d6c0b80dadb"
+    },
+    {
+      "path": "boards/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "boards/access_rules.py",
+      "size": 2634,
+      "sha256": "e18fb1c41fb4de6b033479bfec5f3cacd21786bcf40f862e8ffafcfffa809a45"
+    },
+    {
+      "path": "boards/admin.py",
+      "size": 19574,
+      "sha256": "7cb946549f826c9d47ac1778cd034b1b9a494de31af54cd6c7b0f0e18516dbbe"
+    },
+    {
+      "path": "boards/admin_forms.py",
+      "size": 1013,
+      "sha256": "c9246423973f2ae3b0870f9ef3e2ac1c945837066788b6a5484257d12a2d938f"
+    },
+    {
+      "path": "boards/amap_proxy.py",
+      "size": 3661,
+      "sha256": "e347cd6a7443d335d368551ca54cf9c5385182955c08ace9e2f8d5921201130d"
+    },
+    {
+      "path": "boards/apps.py",
+      "size": 366,
+      "sha256": "1c48e8bb3a00dcdbe44ac5903b878bce6e44463402c86f9fdd48ebfcca5823f4"
+    },
+    {
+      "path": "boards/board_index.py",
+      "size": 21154,
+      "sha256": "ff957f3b3d86a25d907479f4b381009e9a19ce2f7deb8a1ea82563857c931424"
+    },
+    {
+      "path": "boards/content_forms.py",
+      "size": 9976,
+      "sha256": "9125da602615b09d1f584176a84345276d432a4e5ebea858ed0442cfc30d32a1"
+    },
+    {
+      "path": "boards/content_views.py",
+      "size": 31311,
+      "sha256": "2ef0357d13db7e03cfea5c6d075ca0bd8b1342772d6fcea8b3da9ae2f152e361"
+    },
+    {
+      "path": "boards/dashboard_forms.py",
+      "size": 3082,
+      "sha256": "977a64ac641c94c8ba60104c53e234cbc0f500491952b3c066e93ab5c6e81cc7"
+    },
+    {
+      "path": "boards/dashboard_urls.py",
+      "size": 1431,
+      "sha256": "b2ce4ec1613c508d83ae262e1c3f7e6bec7a2747a8c5554ea6c80e2019be9d75"
+    },
+    {
+      "path": "boards/dashboard_views.py",
+      "size": 16670,
+      "sha256": "f5ebc6bd507434a8e6d2017851daaeda420fc50c5ad9a5047757f483c9ef40cc"
+    },
+    {
+      "path": "boards/data/apple_music_records.json",
+      "size": 7332,
+      "sha256": "a99f4cf671e3356c4963c617a2560a940a397016997ac42948e4cf570794a1af"
+    },
+    {
+      "path": "boards/data/spotify_records.json",
+      "size": 5167,
+      "sha256": "5d88cacd5f17e3da5deb396488fb0bd56d0852fc63fdb000fb88b87c7639c38a"
+    },
+    {
+      "path": "boards/forms.py",
+      "size": 2406,
+      "sha256": "4d12b1e54d6b2a56c2a8f26a80f94b217670358940cd6f06a97dcba673791089"
+    },
+    {
+      "path": "boards/guide/BOARD_INDEX_BACKEND_GUIDE.md",
+      "size": 9776,
+      "sha256": "3907db3d56bb3542049c549d372e6d8a74cee05950061133596c33f990875b74"
+    },
+    {
+      "path": "boards/guide/CODING_BACKEND_GUIDE.md",
+      "size": 4192,
+      "sha256": "800daec78bb500729ed3f8eed8ffa17fddd63fc87c654bae0f9d6635b7fc2d42"
+    },
+    {
+      "path": "boards/guide/MUSIC_BACKEND_GUIDE.md",
+      "size": 6646,
+      "sha256": "0713829a240149840d3e1a9cf69faca2dd09966486f56669074005c1251aa28d"
+    },
+    {
+      "path": "boards/guide/README.md",
+      "size": 1361,
+      "sha256": "d601bbd388f99ff186307af34ed63844b3a11c8aded677c4cc52a831e23a19b1"
+    },
+    {
+      "path": "boards/guide/SKATEBOARD_BACKEND_GUIDE.md",
+      "size": 6996,
+      "sha256": "675e4e99afe6e5e85aace9adc084ba7c72278f3ff18bb4a5197005ef67810d24"
+    },
+    {
+      "path": "boards/management/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "boards/management/commands/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "boards/management/commands/bootstrap_fresh_site.py",
+      "size": 3203,
+      "sha256": "869c5c35c07923a3a4bb1b6c487522f8da6475ade4e69abc70bdb7dcdc703a37"
+    },
+    {
+      "path": "boards/management/commands/import_apple_music_records.py",
+      "size": 1577,
+      "sha256": "c463cb03b54df8079cf535222ac51db225229c336e96f367a63615b891380ff0"
+    },
+    {
+      "path": "boards/management/commands/import_spotify_export.py",
+      "size": 7333,
+      "sha256": "404204feebf02bc157cc8fdb08b94a6d12290c64a787ecd276d8584d0d0f2856"
+    },
+    {
+      "path": "boards/management/commands/import_spotify_records.py",
+      "size": 1569,
+      "sha256": "6e3cd4b03b85284d5429e14c5864929a13b75f95b0b41f60202ae6c01def5ed9"
+    },
+    {
+      "path": "boards/management/commands/process_skate_clips.py",
+      "size": 6334,
+      "sha256": "5ceffe32bae65af47b4eefce70509ead73887ecdc5a0319fb04b11cdd2b60922"
+    },
+    {
+      "path": "boards/management/commands/seed_board_index.py",
+      "size": 14032,
+      "sha256": "6b5cf944faea9e2bb7c3090e217ceeaca93c212a685f301e6aaf4e3738d080f8"
+    },
+    {
+      "path": "boards/management/commands/seed_boards.py",
+      "size": 3196,
+      "sha256": "394878a81fa7abb886d15dd73b5d59b96d8c5b9ee2f134c9b625f31b2e70b870"
+    },
+    {
+      "path": "boards/management/commands/seed_permission_test_users.py",
+      "size": 3667,
+      "sha256": "52fda74106ed4a0fe66a7088caac241727221f71f8eaa0c878119864831c3419"
+    },
+    {
+      "path": "boards/management/commands/skate_media_gc.py",
+      "size": 17206,
+      "sha256": "5749bddb3d55d210166c84f5ba3e0e5b041e335f3e15ab8e77e4758748f2db06"
+    },
+    {
+      "path": "boards/membership_step_up.py",
+      "size": 4622,
+      "sha256": "c322cdae15b3e99f1af0d2910637f24688db68f8d3e69e110e62a58369dc212f"
+    },
+    {
+      "path": "boards/migrations/0001_initial.py",
+      "size": 3314,
+      "sha256": "993c9674444e1a11eb5a67fb13722dbea6bf2cb936e8935c71bf0757228233e6"
+    },
+    {
+      "path": "boards/migrations/0002_boardmembership.py",
+      "size": 3245,
+      "sha256": "8a54a46b75d24099f52f3e0bfee1a0c6ea2f001dc4b33c38f969d3bf2701fcc2"
+    },
+    {
+      "path": "boards/migrations/0003_alter_board_options.py",
+      "size": 506,
+      "sha256": "02cb604fe691406ff580137ed5f2dc4eb329f02d7646a646353a698e61b2e595"
+    },
+    {
+      "path": "boards/migrations/0004_boardaccessrequest.py",
+      "size": 2640,
+      "sha256": "52a29a1f3f710367ecb873a36e14700691a58ecf2c2af29597465e503b96ac9e"
+    },
+    {
+      "path": "boards/migrations/0005_board_index_content.py",
+      "size": 13225,
+      "sha256": "2df4dc7b394f6f13f61eedf8ef8d929717edd064c3e2873fc04d55c261a42e80"
+    },
+    {
+      "path": "boards/migrations/0006_musicentry_value2_note.py",
+      "size": 945,
+      "sha256": "afa9065630cd9a65e45ead18ab034e13b8113979cc7d291632ba9295b6283cd5"
+    },
+    {
+      "path": "boards/migrations/0007_alter_applesnapshot_board_and_more.py",
+      "size": 2774,
+      "sha256": "a38e387efe48ad06976f4b93050f737ba7ef28dc4dbefd96df81ae012520aa46"
+    },
+    {
+      "path": "boards/migrations/0008_merge_music_snapshot_entry.py",
+      "size": 10210,
+      "sha256": "b4beedeed5bd38021177ae4d0e9e2bf3edf6c53b56a0991af17cf5dd011f17a7"
+    },
+    {
+      "path": "boards/migrations/0009_remove_homie_is_active.py",
+      "size": 359,
+      "sha256": "d8da331c864f6f7cd5c3170a83facc9dd69f8b0b62caa5e2089a85b1432e901f"
+    },
+    {
+      "path": "boards/migrations/0010_add_homie_stance.py",
+      "size": 560,
+      "sha256": "988e66b34f7a27d5b0b126165a3750a62cd722a6e3b6fec16ae66931bb6d6219"
+    },
+    {
+      "path": "boards/migrations/0011_boardmembershipevent_and_membership_updated_at.py",
+      "size": 8485,
+      "sha256": "4c3e6927bcb472867352ccc08c03f410bccf3bba3760b39c8d38ca8d8109b718"
+    },
+    {
+      "path": "boards/migrations/0012_music_and_coding_index_contract.py",
+      "size": 4842,
+      "sha256": "f2538bd3fd2ab9339f04da1ef1a9a891d9605284dc1b1b976e2ba27a76859e8b"
+    },
+    {
+      "path": "boards/migrations/0013_skateclipmedia.py",
+      "size": 4540,
+      "sha256": "7e5ef8ec5b3d2015e56e55c6a5dc42db7b539efd119bfdce424d197dbe173b71"
+    },
+    {
+      "path": "boards/migrations/0014_skateclipmedia_claimed_at.py",
+      "size": 528,
+      "sha256": "98cd1fed5657fb400bca9e7bef2b4ebc33810cc2594db87b2d0ee3856ccb9ec1"
+    },
+    {
+      "path": "boards/migrations/0015_skateclipmedia_claim_generation_and_more.py",
+      "size": 872,
+      "sha256": "073446ad048d5d89b0e619fe19faee6013df1ccc8a6180da5e4eeb500a239803"
+    },
+    {
+      "path": "boards/migrations/0016_skateclip_location_and_format.py",
+      "size": 1709,
+      "sha256": "302fd4ef7b9c4f0d1bd6466a9a1f075bca33a393ca7cfc7de3a8aa41135303f0"
+    },
+    {
+      "path": "boards/migrations/0017_musicartist_applerecord_artist_spotifyrecord_artist_and_more.py",
+      "size": 4603,
+      "sha256": "f18753d83c169e9bb91b45b1f29fcb47517c3cee62efbf00259dfcdbddce1acb"
+    },
+    {
+      "path": "boards/migrations/0018_alter_music_record_label_length.py",
+      "size": 608,
+      "sha256": "83591b816d9dd639bfa68b056f5a74da789e3052b8c3b0d26bfe349de34672bf"
+    },
+    {
+      "path": "boards/migrations/0019_skateclip_submission_token.py",
+      "size": 631,
+      "sha256": "0b7c679729f4cbe41b6c9c2274eca431c8937c0139b29e6b9ef8d9984dcfb8e1"
+    },
+    {
+      "path": "boards/migrations/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "boards/models.py",
+      "size": 46610,
+      "sha256": "c126a172659e4b83f013aed1be5c9206b3889117e70138d0cff22dd4fd05b7f9"
+    },
+    {
+      "path": "boards/music_record_import.py",
+      "size": 5194,
+      "sha256": "48d9448def2d2b2ca9abf6757a9487b24aac5f51dfc5b132897859fb000ed1b8"
+    },
+    {
+      "path": "boards/policies.py",
+      "size": 14887,
+      "sha256": "4f0ec55ed57d082c43297aaa40cc0de2b15a7ff51e4f2670a498c28a2fd0ddeb"
+    },
+    {
+      "path": "boards/services.py",
+      "size": 31098,
+      "sha256": "11749aa4120048e787fa81e523901bb6060a234fa50431023e7c551b5d6f56f4"
+    },
+    {
+      "path": "boards/skate_media.py",
+      "size": 8403,
+      "sha256": "66e716b49b44b082bc48bfb3c5d4a4d7c4b51064e35e7f1b0853de642a38b4e5"
+    },
+    {
+      "path": "boards/skate_upload.py",
+      "size": 4424,
+      "sha256": "62593e5a3e4d145b1c68dad79a9598f3346a0df604efef85daf43edf1976c3b8"
+    },
+    {
+      "path": "boards/skate_worker.py",
+      "size": 19445,
+      "sha256": "258f25509d02f068774ce4f099f6d643b2342a5926ea7125f43fee4f21115c81"
+    },
+    {
+      "path": "boards/templates/admin/boards/boardmembership/break_glass_deactivate.html",
+      "size": 1469,
+      "sha256": "7a811cb72bea4760667a0d2d1234f9baa8ec8469f5db6c2f1feee8de06a83f39"
+    },
+    {
+      "path": "boards/templates/pages/boards/manage/coding/delete_confirm.html",
+      "size": 313,
+      "sha256": "a23cc7870452e29bf4f86dab9fc598c848db6e81bcaf4d4113c98a297ae5e15b"
+    },
+    {
+      "path": "boards/templates/pages/boards/manage/coding/form.html",
+      "size": 340,
+      "sha256": "d8e5685167713b5773dec93d8988204ef95cec70383d3c8e02dd86fe8f1c3870"
+    },
+    {
+      "path": "boards/templates/pages/boards/manage/coding/list.html",
+      "size": 618,
+      "sha256": "c801a17ee67c858ed6f5cc7a417565d79c01304f67f61732e6b3d3da1bdef523"
+    },
+    {
+      "path": "boards/templates/pages/boards/manage/music/delete_confirm.html",
+      "size": 317,
+      "sha256": "3629c3f92b9de49dfee59c9037dcb328ad25b7f407c0beeb58c788d1794c144b"
+    },
+    {
+      "path": "boards/templates/pages/boards/manage/music/form.html",
+      "size": 357,
+      "sha256": "57f0a7d0b0f7eabd12a0d753274750ef1c138091e247b0f25c2de303a529fde8"
+    },
+    {
+      "path": "boards/templates/pages/boards/manage/music/list.html",
+      "size": 725,
+      "sha256": "27fc3678cbc00c029dac0f52a5cdf0ff50fc7d3fce1134776708693c5ffba4d6"
+    },
+    {
+      "path": "boards/templates/pages/coding/padif_local.html",
+      "size": 382,
+      "sha256": "d8ca906496764b972e0ff088d54367f7cf03f1a2537909fcef62774be2685fd1"
+    },
+    {
+      "path": "boards/templates/widgets/board_image_drop.html",
+      "size": 1300,
+      "sha256": "520f17b27d07cd4c025afcd0fc81d1d83955adf0c07ff619ae8757185ee1045c"
+    },
+    {
+      "path": "boards/tests/__init__.py",
+      "size": 41,
+      "sha256": "84b80d8835c1f9262922e653e7c8ef9e5a15fe806b802eebfde75c3dfc99034c"
+    },
+    {
+      "path": "boards/tests/test_access_requests.py",
+      "size": 33017,
+      "sha256": "725353519f55fb3d22e85a59667b26a32f4efc373521132e87599e1ce7fc941e"
+    },
+    {
+      "path": "boards/tests/test_access_rules.py",
+      "size": 3994,
+      "sha256": "99c0b7f70d495469bab6b82034aa858d81832739d9c1dfc1d623c03abe79ebfc"
+    },
+    {
+      "path": "boards/tests/test_admin_scope.py",
+      "size": 13826,
+      "sha256": "1b5c19a7453bf4c7c933d8b5de638e3bba728a20513424b5778602d1fbdcc95d"
+    },
+    {
+      "path": "boards/tests/test_amap_proxy.py",
+      "size": 6240,
+      "sha256": "ecaeb161d2efe78fcf090e8776917f65b8eb32d3d2978ab13743eb1ccb143e99"
+    },
+    {
+      "path": "boards/tests/test_board_content_management.py",
+      "size": 20601,
+      "sha256": "4ffe0e790ed15c23d6c43410c5f26d4ae9dbfc1922327b64d98ec7c783bec4a2"
+    },
+    {
+      "path": "boards/tests/test_board_index_admin.py",
+      "size": 710,
+      "sha256": "1f962b4763df3971580f818032fbbbfbe2ddef1a1be91f4fc8b6d898fce6bb6b"
+    },
+    {
+      "path": "boards/tests/test_board_index_models.py",
+      "size": 8190,
+      "sha256": "e08bda6179c15c220460faad7105ad5764b90331abaf98fad1bcc77ce6be3d94"
+    },
+    {
+      "path": "boards/tests/test_board_index_views.py",
+      "size": 21416,
+      "sha256": "b8a8d9dda2c3f3f25d913cadf27bbdab8301db66fc81b2fc600d98045a518b8a"
+    },
+    {
+      "path": "boards/tests/test_bootstrap_fresh_site.py",
+      "size": 2375,
+      "sha256": "20f1a56edffcf183ce44e7e6df775cb664aed8b2e59627fb7174c52d82a7d018"
+    },
+    {
+      "path": "boards/tests/test_dashboard_memberships.py",
+      "size": 20950,
+      "sha256": "b74382127dfe11224171d46e6521877b01a0bac80746cb2c73b2206fb13a991a"
+    },
+    {
+      "path": "boards/tests/test_membership.py",
+      "size": 8853,
+      "sha256": "77556fe6c942970d8f8bcbd8266c401f27bf3e69252b41fd29da211a67c28264"
+    },
+    {
+      "path": "boards/tests/test_membership_break_glass.py",
+      "size": 8097,
+      "sha256": "03edf3fcfbbc5a2e1e021903e90e868ebfd4b74833c7507d7b164b65f9a7294a"
+    },
+    {
+      "path": "boards/tests/test_membership_concurrency.py",
+      "size": 3882,
+      "sha256": "1573d6e8c60c718b86f6844dab3c5ae6dbf9bf30f4bf173d3d26a23463c8292f"
+    },
+    {
+      "path": "boards/tests/test_music_record_migration.py",
+      "size": 4406,
+      "sha256": "e6913faaf6ac09790294a7ef4eeb995879e5b7a76ebed8a64f7fad6d3522525c"
+    },
+    {
+      "path": "boards/tests/test_policies.py",
+      "size": 7874,
+      "sha256": "61d1fe74d2acaf9a0ceaeaa9ce8c9a383e8830e2de5b29f021ad32bdbabc6650"
+    },
+    {
+      "path": "boards/tests/test_seed_permission_test_users.py",
+      "size": 4148,
+      "sha256": "129d73f8067a23c84a5ea79bb08330fe95fef8ebcb4818846db71074d51c7645"
+    },
+    {
+      "path": "boards/tests/test_skate_clip_media.py",
+      "size": 9774,
+      "sha256": "90ae88734d0439734aeb026bb5d1221106c22e9f47ea79da38bfb20d088aeceb"
+    },
+    {
+      "path": "boards/tests/test_skate_experience.py",
+      "size": 11239,
+      "sha256": "c3d491c4a3f896907854dd0dcb850b9725984307a9f136108f772c1c54ae5268"
+    },
+    {
+      "path": "boards/tests/test_skate_gc.py",
+      "size": 14971,
+      "sha256": "359962b8ceb506d1e21b1dc12372814cdb33a38806bd9e6ef6219a96878b4b37"
+    },
+    {
+      "path": "boards/tests/test_skate_presentation.py",
+      "size": 10448,
+      "sha256": "3e4d04fb73965256ebb230329e6cb24eef71823e7d6a89c76bfbc8753763f623"
+    },
+    {
+      "path": "boards/tests/test_skate_upload.py",
+      "size": 20075,
+      "sha256": "a3715baa3854ea4eb9e4dd507c938b507bd5308105e9437401dbeae8d41abb5c"
+    },
+    {
+      "path": "boards/tests/test_skate_worker.py",
+      "size": 18447,
+      "sha256": "5f772de259b014dd551a5bf8071d51056251d8f1df1a7a24e433a799a3f90eb5"
+    },
+    {
+      "path": "boards/tests/test_spotify_import.py",
+      "size": 4098,
+      "sha256": "7a55008aff295ea759e0cef68f778d38c15b57056469bef156fbf9177fc9a417"
+    },
+    {
+      "path": "boards/tests/test_spotify_records_import.py",
+      "size": 6465,
+      "sha256": "33c67d32eadb13a40d8e1786b8d3998b5618551cf041c6f51555cee09f841f2f"
+    },
+    {
+      "path": "boards/tests/test_stage5_runtime.py",
+      "size": 23316,
+      "sha256": "a5beb34ca562d0aeff9e5dba9519232ae8124938a82d1bd6619f34d1a17ab855"
+    },
+    {
+      "path": "boards/urls.py",
+      "size": 5651,
+      "sha256": "a13395876187c585d474107243b00fd82651ca6ff0ac422e65332ee1575757d9"
+    },
+    {
+      "path": "boards/views.py",
+      "size": 19913,
+      "sha256": "259fd7b0e676869391c7fa9ba1f10a9a7295dc155efb1308bcd28325db83abd6"
+    },
+    {
+      "path": "comment/DEVELOPMENT.md",
+      "size": 11467,
+      "sha256": "6ebc4a05e6a99734b75f7f7c5481483f3cd80480a2b632be5c9146f793bf7158"
+    },
+    {
+      "path": "comment/LOGGUIDE.md",
+      "size": 6813,
+      "sha256": "7f358c13b751bf3fbf63288c658de11f0574c415a542fe174fc18f84aa54c906"
+    },
+    {
+      "path": "comment/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "comment/admin.py",
+      "size": 6268,
+      "sha256": "52638cbfec17fb14be7e6cb92350b871e19e977088822474213a50e1f1e554df"
+    },
+    {
+      "path": "comment/apps.py",
+      "size": 152,
+      "sha256": "d7577e836320b41973f5e9fbcf06c9d94ef72865ed53a5f6066c5ce6e343125e"
+    },
+    {
+      "path": "comment/form.py",
+      "size": 924,
+      "sha256": "456fd0672842225f2e7ce9973c341d3e51490b84da8c91745ac96cea906c933c"
+    },
+    {
+      "path": "comment/management/commands/purge_old_comment_logs.py",
+      "size": 528,
+      "sha256": "f5ef3b9ce2886ec15fd77a4e96dc9c937ae726fffea1c1a63a1f71df2997c059"
+    },
+    {
+      "path": "comment/middleware.py",
+      "size": 2070,
+      "sha256": "dc4d108fd5ef37ffca68c2dec4fc8832e2413ca16e0fcbbad9099cf8d20f8bee"
+    },
+    {
+      "path": "comment/migrations/0001_initial.py",
+      "size": 2994,
+      "sha256": "de3535c778431060148e0c9d17f098b13341c3c1d88c58b5ae1fa3d0afc48a44"
+    },
+    {
+      "path": "comment/migrations/0002_remove_comment_image_alter_comment_nickname_and_more.py",
+      "size": 965,
+      "sha256": "591cbc90e2838891c71672f6287dd561159290fb43a3f70a41cac6765db2b5a9"
+    },
+    {
+      "path": "comment/migrations/0003_comment_user.py",
+      "size": 1254,
+      "sha256": "96d4f57cdecd1a58f32fe5a1f7908306ff9913369a0547e05e69c8e25c59c7cd"
+    },
+    {
+      "path": "comment/migrations/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "comment/models.py",
+      "size": 2667,
+      "sha256": "c812fa95061de7d56f820c1369b4cac329388fafb1906824a63ec16cade9b5d8"
+    },
+    {
+      "path": "comment/templatetags/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "comment/templatetags/comment_block.py",
+      "size": 1473,
+      "sha256": "5bf691fca81e3a7b053812fdbaea9aa65967b86a65d817fe57e40027ee3df59a"
+    },
+    {
+      "path": "comment/tests.py",
+      "size": 5994,
+      "sha256": "dc85719579361662de6838bfe228fbf0a22cba4eb907a90ffb92a1010772fa0a"
+    },
+    {
+      "path": "comment/views.py",
+      "size": 7624,
+      "sha256": "8984f847355670274dd52f18fce2a2b0425276fb474d5f2c10e2f985259613e3"
+    },
+    {
+      "path": "compose.production.yml",
+      "size": 8580,
+      "sha256": "030974975a42cb9c3383ef5376c04c15c8c1acf2e6d0a0ebea8fddfaa0dd1580"
+    },
+    {
+      "path": "config/DEVELOPMENT.md",
+      "size": 11331,
+      "sha256": "d3f27bcd5c92ace331c642668f7ca1ac783b84e517ebff9e5e390b8398242c91"
+    },
+    {
+      "path": "config/LOGGUIDE.md",
+      "size": 4076,
+      "sha256": "9e2b53cf48123e6f92905adf7f4c38c04eb06de13fd7330fd87e4e3b87bda082"
+    },
+    {
+      "path": "config/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "config/admin.py",
+      "size": 4097,
+      "sha256": "695d1a5880afe1915153d2f242583e1562dfc4d5b6a88a21a17195790fa39654"
+    },
+    {
+      "path": "config/apps.py",
+      "size": 150,
+      "sha256": "b53f48ee2e43fc5251ae35e5f7dc18af68f9d09aab6df2fce9423fedd06624ce"
+    },
+    {
+      "path": "config/context_processors.py",
+      "size": 476,
+      "sha256": "7661eeadb5713238aa625fa31caa6285b658c9933c72f5c68a29b6315b92d787"
+    },
+    {
+      "path": "config/data/public_changelog.json",
+      "size": 3378,
+      "sha256": "19367f184ac34c8abf8826566db3acc732b21758c78c67a96eab91cb4ebeb649"
+    },
+    {
+      "path": "config/forms.py",
+      "size": 1091,
+      "sha256": "67b1202de30856944478751952b61424d41ce5996a8f9a8b27b1a1841d23edcb"
+    },
+    {
+      "path": "config/migrations/0001_initial.py",
+      "size": 4426,
+      "sha256": "63b3c6ccb77b595c7187cb8fa20cd4a4e2b76960bbb4da327d9d1ad71f18ab32"
+    },
+    {
+      "path": "config/migrations/0002_contentreport.py",
+      "size": 4531,
+      "sha256": "bf7ec0c211a9ff71a8530698aa77bac494c51a0ec87620ed166bf83dce5c32b8"
+    },
+    {
+      "path": "config/migrations/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "config/models.py",
+      "size": 5964,
+      "sha256": "11a20c20bc49970e3ab4bfffdc377db93b5963d170f57f777cf9b7278a92d84a"
+    },
+    {
+      "path": "config/policies.py",
+      "size": 576,
+      "sha256": "b1187b4e1c17948ff00711e4fc96a576569210f49f2395ec6c1a66d6f0355327"
+    },
+    {
+      "path": "config/public_changelog.py",
+      "size": 4094,
+      "sha256": "2bd72e5ce2d467935d297461fc5ac3511ffb7b2648121d280e7be3486e482d35"
+    },
+    {
+      "path": "config/services.py",
+      "size": 2311,
+      "sha256": "d5da38963cb7dc4598590819f97ebff14ada10df8495b939e19cd9000677f57c"
+    },
+    {
+      "path": "config/tests.py",
+      "size": 11834,
+      "sha256": "d43ae204b5a403303e8b3de866c06ed87e9ca6dec671ca99136eafcee93345dc"
+    },
+    {
+      "path": "config/tests_content_reports.py",
+      "size": 4854,
+      "sha256": "692da258c116f2c490791ef9710f0df79465444e0fb93c490297e5b8b2714637"
+    },
+    {
+      "path": "config/tests_log_retention.py",
+      "size": 996,
+      "sha256": "d64fef91ed08ac24f89aaa2937735e24cff49a434b5a7594b3ce1f0b14916d49"
+    },
+    {
+      "path": "config/views.py",
+      "size": 9955,
+      "sha256": "9b81284842d5e25a87d6cf9c7fdabc86b933a2ccc7eb8e2c3a3be5399bdd23e0"
+    },
+    {
+      "path": "deploy/docker/app-entrypoint.sh",
+      "size": 997,
+      "sha256": "27feb9d2cd91797fe164a3a73e7c4c01fbbe32df18822881347d98cf4f374a07"
+    },
+    {
+      "path": "deploy/docker/worker-loop.sh",
+      "size": 469,
+      "sha256": "51f8a95775c8a825fbdf422b98d756a90db69f9e75cfc50ee9169c4ea37c41b9"
+    },
+    {
+      "path": "deploy/logrotate/poweradapter-application",
+      "size": 133,
+      "sha256": "8757e57a3b0b0859bd757a9f626550bedf40695d9d62b4734aa27a3dc9ef206a"
+    },
+    {
+      "path": "deploy/logrotate/poweradapter-nginx",
+      "size": 277,
+      "sha256": "1b875b19326d588391a7ea770d8114caf349c66828d14c168613d1388561526d"
+    },
+    {
+      "path": "deploy/manifest.py",
+      "size": 6505,
+      "sha256": "07f189b97d3633d9dfc6519a1c6e61af7aecc037f163bc72e6e985e71575f093"
+    },
+    {
+      "path": "deploy/mongo/Dockerfile",
+      "size": 413,
+      "sha256": "6ffef427e9e5ff7934fcade7cdde538628f0b71318ec263a3202b0b519ffaf13"
+    },
+    {
+      "path": "deploy/mongo/entrypoint-wrapper.sh",
+      "size": 153,
+      "sha256": "bc400eb8a6afc96366281c60dc9c5bbc12f6c0aae3ea41abcef79dfcd214df0e"
+    },
+    {
+      "path": "deploy/mongo/init-app-user.js",
+      "size": 2880,
+      "sha256": "38d600e77ceabbc4ffef7e049843a96d88aeb58c2e8bf898d2a5f976cc9d3dee"
+    },
+    {
+      "path": "deploy/nginx/check_mtls_edge.sh",
+      "size": 626,
+      "sha256": "81cdbaebb8aee7b84709f457c1eb9febc1922c919390b5acdbdbe6f41ebffa46"
+    },
+    {
+      "path": "deploy/nginx/poweradapter.conf.example",
+      "size": 3087,
+      "sha256": "2b6d131406560c46e309ca34d7b550ccc15dadfb934b8f1924c85d8aece46a57"
+    },
+    {
+      "path": "deploy/nginx/skate_media.conf.example",
+      "size": 2545,
+      "sha256": "421d7831780bc377c7b7967deb25a45c93ce81a6ba67591b3262568fa2bd6d0d"
+    },
+    {
+      "path": "deploy/nginx/super_admin_mtls.conf.example",
+      "size": 2241,
+      "sha256": "59bfc814154e0dc95e07a230162474ab367b898b93d20947efcb1dd0e1944191"
+    },
+    {
+      "path": "deploy/systemd/poweradapter-agent-cleanup.service",
+      "size": 308,
+      "sha256": "fb9983fec2073c33675dd7ec2a15adfbe7bc4693d5f3a7a9e34a38ebd42a7704"
+    },
+    {
+      "path": "deploy/systemd/poweradapter-agent-cleanup.timer",
+      "size": 210,
+      "sha256": "171dac04603f98134e8b835eb8b4d749762eb8ab64cd24f2502c6a992bb36c09"
+    },
+    {
+      "path": "manage.py",
+      "size": 788,
+      "sha256": "2d048d4374ff897fefbe0244d55d03bd172ae26960fff73f8c5666a25f2ac573"
+    },
+    {
+      "path": "moderation/__init__.py",
+      "size": 2,
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "moderation/apps.py",
+      "size": 193,
+      "sha256": "ae8bbb0ef1afeff3c528b16f8d6c0455f5b73c7b40ccb2624a6ebe97fc0d9eb1"
+    },
+    {
+      "path": "moderation/policies.py",
+      "size": 821,
+      "sha256": "d29873322ae490552c9328d969a20328822a1535599b62b98cadd41a0848253a"
+    },
+    {
+      "path": "moderation/tests.py",
+      "size": 5265,
+      "sha256": "8627ae64f2031e5b5968e1246304095e4a5827f439afd639696e177e8d6800bb"
+    },
+    {
+      "path": "moderation/urls.py",
+      "size": 496,
+      "sha256": "5ae9d8dc686ca506c4bcbb182fe96abb8f16a35184dcc90961d67fda3f134495"
+    },
+    {
+      "path": "moderation/views.py",
+      "size": 9431,
+      "sha256": "d424fe6445c4c46b05a1ce1478cd8915069d337b313a965cbcfe277b60ba9294"
+    },
+    {
+      "path": "operations/__init__.py",
+      "size": 2,
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "operations/apps.py",
+      "size": 193,
+      "sha256": "67fe09ffc29ba08df1ecf90f1bda0a05ec515d2fddeac73fe1a6561d53e5437b"
+    },
+    {
+      "path": "operations/context_processors.py",
+      "size": 221,
+      "sha256": "8e20dc58be1ef63f76c3b890c1670e43ab6f083e01d4a619a52f5ff1f5f5876a"
+    },
+    {
+      "path": "operations/policies.py",
+      "size": 559,
+      "sha256": "2fb91a914814656a745fc14e394ad89fa76dfb800a9db7eae70c2b59ff4ac9d6"
+    },
+    {
+      "path": "operations/tests.py",
+      "size": 3848,
+      "sha256": "71d4fca3e66ff66372074709be349bacb7ec6d18a44d304809364533d9792a61"
+    },
+    {
+      "path": "operations/urls.py",
+      "size": 199,
+      "sha256": "6a60778fa17d7f350236665f340b034ecb9d471ac9864a3c3778e2cf40e3d34e"
+    },
+    {
+      "path": "operations/views.py",
+      "size": 4077,
+      "sha256": "8e17136ed6f3adae7b29dec8fd4e0a5b56be2449956026c8ebf6781e9c33d1b9"
+    },
+    {
+      "path": "padif/__init__.py",
+      "size": 66,
+      "sha256": "7ac03644b946cf3be34a6628cf60da815e199013cbeee344af607ee017db4d48"
+    },
+    {
+      "path": "padif/admin.py",
+      "size": 1360,
+      "sha256": "392cdef564f8bad24fdcd0c3035ac6588d86d2545bbe47f4c462b57bfb70d379"
+    },
+    {
+      "path": "padif/api.py",
+      "size": 15644,
+      "sha256": "1f78638ac34d9488101085a10231b5ef3c6283ac24ed64df05cff309f1d7e1f2"
+    },
+    {
+      "path": "padif/apps.py",
+      "size": 182,
+      "sha256": "45039a6cc73b6249d0fcf32f914ebbd518195f7f8d520e63677f85ee59ed9749"
+    },
+    {
+      "path": "padif/core/__init__.py",
+      "size": 48,
+      "sha256": "ee49fcf096f564cce47592b23bfe4ea5d1bcb2b8c0760cac6eaa9c3aa0b4a552"
+    },
+    {
+      "path": "padif/core/differ.py",
+      "size": 9696,
+      "sha256": "a1e21d0cd017c7e6bee26a4a76a5846d9aa3909b1a2f81d3f9130a60ece8835b"
+    },
+    {
+      "path": "padif/core/versioning.py",
+      "size": 1929,
+      "sha256": "256706a06b584896ebbf8c640458301d9533c7098c032845ed194d9874e4eef6"
+    },
+    {
+      "path": "padif/forms.py",
+      "size": 3746,
+      "sha256": "6366a61ef530899ae4a3f5f013b3ca39af3a5298e7b114edf667f2ee48c14b0e"
+    },
+    {
+      "path": "padif/management/__init__.py",
+      "size": 33,
+      "sha256": "549d31d7868544f7246c90eaf04ab73f583385c2783b1ba9baf33f6e73dc6d53"
+    },
+    {
+      "path": "padif/management/commands/__init__.py",
+      "size": 29,
+      "sha256": "c42bea5167d348163ba4921526fffb774922d9805df64d08f02e090c07d5b687"
+    },
+    {
+      "path": "padif/management/commands/bootstrap_padif_access.py",
+      "size": 1692,
+      "sha256": "37169e5eebc331ef2da4a2a6d4f120ebd5d304e09b6aeb4f1c82102e4f2f9649"
+    },
+    {
+      "path": "padif/migrations/0001_initial.py",
+      "size": 3397,
+      "sha256": "04be39c52bb75a17960b1a1fff39c441754c9c24ecb76208ea4d60564e01e70e"
+    },
+    {
+      "path": "padif/migrations/0002_annotation.py",
+      "size": 1978,
+      "sha256": "5d738b3d443c1611a23f3b05a81462a862c3717b1a4a192f43adf9a4fe552c71"
+    },
+    {
+      "path": "padif/migrations/0003_annotation_resolution_note_annotation_resolved_at_and_more.py",
+      "size": 1373,
+      "sha256": "3b18b142966af8b43643b86397e23870b5056575a093530de239d4e6ace08dc5"
+    },
+    {
+      "path": "padif/migrations/0004_annotationreply.py",
+      "size": 1368,
+      "sha256": "a5e2971d1985fcc55cc51503a0d31cc70ebf59b770e08ab5a05489ce8572a588"
+    },
+    {
+      "path": "padif/migrations/__init__.py",
+      "size": 33,
+      "sha256": "4a6e8c866f4a34cfce02671ff5e4324ad79a27b1b1515891adcf4e918ef0942c"
+    },
+    {
+      "path": "padif/models.py",
+      "size": 5320,
+      "sha256": "0c4a43ed6baa0b4af4eb6c04786afb1de034925d6c19c900e576a37db97de722"
+    },
+    {
+      "path": "padif/permissions.py",
+      "size": 437,
+      "sha256": "ad891be8b4ff664124f4f77a24882dfaab01bd253aa9ece512253717a3f0ef23"
+    },
+    {
+      "path": "padif/services.py",
+      "size": 3455,
+      "sha256": "361ecf4fafce1b015bc93d028363d1cb045d8de1de01863f23de8797367d49c4"
+    },
+    {
+      "path": "padif/static/padif/htmx.min.js",
+      "size": 48101,
+      "sha256": "449317ade7881e949510db614991e195c3a099c4c791c24dacec55f9f4a2a452"
+    },
+    {
+      "path": "padif/static/padif/padif.css",
+      "size": 22879,
+      "sha256": "386c11013159ca9d6b09d45a3e471daa99197157f22c91816bc6d42fd01cbc45"
+    },
+    {
+      "path": "padif/static/padif/padif.js",
+      "size": 2662,
+      "sha256": "96b2d7e92cd8730500082acfc38b8cf3a06a7c42cb3af94b80d4d18dcd213463"
+    },
+    {
+      "path": "padif/templates/padif/_dropzone.html",
+      "size": 781,
+      "sha256": "bd31c8eb797080ce0e606be64562861f4289a1d5119ae5443081f76c2d5fca22"
+    },
+    {
+      "path": "padif/templates/padif/base.html",
+      "size": 1060,
+      "sha256": "285e5479ed27206bb234b7383ac42435d59a718ba547661e7f6fbe7a29815daf"
+    },
+    {
+      "path": "padif/templates/padif/diff_errors.html",
+      "size": 113,
+      "sha256": "0d278da64311b854ed974d34011fbad5be5cd19f7ed89fa489f59d69bbbe65ed"
+    },
+    {
+      "path": "padif/templates/padif/diff_fragment.html",
+      "size": 2125,
+      "sha256": "710061c347372f43b3e99ed6d12c98548290bd763f4fbfd21c1c0da13a6dc2f2"
+    },
+    {
+      "path": "padif/templates/padif/document_detail.html",
+      "size": 24039,
+      "sha256": "6e115e86b9c963bd7605cf09d47f1f3b98eb3fcb243c830921573da74bc8d727"
+    },
+    {
+      "path": "padif/templates/padif/sidebar.html",
+      "size": 1298,
+      "sha256": "3a7f166c42b34f5d38cc6f02d9d44d266a4cb531e6c87050c8714148c53e8e2b"
+    },
+    {
+      "path": "padif/templates/padif/workspace.html",
+      "size": 482,
+      "sha256": "828ef4f5c1b9af2d6e813ce7832948453f9beb45e6dda9add3cfa62f7401998f"
+    },
+    {
+      "path": "padif/tests/__init__.py",
+      "size": 30,
+      "sha256": "688868cfcbfc8be16edd281247fd8b6bf5e4186af8191f6d9ce0101c3d92794c"
+    },
+    {
+      "path": "padif/tests/test_access_and_workflow.py",
+      "size": 9331,
+      "sha256": "abc573d9df81ddc3a8559bdecbdcb9237e680c17395c0963505d49ce4a6b1f6f"
+    },
+    {
+      "path": "padif/urls.py",
+      "size": 1752,
+      "sha256": "223ab7a01c86599bc7e1900f1066d8ef0699f0f9cdb5c5861ad51b728459b1ea"
+    },
+    {
+      "path": "padif/views.py",
+      "size": 10936,
+      "sha256": "8f44b45f83674fa1321030c1b6855185825147192a6d2a1d50495040156b68b9"
+    },
+    {
+      "path": "requirements.txt",
+      "size": 662,
+      "sha256": "5dedf1966ee6d461f7cf4c18f40ddcbb66f3df53ee34bd283f33ff8fb68b992f"
+    },
+    {
+      "path": "security/DEVELOPMENT.md",
+      "size": 7168,
+      "sha256": "dab114dfc2969a600cdd5568ca0fd010b7135c74ce373fbbe412647342b45b58"
+    },
+    {
+      "path": "security/LOGGUIDE.md",
+      "size": 3547,
+      "sha256": "46f1c8a5fd00c3f87d2f589f2c19d27a979422fea123c50e9309b7d95ea3aff2"
+    },
+    {
+      "path": "security/THREAT_MODEL.md",
+      "size": 3343,
+      "sha256": "372c392902adef8199df2e7810e40e98c188a2b76c3b61546325b6a4ad161c05"
+    },
+    {
+      "path": "security/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "security/admin.py",
+      "size": 3133,
+      "sha256": "38c9c0b2955440eac5397b7d2ff92d46895e986ad8f29e95bebd742aeb15c463"
+    },
+    {
+      "path": "security/admin_audit.py",
+      "size": 3106,
+      "sha256": "72218dd9978cfc2399c59dcad18d529305f633bca663ba6aec9b1e78daeccc16"
+    },
+    {
+      "path": "security/apps.py",
+      "size": 342,
+      "sha256": "87a79ed40461e5bc4fba4acc0cb9d2bc3b34df49bb090fa474de39974b5d5259"
+    },
+    {
+      "path": "security/audit.py",
+      "size": 10597,
+      "sha256": "dd31185686b580af8d0c94eb317a2a8b17eb4996fbf383823dcdfa2c6325be61"
+    },
+    {
+      "path": "security/management/commands/audit_log_integrity.py",
+      "size": 5458,
+      "sha256": "9655df59e028221eae161841b48505969f0158330b3bb9c7856f537a202af927"
+    },
+    {
+      "path": "security/management/commands/audit_outbox_health.py",
+      "size": 966,
+      "sha256": "bac317b6d0eed14d75f9e47f7a4ce9e7ba5b67d41c4b95d5fe13985adede77bc"
+    },
+    {
+      "path": "security/management/commands/check_mongo_audit_deployment.py",
+      "size": 1225,
+      "sha256": "e3f25c1110cf6b3d22991db669b3e9634a4e129338381904fe75059a78b3b97e"
+    },
+    {
+      "path": "security/management/commands/export_audit_checkpoint.py",
+      "size": 1300,
+      "sha256": "7f5442a6248ec29c9c119a4e6b7af50e3891f3132cbc0635383c841e952aee8b"
+    },
+    {
+      "path": "security/management/commands/init_log_hmac.py",
+      "size": 1664,
+      "sha256": "286d79bfced99ec630e2657c4ef94501a07d1c00b28c10cc5a32144e2fba387b"
+    },
+    {
+      "path": "security/management/commands/init_mongo_audit.py",
+      "size": 572,
+      "sha256": "75158f7dcff80857ec05456bff8a3f822d4c0157d59d2c0e5205c81ffc821828"
+    },
+    {
+      "path": "security/management/commands/process_audit_outbox.py",
+      "size": 1195,
+      "sha256": "e15ec576dc9da245d8ea9d6b398a9d47596e0ea411dd704e858559669c07dfc0"
+    },
+    {
+      "path": "security/management/commands/reconcile_audit_outbox.py",
+      "size": 1120,
+      "sha256": "621ba8b24c7f3e7ecc5ca464936b49171317832af4b83dd456ee54562c259176"
+    },
+    {
+      "path": "security/middleware/__init__.py",
+      "size": 274,
+      "sha256": "187afcaa0e0efdf03cf4c2831505f23038ab42d989eb78eeef9d6a2db9c03ef0"
+    },
+    {
+      "path": "security/migrations/0001_initial.py",
+      "size": 1762,
+      "sha256": "a6a094abf4f3dc6d1591de693f9d89a8ab620fd0466b822e850ac0386e2858f2"
+    },
+    {
+      "path": "security/migrations/0002_commenteventlog.py",
+      "size": 3676,
+      "sha256": "a97621378f9097cb89c748cd4a957adf3f5632c72862c2eacf3fac7ce1bcb130"
+    },
+    {
+      "path": "security/migrations/0003_delete_commenteventlog.py",
+      "size": 265,
+      "sha256": "b7e457b0fa9e395f894f9f1628c304601f8240237e27684451c84d559b5aa4ae"
+    },
+    {
+      "path": "security/migrations/0004_alter_securelogentry_options.py",
+      "size": 569,
+      "sha256": "1423a4d4488a87c8fd5360909598ae770b82c2e786ca80270ac8f9b43d152c2c"
+    },
+    {
+      "path": "security/migrations/0005_audit_outbox_checkpoint_and_runs.py",
+      "size": 5621,
+      "sha256": "f6c4f58129b8c8f2dd143309a26bff30768e9615c780c738e92041cc697d2a40"
+    },
+    {
+      "path": "security/migrations/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "security/models.py",
+      "size": 11904,
+      "sha256": "cd26390c1b7c643f086d1785ae8fd11178c585877ad9718d68fded678a8e9c65"
+    },
+    {
+      "path": "security/mongo_client.py",
+      "size": 9846,
+      "sha256": "af8cf5249ad32ba63175762ac55a0231ee2b1da156df5c87c7d19ad9af3700ce"
+    },
+    {
+      "path": "security/mongo_models/__init__.py",
+      "size": 274,
+      "sha256": "187afcaa0e0efdf03cf4c2831505f23038ab42d989eb78eeef9d6a2db9c03ef0"
+    },
+    {
+      "path": "security/mongo_models/cel_model.py",
+      "size": 1602,
+      "sha256": "7f389161b11354ff0e18e54943889e2c41d432c587276cedaff6e6377b99ecd9"
+    },
+    {
+      "path": "security/outbox.py",
+      "size": 11429,
+      "sha256": "af381d8ab0053d7510162bbb1021b2e3ccfc675630bd95ddb4cf8e4f61dffb4b"
+    },
+    {
+      "path": "security/queries.py",
+      "size": 4196,
+      "sha256": "05caf43ebd0fd35152527d768d8dbc2c0cc4bdfac47648f9121bc049d80e7a0a"
+    },
+    {
+      "path": "security/sec_utils/__init__.py",
+      "size": 269,
+      "sha256": "3d50a61e38c6c20378a8953394a77d83b199b5af7b0b871b295fcd2a27a9c386"
+    },
+    {
+      "path": "security/sec_utils/hmac_utils.py",
+      "size": 1368,
+      "sha256": "c118a2c2d5e8ffdd026c0cb96db2448b9e3895db2859bb052da3f3d27ccd9d70"
+    },
+    {
+      "path": "security/services.py",
+      "size": 4485,
+      "sha256": "27d29c699d75da8aca7b8bac1c60d79e894bf1f0b519b89bc02a06110b4efffa"
+    },
+    {
+      "path": "security/signals.py",
+      "size": 3573,
+      "sha256": "fc8a43423f866efdb9e013070fb72a3827487399674fed7549e4a6154df81f21"
+    },
+    {
+      "path": "security/test/__init__.py",
+      "size": 274,
+      "sha256": "04b0f70578d395e8af935dd182303b11e448b763a7bd9e1245ecd68934ad9eec"
+    },
+    {
+      "path": "security/test/t_urls.py",
+      "size": 784,
+      "sha256": "da806f4ccdf97627471653b00f6a75a5722db656c600ed2316db053723416bff"
+    },
+    {
+      "path": "security/test/test_audit_pipeline.py",
+      "size": 12617,
+      "sha256": "e5fe5c05b0ef2aafb2ab7cefeaef7e98a5e99757899663854977d270848d60e9"
+    },
+    {
+      "path": "security/test/test_log_integrity.py",
+      "size": 4049,
+      "sha256": "5720a69e1d1e40c1230f0c6e0c029dd1c620f98da79490099362bea18415bdfb"
+    },
+    {
+      "path": "security/test/test_log_protection.py",
+      "size": 1433,
+      "sha256": "64c9e9221536e25f69870348626ffbc510ebd49cd66ba6b0233e3c07b6d7d1a2"
+    },
+    {
+      "path": "security/test/test_middleware.py",
+      "size": 1643,
+      "sha256": "1442de41bc49e9d5095a6286907ad3ff8be4a613dea30458f540f6b523109a19"
+    },
+    {
+      "path": "security/test/test_mongo_verify.py",
+      "size": 1128,
+      "sha256": "e6e3c10cce31b9761edd8485e2bb8a24efa39de12159e42964249d45c0271f58"
+    },
+    {
+      "path": "security/urls.py",
+      "size": 582,
+      "sha256": "38537bd48b077e79f9a474664631b4051fd56fbe189e00b9f05bc6e6628fcca8"
+    },
+    {
+      "path": "security/views.py",
+      "size": 4146,
+      "sha256": "fbc64f25edeca26eb71094ae0bb0a9f5e0ba0f306da4d20642414cf70b6c77a6"
+    },
+    {
+      "path": "static/css/base.css",
+      "size": 764,
+      "sha256": "aef456044dffe823d02c8cde0909e683c33b04e429ba4c11fbc2cf7409d11575"
+    },
+    {
+      "path": "static/css/blog_form_cover.css",
+      "size": 926,
+      "sha256": "8955a0f978ec82e33fd4c5e003639a9b542470b3c62358c0d53a34babfa47503"
+    },
+    {
+      "path": "static/img/Cover.png",
+      "size": 714781,
+      "sha256": "78b723deb8669e0b69b5418140dfcdf02dec6acad610f06a5c9b0b5e6a0d5ea0"
+    },
+    {
+      "path": "static/img/PowerAdapter_icon.png",
+      "size": 97632,
+      "sha256": "107c8cbffb071e4f0922323d7f4d0cdd094ceb020a7fa54e679c669fde6d44ef"
+    },
+    {
+      "path": "static/img/PowerAdapter_icon.webp",
+      "size": 5560,
+      "sha256": "72912600819d8c6ea6e5264c33f62a0d3b334b32a2938d936fb99a7921b71131"
+    },
+    {
+      "path": "static/img/PowerAdapter_logo.png",
+      "size": 716362,
+      "sha256": "83fd48a2cc860aafe1099c41daa146270b9e5c306d74cb2e982610b5a407687d"
+    },
+    {
+      "path": "static/img/PowerAdapter_logo.webp",
+      "size": 27672,
+      "sha256": "04048e0b7f5f10f1f865f7f7d5494a9aed033be17930d9213ab8e939267ef738"
+    },
+    {
+      "path": "static/img/PowerAdapter_logo_v2.png",
+      "size": 716362,
+      "sha256": "83fd48a2cc860aafe1099c41daa146270b9e5c306d74cb2e982610b5a407687d"
+    },
+    {
+      "path": "static/img/avatar.jpg",
+      "size": 191253,
+      "sha256": "2d7c56bd94a54efa59a9f012ffa929c0526ff1058700cbf9f25e040d2a4a3047"
+    },
+    {
+      "path": "static/img/bgimg.png",
+      "size": 558200,
+      "sha256": "845b29843d5dc77f9bbeecee34d38fab2c75207b38631fd81d273cf277c92a99"
+    },
+    {
+      "path": "static/img/coding_card.png",
+      "size": 1136860,
+      "sha256": "916b694b055501a2caedc4a2658e250cdcf83e8959480ee7e84ecd440dc850aa"
+    },
+    {
+      "path": "static/img/covers/default-code.webp",
+      "size": 90212,
+      "sha256": "edc5bcc1a029e90878cf088ef13911a06701d32c6d071069a42a53bd7203e258"
+    },
+    {
+      "path": "static/img/covers/default-music.webp",
+      "size": 56954,
+      "sha256": "e182a44390a98652d71b63bb18b854dbca5bc6624237a35865d358e774a2aa1c"
+    },
+    {
+      "path": "static/img/covers/default-noise.webp",
+      "size": 36414,
+      "sha256": "7f0f3a062592d3cd856e1e4699620597e3d2c555c1e4ec4f9a577b8b2ab20faa"
+    },
+    {
+      "path": "static/img/covers/default-rhizome.webp",
+      "size": 36342,
+      "sha256": "89d7a672b5b88c847e04f1620cd0bf634de9edb10d4fa9b0276a91fd210517c2"
+    },
+    {
+      "path": "static/img/covers/default-skate.webp",
+      "size": 29344,
+      "sha256": "576c331c84326b11bfff6e18c8560cae17f8f0c8d9b9f2bc91eb48cf060b570c"
+    },
+    {
+      "path": "static/img/default-avatar.webp",
+      "size": 112424,
+      "sha256": "75a7b2f093ac4e902413cca73831e8cce58fe0ec68fca5873df2e617cd232a3c"
+    },
+    {
+      "path": "static/img/draft_card.png",
+      "size": 1503063,
+      "sha256": "daa8726f07ffa8c3a44fc6a0817ff0fd1bc19bce7080d8a196dab25cbb978e53"
+    },
+    {
+      "path": "static/img/favicon.ico",
+      "size": 35502,
+      "sha256": "3a0a5d3ac83ce5ee7391eda4638fc586831d67ec4e4989f66d56d900542a6033"
+    },
+    {
+      "path": "static/img/gonganbei.png",
+      "size": 1403,
+      "sha256": "8dfecad0dfcb3dc584f2c2447943eefb1fd65a058856eb0611e2c56ddc4c1fe1"
+    },
+    {
+      "path": "static/img/music_card.png",
+      "size": 1196212,
+      "sha256": "0c68e1b95f83b80687105f4755c6a14f1cfd88a536a635058afa02d6094d57e6"
+    },
+    {
+      "path": "static/img/skate_card.png",
+      "size": 426657,
+      "sha256": "3bcc2e29c8cfe857bd1d72d8ef5fc76e213add9deddfb087f80ca546cdedab67"
+    },
+    {
+      "path": "static/js/form-comment.js",
+      "size": 5079,
+      "sha256": "572c06caadc6e53bf09da4a4074837b640b94b3d89609302cd961e717b351d20"
+    },
+    {
+      "path": "static/js/post_creat.js",
+      "size": 3982,
+      "sha256": "e1bbf80f637f6f175eefd433896a0fcb8f16a79728a6cfe4f44785f4ee3b65aa"
+    },
+    {
+      "path": "themes/devenir/static/css/about.css",
+      "size": 13315,
+      "sha256": "80d997fc8d084693180303094d35ac506cdc97228190abfa6d68eb98ae79f1ed"
+    },
+    {
+      "path": "themes/devenir/static/css/accounts.css",
+      "size": 34742,
+      "sha256": "b4b400ae1f95615fe46eb308128070e9ba8e4742d46d017e8244beb12e2701e0"
+    },
+    {
+      "path": "themes/devenir/static/css/accounts.css.bak.20260726",
+      "size": 6735,
+      "sha256": "5b55857b78a90afdd5bfac87135cd0634cfe307f653c98a9cc64ddcf5b973a1c"
+    },
+    {
+      "path": "themes/devenir/static/css/admin_theme.css",
+      "size": 13059,
+      "sha256": "835ed3649153fb0ede376c6ef47bc5b724cef84b93cd2c64595e8bf10db10a0f"
+    },
+    {
+      "path": "themes/devenir/static/css/blog.css",
+      "size": 46702,
+      "sha256": "db42ed875a7572c89c0acfa82a9e712128a639460a942cf08304a3b277438793"
+    },
+    {
+      "path": "themes/devenir/static/css/blog.css.bak.20260720",
+      "size": 24736,
+      "sha256": "74e68811ae7bf02522b5ebb136305a6309c12c17d54a76414990fd09d533f0d1"
+    },
+    {
+      "path": "themes/devenir/static/css/boards/board-common.css",
+      "size": 10017,
+      "sha256": "226261a97fbc0252c87de5a3ec768ace6010a3cf8c8dc2e905b84fa55ec96f4c"
+    },
+    {
+      "path": "themes/devenir/static/css/boards/manage.css",
+      "size": 17313,
+      "sha256": "55f7aaeb545fe046a50099bc464fb450b64c115d0bd17e46491bf614e44b806d"
+    },
+    {
+      "path": "themes/devenir/static/css/boards/skate-form.css",
+      "size": 6496,
+      "sha256": "f1244950010acf2719f66d0c5226f893ff3ea42646b71028f6dd5237493b2c97"
+    },
+    {
+      "path": "themes/devenir/static/css/boards/skateboard.css",
+      "size": 31438,
+      "sha256": "992e36d1571f5916c54700a49b953eeeaf671fd2349f2817947ff9fdcbe0f4e1"
+    },
+    {
+      "path": "themes/devenir/static/css/changelog.css",
+      "size": 9691,
+      "sha256": "bdc4ac92be4e24289e06bfe1b56aa8346afea1f1a1c1963c48d4330a94603605"
+    },
+    {
+      "path": "themes/devenir/static/css/coding/coding.css",
+      "size": 28000,
+      "sha256": "d3f27586a798ea4ad276a20536a2350063d5f2f3d6fca8aae4d65ff064c4339c"
+    },
+    {
+      "path": "themes/devenir/static/css/coding/padif.css",
+      "size": 11684,
+      "sha256": "f1e88136d58df01efda04305c1c8e51d4a47a82e00052cd332bd7e94290d3128"
+    },
+    {
+      "path": "themes/devenir/static/css/dashboard/components.css",
+      "size": 9263,
+      "sha256": "ee1e9286feddc25132b5679f78edb0282039a6e293549965b689b99dd5bad533"
+    },
+    {
+      "path": "themes/devenir/static/css/dashboard/memberships.css",
+      "size": 5020,
+      "sha256": "abb2e40ff0698263bd8838443dd0ddf491c983b81bf7af1d2ecca77779f46454"
+    },
+    {
+      "path": "themes/devenir/static/css/dashboard/shell.css",
+      "size": 5736,
+      "sha256": "5a5627b7c5672558364a7d2468b08c1e219f29b2654ff004712c2cef3d2cafd2"
+    },
+    {
+      "path": "themes/devenir/static/css/dashboard/tokens.css",
+      "size": 1232,
+      "sha256": "c0b3bb90a64ddfd602c0f00c143ec2e2854df87dd25fee453625c4276fe4610e"
+    },
+    {
+      "path": "themes/devenir/static/css/editorial.css",
+      "size": 26850,
+      "sha256": "a1221a4d7438220ff861513a1299679ec224eef8e5ddbfd3312e570d23e93b46"
+    },
+    {
+      "path": "themes/devenir/static/css/errors/page-error.css",
+      "size": 11990,
+      "sha256": "acd63b916ea25d594291db641385e1a317c8870339ae8f73862434a589ecc476"
+    },
+    {
+      "path": "themes/devenir/static/css/links.css",
+      "size": 5699,
+      "sha256": "b8b6554939873527af553789f5612b1a238bc7e732d6897ce41b7e7b52838e1b"
+    },
+    {
+      "path": "themes/devenir/static/css/music/music.css",
+      "size": 30641,
+      "sha256": "7f1207208acd46af6577364eba54d44c59f6bafaf14d30e01bbf3649ab082888"
+    },
+    {
+      "path": "themes/devenir/static/css/music/music_legacy.css",
+      "size": 19385,
+      "sha256": "7a5a7907f73778ea3cd347a4847564571f7e29ff3791f2035310d92e18fb6db2"
+    },
+    {
+      "path": "themes/devenir/static/css/site-compliance.css",
+      "size": 1549,
+      "sha256": "bde9627f11ba40b428b95bd5ef3ca828e9ea5ff3312d1e5bf8f96fff5c32ae0b"
+    },
+    {
+      "path": "themes/devenir/static/css/site_info.css",
+      "size": 4067,
+      "sha256": "e2237488cefd694d492428ae98a0b465caace96ccf277bd84993a82810b1537f"
+    },
+    {
+      "path": "themes/devenir/static/css/typography.css",
+      "size": 2597,
+      "sha256": "4ea6c8fbf6937f70b1f411129dd8308731c0aa2434d7d69b255032ed7fb2752a"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-Bold.ttf",
+      "size": 114832,
+      "sha256": "b389edb3fc9343b8a3bbc9a0eb9bb28297f98b24e1f28341e914e7680105e9c3"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-BoldItalic.ttf",
+      "size": 117928,
+      "sha256": "f7038de65124dcb48c5d7c0fbc4636460815e4b23801c79d5913888fe560f504"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-ExtraBold.ttf",
+      "size": 114804,
+      "sha256": "cdd71f3ea851d5dfdfa6736aac23bfd65b261375a85945a8efd09535ac50a362"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-ExtraBoldItalic.ttf",
+      "size": 117960,
+      "sha256": "aaf414f6ac66c5aeeb96962ce5c89e886004f2538c31f8eb477b974fd68bcb26"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-ExtraLight.ttf",
+      "size": 115076,
+      "sha256": "54ebdac8fbfd180ba29173c2f306957116567ebbb8a56ed1decae1f657e74e3e"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-ExtraLightItalic.ttf",
+      "size": 118236,
+      "sha256": "256bb97400a4ae1767de2c8977b480dd311e482874da61acc0d3e8c29b1b00cf"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-Italic-VariableFont_wght.ttf",
+      "size": 191988,
+      "sha256": "d2a1563e89aa3c3816abfbca03e295abcdca11d9cbd689a7754cc1c5f454d18f"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-Light.ttf",
+      "size": 115024,
+      "sha256": "277ae2d96548d91ad0b6adc67073cfff49b8c35ac42e65a07fecf856297432a6"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-LightItalic.ttf",
+      "size": 118132,
+      "sha256": "5f507071bf46f91e6c3cbfcfd0481b3b4f17bfee6aac141046fbf5fba8b62792"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-Medium.ttf",
+      "size": 114924,
+      "sha256": "838f60c1af476daf0f3bbed6143840c78d947ce97f57e826ca0d850e10c6f468"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-MediumItalic.ttf",
+      "size": 118052,
+      "sha256": "f6dd0d6265faa1fd1b683dd64ecb7aeb8bb7da23212d009d3b9b427e5b2e893b"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-SemiBold.ttf",
+      "size": 114904,
+      "sha256": "4730fddf5f26ddee24c48f736e711c34b2de32dc24eccc7fbfbebf7b1ee0e259"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-SemiBoldItalic.ttf",
+      "size": 118040,
+      "sha256": "114a26b17dd89b89e1d29dcf32b480bfd1e60c75afa8915171ee300b3341e60a"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-Thin.ttf",
+      "size": 115000,
+      "sha256": "af5d0a9771f2efcff20bffbaffaf7b2eff07d098c64d4e286fa11ab3b8040ab9"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-ThinItalic.ttf",
+      "size": 118164,
+      "sha256": "be84c663b4aa7b0f9e2750574013b8ac354185505827eec8036ff45866b08c9b"
+    },
+    {
+      "path": "themes/devenir/static/fonts/JetBrainsMono-VariableFont_wght.ttf",
+      "size": 187860,
+      "sha256": "b6490e1a902e56fc84050bee9aad91509e6f45aa00f96f882dab53c9abaf83eb"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSansCN-Bold.otf",
+      "size": 8543504,
+      "sha256": "997dd673efde3a7cc7410da3ccde2a729f26dc9e1a81ad659a2d6666d36b7974"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSansCN-ExtraLight.otf",
+      "size": 7575136,
+      "sha256": "cd9f936c7dd9a153157d0129932473f93ee3c967e4de9f11c1714f58a6056d96"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSansCN-Heavy.otf",
+      "size": 8856264,
+      "sha256": "0b73e54405e245201ad36ec9ca7820bb9be060f40b66a5f20b2d3958532f9183"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSansCN-Light.otf",
+      "size": 8299448,
+      "sha256": "e06e70e9da402444e3fa130211d157f6f8893f6b103344b976da388ee3b8d670"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSansCN-Medium.otf",
+      "size": 8345780,
+      "sha256": "f1c5928559cdd5c095122b63260e7d81ac104e5343eaf0bd30ff447c3996205c"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSansCN-Normal.otf",
+      "size": 8326204,
+      "sha256": "a961763dcf9872d6ffc7ce14d8169c652413cc7f9c54ef8e0db619fd8fe191d3"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSansCN-Regular.otf",
+      "size": 8331636,
+      "sha256": "c0aa89a70f92a820ff95490fea6d472cd19621a71c9a748a4950eb2eafe6438e"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSerifCN-Bold.otf",
+      "size": 11772444,
+      "sha256": "90118f6c20e798e12ea9e5b476ce920de94de2f505fc83fe641989d32da38a65"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSerifCN-ExtraLight.otf",
+      "size": 10372344,
+      "sha256": "ce698f51e49dbe89bb8663ed02da541ce50b8cae4cd6bc3110ad52d969296db4"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSerifCN-Heavy.otf",
+      "size": 11304840,
+      "sha256": "78101f93fb76951da79728a7ece95a974fb8f95f2024fa50792bc79627951a07"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSerifCN-Light.otf",
+      "size": 11090240,
+      "sha256": "bbcb3ec1b48cd3dd19b65bdba073c1723d7a41bdad0e3a6e449000bfbff3e615"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSerifCN-Medium.otf",
+      "size": 11373656,
+      "sha256": "c8009023d5233d982f6c84007e898496069e880167959643fcba5630b0742134"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSerifCN-Regular.otf",
+      "size": 11257480,
+      "sha256": "1ddaf8183212f81e5b9a5b8c87a24aab8b7d2ff8f05eb3f6eaab341a7a285e58"
+    },
+    {
+      "path": "themes/devenir/static/fonts/SourceHanSerifCN-SemiBold.otf",
+      "size": 11453056,
+      "sha256": "c058c0bd712ff3d9e9176a22650de8d0dcdb15396235cb6e3e373e6dc455d7bc"
+    },
+    {
+      "path": "themes/devenir/static/fonts/bb4171.ttf",
+      "size": 8127020,
+      "sha256": "bc92a2a12457cb1034527e8b1d79da7b0cbfcd7c5f4df81eeb6fadd5654ba3cb"
+    },
+    {
+      "path": "themes/devenir/static/images/boards/coding-editorial-saya-v2.webp",
+      "size": 219882,
+      "sha256": "85c1e4e9d36e782b237cf8f6ce30908127e10be1d82473ddb6e31d7c64822995"
+    },
+    {
+      "path": "themes/devenir/static/images/boards/coding-editorial-saya.webp",
+      "size": 213704,
+      "sha256": "7bdfb74ed4910a0b47e6d9e1d1659e35778e1ef5d8542b7d8f097c5aec5cc681"
+    },
+    {
+      "path": "themes/devenir/static/images/boards/coding-hero-saya.webp",
+      "size": 152584,
+      "sha256": "b03dd657aa7729509ee43feaadcd421f1e00630979737ee1ec434686fe523eed"
+    },
+    {
+      "path": "themes/devenir/static/images/boards/music-editorial-saya.webp",
+      "size": 161138,
+      "sha256": "070231593641a6ca34f589a9be986b33dd76fd0cf3a6cfd4c73dd42c0c82e4dc"
+    },
+    {
+      "path": "themes/devenir/static/images/boards/music-hero-saya.webp",
+      "size": 67730,
+      "sha256": "4bd8629f52ddfda91a3d2ca01787dadfee2cd626b0f48bce64097ec7136eeafa"
+    },
+    {
+      "path": "themes/devenir/static/images/boards/skateboard-editorial-saya.webp",
+      "size": 340722,
+      "sha256": "2c6627a2e4095f228fcd7f31df1f068ca297a41beaa45412be6160bce343ce32"
+    },
+    {
+      "path": "themes/devenir/static/images/boards/skateboard-hero-saya.webp",
+      "size": 70160,
+      "sha256": "b10ff977c90ac1b8f4126a461eb59860590de58053bbac4f0219b9c7fc34b6e1"
+    },
+    {
+      "path": "themes/devenir/static/images/errors/alpha-error-visual-coding.webp",
+      "size": 238798,
+      "sha256": "973e562f4b1c8f7d64a10723708b8d9e3e4db80dfad209b76ec6f78ce77f7547"
+    },
+    {
+      "path": "themes/devenir/static/images/errors/alpha-error-visual-general.webp",
+      "size": 679584,
+      "sha256": "e12da6a2722e06076165c2a554a90c22d6cd37f0b8c4e19cd7bea7fbd7825d4b"
+    },
+    {
+      "path": "themes/devenir/static/images/errors/alpha-error-visual-music.webp",
+      "size": 188712,
+      "sha256": "bf750ea4327fcec58fb9ee285de5ab7dcb3e15d39514c384b784cd114cd88117"
+    },
+    {
+      "path": "themes/devenir/static/images/errors/alpha-error-visual-skateboard.webp",
+      "size": 543788,
+      "sha256": "cb2f4d431a291f2001adccc837c4397d202546f09e351b351894d13312ac6cd1"
+    },
+    {
+      "path": "themes/devenir/static/js/boards/form-presets.js",
+      "size": 6257,
+      "sha256": "a7a85d56015d461ab88f9ec4812c95c3f4b0b25eca95d5f3f9026e36b8c87b20"
+    },
+    {
+      "path": "themes/devenir/static/js/boards/image-drop.js",
+      "size": 3501,
+      "sha256": "7136369133f1e1e39662138647cc533fa0edfe7ebde2a250084ea03334c008c6"
+    },
+    {
+      "path": "themes/devenir/static/js/boards/skate-form.js",
+      "size": 17468,
+      "sha256": "82a9d7b362f7b4c838230e94833dcf66bdbc153e4ac456ce94a29d48e3c91da1"
+    },
+    {
+      "path": "themes/devenir/static/js/boards/skateboard.js",
+      "size": 21964,
+      "sha256": "29443a61b7be105b2f9bf0c2c13f0869f3d492ab51f911d48851794f2e3321a0"
+    },
+    {
+      "path": "themes/devenir/static/js/coding/coding.js",
+      "size": 820,
+      "sha256": "e8adb61f7130c1def5a87e2a01fe8c971ea2d333f4aec8a1de8765052feb46de"
+    },
+    {
+      "path": "themes/devenir/static/js/coding/padif.js",
+      "size": 21280,
+      "sha256": "bbf8e2924257b5fa56f24a9e9ca4eaa458ec592dd6b60396d3d990e72b8acdda"
+    },
+    {
+      "path": "themes/devenir/static/js/dashboard.js",
+      "size": 1493,
+      "sha256": "116079cc23ba4cffa9bf3451e2d962d1c44ac78318aac62b418222dad65edc19"
+    },
+    {
+      "path": "themes/devenir/static/js/errors/page-error.js",
+      "size": 659,
+      "sha256": "b2b100a49918b662f1ca2bc9971e28d7d086c5d0e4113fa70739b966d44d7797"
+    },
+    {
+      "path": "themes/devenir/static/js/main.js",
+      "size": 16975,
+      "sha256": "fe40d7280027ea0fbb1f578e4dfa43eacce9d0341c9d799ee112933a8222fe6e"
+    },
+    {
+      "path": "themes/devenir/static/js/main.js.bak.20260720",
+      "size": 10456,
+      "sha256": "4d30b2cd0415ed302d5b9cac777a900dfda4d1e0ad0ffd0325f5618c9d5e64fb"
+    },
+    {
+      "path": "themes/devenir/static/js/music/music-mock-data.js",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "themes/devenir/static/js/music/music-mock-data_legacy.js",
+      "size": 992,
+      "sha256": "5a3d62ee3e49c205b37929f0dd28d214cd2ece7fcf679d21b0f84d23a6bc9532"
+    },
+    {
+      "path": "themes/devenir/static/js/music/music.js",
+      "size": 883,
+      "sha256": "f4c30e39082537842ae567d249c16e154a4e0ce9190f6842ec9b68c0c0f04f9f"
+    },
+    {
+      "path": "themes/devenir/static/js/music/music_legacy.js",
+      "size": 2271,
+      "sha256": "9d677fb3bb06bbfbf620c0016d4673c8643d16162edbc57004414b9d6a2a0479"
+    },
+    {
+      "path": "themes/devenir/static/js/password_email_verification.js",
+      "size": 2450,
+      "sha256": "cc102695d6a3eef3fe77eaa27788eae1f6d2f71b949b8212a976a097fe12393f"
+    },
+    {
+      "path": "themes/devenir/static/js/password_rotation.js",
+      "size": 3615,
+      "sha256": "d6cacae2f6f42934c77182b3a4c1e65be21f542cd7e6ec26e4df57e2374d47c3"
+    },
+    {
+      "path": "themes/devenir/static/js/profile-editor.js",
+      "size": 1189,
+      "sha256": "469452378c0cf5fe737de357dc02162e60d1807f580dc57b1f1e46f11766caaa"
+    },
+    {
+      "path": "themes/devenir/static/vedio/logo.mp4",
+      "size": 673175,
+      "sha256": "9bf65aff907e3643ba616b6ce10cffaec059cb789f1bc726657177a6afc1eeba"
+    },
+    {
+      "path": "themes/devenir/static/vedio/logo.webm",
+      "size": 185750,
+      "sha256": "3d0e39f2385be7a531ffe44c6f427cd10919a5b4a958ec814940e1afc500857f"
+    },
+    {
+      "path": "themes/devenir/templates/admin/base_site.html",
+      "size": 690,
+      "sha256": "c2cd092ac52413a63153489b3490a82677ef0565213b98fddb4077bc56c6246f"
+    },
+    {
+      "path": "themes/devenir/templates/base.html",
+      "size": 30733,
+      "sha256": "009c9afb5aed72b4c0e6046349b6b4699768858a41076400c4034eeec308ecc2"
+    },
+    {
+      "path": "themes/devenir/templates/components/site_compliance.html",
+      "size": 574,
+      "sha256": "532b163fcc1c3580446710d79e0f71172db311e9cadb0e5b4545b9bc1893203d"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/account_invitation.html",
+      "size": 398,
+      "sha256": "c4228627d21b835052135f45b59ebf13eefd45d085c87395abc5e06c16b7a4e4"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/account_invitation.txt",
+      "size": 286,
+      "sha256": "c30a266579384bc417afaa882bb30f0e0d95a7a570ec2544550645218579fe27"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/account_invitation_notice.html",
+      "size": 433,
+      "sha256": "85ae9b84020061133f7c5b2e30d39beb3ce895b09e3fa4a32e2fd993f8095aa3"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/account_invitation_notice.txt",
+      "size": 323,
+      "sha256": "197ad593a5aa77d9a61735b11c9a922ba5da3f5821fc6d8038867b1b048d62de"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/board_access_code.html",
+      "size": 509,
+      "sha256": "91a98e4773c6a51762fc58ce0a59673d4895cfd3129284be6b4e6f1dc7d142d9"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/board_access_code.txt",
+      "size": 305,
+      "sha256": "90aa4c61d90dcf6f66225d893044264b86fadb61f9cc4e32372126bc81904c9b"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/mfa_enrollment_code.html",
+      "size": 547,
+      "sha256": "0f3273c6c4956e9873d5636bb46d8eba6549f7e558938f66f5278926062eec80"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/mfa_enrollment_code.txt",
+      "size": 374,
+      "sha256": "4b7a871b25533a5e4695ab1ac4e8005ccc30708531f3581edb1c96d0098b775d"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/password_change_code.html",
+      "size": 410,
+      "sha256": "f1c5a3e25745b25e9bbffb62ed68348f87a982cbe56fff9a6ef9b8caf21e19e5"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/password_change_code.txt",
+      "size": 263,
+      "sha256": "bc2b755cab6fbb0728af0d37b5712a20f85ab041ce60acb6d6090f37c3880c8d"
+    },
+    {
+      "path": "themes/devenir/templates/emails/accounts/verification_code_base.html",
+      "size": 5658,
+      "sha256": "37752e99d9711922bf9d126b4fa58f54ff3dec14272f6863e609b3ef2fb7c9ee"
+    },
+    {
+      "path": "themes/devenir/templates/pages/_board_fallback.html",
+      "size": 4157,
+      "sha256": "f9b89c360fcea5b19ff73dd36524f3357b3fd217aa292d9e3f1ccc3c9702984a"
+    },
+    {
+      "path": "themes/devenir/templates/pages/_board_visuals.html",
+      "size": 533,
+      "sha256": "2426a6687057fbbb6cfbf2e00aa719d40779669d46c7301cc60f98026c31b9be"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/accept_invitation.html",
+      "size": 1669,
+      "sha256": "1bed4a950a6f59445d068f638bbe978879e2d3979f29a1fa3e8da0b9020d942f"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/agent_authorize.html",
+      "size": 1899,
+      "sha256": "e8e8521298bc0a6afe6f55bf98afaee431e0aefd24d3f3979b47fa7125da9ee0"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/agent_tokens.html",
+      "size": 2855,
+      "sha256": "806710a96e9dc4dd7ecfea00f162a6d4726d7c029bd3cdfb080526411ece9638"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/login.html",
+      "size": 2167,
+      "sha256": "7707617a6cfea138b1410af518af02e6925d0f06cc97896c64f975b24190769e"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/mfa_challenge.html",
+      "size": 2373,
+      "sha256": "04816cd95ce72c3fdb04cc0adacf373fb59ebbc5cb03e913646436e1517ca1fa"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/mfa_recovery_codes.html",
+      "size": 1648,
+      "sha256": "4bb0196f9ab39eb37b92c8161f0e306a3fceef2ac16ddfdaa4efd40c14a2da08"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/mfa_settings.html",
+      "size": 5445,
+      "sha256": "5ef124520b75606238094cbbee3451d7fdf995001b3127864f5399be46c14a6f"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/password_change.html",
+      "size": 4965,
+      "sha256": "7c924c19819350e1ab846070e008ac016248ee56ef3abef90042ec4621426421"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/password_change.html.bak.20260726",
+      "size": 1430,
+      "sha256": "8159833375157f00c93a5820556fb449b930aa58efb28d0c4a8ee61e3ed9f3af"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/password_email_verification.html",
+      "size": 2948,
+      "sha256": "0b75f615df8621c42952e8828fde1aee39e9dad148ef6ab64bb2c8e861a25554"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/profile_detail.html",
+      "size": 4741,
+      "sha256": "e57d1dd8037c279028f80368ffee996f1c47354bd604d534db0bd42aa07b7b86"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/profile_detail.html.bak.20260726",
+      "size": 2922,
+      "sha256": "d6540a6a25f7489153d75909a358009eefa47ba9cb8374c963fea69c625660b0"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/profile_form.html",
+      "size": 3396,
+      "sha256": "de9dc50e2f598359bbb0750607672032f54d35f61407e07821956ac1b5be8d3d"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/profile_form.html.bak.20260726",
+      "size": 1601,
+      "sha256": "3137ba39e4d8d5fe5765bc0e00ce37aef800912d15b5c74114363163bd9d9340"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/_post_browser.html",
+      "size": 4975,
+      "sha256": "7f40f0115a5e9626489b85a166fa41c3592f19509a3e0d9b8ae04bd95ef3443c"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/_post_page_heading.html",
+      "size": 208,
+      "sha256": "a60bf95340f33f52e5d58d8768065584c1ef5ca7dbc4d2f3a492894379af33d7"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/_post_pagination.html",
+      "size": 2185,
+      "sha256": "024c131fdffde0aac5221cc0bdd865fd0a10dbfdd77350b9d26b9dd9a18b8bc7"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/_post_stream.html",
+      "size": 3823,
+      "sha256": "a17ac29e2e7cafe9778908ebd84fc04911b5b17b73e8854cd33d688ab61502d9"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/_review_published_results.html",
+      "size": 1510,
+      "sha256": "6f665057b40da909b4b9ecf30a6016ada793cc5a0a784f0dc6873d6a2bf1d9f5"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/_revision_body.html",
+      "size": 678,
+      "sha256": "9b9a33968ef63a181df70bab4476539fd6d3d04b4809c58f266df38875e47a65"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/_revision_diff.html",
+      "size": 1494,
+      "sha256": "151f01fa9b5f34c3c18530864db89a62fbc4fa5b38eb8d6668c26148e1b2ad9d"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/archive.html",
+      "size": 2008,
+      "sha256": "58292c8b3e9637e7dec7890dd9eb004a375ebeba9b00e0eb9788fd921ab1c4c0"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/cate_list.html",
+      "size": 38,
+      "sha256": "3616818f35fa5e6fb6112d86e9dbb93e3178723af0c653fff1d2f768ae439b72"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/detail.html",
+      "size": 16273,
+      "sha256": "d511f348b2ebd8dddc483feefbd956dd7aa0c9fe00f11674cbe126e6b696a826"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/list.html",
+      "size": 1295,
+      "sha256": "a8815549aa84e8dfd55a4fc0ea176d5c5b9a47df7dbe655eaa976ea8fe4c3b13"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/list.html.bak.20260720",
+      "size": 3472,
+      "sha256": "e6061c1a1f6fc1d1a1f845d048c90a8a32faa32ad02d96a4c88fb2428ba485d1"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/post_form.html",
+      "size": 8696,
+      "sha256": "271ea3a58e21476ac2bd43d8166c75bddc6f16b3a3c6595d713cde5da15e7121"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/review_workspace.html",
+      "size": 9072,
+      "sha256": "7bc7a0395d7dcd7bc53246867edf7d4f46b8640b30ebea8d213a1aa07a2cba92"
+    },
+    {
+      "path": "themes/devenir/templates/pages/blog/search_result.html",
+      "size": 38,
+      "sha256": "3616818f35fa5e6fb6112d86e9dbb93e3178723af0c653fff1d2f768ae439b72"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/_board_cta.html",
+      "size": 4162,
+      "sha256": "a0c17c8693c05ee41d6a38a621fa0bf58b7bfcd03893ad1a1b49076469b64f78"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/_board_manage_entry.html",
+      "size": 851,
+      "sha256": "8df88bfdf878c6c41e427dd73309a524680e19709ebf846bf3cda709c5461014"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/_board_posts.html",
+      "size": 2194,
+      "sha256": "1ebfe510956e044fbb9206d6305c3849b772940686b9ffead51c67b320b350f3"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/access_requests.html",
+      "size": 13830,
+      "sha256": "545cdbdb66159b0acfe86978ea5a5ce791b4b4059e67673647bb94407c9fde48"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/coding/_tabs.html",
+      "size": 749,
+      "sha256": "93abfcf163c46aaba6a6c20c8509c66deb0372bbc2100f03ac037ac79a7eade8"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/coding/delete_confirm.html",
+      "size": 2553,
+      "sha256": "a2fa0ca5f8cec9be5d5cb5ff897209ac3d5b24f03c9e7e0d9521c3cc51360265"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/coding/form.html",
+      "size": 8472,
+      "sha256": "be600489d53dc852b78ace43fc0ac743c8997385bce4175dc64527cebc4f7310"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/coding/list.html",
+      "size": 6908,
+      "sha256": "833cf08c3160010756de36a42f0873aa188b342d2b5a9815d5b9ad2fca012c02"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/coding/secondary_delete_confirm.html",
+      "size": 2012,
+      "sha256": "46c8a9a9d96783cf7fc6f7ec4ac46a8d4080869063f5dd73c24f7e550eb3f8d5"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/coding/secondary_form.html",
+      "size": 2388,
+      "sha256": "0b70370fddfa6e990d1b2cafe24a37c5ee362066f0234c0d0a3e4ee34c8e503b"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/coding/secondary_list.html",
+      "size": 4450,
+      "sha256": "8f6a01629c9f67d65ec243a0f97a5a3089ec24bdc71f17354090ef13e4139379"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/music/artist_delete_confirm.html",
+      "size": 820,
+      "sha256": "74e23825bf83d13dda7bd87fe837f79102bf56acdcef8c871e97a0d7dfcee190"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/music/artist_form.html",
+      "size": 1848,
+      "sha256": "1aa8e47450521cfc43a82f0ddc6d7220725bd1c2fcc4786809bb2472d95869fe"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/music/artist_list.html",
+      "size": 3234,
+      "sha256": "1efdf3014ec14d49bc6070c6c96781ee6d7cd7c9b3c60a1afc57e153bb900f67"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/music/delete_confirm.html",
+      "size": 2641,
+      "sha256": "b91a96d68f040154a7bf406717b162f14bba9af967c430e5a83a6554b98ba414"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/music/form.html",
+      "size": 10751,
+      "sha256": "b8fb5f731fa00c71a8508ad856d844db09eb36edfbe8e511dc3e224b653004f3"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/music/list.html",
+      "size": 7293,
+      "sha256": "c8f769b127b9b4ba0d705caf781804f6888cb50b14d25a64800881a27b7886b9"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/music/period_list.html",
+      "size": 5518,
+      "sha256": "16a2983f5d86c9874f5625c4d5d33bbc95cf04d7997568892b2bb780db70e292"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/skateboard/delete_confirm.html",
+      "size": 1803,
+      "sha256": "4326a50b80e85c088ad3d7dc3821b7e92a928f11fe908cfbf569081f2eded9c6"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/skateboard/form.html",
+      "size": 7438,
+      "sha256": "520928bfdec06c3925a1e900673be644cccb8a8d531a5d5d92da25595aab53d7"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/skateboard/list.html",
+      "size": 6805,
+      "sha256": "c3c38260607e03ed069ff96d3b2d7e37896011d091ab64e25c4767f9f7c76a31"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/manage/skateboard/media_upload.html",
+      "size": 4818,
+      "sha256": "03ba9cf5d302e05bedde3c5e61c26a0321a18c269148c4a12d004fe5ed83c1a6"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/refuse.html",
+      "size": 5759,
+      "sha256": "bc8b21d526ff54bb9a6038773cd683f987b2771b5902747b1fbbce63c3a622c9"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/skateboard/_clip_media.html",
+      "size": 5091,
+      "sha256": "835b51bff5d75c2d4ffa46915e20e46ead84b88e03c0428ef92c687e3c8c4c19"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/skateboard/_clip_pair.html",
+      "size": 4191,
+      "sha256": "a295fd4dee6b840974cbcf18d62960b00706521a689dd84e4a85549de3c28a56"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/skateboard/_clip_row.html",
+      "size": 2934,
+      "sha256": "776b0bce7fd01ddc2a4205c49add1fc6d098a5ed2ed9e53493183f9b87e47a88"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/skateboard/_homie_node.html",
+      "size": 1821,
+      "sha256": "5c932406b62930c24dfa0c69689d9bcc209f457b5bbbbf30bf841891f01e4a12"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/skateboard/_player_dialog.html",
+      "size": 1829,
+      "sha256": "06463b10d8088f9b05d4e452c265504e847e502e4308e72540f56540d32ec326"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/skateboard/_selected_line.html",
+      "size": 3812,
+      "sha256": "a99008539d73a3507cd2ce598ebc23e98cc1f65ed9cb4e54d181046c8965c322"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/skateboard/clip_list.html",
+      "size": 5811,
+      "sha256": "acedb7862877a9594d69144d969105eac9d57df593cd16a3f7001183cdbe1c85"
+    },
+    {
+      "path": "themes/devenir/templates/pages/boards/skateboard/index.html",
+      "size": 8941,
+      "sha256": "98c62e047acb82b78c2e02030d36c8bcb0ada91e274238894dfa13d82fdc4378"
+    },
+    {
+      "path": "themes/devenir/templates/pages/coding/index.html",
+      "size": 16588,
+      "sha256": "51d84c5623fc66549f60a7c4d296058a05ed312aad5b9be3177c8a5c5bd486c5"
+    },
+    {
+      "path": "themes/devenir/templates/pages/coding/padif_local.html",
+      "size": 8564,
+      "sha256": "e8cf6bf53e967738c66423b09e0fe59282d0a43511ae5d1bb5b0af9c958720b6"
+    },
+    {
+      "path": "themes/devenir/templates/pages/comment/form.html",
+      "size": 1990,
+      "sha256": "27e747dc35addbff7559371c31e80d1a7c670525244e938d521bb2ce206f2a2f"
+    },
+    {
+      "path": "themes/devenir/templates/pages/comment/item.html",
+      "size": 1267,
+      "sha256": "8cc3a3798f4f1c48c2b737158bd4a0b0135af07e0c85e0a963beea2380b88e68"
+    },
+    {
+      "path": "themes/devenir/templates/pages/comment/list.html",
+      "size": 325,
+      "sha256": "0c16d8920b9e8cccdbd6ee1e22f7bdd79dbdbbd50543a84798e3dd2c3d52d1ad"
+    },
+    {
+      "path": "themes/devenir/templates/pages/config/sidebar_comments.html",
+      "size": 545,
+      "sha256": "291e648251fde7c6102eedfcabcf9362057d86c41ca0ac756f31d11a22dc4915"
+    },
+    {
+      "path": "themes/devenir/templates/pages/config/sidebar_posts.html",
+      "size": 399,
+      "sha256": "73166fa3ea9c901384445a2bcd84978e6687bbb4c9bd5b2edad204b1c5e941b8"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/_styles.html",
+      "size": 7509,
+      "sha256": "161ee7319596ca642ac61927166e256c01fa0854a5e216314372b9ac9df4ea83"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/audit.html",
+      "size": 1229,
+      "sha256": "bae383f675f2293f3a68326875396374080be3e5508337a1cfe3d30a70cf4c21"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/base.html",
+      "size": 2403,
+      "sha256": "371ba02f6f130e8802e803c85d2bce84cb5328bbee620b5ae521e9e2286412ef"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/comments.html",
+      "size": 2263,
+      "sha256": "d0d18e65af871695b18921b8f133d03b0b0855c1b808a4afa16b4aaa618b6a46"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/components/_decision_card.html",
+      "size": 367,
+      "sha256": "2d54a9d2bf95bbcbbdee684a6e977bf4ad10e1be2b9dccc4283168df4333c99c"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/components/_pagination.html",
+      "size": 699,
+      "sha256": "ce151cf57b5ffe7217bdfbbc48efcd43f1af8abe635e24a1ac8c028bdf96feff"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/components/_sidebar.html",
+      "size": 1483,
+      "sha256": "e501fe641a958698a4513dc50786014a87e022cc94e929cd674b22aed69b7966"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/components/_topbar.html",
+      "size": 711,
+      "sha256": "89c1729b83477283e28c7fc21724dd31c361cbc5b520f086080f4880c3c31db6"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/media.html",
+      "size": 1172,
+      "sha256": "98c6b069529138d54121ac5712134bf7b9c87aaf92bae197857f29cac280f30f"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/membership_action.html",
+      "size": 2282,
+      "sha256": "050d6580870754d3c6bed641817dcd90c2a1bfa9d1b44988076dbec8fc1b02a6"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/membership_events.html",
+      "size": 5027,
+      "sha256": "4219280339319949169b7b6bbaf39031e59a52a2efbdc9ad2a574d43a5de608e"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/memberships.html",
+      "size": 5088,
+      "sha256": "37bf1dd60728dee9789bee25bc1b5c4c5690003aa8eef63efcc0e65384e13087"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/overview.html",
+      "size": 3104,
+      "sha256": "c7cd584ea66694de57d8d2c477f9811d2d13a6181f1f47acea0e86175907dffd"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/posts.html",
+      "size": 2325,
+      "sha256": "4474dd38b281418591e54bbcaa151d0791c6276e36d7a6caaaf5d9bea1bb1868"
+    },
+    {
+      "path": "themes/devenir/templates/pages/dashboard/settings.html",
+      "size": 1457,
+      "sha256": "423220fe1e6e54a3966ef13f22652d5821a24f1f97fe1321ed6f7de7fe5708af"
+    },
+    {
+      "path": "themes/devenir/templates/pages/errors/error-500.html",
+      "size": 490,
+      "sha256": "821b9a79e929676442e983d681abde6e4b67aeae3c176eb0954cc2dd5ab443b0"
+    },
+    {
+      "path": "themes/devenir/templates/pages/errors/error-visual-code.svg",
+      "size": 4419,
+      "sha256": "5ef207dc12a8d2db0bdecbf29456476658a7e19066cc0ed8ac462fa1b7eacaa1"
+    },
+    {
+      "path": "themes/devenir/templates/pages/errors/error-visual-music.svg",
+      "size": 4044,
+      "sha256": "719b945b3f9ededfd0f3fe65320a9ac8e9c1063315bed50ac7bfedfb1805577e"
+    },
+    {
+      "path": "themes/devenir/templates/pages/errors/error-visual-skate.svg",
+      "size": 3268,
+      "sha256": "ef21bdb077ab5a85eb6b7c108613649d186f918b1e5b04ef3fec13b55792f723"
+    },
+    {
+      "path": "themes/devenir/templates/pages/errors/page-error-code.html",
+      "size": 7650,
+      "sha256": "162896a0325f62be7143cdf176a452d49c6a66ca24e7c28fa43983818995464d"
+    },
+    {
+      "path": "themes/devenir/templates/pages/errors/page-error-music.html",
+      "size": 6461,
+      "sha256": "837660d343908f67e027b847055793c6b2e70070c80f7f737e6c40b31b54c959"
+    },
+    {
+      "path": "themes/devenir/templates/pages/errors/page-error-sk8.html",
+      "size": 5214,
+      "sha256": "64df9eb4b42c396d76e25e7d0530b1f6d0cff553a83801439a60db0db52f0ade"
+    },
+    {
+      "path": "themes/devenir/templates/pages/index.html",
+      "size": 7401,
+      "sha256": "823182c85d00852d29e9db06bd5d7c2103d2f88ee152fa8ef686a731ff0f91b2"
+    },
+    {
+      "path": "themes/devenir/templates/pages/links.html",
+      "size": 2544,
+      "sha256": "f51716594d02c4bd9ce03a7bb0f67bdd90185407fff0e6bee4d2b46707990c5c"
+    },
+    {
+      "path": "themes/devenir/templates/pages/moderation/_styles.html",
+      "size": 3309,
+      "sha256": "f68561a4ae2da32b7e704266a07bdbfef7c404077931dcebc913618516d0a585"
+    },
+    {
+      "path": "themes/devenir/templates/pages/moderation/accounts.html",
+      "size": 2232,
+      "sha256": "dab6ad2ca48dd6f366092c7fc85a55fedbbe885d0edcc50947bef958e254766b"
+    },
+    {
+      "path": "themes/devenir/templates/pages/moderation/boards.html",
+      "size": 2445,
+      "sha256": "6d11fca999cca8796f91c6ee079189b5eedf82b7a9f2ff30b84f063accd4f40e"
+    },
+    {
+      "path": "themes/devenir/templates/pages/moderation/comments.html",
+      "size": 2026,
+      "sha256": "d0ed54e6f10d99355ba4a214548e9e3a3ed31ba7abfcf5204f718ca43978bf38"
+    },
+    {
+      "path": "themes/devenir/templates/pages/moderation/hub.html",
+      "size": 2571,
+      "sha256": "032654195957978e2e7e920510057da0df4f2a517c5043e5221ff2bd5969eb1d"
+    },
+    {
+      "path": "themes/devenir/templates/pages/moderation/pagination.html",
+      "size": 649,
+      "sha256": "b9daad50f5a700ed0fa2a69deca220b4cc0ecf7912c9c515708f14c295ee3d5c"
+    },
+    {
+      "path": "themes/devenir/templates/pages/music/index.html",
+      "size": 20445,
+      "sha256": "7176ca070be60512a0a9b5efedce6307896a5af424dce420aae42c49d052bd52"
+    },
+    {
+      "path": "themes/devenir/templates/pages/music/index_legacy.html",
+      "size": 25486,
+      "sha256": "4dac4977ca0c375ac85d1562ea9879c87c236b4f2b4c67f270fe1d3c93127777"
+    },
+    {
+      "path": "themes/devenir/templates/pages/operations/_styles.html",
+      "size": 2625,
+      "sha256": "45994fcd712598849e52d634198da6a11747d7553a906a52555227936d42e51b"
+    },
+    {
+      "path": "themes/devenir/templates/pages/operations/security.html",
+      "size": 4714,
+      "sha256": "54ebbbfa5bdf09866f6fdbbfa153ca169ab4549eff19ad952d0e6b2a45ee8d6a"
+    },
+    {
+      "path": "themes/devenir/templates/pages/site/about.html",
+      "size": 9002,
+      "sha256": "5251bde73a1b3206cd9bb4133d59302c303e50ffa85c77dcf835efaf9a294806"
+    },
+    {
+      "path": "themes/devenir/templates/pages/site/changelog.html",
+      "size": 4111,
+      "sha256": "1e9200fe9bec2b425332ba6cdff701a2a3058678c8db5fb6eafc24b263f357d8"
+    },
+    {
+      "path": "themes/devenir/templates/pages/site/privacy.html",
+      "size": 4103,
+      "sha256": "6e23201c99e077388797079cda6eb303bb50ae5170b3639ba0ae949f3c6701c3"
+    },
+    {
+      "path": "themes/devenir/templates/pages/site/report_form.html",
+      "size": 3022,
+      "sha256": "d9858cff68a520e602f12886b0dc589bcee411ad92276f9bfd609059dd9a288b"
+    },
+    {
+      "path": "themes/devenir/templates/pages/site/report_status.html",
+      "size": 2033,
+      "sha256": "99891efee2f47cd01b4c7f9fd0c93c9ab2a6d7c8ec64e66fb2adbadc2d25d56e"
+    },
+    {
+      "path": "themes/devenir/templates/pages/visuals/_coding.html",
+      "size": 1342,
+      "sha256": "abee99d638bba80d2ba4afc37ddd19cce3594d6912ad4a0814c03c80d1a99c3b"
+    },
+    {
+      "path": "themes/devenir/templates/pages/visuals/_coding_compact_loop.html",
+      "size": 1908,
+      "sha256": "06a6e4b48c89d27a7b22b0f22d5bef8e6671fc774681bf094209b45617e85dce"
+    },
+    {
+      "path": "themes/devenir/templates/pages/visuals/_coding_loop.html",
+      "size": 3784,
+      "sha256": "865f8d355b79dde5b0f507f0b0f83296cc488816ad92a7dd477ce86a08a9767d"
+    },
+    {
+      "path": "themes/devenir/templates/pages/visuals/_music.html",
+      "size": 687,
+      "sha256": "e909f0255d3616ac3fb1f37135baab7e11f649d55d9f7d7c811c7d95d5dd4350"
+    },
+    {
+      "path": "themes/devenir/templates/pages/visuals/_skateboard.html",
+      "size": 696,
+      "sha256": "b094164a34abb4ccb36d11c6ec5d35a15dee261a5182ba8148b8742aa5556112"
+    },
+    {
+      "path": "themes/devenir/templates/sitemap.xml",
+      "size": 1098,
+      "sha256": "711043a41b13c1374fa42e39729c44b7a626d1f72b2dfc801a9d482ce3d484d6"
+    }
+  ]
+}

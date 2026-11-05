@@ -5,6 +5,7 @@ mode="${1:-web}"
 
 case "$mode" in
   prepare)
+    python manage.py verify_deployment_manifest --manifest deploy/production-manifest.json
     python manage.py migrate --noinput
     python manage.py collectstatic --noinput
     python manage.py init_mongo_audit

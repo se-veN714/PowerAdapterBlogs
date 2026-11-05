@@ -59,6 +59,21 @@ python manage.py bind_client_certificate \
 4. 离线 CA 撤销旧证书并重新生成 CRL；以原子替换方式部署 CRL，执行 `nginx -t` 后 reload。
 5. 验证旧证书在 Nginx 层被拒绝，新证书仍可登录，再销毁旧客户端私钥。
 
+### CRL 到期续期
+
+Windows 运维终端可使用 `Refresh-ClientCrl.ps1` 自动完成 CA 状态备份、CRL
+生成与签名校验、SSH 上传、线上原子替换、`nginx -t`、reload 和正反向握手
+验收。脚本要求 OpenSSL 4.x，并继续由 OpenSSL 在终端中读取加密 CA 私钥
+口令；口令不得写入参数、环境变量、任务计划或磁盘。
+部署前脚本会比较服务器时钟与新 CRL 的 `lastUpdate`；若服务器时钟落后，
+最多等待两分钟再部署，避免 Nginx 短暂返回 `CRL is not yet valid`。
+
+使用 `Install-ClientCrlRenewalTask.ps1` 可创建每日到期检查。默认在 CRL 剩余
+72 小时时打开交互式续期窗口，因此任务只在当前用户登录时运行。计划任务
+负责提醒和启动流程，不解除离线 CA 的人工口令边界。CA 介质未连接、用户未
+登录或续期窗口无人输入口令时，续期不会自动完成；运维人员仍需在 CRL 到期
+前检查 `logs/crl-renewal.log` 和线上握手结果。
+
 ## 5. 丢失或疑似泄露
 
 处理顺序以尽快切断访问为目标：

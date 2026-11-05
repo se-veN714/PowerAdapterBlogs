@@ -1,0 +1,11 @@
+[Unit]
+Description=Run PowerAdapter Agent authorization cleanup hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=5m
+Unit=poweradapter-agent-cleanup.service
+
+[Install]
+WantedBy=timers.target

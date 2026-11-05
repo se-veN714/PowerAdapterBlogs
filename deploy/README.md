@@ -125,6 +125,33 @@ latency under load.
 
 ## Release checks
 
+Before building or synchronizing a release, generate and verify the runtime
+source manifest. The manifest covers application code, templates, static files,
+configuration data, and deployment scripts; it intentionally does not use
+`git ls-files`, so required untracked release files are still detected.
+
+```bash
+python deploy/manifest.py generate --root . --output deploy/production-manifest.json
+python deploy/manifest.py verify --root . --manifest deploy/production-manifest.json
+```
+
+Upload the manifest together with the complete runtime source tree. The
+`prepare` container verifies the same manifest before migrations or static
+collection, and a missing or changed file prevents `web` and workers from
+starting.
+
+On Windows, use the release wrapper so the source archive and manifest cannot
+silently diverge:
+
+```powershell
+.\deploy\Publish-ProductionRelease.ps1 -LocalOnly
+.\deploy\Publish-ProductionRelease.ps1
+```
+
+The first command validates and builds the archive without connecting to the
+server. The second uploads the complete runtime archive and runs the normal
+Compose `prepare`/`web` flow.
+
 Run these inside the built image before switching Nginx upstream traffic:
 
 ```bash

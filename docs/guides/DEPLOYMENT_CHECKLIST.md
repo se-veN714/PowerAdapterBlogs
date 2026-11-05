@@ -25,6 +25,7 @@
 - [ ] 从 `deploy/.env.production.example` 生成权限为 `0600` 的真实环境文件，三个 HMAC key、数据库密码、Mongo member key 与 mTLS proxy secret 彼此独立。
 - [ ] 首次发布先启动 stateful services 并恢复经验证的现有 PostgreSQL 备份；确认 users、Categories、Boards、Memberships 与内容元数据存在。生产禁止运行依赖本地 Category ID 的 `seed_boards`。
 - [ ] `docker compose --env-file deploy/.env.production -f compose.production.yml config` 通过。
+- [ ] 发布前生成并验证 `deploy/production-manifest.json`；生产同步必须上传完整运行时清单，禁止只挑选改动文件。
 - [ ] 执行一次性 `prepare` 服务；migration、collectstatic、Mongo audit index/transaction 检查与 Music JSON 幂等导入必须全部成功。
 - [ ] 启动 `web`、`audit-worker`、`skate-worker`；确认 `/healthz/` 容器探针健康。该端点不经公网 Nginx 暴露。
 - [ ] Host Nginx 只代理到 `127.0.0.1:18000`，静态与公开媒体使用 bind mount；`media-private` 永不配置 alias。

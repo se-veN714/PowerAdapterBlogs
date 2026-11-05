@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PA-pipe 控制台</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">LOCAL CONTROL SURFACE</p>
+          <h1>PA-pipe <span>控制台</span></h1>
+          <p class="muted">只监听本机回环地址 · 端口契约可见、日志可追溯</p>
+        </div>
+        <div class="top-actions">
+          <button id="refresh" class="button secondary">刷新</button>
+          <button id="start" class="button primary">启动链路</button>
+        </div>
+      </header>
+
+      <section class="contract card">
+        <div><span>WSS</span><strong>43.165.174.246:443/TCP</strong></div>
+        <div><span>wstunnel → WireGuard</span><strong>127.0.0.1:51821/UDP</strong></div>
+        <div><span>Mihomo mixed</span><strong>127.0.0.1:7890/TCP</strong></div>
+      </section>
+
+      <section class="status-grid">
+        <article class="card status-card"><div class="label">链路状态</div><div id="state" class="state unknown">检查中</div><p id="detail" class="muted">等待状态探针</p></article>
+        <article class="card status-card"><div class="label">wstunnel UDP</div><div id="tunnel" class="state unknown">—</div><p>127.0.0.1:51821</p></article>
+        <article class="card status-card"><div class="label">Mihomo 端口</div><div id="proxy" class="state unknown">—</div><p>7890 / 8890</p></article>
+        <article class="card status-card"><div class="label">进程</div><div id="processes" class="processes">—</div><p>守护进程与 Clash Party</p></article>
+      </section>
+
+      <section class="workspace">
+        <article class="card logs-panel">
+          <div class="panel-heading"><div><h2>wstunnel 日志</h2><p class="muted">实时尾部 · 密钥已遮盖</p></div><button id="clear-log" class="button ghost">清空显示</button></div>
+          <pre id="logs" class="logs">等待日志…</pre>
+        </article>
+        <aside class="side-column">
+          <article class="card actions-panel">
+            <div class="panel-heading"><div><h2>操作</h2><p class="muted">调用现有 PowerShell 启动器</p></div></div>
+            <label class="check"><input id="restart-clash" type="checkbox" /> 重启时同时重启 Clash Party</label>
+            <button id="restart" class="button secondary wide">重启链路</button>
+            <button id="stop" class="button danger wide">停止 wstunnel</button>
+            <p id="action-message" class="message"></p>
+          </article>
+          <article class="card profile-panel">
+            <div class="panel-heading"><div><h2>生成配置</h2><p class="muted">基于当前有效 profile，TUN 默认关闭</p></div></div>
+            <button id="generate" class="button primary wide">生成 Mihomo YAML</button>
+            <div id="profile-result" class="profile-result">生成后提供本机下载链接。</div>
+          </article>
+        </aside>
+      </section>
+      <footer class="footer">管理 API 仅绑定 127.0.0.1:8744；不要把它加入腾讯云安全组。</footer>
+    </main>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

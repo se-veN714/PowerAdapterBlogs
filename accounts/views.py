@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import io
+import json
 import logging
 from urllib.parse import urlsplit
 
@@ -12,6 +13,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
+from django.core.signing import salted_hmac
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
@@ -19,10 +21,12 @@ from django.views.generic.edit import FormView
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
-from django.http import Http404, HttpResponseForbidden
+from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.urls import reverse, reverse_lazy
 from django.views.generic import ListView, RedirectView, UpdateView
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 
@@ -62,7 +66,22 @@ from .authn.mfa_session import (
     record_challenge_failure,
     recovery_session_is_valid,
 )
-from .models import AccountInvitation, MfaTotpDevice, MyUser, UserProfile
+from .agent_auth import (
+    _digest,
+    approve_device_authorization,
+    create_device_authorization,
+    get_pending_authorization,
+    issue_access_token,
+    revoke_agent_access_token,
+)
+from .models import (
+    AccountInvitation,
+    AgentAccessToken,
+    AgentDeviceAuthorization,
+    MfaTotpDevice,
+    MyUser,
+    UserProfile,
+)
 from .services import (
     PASSWORD_CODE_COOLDOWN,
     PASSWORD_CODE_EXPIRED,
@@ -113,6 +132,28 @@ def _record_login_failure(key):
         return 1
 
 
+def _agent_device_rate_key(request):
+    client_ip = getattr(
+        request, "client_ip", request.META.get("REMOTE_ADDR", "unknown")
+    )
+    digest = salted_hmac("agent-device-start-rate", client_ip).hexdigest()
+    return f"agent-device-start-rate:{digest}"
+
+
+def _consume_agent_device_quota(request):
+    limit = getattr(settings, "AGENT_DEVICE_START_RATE_LIMIT", 10)
+    window = getattr(settings, "AGENT_DEVICE_START_RATE_WINDOW", 3600)
+    key = _agent_device_rate_key(request)
+    if cache.add(key, 1, timeout=window):
+        return True, window
+    try:
+        attempts = cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=window)
+        attempts = 1
+    return attempts <= limit, window
+
+
 @method_decorator(sensitive_post_parameters("password"), name="dispatch")
 class LoginView(FormView):
     """登录视图。
@@ -156,7 +197,7 @@ class LoginView(FormView):
         Returns:
             HttpResponse: 登录成功重定向，失败返回表单页。
         """
-        username = form.cleaned_data["username"]
+        username = form.cleaned_data["username"].strip()
         password = form.cleaned_data["password"]
         failure_key = _login_failure_key(self.request, username)
         max_failures = getattr(settings, "LOGIN_MAX_FAILURES", 5)
@@ -168,7 +209,11 @@ class LoginView(FormView):
             )
             return self.form_invalid(form)
 
-        user = authenticate(self.request, username=username, password=password)
+        login_user = MyUser.objects.filter(username__iexact=username).first()
+        if login_user is None:
+            login_user = MyUser.objects.filter(email__iexact=username).first()
+        auth_username = login_user.username if login_user is not None else username
+        user = authenticate(self.request, username=auth_username, password=password)
         if user is not None:
             if user.is_active:
                 if settings.MFA_ENFORCEMENT_ENABLED and mfa_required_for_user(user):
@@ -288,6 +333,201 @@ class AcceptAccountInvitationView(View):
             )
         messages.success(request, "账号已激活，请使用刚设置的密码登录。")
         return redirect("accounts:login")
+
+
+def _agent_json_body(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+@method_decorator(never_cache, name="dispatch")
+@method_decorator(csrf_exempt, name="dispatch")
+class AgentDeviceStartView(View):
+    def post(self, request):
+        allowed, retry_after = _consume_agent_device_quota(request)
+        if not allowed:
+            response = JsonResponse(
+                {
+                    "error": "rate_limited",
+                    "error_description": "Too many device authorization requests.",
+                },
+                status=429,
+            )
+            response["Retry-After"] = str(retry_after)
+            return response
+        payload = _agent_json_body(request)
+        if payload is None:
+            return JsonResponse({"error": "invalid_request"}, status=400)
+        client_name = str(payload.get("client_name") or "Unnamed Agent")
+        scopes = payload.get("scopes")
+        try:
+            result = create_device_authorization(client_name=client_name, scopes=scopes)
+        except ValueError as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
+        verification_uri = request.build_absolute_uri(reverse("accounts:agent-authorize"))
+        response = JsonResponse(
+            {
+                "device_code": result["device_code"],
+                "user_code": result["user_code"],
+                "verification_uri": verification_uri,
+                "verification_uri_complete": f"{verification_uri}?user_code={result['user_code']}",
+                "expires_in": result["expires_in"],
+                "interval": result["interval"],
+                "scope": " ".join(result["scopes"]),
+            }
+        )
+        response["Cache-Control"] = "no-store"
+        return response
+
+
+@method_decorator(never_cache, name="dispatch")
+@method_decorator(csrf_exempt, name="dispatch")
+class AgentDeviceTokenView(View):
+    def post(self, request):
+        payload = _agent_json_body(request)
+        device_code = payload.get("device_code") if payload else None
+        if not device_code:
+            return JsonResponse({"error": "invalid_request"}, status=400)
+        authorization = (
+            AgentDeviceAuthorization.objects.filter(
+                device_code_digest=_digest(str(device_code))
+            )
+            .first()
+        )
+        if authorization is None:
+            return JsonResponse(
+                {"error": "invalid_grant", "error_description": "Unknown device code."},
+                status=400,
+            )
+        if authorization.expires_at <= timezone.now():
+            return JsonResponse(
+                {"error": "expired_token", "error_description": "The device code has expired."},
+                status=400,
+            )
+        if authorization.status == AgentDeviceAuthorization.Status.PENDING:
+            return JsonResponse(
+                {
+                    "error": "authorization_pending",
+                    "error_description": "The user has not approved this device yet.",
+                    "interval": getattr(settings, "AGENT_DEVICE_POLL_INTERVAL_SECONDS", 5),
+                },
+                status=400,
+            )
+        if authorization.status == AgentDeviceAuthorization.Status.DENIED:
+            return JsonResponse(
+                {"error": "access_denied", "error_description": "The user denied this device."},
+                status=400,
+            )
+        result = issue_access_token(authorization=authorization, device_code=str(device_code))
+        if result is None:
+            return JsonResponse(
+                {"error": "invalid_grant", "error_description": "The device code was already exchanged."},
+                status=400,
+            )
+        response = JsonResponse(result)
+        response["Cache-Control"] = "no-store"
+        return response
+
+
+@login_required
+def agent_authorize(request):
+    user_code = (request.POST if request.method == "POST" else request.GET).get("user_code", "")
+    authorization = get_pending_authorization(user_code)
+    if authorization is None:
+        return render(request, "pages/accounts/agent_authorize.html", {"invalid": True}, status=400)
+    if request.method == "POST":
+        approve = request.POST.get("action") == "approve"
+        try:
+            updated = approve_device_authorization(
+                user=request.user,
+                user_code=user_code,
+                approve=approve,
+            )
+        except PermissionError:
+            return render(
+                request,
+                "pages/accounts/agent_authorize.html",
+                {"authorization": authorization, "denied_by_permission": True},
+                status=403,
+            )
+        if updated is None:
+            return render(request, "pages/accounts/agent_authorize.html", {"invalid": True}, status=400)
+        return render(
+            request,
+            "pages/accounts/agent_authorize.html",
+            {"authorization": updated, "completed": True, "approved": approve},
+        )
+    return render(request, "pages/accounts/agent_authorize.html", {"authorization": authorization})
+
+
+@login_required
+def revoke_agent_token(request, token_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+    updated = AgentAccessToken.objects.filter(
+        pk=token_id,
+        user=request.user,
+        revoked_at__isnull=True,
+    ).exists()
+    if updated:
+        updated = revoke_agent_access_token(
+            token_id=token_id,
+            actor=request.user,
+            source="agent_token_api",
+            reason="user_revoke",
+        )
+    return JsonResponse({"revoked": bool(updated)})
+
+
+@method_decorator(never_cache, name="dispatch")
+class AgentTokenManagementView(LoginRequiredMixin, View):
+    template_name = "pages/accounts/agent_tokens.html"
+
+    def _tokens(self):
+        now = timezone.now()
+        tokens = list(
+            AgentAccessToken.objects.filter(user=self.request.user)
+            .select_related("authorization")
+            .order_by("-created_at", "-pk")
+        )
+        for token in tokens:
+            token.fingerprint = f"{token.token_digest[:8]}…{token.token_digest[-8:]}"
+            if token.revoked_at is not None:
+                token.display_status = "已撤销"
+                token.display_status_code = "revoked"
+            elif token.expires_at <= now:
+                token.display_status = "已过期"
+                token.display_status_code = "expired"
+            else:
+                token.display_status = "有效"
+                token.display_status_code = "active"
+        return tokens
+
+    def get(self, request):
+        return render(request, self.template_name, {"agent_tokens": self._tokens()})
+
+    def post(self, request):
+        token_id = request.POST.get("token_id")
+        updated = AgentAccessToken.objects.filter(
+            pk=token_id,
+            user=request.user,
+            revoked_at__isnull=True,
+        ).exists()
+        if updated:
+            updated = revoke_agent_access_token(
+                token_id=token_id,
+                actor=request.user,
+                source="agent_token_management",
+                reason="user_revoke",
+            )
+        if updated:
+            messages.success(request, "Agent 访问令牌已撤销。")
+        else:
+            messages.info(request, "令牌不存在、已撤销或不属于当前账号。")
+        return redirect("accounts:agent-token-management")
 
 
 class MyProfileRedirectView(LoginRequiredMixin, RedirectView):

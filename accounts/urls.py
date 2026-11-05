@@ -15,6 +15,9 @@ from django.contrib.auth.views import LogoutView
 
 from accounts.views import (
     AcceptAccountInvitationView,
+    AgentDeviceStartView,
+    AgentDeviceTokenView,
+    AgentTokenManagementView,
     AccountPasswordChangeView,
     BoardAccessEmailVerificationView,
     LoginView,
@@ -26,6 +29,8 @@ from accounts.views import (
     PasswordEmailVerificationView,
     ProfileDetailView,
     ProfileUpdateView,
+    agent_authorize,
+    revoke_agent_token,
 )
 
 urlpatterns = [
@@ -65,5 +70,10 @@ urlpatterns = [
         AcceptAccountInvitationView.as_view(),
         name='accept-invitation',
     ),
+    path('agent/device/start/', AgentDeviceStartView.as_view(), name='agent-device-start'),
+    path('agent/device/token/', AgentDeviceTokenView.as_view(), name='agent-device-token'),
+    path('agent/authorize/', agent_authorize, name='agent-authorize'),
+    path('agent/tokens/<int:token_id>/revoke/', revoke_agent_token, name='agent-token-revoke'),
+    path('security/agents/', AgentTokenManagementView.as_view(), name='agent-token-management'),
     path('logout/', LogoutView.as_view(next_page='index'), name='logout'),
 ]

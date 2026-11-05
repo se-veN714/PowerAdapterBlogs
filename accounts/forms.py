@@ -18,7 +18,7 @@ from .models import MyUser, UserProfile
 
 
 class LoginForm(forms.Form):
-    username = forms.CharField(label="用户名")
+    username = forms.CharField(label="用户名或邮箱")
     password = forms.CharField(label="口令", widget=forms.PasswordInput)
 
 

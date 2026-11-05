@@ -197,6 +197,60 @@ class AccountInvitation(models.Model):
         return f"{self.user.username} 的账号邀请"
 
 
+class AgentDeviceAuthorization(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "待批准"
+        APPROVED = "approved", "已批准"
+        DENIED = "denied", "已拒绝"
+        CONSUMED = "consumed", "已兑换"
+
+    client_name = models.CharField(max_length=120, verbose_name="Agent 名称")
+    device_code_digest = models.CharField(max_length=64, unique=True, editable=False)
+    user_code_digest = models.CharField(max_length=64, unique=True, editable=False)
+    scopes = models.JSONField(default=list, verbose_name="授权范围")
+    user = models.ForeignKey(
+        MyUser,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="agent_authorizations",
+        verbose_name="授权用户",
+    )
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    approved_at = models.DateTimeField(null=True, blank=True)
+    denied_at = models.DateTimeField(null=True, blank=True)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Agent 设备授权"
+        verbose_name_plural = "Agent 设备授权"
+
+
+class AgentAccessToken(models.Model):
+    authorization = models.ForeignKey(
+        AgentDeviceAuthorization,
+        on_delete=models.CASCADE,
+        related_name="tokens",
+    )
+    user = models.ForeignKey(
+        MyUser,
+        on_delete=models.CASCADE,
+        related_name="agent_access_tokens",
+    )
+    token_digest = models.CharField(max_length=64, unique=True, editable=False)
+    scopes = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Agent 访问令牌"
+        verbose_name_plural = "Agent 访问令牌"
+
+
 class UserProfile(models.Model):
     """用户主动维护的公开作者资料；认证和权限字段仍留在 MyUser。"""
 

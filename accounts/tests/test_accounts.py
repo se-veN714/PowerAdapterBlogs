@@ -304,6 +304,36 @@ class AccountInvitationTest(TestCase):
         )
         self.assertNotIn(token, invitation.token_digest)
 
+    def test_invitation_sends_activation_to_invitee_and_notice_to_creator(self):
+        creator = MyUser.objects.create_user(
+            email="creator@example.test",
+            username="creator",
+            password=self.password,
+            is_active=True,
+        )
+        user = MyUser.objects.create_user(
+            email="invitee@example.test",
+            username="invitee",
+            password=None,
+            is_active=False,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            invitation, token = issue_account_invitation(user, created_by=creator)
+
+        self.assertEqual(len(mail.outbox), 2)
+        activation = next(message for message in mail.outbox if user.email in message.to)
+        notice = next(message for message in mail.outbox if creator.email in message.to)
+        self.assertIn(
+            reverse("accounts:accept-invitation", kwargs={"token": token}),
+            activation.body,
+        )
+        self.assertNotIn(token, notice.body)
+        self.assertNotIn("accept-invitation", notice.body)
+        self.assertIn(user.username, notice.body)
+        invitation.refresh_from_db()
+        self.assertIsNotNone(invitation.sent_at)
+
     def test_accepting_invitation_activates_user_and_is_single_use(self):
         user = MyUser.objects.create_user(
             email="activate@example.test",
@@ -329,6 +359,26 @@ class AccountInvitationTest(TestCase):
         self.assertTrue(user.has_perm("boards.apply_board_access"))
         self.assertFalse(user.has_perm("boards.add_board"))
         self.assertEqual(self.client.get(url).status_code, 400)
+
+    def test_activated_password_can_login_with_invitation_email(self):
+        user = MyUser.objects.create_user(
+            email="email-login@example.test",
+            username="email-login-user",
+            password=None,
+            is_active=False,
+        )
+        invitation, token = issue_account_invitation(user)
+        self.client.post(
+            reverse("accounts:accept-invitation", kwargs={"token": token}),
+            {"new_password1": self.password, "new_password2": self.password},
+        )
+
+        response = self.client.post(
+            reverse("accounts:login"),
+            {"username": user.email, "password": self.password},
+        )
+        self.assertRedirects(response, reverse("index"))
+        self.assertTrue(self.client.session.get("_auth_user_id"))
 
     def test_resending_invitation_invalidates_previous_link(self):
         user = MyUser.objects.create_user(
@@ -379,7 +429,9 @@ class AccountInvitationTest(TestCase):
         self.assertFalse(invited.is_active)
         self.assertFalse(invited.has_usable_password())
         self.assertTrue(AccountInvitation.objects.filter(user=invited).exists())
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertIn(invited.email, mail.outbox[0].to)
+        self.assertIn(root.email, mail.outbox[1].to)
 
 
 @override_settings(

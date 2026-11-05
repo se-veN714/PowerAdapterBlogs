@@ -3,7 +3,15 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib import messages
 
 from .forms import AccountInvitationCreationForm
-from .models import AccountInvitation, ClientCertificateBinding, MyUser, UserProfile
+from .agent_auth import revoke_agent_access_tokens
+from .models import (
+    AccountInvitation,
+    AgentAccessToken,
+    AgentDeviceAuthorization,
+    ClientCertificateBinding,
+    MyUser,
+    UserProfile,
+)
 from .services import issue_account_invitation, set_comment_identity_verification
 
 from PowerAdapterBlogs.base_admin import DashboardAdminMixin
@@ -276,6 +284,90 @@ class AccountInvitationAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
+
+
+@admin.register(AgentDeviceAuthorization)
+class AgentDeviceAuthorizationAdmin(admin.ModelAdmin):
+    list_display = ("client_name", "user", "status", "created_at", "expires_at")
+    list_filter = ("status", "created_at")
+    search_fields = ("client_name", "user__username")
+    readonly_fields = (
+        "client_name",
+        "device_code_digest",
+        "user_code_digest",
+        "scopes",
+        "user",
+        "status",
+        "created_at",
+        "expires_at",
+        "approved_at",
+        "denied_at",
+        "consumed_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(AgentAccessToken)
+class AgentAccessTokenAdmin(admin.ModelAdmin):
+    list_display = ("user", "authorization", "created_at", "expires_at", "revoked_at", "last_used_at")
+    list_filter = ("created_at", "expires_at", "revoked_at")
+    search_fields = ("user__username", "authorization__client_name")
+    readonly_fields = (
+        "authorization",
+        "user",
+        "token_digest",
+        "scopes",
+        "created_at",
+        "expires_at",
+        "revoked_at",
+        "last_used_at",
+    )
+
+    actions = ("revoke_selected_tokens", "revoke_all_tokens_for_selected_users")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.action(
+        description="全局撤销选中的 Agent 令牌",
+        permissions=["change"],
+    )
+    def revoke_selected_tokens(self, request, queryset):
+        count = revoke_agent_access_tokens(
+            token_ids=queryset.values_list("pk", flat=True),
+            actor=request.user,
+            source="django_admin",
+            event_type="agent.token.admin_revoked",
+            reason="admin_selected_revoke",
+        )
+        messages.success(request, f"已全局撤销 {count} 个 Agent 令牌。")
+
+    @admin.action(
+        description="撤销选中账号的全部有效 Agent 令牌",
+        permissions=["change"],
+    )
+    def revoke_all_tokens_for_selected_users(self, request, queryset):
+        user_ids = queryset.values_list("user_id", flat=True).distinct()
+        token_ids = AgentAccessToken.objects.filter(
+            user_id__in=user_ids,
+            revoked_at__isnull=True,
+        ).values_list("pk", flat=True)
+        count = revoke_agent_access_tokens(
+            token_ids=token_ids,
+            actor=request.user,
+            source="django_admin",
+            event_type="agent.token.admin_revoked",
+            reason="admin_user_global_revoke",
+        )
+        messages.success(request, f"已撤销选中账号的 {count} 个有效 Agent 令牌。")
 
 
 @admin.register(UserProfile)

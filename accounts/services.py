@@ -142,8 +142,49 @@ def invitation_token_digest(token):
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def _send_account_invitation_notice_email(invitation):
+    creator = invitation.created_by
+    if creator is None or not creator.email or creator.email == invitation.user.email:
+        return
+    context = {
+        "user": invitation.user,
+        "created_by": creator,
+        "expires_at": invitation.expires_at,
+    }
+    subject = "PowerAdapter 账号邀请已发送"
+    text_body = render_to_string(
+        "emails/accounts/account_invitation_notice.txt", context
+    )
+    html_body = render_to_string(
+        "emails/accounts/account_invitation_notice.html", context
+    )
+    message = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[creator.email],
+    )
+    message.attach_alternative(html_body, "text/html")
+    try:
+        message.send(fail_silently=False)
+    except Exception:
+        logger.exception(
+            "账号邀请通知邮件发送失败: invitation_id=%s creator_id=%s",
+            invitation.pk,
+            creator.pk,
+        )
+        return
+    logger.info(
+        "账号邀请通知邮件已发送: invitation_id=%s creator_id=%s",
+        invitation.pk,
+        creator.pk,
+    )
+
+
 def _send_account_invitation_email(invitation_id, token):
-    invitation = AccountInvitation.objects.select_related("user").get(pk=invitation_id)
+    invitation = AccountInvitation.objects.select_related("user", "created_by").get(
+        pk=invitation_id
+    )
     activation_path = reverse("accounts:accept-invitation", kwargs={"token": token})
     activation_url = urljoin(settings.PUBLIC_SITE_URL.rstrip("/") + "/", activation_path.lstrip("/"))
     context = {
@@ -169,6 +210,7 @@ def _send_account_invitation_email(invitation_id, token):
     if sent:
         AccountInvitation.objects.filter(pk=invitation.pk).update(sent_at=timezone.now())
         logger.info("账号邀请邮件已发送: user_id=%s", invitation.user_id)
+        _send_account_invitation_notice_email(invitation)
 
 
 def issue_account_invitation(user, *, created_by=None):

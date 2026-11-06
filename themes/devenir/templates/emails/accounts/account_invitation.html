@@ -1,9 +1,17 @@
-<!doctype html>
-<html lang="zh-CN">
-<body>
-  <p>{{ user.username }}，你好：</p>
-  <p>管理员已为你创建 PowerAdapter 账号。请在 {{ expires_at }} 前设置自己的密码并激活账号。</p>
-  <p><a href="{{ activation_url }}">设置密码并激活账号</a></p>
-  <p>如果你不认识本站管理员，请忽略这封邮件。请勿转发该链接。</p>
-</body>
-</html>
+{% extends "emails/accounts/verification_code_base.html" %}
+
+{% block email_title %}激活你的 PowerAdapter 账号{% endblock %}
+{% block preview_text %}管理员已为你创建 PowerAdapter 账号，请设置密码并激活。{% endblock %}
+{% block heading %}激活你的账号{% endblock %}
+{% block introduction %}管理员已为你创建 PowerAdapter 账号，请设置自己的密码并激活账号。{% endblock %}
+{% block primary_content %}
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top: 30px;">
+  <tr>
+    <td style="background-color: #3e5c4c; border: 1px solid #668570;">
+      <a href="{{ activation_url }}" style="display: inline-block; padding: 14px 24px; color: #edf6ef; font-size: 16px; line-height: 24px; font-weight: 600; text-decoration: none;">设置密码并激活账号</a>
+    </td>
+  </tr>
+</table>
+{% endblock %}
+{% block expiry_content %}邀请有效期至 <strong style="color: #8de0ac; font-weight: 600;">{{ expires_at }}</strong>。{% endblock %}
+{% block security_note %}如果你不认识本站管理员，请忽略这封邮件。请勿转发激活链接。{% endblock %}

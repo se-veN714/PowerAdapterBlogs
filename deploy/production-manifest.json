@@ -533,8 +533,8 @@
     },
     {
       "path": "accounts/tests/test_accounts.py",
-      "size": 31490,
-      "sha256": "6bc7826e51fff0f2b89e6d2439213fb582ca023a2e69b7f39b215978102d30fb"
+      "size": 32145,
+      "sha256": "5687df14b52fce912a91f4e28d11a6d8d38d65553530414e466aed87a4d9cb7e"
     },
     {
       "path": "accounts/tests/test_admin_hardening.py",
@@ -598,8 +598,8 @@
     },
     {
       "path": "accounts/views.py",
-      "size": 45139,
-      "sha256": "5c3bd2368d87d0ccf27f45c53f947c73791e34b201d3e040cfe7ff20ca94374e"
+      "size": 45108,
+      "sha256": "b86f55caa4def6c9ca5bd1b06e3b310fc286e7608a846c229524a520cc310b71"
     },
     {
       "path": "boards/DEVELOPMENT.md",
@@ -1578,8 +1578,8 @@
     },
     {
       "path": "padif/views.py",
-      "size": 10936,
-      "sha256": "8f44b45f83674fa1321030c1b6855185825147192a6d2a1d50495040156b68b9"
+      "size": 10919,
+      "sha256": "fdd3fc86477cdb41abb0316b54d0f96980c9c6ef23fe20e5cfaa7605b31266d3"
     },
     {
       "path": "requirements.txt",
@@ -2363,8 +2363,8 @@
     },
     {
       "path": "themes/devenir/templates/emails/accounts/account_invitation.html",
-      "size": 398,
-      "sha256": "c4228627d21b835052135f45b59ebf13eefd45d085c87395abc5e06c16b7a4e4"
+      "size": 1164,
+      "sha256": "8ba6a71cf28952c940447140ba8954c965c5bcb11534c5faa92889cd1eb82e28"
     },
     {
       "path": "themes/devenir/templates/emails/accounts/account_invitation.txt",
@@ -2373,8 +2373,8 @@
     },
     {
       "path": "themes/devenir/templates/emails/accounts/account_invitation_notice.html",
-      "size": 433,
-      "sha256": "85ae9b84020061133f7c5b2e30d39beb3ce895b09e3fa4a32e2fd993f8095aa3"
+      "size": 1252,
+      "sha256": "8c4e82442b9d0c259fbb9359ffbd289462754ba876bfe2632ef544a4b88cf398"
     },
     {
       "path": "themes/devenir/templates/emails/accounts/account_invitation_notice.txt",
@@ -2413,8 +2413,8 @@
     },
     {
       "path": "themes/devenir/templates/emails/accounts/verification_code_base.html",
-      "size": 5658,
-      "sha256": "37752e99d9711922bf9d126b4fa58f54ff3dec14272f6863e609b3ef2fb7c9ee"
+      "size": 5886,
+      "sha256": "e94d5067ca5f6a96152e74c6acb5349957ebd6f8ac7df020793b9b7dd9f6f13e"
     },
     {
       "path": "themes/devenir/templates/pages/_board_fallback.html",

@@ -1,9 +1,19 @@
-<!doctype html>
-<html lang="zh-CN">
-<body>
-  <p>{{ created_by.username }}，你好：</p>
-  <p>你已成功为 <strong>{{ user.username }}</strong>（{{ user.email }}）发出 PowerAdapter 账号邀请。</p>
-  <p>激活邮件已发送到受邀人的邮箱，邀请有效期至 {{ expires_at }}。</p>
-  <p>本通知不包含激活链接；受邀人需要使用自己的邮箱完成密码设置和账号激活。</p>
-</body>
-</html>
+{% extends "emails/accounts/verification_code_base.html" %}
+
+{% block email_title %}PowerAdapter 账号邀请已发送{% endblock %}
+{% block preview_text %}账号邀请已发送至 {{ user.email }}。{% endblock %}
+{% block mail_category %}MAIL / INVITATION NOTICE{% endblock %}
+{% block heading %}账号邀请已发送{% endblock %}
+{% block greeting %}{{ created_by.username }}，你好。{% endblock %}
+{% block introduction %}你已成功发出 PowerAdapter 账号邀请，激活邮件已发送到受邀人的邮箱。{% endblock %}
+{% block primary_content %}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 30px; border: 1px solid #52655b; background-color: #121b18;">
+  <tr>
+    <td style="padding: 20px 24px; font-size: 16px; line-height: 28px; color: #dce8df; overflow-wrap: anywhere;">
+      <strong>{{ user.username }}</strong><br>{{ user.email }}
+    </td>
+  </tr>
+</table>
+{% endblock %}
+{% block expiry_content %}邀请有效期至 <strong style="color: #8de0ac; font-weight: 600;">{{ expires_at }}</strong>。{% endblock %}
+{% block security_note %}本通知不包含激活链接；受邀人需要使用自己的邮箱完成密码设置和账号激活。{% endblock %}

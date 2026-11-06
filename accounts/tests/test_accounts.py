@@ -331,6 +331,18 @@ class AccountInvitationTest(TestCase):
         self.assertNotIn(token, notice.body)
         self.assertNotIn("accept-invitation", notice.body)
         self.assertIn(user.username, notice.body)
+        activation_html = activation.alternatives[0][0]
+        notice_html = notice.alternatives[0][0]
+        for html in (activation_html, notice_html):
+            self.assertIn("POWERADAPTER", html)
+            self.assertIn("此邮件由系统自动发送", html)
+            self.assertIn("background-color: #080c0b", html)
+            self.assertNotIn("验证码", html)
+        self.assertIn(token, activation_html)
+        self.assertNotIn(token, notice_html)
+        self.assertNotIn("accept-invitation", notice_html)
+        self.assertIn(f"{creator.username}，你好", notice_html)
+        self.assertIn(user.email, notice_html)
         invitation.refresh_from_db()
         self.assertIsNotNone(invitation.sent_at)
 

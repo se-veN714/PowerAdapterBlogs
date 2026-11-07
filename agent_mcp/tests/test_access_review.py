@@ -75,6 +75,16 @@ class AgentAccessReviewTests(TestCase):
         self.assertEqual(item.status, 'approved')
         self.assertEqual(item.decision_note, 'Approved for writing assistance')
         self.assertTrue(AuditOutbox.objects.filter(event_type='agent.access.revoked').exists())
+        # Direct reopening must not resurrect any previously approved credential or AI+.
+        from agent_mcp.access import grant_agent_qualification
+        from padif.models import DocumentAgentGrant
+        grant = AgentQualification.objects.get(user=self.owner)
+        grant_agent_qualification(self.owner.pk, self.reviewer, 'Reopened by admin', expected_revision=grant.revision)
+        self.assertTrue(can_use_agent(self.owner))
+        self.assertEqual(self.rpc(issued['access_token'], 'tools/list').status_code, 401)
+        self.assertEqual(self.refresh(issued['refresh_token']).status_code, 400)
+        self.assertIsNone(authenticate_agent_token(legacy)[0])
+        self.assertFalse(DocumentAgentGrant.objects.filter(user=self.owner, is_enabled=True).exists())
 
     def test_rejection_allows_reapply_without_granting_padif_or_agent(self):
         item = submit_agent_request(self.owner, 'Writing')

@@ -107,7 +107,7 @@ def dashboard_navigation(request) -> list[dict]:
             "url": _url("dashboard:settings"),
             "visible": capabilities["settings"],
         },
-        {"key": "agents", "label": "Agent 审核", "url": _url("dashboard:agents"), "visible": can_review_agents(user)},
+        {"key": "agents", "label": "Agent 授权", "url": _url("dashboard:agents"), "visible": can_review_agents(user)},
     ]
 
 

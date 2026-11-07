@@ -181,3 +181,24 @@ Run transition, gateway, historical migration and PostgreSQL concurrency tests i
 It checks the management/OAuth pages and drawer at 1915×930, 1198×715 and 390×844,
 focus, validation failures, immediate reduction and owner approval. It is local
 Chromium evidence, not native WorkBuddy proof. No deployment is performed.
+
+### Dashboard eligibility management
+
+`/dashboard/agents/` lets an existing Agent reviewer search registered accounts by
+username or exact email, directly open PAdif eligibility, edit the management note,
+revoke and reopen eligibility. The account must already be active and have human
+PAdif access. Self-management and changes to intrinsic superuser eligibility are
+rejected. Every mutation requires POST, CSRF and an explanation; state changes use
+the qualification revision to reject stale pages. Notes do not change that cycle.
+
+Direct opening approves a pending real module request if one exists; it never
+invents an application. Deletion is logical revocation, preserving audit/history.
+Revocation closes article AI+ and invalidates credentials; reopening never restores
+those grants or credentials. Article roles, per-article AI+, OAuth consent/scopes
+and web-only main publication confirmation remain separate.
+
+Migration 0005 adds optional management metadata without rewriting authorizations.
+Regression tests: `test_dashboard_grants`, `test_dashboard_grants_migration`, and
+`test_access_review`. `browser_dashboard_grants.cjs` uses disposable local accounts
+from ignored `.local/dashboard-grants-qa.json` against port 8774; never use production
+credentials. It verifies the CRUD workflow and three viewport widths.

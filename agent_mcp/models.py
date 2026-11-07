@@ -38,6 +38,8 @@ class AgentQualification(models.Model):
     revision = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=False)
     revoked_at = models.DateTimeField(null=True, blank=True)
+    management_note = models.TextField(blank=True)
+    managed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

@@ -238,8 +238,8 @@
     },
     {
       "path": "PowerAdapterBlogs/dashboard_context.py",
-      "size": 17591,
-      "sha256": "8adf0cde49d101cb8f0af4a68880feab39789c2c61e5b962c6b59392ae326f94"
+      "size": 17698,
+      "sha256": "67931f1234095594b85138d5cd7b3f4a4ef01826a1c635c715470555137db4be"
     },
     {
       "path": "PowerAdapterBlogs/dashboard_urls.py",
@@ -608,8 +608,8 @@
     },
     {
       "path": "agent_mcp/README.md",
-      "size": 11316,
-      "sha256": "dae83861bae09d4e22c40598bd6f08c57f62cbb3c76e192cd7a9ae8e0809988e"
+      "size": 12664,
+      "sha256": "96d3643111630af911f4df1335059d37ac4e31dcc4b63b4b417313bfe30b5e09"
     },
     {
       "path": "agent_mcp/__init__.py",
@@ -618,8 +618,8 @@
     },
     {
       "path": "agent_mcp/access.py",
-      "size": 8426,
-      "sha256": "c5431793bb10f3eeb8d63cfa659b98d674aa0139ceda80de089f96d4fe23dc7b"
+      "size": 11950,
+      "sha256": "6efb660d39cc683dc18a99e6a9a958e0fa72d97f0af7217ad440b9bfbaf35e4d"
     },
     {
       "path": "agent_mcp/admin.py",
@@ -687,14 +687,19 @@
       "sha256": "a90294caea4196477f83703118c3b54843d6cd30aa0544ed063286fa4613ac8f"
     },
     {
+      "path": "agent_mcp/migrations/0005_agentqualification_managed_by_and_more.py",
+      "size": 846,
+      "sha256": "9611034ee4bdcf90ef7db01ec1c28f685cc61cc98b091103f5fad3c0c343c7ca"
+    },
+    {
       "path": "agent_mcp/migrations/__init__.py",
       "size": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "path": "agent_mcp/models.py",
-      "size": 3287,
-      "sha256": "2f2c6e3144eb3e3d55382266c9c49dae104df5b3ef03b5d0a1cb6eb10a9dbdc7"
+      "size": 3536,
+      "sha256": "2753a75282cd336017dce9566319ac6d470586f5faa2cfb683a53e75f10ad485"
     },
     {
       "path": "agent_mcp/oauth.py",
@@ -708,8 +713,8 @@
     },
     {
       "path": "agent_mcp/review_views.py",
-      "size": 4535,
-      "sha256": "0708e67045bc74432d1c728e958760dca3f14d08ca98b5a89916e6a18fee810b"
+      "size": 9466,
+      "sha256": "8964cc68ea89643dda48f3fef0718c336e5634d9e4ddebd64aa28d2714ed4a85"
     },
     {
       "path": "agent_mcp/signals.py",
@@ -735,6 +740,11 @@
       "path": "agent_mcp/tests/browser_collaboration.cjs",
       "size": 6400,
       "sha256": "ffba6869b3dda060f05e4832691af761f39569e0d4410591684eb6daebd3a8e0"
+    },
+    {
+      "path": "agent_mcp/tests/browser_dashboard_grants.cjs",
+      "size": 4044,
+      "sha256": "62c0be3bdb6532fc17a1e5fd30e1e900f31987fc07942ab69f953db2b80c39fc"
     },
     {
       "path": "agent_mcp/tests/browser_oauth.cjs",
@@ -768,8 +778,8 @@
     },
     {
       "path": "agent_mcp/tests/test_access_review.py",
-      "size": 5601,
-      "sha256": "8386515c006b90874fcd9e7c93c26c1de44d1b1683190f9850c418767df771ee"
+      "size": 6386,
+      "sha256": "c49d4146a194d556ce0506f1d576c3f7a4cb6fbf2893069407088658835f7aed"
     },
     {
       "path": "agent_mcp/tests/test_access_states.py",
@@ -785,6 +795,16 @@
       "path": "agent_mcp/tests/test_concurrency.py",
       "size": 1832,
       "sha256": "7b96b4a2a318ed62b535462f3ae96fbf81549bc74e4835ef92bebc90f2aa371a"
+    },
+    {
+      "path": "agent_mcp/tests/test_dashboard_grants.py",
+      "size": 9421,
+      "sha256": "b0ffe18d8a7ec211c3a4a242c51154bb8a63765bd4471990b962984c2afd59d9"
+    },
+    {
+      "path": "agent_mcp/tests/test_dashboard_grants_migration.py",
+      "size": 2067,
+      "sha256": "51e2764224e723a6453311c8c4cb9735a835d3ac8d456bf2482ae2efa237b811"
     },
     {
       "path": "agent_mcp/tests/test_dcr.py",
@@ -2337,6 +2357,11 @@
       "sha256": "f1e88136d58df01efda04305c1c8e51d4a47a82e00052cd332bd7e94290d3128"
     },
     {
+      "path": "themes/devenir/static/css/dashboard/agents.css",
+      "size": 2794,
+      "sha256": "d4a2a7632ed67313464383c43eba7f75b7f800ce51289c21f86d76706a426252"
+    },
+    {
       "path": "themes/devenir/static/css/dashboard/components.css",
       "size": 9263,
       "sha256": "ee1e9286feddc25132b5679f78edb0282039a6e293549965b689b99dd5bad533"
@@ -3158,8 +3183,8 @@
     },
     {
       "path": "themes/devenir/templates/pages/dashboard/agents.html",
-      "size": 2782,
-      "sha256": "efd8c3fbb0ab7c36fcf6d2f6882156f914bdf3a4670f34707c33e1fec7c4db57"
+      "size": 8873,
+      "sha256": "d4ffda107e9c5ebccf705ec128770d2ca8019aad885b06f49d55cb6f9887b783"
     },
     {
       "path": "themes/devenir/templates/pages/dashboard/audit.html",

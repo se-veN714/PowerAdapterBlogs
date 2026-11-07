@@ -1,0 +1,10 @@
+<section class="agent-access-state agent-owner-reviews" id="owned-ai-review" aria-labelledby="owned-ai-review-title">
+  <header class="agent-owner-review-heading"><div><p class="agent-token-kicker">CREATOR / ARTICLE APPROVAL</p><h2 id="owned-ai-review-title">我创建文章的 AI+ 审批</h2></div><span class="agent-owner-pending-count">待审核 {{ owned_ai_pending_count }} 条</span></header>
+  <p>你是文章创建者，可直接审批自己或成员的本文 AI+ 申请，无需进入管理员工作台。</p>
+  <p class="agent-owner-review-hint">审批只授予所列操作，不改变人类协作角色、客户端 scope 或主线网页确认。最多展示近期 40 条，其他申请可从文章的“管理本文授权”处理。</p>
+  {% for item in owned_ai_requests %}<article class="agent-owner-review-card" data-owned-ai-request="{{ item.pk }}">
+    <header><h3><a href="{% url 'padif:document_detail' item.document_id %}">{{ item.document.title }}</a></h3><a href="{% url 'padif:collaboration' item.document_id %}">管理协作 →</a></header>
+    <p>申请账号：{{ item.applicant.username }} <span class="agent-owner-account-id">ID {{ item.applicant_id }}</span>{% if item.applicant_id == request.user.pk %} · 本人{% endif %}</p><p>申请操作：{{ item.operations_summary }}{% if item.request_kind == 'increase' %} · 提权申请{% endif %}</p><p>{{ item.reason }}</p><small>{{ item.created_at|date:'Y-m-d H:i' }}</small>
+    <form method="post" action="{% url 'agent_mcp:review-article' item.pk %}">{% csrf_token %}<label>审批说明（必填）<textarea name="note" required maxlength="2000" rows="2" placeholder="填写授予或驳回的依据"></textarea></label><div><button type="submit" name="decision" value="approve" class="agent-primary">批准本文 AI+</button><button type="submit" name="decision" value="reject" class="agent-secondary">驳回申请</button></div></form>
+  </article>{% empty %}<p class="agent-owner-review-empty">暂无待审核申请。创建者可通过文章列表中的“管理本文授权”直接设置成员权限。</p>{% endfor %}
+</section>

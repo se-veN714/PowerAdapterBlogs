@@ -29,13 +29,22 @@ def portal_context(user):
         doc.ai_operation_options = [{'key': key, 'label': LABELS[key], 'allowed': key in doc.ai_operations} for key in OPERATIONS]
         doc.ai_status = '已授权' if doc.ai_enabled else '已撤销' if grant and grant.revoked_at else '未授权'
         doc.pending_request = pending.get(doc.pk)
+        if doc.pending_request and not doc.ai_enabled:
+            doc.ai_status = '待审核'
         doc.pending_operations_summary = operation_summary(doc.pending_request.requested_operations) if doc.pending_request else ''
         doc.can_request_ai = qualified and not doc.ai_operations and not doc.pending_request
     history = list(DocumentAgentRequest.objects.filter(applicant=user).select_related('reviewed_by', 'closed_by')[:40])
     for item in history:
         item.visible_title = documents_by_id[item.document_id].title if item.document_id in documents_by_id else None
         item.operations_summary = operation_summary(item.requested_operations)
+    # Only the creator can discover/review this queue, including their own requests.
+    owned_requests = DocumentAgentRequest.objects.filter(document__created_by=user, status='pending').select_related('document', 'applicant') if can_use_padif(user) else DocumentAgentRequest.objects.none()
+    owned_count = owned_requests.count()
+    owned = list(owned_requests[:40])
+    for item in owned:
+        item.operations_summary = operation_summary(item.requested_operations)
     return {'agent_qualified': qualified, 'module_status': current,
+        'owned_ai_requests': owned, 'owned_ai_pending_count': owned_count,
         'agent_requests': AgentAccessRequest.objects.filter(applicant=user, module_key='padif').select_related('reviewed_by', 'closed_by')[:20],
         'agent_pending': AgentAccessRequest.objects.filter(applicant=user, module_key='padif', status='pending').exists(),
         'agent_documents': documents, 'article_requests': history,

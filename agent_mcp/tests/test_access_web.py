@@ -33,18 +33,19 @@ class TwoLevelAccessWebTests(TestCase):
             self.client.post(reverse('agent_mcp:apply'), payload, secure=True)
             self.assertFalse(AgentAccessRequest.objects.filter(applicant=self.user, status='pending').exists())
 
-    def test_owner_portal_has_no_collaboration_management_but_article_still_does(self):
+    def test_owner_portal_links_to_article_management_without_embedding_human_controls(self):
         self.client.force_login(self.owner)
         management_url = reverse('padif:collaboration', args=[self.document.pk])
         portal = self.client.get('/accounts/security/agents/', secure=True)
-        self.assertNotContains(portal, management_url)
+        self.assertContains(portal, management_url)
+        self.assertNotContains(portal, 'id="collaboration-account"')
         self.assertNotContains(portal, '创建者直接授权 / 审核本文申请')
         self.assertContains(portal, reverse('padif:document_detail', args=[self.document.pk]))
         detail = self.client.get(reverse('padif:document_detail', args=[self.document.pk]), secure=True)
         self.assertContains(detail, management_url)
         management = self.client.get(management_url, secure=True)
-        self.assertContains(management, '人类协作成员')
-        self.assertContains(management, '本文 Agent 申请')
+        self.assertContains(management, '协作成员')
+        self.assertContains(management, '待审核申请')
 
     def test_article_application_owner_approval_and_self_relinquish(self):
         self.client.force_login(self.user)
@@ -56,7 +57,7 @@ class TwoLevelAccessWebTests(TestCase):
         self.assertFalse(DocumentAgentGrant.objects.filter(user=self.user, is_enabled=True).exists())
         self.client.force_login(self.owner)
         url = reverse('padif:collaboration', args=[self.document.pk])
-        self.assertContains(self.client.get(url, secure=True), '本文 Agent 申请')
+        self.assertContains(self.client.get(url, secure=True), '待审核申请')
         self.assertEqual(self.client.post(url, {'action': 'approve-ai', 'request_id': item.pk, 'note': 'Approved'}, secure=True).status_code, 302)
         self.client.force_login(self.user)
         self.assertContains(self.client.get('/accounts/security/agents/', secure=True), '已授权 <strong data-granted-count>1</strong> 篇')

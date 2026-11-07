@@ -3,7 +3,7 @@
 {% block title %}Agent 授权管理{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20261107.mcp1">
-<link rel="stylesheet" href="{% static 'css/agent-access.css' %}?v=20261107.operations2">
+<link rel="stylesheet" href="{% static 'css/agent-access.css' %}?v=20261107.collaboration1">
 <script defer src="{% static 'js/agent-access.js' %}?v=20261107.operations2"></script>
 {% endblock %}
 {% block hero %}{% endblock %}
@@ -31,6 +31,7 @@
       </details>
     </section>
     {% include 'pages/accounts/_agent_articles.html' %}
+    {% include 'pages/accounts/_agent_owner_reviews.html' %}
     <section class="agent-access-state" aria-labelledby="agent-connections-title">
       <p class="agent-token-kicker">03 / 客户端连接</p><h2 id="agent-connections-title">MCP 连接</h2>
       {% if agent_qualified and not agent_article_count %}<p class="agent-zero-access" role="status">已开通 PAdif Agent，尚无可访问文章。可先申请 AI+；主动连接后的文章列表为空。</p>{% endif %}

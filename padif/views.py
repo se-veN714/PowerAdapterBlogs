@@ -157,6 +157,13 @@ def _version_rail_context(document, selected, *, full_history=False):
     }
 
 
+def _article_access_state(document, user):
+    from .access_presentation import article_access_state
+    return article_access_state(user, document_role(user, document),
+        document.agent_grants.filter(user=user).first(),
+        document.agent_requests.filter(applicant=user, status='pending').first())
+
+
 def _document_context(document, *, user, branch=None, commit_form=None, upload_form=None, annotation_form=None, full_history=False):
     branch = branch or resolve_branch(document)
     current = effective_head(branch)
@@ -164,6 +171,7 @@ def _document_context(document, *, user, branch=None, commit_form=None, upload_f
     diff_initial = {"mode": "inline"}
     if current and current.parent_id:
         diff_initial.update(from_version=current.parent_id, to_version=current.pk)
+    access = _article_access_state(document, user)
     return {
         **_version_rail_context(document, branch, full_history=full_history),
         "document": document, "current_version": current, "selected_branch": branch,
@@ -176,7 +184,8 @@ def _document_context(document, *, user, branch=None, commit_form=None, upload_f
         "can_manage_collaboration": document.created_by_id == user.pk,
         "can_write_document": document_role(user, document) in {'owner', 'collaborator'},
         "can_edit_version": document_role(user, document) == 'owner' or (document_role(user, document) == 'collaborator' and not branch.is_default),
-        "document_ai_enabled": document.agent_grants.filter(user=user, is_enabled=True).exists(),
+        "document_ai_enabled": access['effective'],
+        "ai_access": access,
         "document_form": DocumentUploadForm(),
         "commit_form": commit_form if commit_form is not None else VersionCommitForm(initial={**initial, "content": current.content if current else ""}),
         "upload_form": upload_form if upload_form is not None else VersionUploadForm(document=document, initial=initial),

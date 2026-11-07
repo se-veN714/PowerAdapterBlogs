@@ -135,14 +135,32 @@ supported option, shown disabled). No free-text module purpose is required;
 legacy purposes are retained. New web submissions explicitly include
 `module_key=padif`; missing or unsupported keys are rejected.
 
-The portal manages only the signed-in user's article AI+ applications, their
-withdrawal/relinquishment, and connections. Its article links open the article
-itself. Owner collaboration controls and AI+ approval/direct grants remain at
+The portal manages the signed-in user's article AI+ applications, their
+withdrawal/relinquishment, and connections. It also shows a creator-only pending
+AI+ review queue for their own articles, including their own requests. Approval
+and rejection call the existing article decision service, require an explanation
+and CSRF-protected POST, and retain all role/module/revision checks. A dashboard
+role never grants access to another creator's queue. Article rows link to owner
+management; human membership controls and direct article grants remain at
 `/padif/documents/<id>/collaboration/`, in separate human-members and AI+ sections.
 Dashboard review grants module eligibility; article owners independently review
 each article request. Neither decision creates an OAuth token or enlarges scope.
 Request outcomes are terminal; current eligibility/AI+ and historical approval
 are displayed separately. Role or eligibility cycles cannot revive old requests.
+
+Document headers and collaboration pages distinguish module eligibility from
+article consent (unapproved, pending, effective, revoked or unavailable). The
+owner-only account picker searches active PAdif-capable users by username or
+numeric ID, returns only names/IDs (no email), and retains a native select fallback.
+The search endpoint is the document's collaboration URL with `accounts=1&q=...`;
+anonymous, nonmember and nonowner requests retain the same document authorization
+checks. Names are inserted as text and IDs use a muted style.
+
+Regression: `padif.tests.test_collaboration_presentation`, existing collaboration,
+operation and request suites, and `agent_mcp.tests.test_access_web`. The local
+`padif/tests/browser_collaboration_access.cjs` uses disposable fixture accounts in
+ignored `.local/collaboration-qa.json` on port8775. It covers name/ID search, keyboard
+selection, focus, human-role isolation, creator self-approval and three viewports.
 
 Local acceptance uses `browser_two_level_access.cjs` with disposable accounts and
 `.local/v2-browser-fixture.json`, plus the existing official SDK OAuth harness.

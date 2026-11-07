@@ -473,3 +473,66 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .collaboration-member[data-ai-member] form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:end; }
 .collaboration-member[data-ai-member] .collaboration-ai { grid-column:1 / -1; }
 @media(max-width:700px) { .collaboration-member[data-ai-member] form { grid-template-columns:minmax(0,1fr); } }
+
+/* Separate human collaboration, module eligibility and article AI+ consent. */
+.access-account-id { color:var(--muted); font:12px/1.5 var(--mono); white-space:nowrap; }
+.document-access-status { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px; }
+.access-badge { display:inline-block; padding:4px 8px; border:1px solid var(--line2); color:var(--soft); font:12px/1.5 var(--mono); }
+.access-badge--pending { color:var(--warn); border-color:var(--warn); }
+.access-badge--enabled { color:var(--accent); border-color:var(--deep); }
+.access-badge--unavailable, .access-badge--revoked { color:var(--red); }
+.document-heading-actions { display:flex; flex-direction:column; align-items:flex-end; gap:12px; flex-shrink:0; }
+.document-heading:has(.document-manage-collaboration) { flex-wrap:wrap; }
+.document-heading:has(.document-manage-collaboration) > div:first-child { flex:1 1 260px; min-width:0; overflow-wrap:anywhere; }
+.document-manage-collaboration { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; background:var(--accent); color:var(--bg); border:1px solid var(--accent); font-weight:600; text-decoration:none; white-space:nowrap; }
+.collaboration-console { width:min(1480px,100%); margin:0 auto; padding:28px 24px 40px; }
+.collaboration-document { display:flex; flex-wrap:wrap; align-items:center; gap:20px; justify-content:space-between; }
+.collaboration-document h1 { margin:4px 0; font-size:28px; }
+.collaboration-document p { margin:4px 0; }
+.collaboration-console-heading { margin:24px 0; }
+.collaboration-console-heading h1 { margin:4px 0; font-size:30px; }
+.collaboration-columns { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); align-items:start; gap:20px; }
+.access-panel, .collaboration-ai-column { min-width:0; }
+.access-panel h2 { margin:4px 0 12px; font-size:23px; color:var(--accent); }
+.access-panel h3 { font-size:16px; }
+.access-panel p, .access-panel h3, .access-panel h4 { overflow-wrap:anywhere; }
+.access-panel label { display:grid; gap:6px; color:var(--text2); font-size:14px; }
+.access-panel input, .access-panel select, .access-panel textarea { box-sizing:border-box; width:100%; min-width:0; border-radius:0; font-size:14px; }
+.access-panel textarea { min-height:76px; height:auto; line-height:1.5; }
+.access-panel button, .access-secondary { border-radius:0; }
+.access-secondary { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line2); background:var(--bg); color:var(--accent); padding:9px 14px; text-decoration:none; }
+.access-panel button.access-secondary { background:var(--bg); }
+.collaboration-member-add { margin:24px 0; }
+.account-picker { position:relative; min-width:0; }
+.account-picker [hidden] { display:none; }
+.account-picker-options { position:absolute; left:0; right:0; top:70px; max-height:256px; overflow:auto; border:1px solid var(--soft); background:var(--bg2); z-index:10; }
+.account-picker-options button { display:flex; width:100%; justify-content:space-between; gap:12px; border:0; border-bottom:1px solid var(--line2); background:var(--bg2); color:var(--text); padding:12px; text-align:left; overflow-wrap:anywhere; }
+.account-picker-options button[aria-selected=true], .account-picker-options button:hover { background:var(--deep); }
+.account-picker-options p { padding:12px; }
+.account-picker-help, .account-picker-status { font-size:12px; color:var(--muted); margin:6px 0; }
+.collaboration-add-actions { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; align-items:end; margin-top:16px; }
+.access-table-heading, .access-member-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr) minmax(90px,.6fr); gap:14px; align-items:start; }
+.access-table-heading { padding:10px 0; color:var(--muted); font-size:12px; border-bottom:1px solid var(--line2); }
+.access-member-row h3, .access-member-row p { margin:0 0 6px; }
+.access-member-row .access-badge { font-size:11px; }
+.access-member-controls summary, .access-ai-member summary, .access-history summary { cursor:pointer; color:var(--accent); padding:6px 0; }
+.access-member-controls form { display:grid; gap:8px; margin:10px 0; }
+.access-member-controls label { min-width:0; }
+.access-member-controls button { max-width:100%; padding:8px; }
+.collaboration-ai-column > * + * { margin-top:18px; }
+.access-panel .ai-review-item { border-top:1px solid var(--line2); padding:16px 0; }
+.access-panel .ai-review-item h4 { margin:0 0 8px; font-size:16px; }
+.access-review-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+.access-ai-member > summary { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; }
+.access-ai-member > summary::after { content:'展开 ↓'; color:var(--soft); font-size:12px; }
+.access-ai-member[open] > summary::after { content:'收起 ↑'; }
+.access-panel .access-ai-member form { display:grid; grid-template-columns:1fr; align-items:start; gap:12px; }
+.access-panel .collaboration-ai, .access-panel fieldset label { display:flex; align-items:center; gap:8px; }
+.access-panel input[type=checkbox] { width:16px; height:16px; margin:0; accent-color:var(--accent); }
+.access-panel fieldset { margin:0; padding:10px; border:1px solid var(--line2); display:flex; flex-wrap:wrap; gap:12px; min-width:0; }
+.access-panel fieldset label { font-size:13px; }
+.access-explainer { border:1px solid var(--line2); color:var(--soft); padding:8px 16px; font-size:13px; }
+.access-explainer p { margin:8px 0; }
+.access-footer { margin-top:20px; font-size:12px; }
+@media(max-width:1050px) { .collaboration-columns { grid-template-columns:1fr; } }
+@media(max-width:650px) { .collaboration-console { padding:16px 12px; } .collaboration-console .panel { padding:16px; } .collaboration-document { gap:12px; } .collaboration-add-actions { grid-template-columns:1fr; } .access-table-heading { display:none; } .access-member-row { grid-template-columns:1fr; gap:8px; } .document-heading-actions { align-items:flex-start; } .document-heading:has(.document-manage-collaboration) { flex-wrap:wrap; } }

@@ -1,0 +1,8 @@
+<article class="ai-review-item" data-ai-request="{{ item.pk }}">
+  <h4>{{ item.applicant.username }} <span class="access-account-id">ID {{ item.applicant_id }}</span></h4>
+  <p class="access-badge access-badge--{% if item.status == 'pending' %}pending{% else %}none{% endif %}">{{ item.get_status_display }}</p><p>{{ item.reason }}</p>
+  <p>{% if item.request_kind == 'increase' %}提权申请 · 基线：{{ item.basis_summary }} → {% else %}申请操作：{% endif %}{{ item.operations_summary }}</p>
+  <small>{{ item.created_at|date:'m-d H:i' }}{% if item.reviewed_by %} · {{ item.reviewed_by }} · {{ item.reviewed_at|date:'m-d H:i' }}{% endif %}</small>
+  {% if item.decision_note %}<p>{{ item.decision_note }}</p>{% endif %}{% if item.invalidated_reason %}<p>前置权限已变化，申请已失效。</p>{% endif %}
+  {% if item.status == 'pending' %}<form method="post">{% csrf_token %}<input type="hidden" name="request_id" value="{{ item.pk }}"><label>审批说明（必填）<textarea name="note" required maxlength="2000" rows="2"></textarea></label><div class="access-review-actions"><button name="action" value="approve-ai" type="submit">批准本文 AI+</button><button name="action" value="reject-ai" type="submit" class="access-secondary">驳回申请</button></div></form>{% endif %}
+</article>

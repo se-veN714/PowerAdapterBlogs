@@ -608,8 +608,8 @@
     },
     {
       "path": "agent_mcp/README.md",
-      "size": 12664,
-      "sha256": "96d3643111630af911f4df1335059d37ac4e31dcc4b63b4b417313bfe30b5e09"
+      "size": 13956,
+      "sha256": "f9f12f2c7e7215b94f8f2112c3cb7e9f460ca4f7809f9b1a71e907ed055894b1"
     },
     {
       "path": "agent_mcp/__init__.py",
@@ -633,8 +633,8 @@
     },
     {
       "path": "agent_mcp/article_views.py",
-      "size": 3847,
-      "sha256": "51e8bc4deb284a28d93bc007d9bfaef96760e4e387a6a47466746c164225cc7a"
+      "size": 4814,
+      "sha256": "6c1eff002ecda2e27ca776c01f07d997276fdba42cc041a64ac3caef327c9b1f"
     },
     {
       "path": "agent_mcp/checks.py",
@@ -708,8 +708,8 @@
     },
     {
       "path": "agent_mcp/presentation.py",
-      "size": 4495,
-      "sha256": "f12155e5b88f1a083b9c9a9582ab14e22da8db368ef5e6f4640304eaa5543b88"
+      "size": 5146,
+      "sha256": "23b24834faea1f46db8d06b6111021292ecd993b75e8e7701cf0657b83a2ec12"
     },
     {
       "path": "agent_mcp/review_views.py",
@@ -788,8 +788,8 @@
     },
     {
       "path": "agent_mcp/tests/test_access_web.py",
-      "size": 7696,
-      "sha256": "69bed888c34950cef256d08a53ec6908d53b8de8b7c6117fd5fbb2dabd29ff68"
+      "size": 7755,
+      "sha256": "d98ee94326a8666ba5c1ef1e2f2fc81a6a88c88aec4d7733e745d62bdcdc56d7"
     },
     {
       "path": "agent_mcp/tests/test_concurrency.py",
@@ -833,8 +833,8 @@
     },
     {
       "path": "agent_mcp/urls.py",
-      "size": 1170,
-      "sha256": "b8f3e497d9de7e7166434dd0d344b80e37d27faef143c29f2d315de89af07934"
+      "size": 1282,
+      "sha256": "cd320f2d1c547ccce8660ea61c1c5c2066f19b6b5d336acc446e4c5a8bc24b19"
     },
     {
       "path": "agent_mcp/views.py",
@@ -1662,6 +1662,11 @@
       "sha256": "7ac03644b946cf3be34a6628cf60da815e199013cbeee344af607ee017db4d48"
     },
     {
+      "path": "padif/access_presentation.py",
+      "size": 1186,
+      "sha256": "628f0c271caf20725ab47d6ddf590139b613093f9e2542c0f653be0723f05368"
+    },
+    {
       "path": "padif/admin.py",
       "size": 1360,
       "sha256": "392cdef564f8bad24fdcd0c3035ac6588d86d2545bbe47f4c462b57bfb70d379"
@@ -1693,8 +1698,8 @@
     },
     {
       "path": "padif/collaboration_views.py",
-      "size": 3305,
-      "sha256": "0ca708fe7f0cb78fd653af5360b98472eb7d564d4f51f176e3fec3bc7a6e5cf8"
+      "size": 5310,
+      "sha256": "bf93ebcef997a9489add1a837c73e27dd7370947c442d18e109cad5c74aeef9d"
     },
     {
       "path": "padif/core/__init__.py",
@@ -1792,19 +1797,29 @@
       "sha256": "279fae8913407784336604cb70a2ed6ed08c5b2d12e942817cc5fcbc8977d78c"
     },
     {
+      "path": "padif/static/padif/collaboration.js",
+      "size": 6006,
+      "sha256": "2fba87d8721f1dff6f16b74df9c6d3a6c5b928b8d0234f0ce05b1e13135db903"
+    },
+    {
       "path": "padif/static/padif/htmx.min.js",
       "size": 48101,
       "sha256": "449317ade7881e949510db614991e195c3a099c4c791c24dacec55f9f4a2a452"
     },
     {
       "path": "padif/static/padif/padif.css",
-      "size": 38674,
-      "sha256": "f2738b0d0a3a165118e946d0bb1597559b0818062866e719d826e05504c0507d"
+      "size": 44320,
+      "sha256": "1da3032b7ed2705a0ed055c4cc57a5aeb5d32ef9bb70253a9321baaf8cdfe5b3"
     },
     {
       "path": "padif/static/padif/padif.js",
       "size": 8412,
       "sha256": "38be277e1025dae0f32c10d89e55d842aba8bac72d9400e6fc5dc083c65898ba"
+    },
+    {
+      "path": "padif/templates/padif/_collaboration_request.html",
+      "size": 1316,
+      "sha256": "305b2aaec119af5a8ec60445f4bcd6bf95018f81f1906c37a70e60fb32804faf"
     },
     {
       "path": "padif/templates/padif/_dropzone.html",
@@ -1829,7 +1844,7 @@
     {
       "path": "padif/templates/padif/base.html",
       "size": 1083,
-      "sha256": "40b0acbb43206ddc1041ab347c2b0ef4ab89481f8e8c0334cdf6780bbd62ed6a"
+      "sha256": "d447b842ed302cc72eb081e017c4fd39f72285ecafc65245ae778876b0372712"
     },
     {
       "path": "padif/templates/padif/branch_action.html",
@@ -1838,8 +1853,8 @@
     },
     {
       "path": "padif/templates/padif/collaboration.html",
-      "size": 5328,
-      "sha256": "bd2b0145d4ce5b5ebe6a0d94f5f3df6e9dc9536b328be22c22d799660f78a06a"
+      "size": 7042,
+      "sha256": "87294b8b105c97b03492e0bf990913e5f29934f0f28d7f8687473f1d15f4f5af"
     },
     {
       "path": "padif/templates/padif/diff_errors.html",
@@ -1853,8 +1868,8 @@
     },
     {
       "path": "padif/templates/padif/document_detail.html",
-      "size": 26213,
-      "sha256": "629be55692287c0570310e5b73f04c112ae149183e8ad140ca6943ea7c99482a"
+      "size": 26785,
+      "sha256": "31439d2759eac03a901952f9a89a5412a258a1ccca75a89c4c378a19986f1b62"
     },
     {
       "path": "padif/templates/padif/sidebar.html",
@@ -1875,6 +1890,11 @@
       "path": "padif/tests/__init__.py",
       "size": 30,
       "sha256": "688868cfcbfc8be16edd281247fd8b6bf5e4186af8191f6d9ce0101c3d92794c"
+    },
+    {
+      "path": "padif/tests/browser_collaboration_access.cjs",
+      "size": 6868,
+      "sha256": "f7ed3c06539f3c68631cac4793fbfd8e52d62185df6a80b9b45642478abfa73a"
     },
     {
       "path": "padif/tests/browser_worldlines.cjs",
@@ -1932,6 +1952,11 @@
       "sha256": "f35ade86778579bdf38de205555eb50f415d3736e17cfeabe9facd34c704377f"
     },
     {
+      "path": "padif/tests/test_collaboration_presentation.py",
+      "size": 6909,
+      "sha256": "f207393984302029632d412e2365f711cf83aea2c5546071412fc9d45134592a"
+    },
+    {
       "path": "padif/tests/test_rail_interactions.cjs",
       "size": 9747,
       "sha256": "b930b82d6db29758c0cb0cc0e229af08e71361a52560269d64dcc916b5be25e4"
@@ -1943,8 +1968,8 @@
     },
     {
       "path": "padif/views.py",
-      "size": 20062,
-      "sha256": "57df4e92cf99d23d4447b7158a0034449b55e3c28e8d796bc281b2a36423cdd6"
+      "size": 20416,
+      "sha256": "76b27e8adbba29326198b0032dbafccafbd8fb3352ab5b528e07436e9148dfd6"
     },
     {
       "path": "padif/worldlines.py",
@@ -2308,8 +2333,8 @@
     },
     {
       "path": "themes/devenir/static/css/agent-access.css",
-      "size": 18475,
-      "sha256": "879cc647c9c1a220d369519e6b33df2ca977fa1c6b035dfa177c445eec715d30"
+      "size": 19705,
+      "sha256": "c2a0bd4af50f94e6bcc057030d0488b6e8869c9438ae94110275b09aad601d15"
     },
     {
       "path": "themes/devenir/static/css/blog.css",
@@ -2818,13 +2843,18 @@
     },
     {
       "path": "themes/devenir/templates/pages/accounts/_agent_article_row.html",
-      "size": 1708,
-      "sha256": "72b8b96de429faad20f4acf8be49ebd5eccdf4b66191411963e2565303e79e3f"
+      "size": 1968,
+      "sha256": "4fc3b0e1541b52e4544a66c962a7160e3a27b9b8adb610ce65b5f809f16bff06"
     },
     {
       "path": "themes/devenir/templates/pages/accounts/_agent_articles.html",
       "size": 5917,
       "sha256": "507eb232eb6b6d5912e902f4caf2f44f3d1452701a2c0ac2bb540b55ec1a1afe"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/_agent_owner_reviews.html",
+      "size": 2115,
+      "sha256": "e80f5419b33ae6a79c1345ba0280f3f615bfafc181363ca72a864232739e6e18"
     },
     {
       "path": "themes/devenir/templates/pages/accounts/_dashboard_trust.html",
@@ -2848,8 +2878,8 @@
     },
     {
       "path": "themes/devenir/templates/pages/accounts/agent_tokens.html",
-      "size": 8714,
-      "sha256": "66476efa35002681148242ffab62a28d90703858f8df5ddd1d0ea328d3fdc792"
+      "size": 8779,
+      "sha256": "3444da036b6723448ae59b136d8ed435d79df36a4d54836d20b3e4293d5117e9"
     },
     {
       "path": "themes/devenir/templates/pages/accounts/login.html",

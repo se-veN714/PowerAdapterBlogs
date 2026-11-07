@@ -6,8 +6,27 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
-from padif.agent_requests import submit_document_requests, withdraw_document_request, relinquish_document_ai, adjust_document_operations
+from padif.agent_requests import submit_document_requests, withdraw_document_request, relinquish_document_ai, adjust_document_operations, decide_document_request
 from .access import require_module
+
+
+@login_required
+@require_POST
+def review_article(request, request_id):
+    """Creator inbox on the personal Agent page; no dashboard role required."""
+    try:
+        decision = request.POST.get('decision')
+        if decision not in {'approve', 'reject'}:
+            raise ValidationError('请选择批准或驳回。')
+        item = decide_document_request(request_id, request.user, decision == 'approve', request.POST.get('note', ''))
+    except ValidationError as error:
+        messages.error(request, '; '.join(error.messages))
+    else:
+        if item.status == 'invalidated':
+            messages.warning(request, '前置权限已变化，申请已失效，请申请人重新提交。')
+        else:
+            messages.success(request, '本文 AI+ 申请已批准并生效。' if decision == 'approve' else '本文 AI+ 申请已驳回。')
+    return redirect('/accounts/security/agents/#owned-ai-review')
 
 
 @login_required

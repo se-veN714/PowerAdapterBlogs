@@ -1,10 +1,14 @@
 from django.urls import path
 
 from . import api, views
+from agent_mcp.transport import endpoint as mcp_endpoint
+from .collaboration_views import collaboration
 
 app_name = "padif"
 
 urlpatterns = [
+    path('documents/<int:document_id>/collaboration/', collaboration, name='collaboration'),
+    path("mcp/", mcp_endpoint, name="mcp"),
     path("documents/<int:document_id>/branches/create/", views.create_branch, name="create_branch"),
     path("documents/<int:document_id>/branches/<int:branch_id>/publish/", views.publish_branch, name="publish_branch"),
     path("documents/<int:document_id>/branches/<int:branch_id>/archive/", views.archive_branch, name="archive_branch"),

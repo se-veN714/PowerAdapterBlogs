@@ -75,6 +75,8 @@ INSTALLED_APPS = [
     "config",
     "comment",
     "accounts",
+    "oauth2_provider",
+    "agent_mcp",
     "boards.apps.BoardsConfig",
     "padif",
     "moderation.apps.ModerationConfig",
@@ -461,6 +463,36 @@ COMMENT_RATE_WINDOW = 60
 
 # 邮件与邀请制账号。生产环境在 product.py 中强制从环境变量提供实际值。
 PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "http://127.0.0.1:8000")
+
+# PAdif MCP: pre-registered public clients, Authorization Code + S256 only.
+OAUTH2_PROVIDER_APPLICATION_MODEL = "oauth2_provider.Application"
+OAUTH2_PROVIDER = {
+    "OAUTH2_VALIDATOR_CLASS": "agent_mcp.oauth.PadifOAuthValidator",
+    "SCOPES": {
+        "padif:read": "读取文档、版本、分支、差异和批注",
+        "padif:annotate": "添加批注、回复及处理说明",
+        "padif:version": "创建分支和追加版本（不含发布主线）",
+    },
+    "DEFAULT_SCOPES": ["padif:read"],
+    "ACCESS_TOKEN_EXPIRE_SECONDS": 900,
+    "AUTHORIZATION_CODE_EXPIRE_SECONDS": 120,
+    "REFRESH_TOKEN_EXPIRE_SECONDS": 604800,
+    "ROTATE_REFRESH_TOKEN": True,
+    "REFRESH_TOKEN_REUSE_PROTECTION": True,
+    "PKCE_REQUIRED": True,
+    "COMPLIANT_BCP_RFC9700_PKCE_METHOD": True,
+    "COMPLIANT_BCP_RFC9700_TOKEN_STORAGE": True,
+    "COMPLIANT_BCP_RFC9700_ACCESS_TOKEN_TRANSPORT": True,
+    "COMPLIANT_BCP_RFC9700_IMPLICIT_GRANT": True,
+    "COMPLIANT_BCP_RFC9700_PASSWORD_GRANT": True,
+    "OAUTH2_RESPONSE_TYPES_SUPPORTED": ["code"],
+    "OAUTH2_GRANT_TYPES_SUPPORTED": ["authorization_code", "refresh_token"],
+    "OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED": ["none"],
+    # Registration is served by our constrained public-client view, not DOT's
+    # optional client-configuration management endpoints.
+    "DCR_ENABLED": True,
+    "CIMD_ENABLED": False,
+}
 DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL", "PowerAdapter <webmaster@localhost>"
 )

@@ -61,6 +61,7 @@ def dashboard_page_allowed(user, page: str) -> bool:
 
 
 def dashboard_navigation(request) -> list[dict]:
+    from agent_mcp.access import can_review_agents
     user = request.user
     capabilities = dashboard_capabilities(user)
     return [
@@ -106,6 +107,7 @@ def dashboard_navigation(request) -> list[dict]:
             "url": _url("dashboard:settings"),
             "visible": capabilities["settings"],
         },
+        {"key": "agents", "label": "Agent 审核", "url": _url("dashboard:agents"), "visible": can_review_agents(user)},
     ]
 
 

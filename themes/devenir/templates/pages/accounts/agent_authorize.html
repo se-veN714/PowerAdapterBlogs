@@ -17,7 +17,7 @@
             <p class="error-msg">授权码已过期、已使用或不存在。</p>
         {% elif denied_by_permission %}
             <div class="auth-title">权限不足</div>
-            <p class="error-msg">当前账号没有请求范围所需的 PAdif 权限。</p>
+            <p class="error-msg">当前账号尚未获得 PAdif 权限或 Agent 开通资格。</p><a href="{% url 'accounts:agent-token-management' %}">申请开通 / 查看进度</a>
         {% elif completed %}
             <div class="auth-title">{% if approved %}授权完成{% else %}已拒绝授权{% endif %}</div>
             <p>{% if approved %}Agent 可以按批准的范围访问你的账号。{% else %}Agent 不会获得访问令牌。{% endif %}</p>

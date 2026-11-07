@@ -40,8 +40,14 @@ from config.views import (
     security_txt,
 )
 from .cus_site import custom_site
+from agent_mcp import views as mcp_views
 
 urlpatterns = [
+    path(".well-known/oauth-authorization-server", mcp_views.server_metadata),
+    path(".well-known/oauth-protected-resource", mcp_views.resource_metadata),
+    path(".well-known/oauth-protected-resource/padif/mcp/", mcp_views.resource_metadata),
+    path(".well-known/oauth-protected-resource/padif/mcp", mcp_views.resource_metadata),
+    path("accounts/agent/oauth/", include("agent_mcp.urls")),
     path("healthz/", healthz, name="healthz"),
     path("_AMapService/<path:resource>", amap_service_proxy, name="amap-service"),
     path("super_admin/", admin.site.urls, name="super_admin"),

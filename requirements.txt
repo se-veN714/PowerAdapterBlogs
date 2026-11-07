@@ -2,6 +2,9 @@ asgiref==3.9.1
 decorator==5.2.1
 cryptography==50.0.1
 Django==5.2.17
+django-oauth-toolkit==3.4.1
+mcp==1.30.0
+jsonschema==4.26.0
 gunicorn==26.2.0
 django-autocomplete-light==3.12.1
 django-debug-toolbar==6.0.0
@@ -27,7 +30,7 @@ redis==6.4.0
 ruff==0.12.7
 setuptools==84.0.0
 sqlparse==0.6.0
-typing_extensions==4.14.1
+typing_extensions==4.16.0
 tzdata==2025.2
 whitenoise==6.12.0
 waitress==3.0.2

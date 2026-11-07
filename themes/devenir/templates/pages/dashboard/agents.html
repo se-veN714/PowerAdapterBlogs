@@ -1,0 +1,24 @@
+{% extends 'pages/dashboard/base.html' %}
+{% load static %}
+{% block dashboard_css %}<link rel="stylesheet" href="{% static 'css/agent-access.css' %}?v=20261107.v2">{% endblock %}
+{% block dashboard_kicker %}AGENT / ACCESS REVIEW{% endblock %}
+{% block dashboard_lead %}审批 PAdif 板块 Agent 资格；文章 AI+ 由文章创建者另行审批。通过不会自动开放文章；撤销会关闭该账号 PAdif 的 AI+ 和相关连接。{% endblock %}
+{% block dashboard_content %}
+<h2>当前 PAdif 资格</h2>
+{% for grant in qualifications %}<section class="agent-review-row"><h3>{{ grant.user.username }} · {% if grant.is_active %}已开通{% else %}已撤销{% endif %}</h3>
+{% if grant.is_active %}<form method="post">{% csrf_token %}<input type="hidden" name="user_id" value="{{ grant.user_id }}"><label>撤销说明<textarea name="note" required maxlength="2000" rows="2"></textarea></label><button class="dashboard-secondary" name="action" value="revoke" type="submit">撤销开通资格</button></form>{% endif %}</section>{% empty %}<p>尚无资格记录。</p>{% endfor %}
+<h2>申请记录</h2>
+
+<form method="get" class="dashboard-toolbar"><label for="agent-review-status">申请状态</label><select id="agent-review-status" name="status">{% for value, label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button type="submit">筛选</button></form>
+{% for item in access_requests %}
+<section class="agent-review-row">
+    <h2>PAdif · {{ item.applicant.username }} · {{ item.get_status_display }}</h2><p>{{ item.reason }}</p><p>{{ item.created_at|date:'Y-m-d H:i' }}</p>
+    {% if item.reviewed_at %}<p>审核人：{{ item.reviewed_by.username }} · {{ item.reviewed_at|date:'Y-m-d H:i' }}</p><p>{{ item.decision_note }}</p>{% endif %}
+    {% if item.status == 'pending' %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="request_id" value="{{ item.pk }}">
+        <label>处理说明（必填）<textarea name="note" maxlength="2000" rows="3" required></textarea></label>
+        {% if item.status == 'pending' %}<button class="dashboard-primary" type="submit" name="action" value="approve">批准开通</button><button class="dashboard-secondary" type="submit" name="action" value="reject">驳回</button>{% endif %}
+    </form>{% endif %}
+</section>{% empty %}<p class="dashboard-empty">当前没有此状态的 Agent 申请。</p>{% endfor %}
+{% if page_obj.has_previous %}<a href="?status={{ selected_status }}&page={{ page_obj.previous_page_number }}">上一页</a>{% endif %}{% if page_obj.has_next %}<a href="?status={{ selected_status }}&page={{ page_obj.next_page_number }}">下一页</a>{% endif %}
+{% endblock %}

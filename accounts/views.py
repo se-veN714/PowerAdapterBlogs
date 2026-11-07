@@ -507,7 +507,24 @@ class AgentTokenManagementView(LoginRequiredMixin, View):
         return tokens
 
     def get(self, request):
-        return render(request, self.template_name, {"agent_tokens": self._tokens()})
+        from agent_mcp.config import resource
+        from agent_mcp.models import Connection
+        from oauth2_provider.models import Application
+        from padif.permissions import can_use_padif
+        from agent_mcp.presentation import portal_context
+
+        connections = list(Connection.objects.filter(user=request.user).select_related('application').order_by('-created_at'))
+        for connection in connections:
+            connection.display_status = '已撤销' if connection.revoked_at else '已过期' if connection.expires_at <= timezone.now() else '有效'
+            connection.is_live = not connection.revoked_at and connection.expires_at > timezone.now()
+            labels = {'padif:read': '阅读', 'padif:annotate': '批注', 'padif:version': '分支写作'}
+            connection.scope_summary = '仅阅读' if connection.scopes == ['padif:read'] else ' / '.join(labels.get(scope, scope) for scope in connection.scopes)
+        return render(request, self.template_name, {
+            "agent_tokens": self._tokens(), "mcp_connections": connections,
+            "mcp_url": resource(), "can_connect_mcp": can_use_padif(request.user),
+            **portal_context(request.user),
+            "mcp_clients": Application.objects.filter(client_type='public', authorization_grant_type='authorization-code', skip_authorization=False, registration_source=Application.RegistrationSource.MANUAL),
+        })
 
     def post(self, request):
         token_id = request.POST.get("token_id")

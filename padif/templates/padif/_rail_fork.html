@@ -1,4 +1,4 @@
-<details class="branch-fork">
+{% if can_write_document %}<details class="branch-fork">
   <summary>从此分叉</summary>
   <form method="post" action="{% url 'padif:create_branch' document.pk %}">
     {% csrf_token %}
@@ -7,4 +7,4 @@
     <label>说明<input name="description" maxlength="300"></label>
     <button type="submit">创建分支</button>
   </form>
-</details>
+</details>{% endif %}

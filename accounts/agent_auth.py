@@ -99,6 +99,8 @@ def get_pending_authorization(user_code: str) -> AgentDeviceAuthorization | None
 
 def approve_device_authorization(*, user: MyUser, user_code: str, approve: bool) -> AgentDeviceAuthorization | None:
     with transaction.atomic():
+        from agent_mcp.access import lock_identity
+        user = lock_identity(user.pk)
         authorization = (
             AgentDeviceAuthorization.objects.select_for_update()
             .filter(
@@ -112,6 +114,9 @@ def approve_device_authorization(*, user: MyUser, user_code: str, approve: bool)
             return None
         if any(scope.startswith("padif:") for scope in authorization.scopes) and not can_use_padif(user):
             raise PermissionError("padif_access_denied")
+        from agent_mcp.access import can_use_agent
+        if approve and not can_use_agent(user):
+            raise PermissionError("agent_access_review_required")
         now = timezone.now()
         authorization.user = user
         authorization.status = (
@@ -139,10 +144,18 @@ def approve_device_authorization(*, user: MyUser, user_code: str, approve: bool)
 
 def issue_access_token(*, authorization: AgentDeviceAuthorization, device_code: str) -> dict[str, object] | None:
     with transaction.atomic():
+        from agent_mcp.access import lock_identity
+        user_id = AgentDeviceAuthorization.objects.filter(pk=authorization.pk).values_list('user_id', flat=True).first()
+        if user_id is None:
+            return None
+        lock_identity(user_id)
         locked = AgentDeviceAuthorization.objects.select_for_update().get(pk=authorization.pk)
         if locked.status != AgentDeviceAuthorization.Status.APPROVED or locked.consumed_at is not None:
             return None
         if locked.expires_at <= timezone.now() or locked.user is None:
+            return None
+        from agent_mcp.access import can_use_agent
+        if not can_use_agent(locked.user):
             return None
         token = secrets.token_urlsafe(48)
         expires_in = getattr(settings, "AGENT_ACCESS_TOKEN_TTL_SECONDS", 900)
@@ -179,7 +192,8 @@ def authenticate_agent_token(token: str, required_scope: str | None = None) -> t
         .filter(token_digest=_digest(token), revoked_at__isnull=True, expires_at__gt=timezone.now())
         .first()
     )
-    if candidate is None or not candidate.user.is_active:
+    from agent_mcp.access import can_use_agent
+    if candidate is None or not can_use_agent(candidate.user):
         return None, "invalid_token"
     if required_scope and required_scope not in candidate.scopes:
         return None, "insufficient_scope"

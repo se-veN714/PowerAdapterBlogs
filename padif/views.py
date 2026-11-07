@@ -7,6 +7,7 @@ from typing import Callable, TypeVar, cast
 from django.contrib import messages
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.db.models import F, Max
 from django.db.models.functions import Coalesce
 from django.http import Http404, HttpRequest, HttpResponse
@@ -27,7 +28,7 @@ from .forms import (
     VersionUploadForm,
 )
 from .models import Annotation, Document, Version
-from .permissions import can_use_padif
+from .permissions import can_use_padif, visible_documents, require_document, document_role
 from .worldlines import build_worldlines
 from .services import (
     BranchError,
@@ -51,7 +52,16 @@ def padif_access_required(view: ViewFunction) -> ViewFunction:
             return redirect_to_login(request.get_full_path())
         if not can_use_padif(request.user):
             raise PermissionDenied("你尚未获得 PAdif 使用权限。")
-        return view(request, *args, **kwargs)
+        document_id = kwargs.get('document_id')
+        if document_id is None:
+            return view(request, *args, **kwargs)
+        with transaction.atomic():
+            queryset = visible_documents(request.user)
+            if request.method == 'POST':
+                queryset = Document.objects.select_for_update().filter(pk__in=queryset.values('pk'))
+            document = get_object_or_404(queryset, pk=document_id)
+            require_document(request.user, document, write=request.method == 'POST', owner=view.__name__ == 'publish_branch')
+            return view(request, *args, **kwargs)
 
     return cast(ViewFunction, wrapped)
 
@@ -72,7 +82,7 @@ def workspace(request: HttpRequest) -> HttpResponse:
         else:
             messages.success(request, "文档已导入，初始版本为 v1.0.0。")
             return redirect("padif:document_detail", document_id=result.document.pk)
-    documents = Document.objects.select_related("current_version", "created_by")
+    documents = visible_documents(request.user).select_related("current_version", "created_by")
     return render(
         request,
         "padif/workspace.html",
@@ -147,7 +157,7 @@ def _version_rail_context(document, selected, *, full_history=False):
     }
 
 
-def _document_context(document, *, branch=None, commit_form=None, upload_form=None, annotation_form=None, full_history=False):
+def _document_context(document, *, user, branch=None, commit_form=None, upload_form=None, annotation_form=None, full_history=False):
     branch = branch or resolve_branch(document)
     current = effective_head(branch)
     initial = {"branch_id": branch.pk, "base_version_id": current.pk if current else None, "version_kind": "patch"}
@@ -161,7 +171,12 @@ def _document_context(document, *, branch=None, commit_form=None, upload_form=No
         "archived_branches": document.branches.filter(archived_at__isnull=False),
         "branch_versions": branch.versions.select_related("created_by").prefetch_related("forked_branches"),
         "annotations": current.annotations.select_related("author").prefetch_related("replies__author").all() if current else [],
-        "documents": Document.objects.select_related("current_version", "created_by"),
+        "documents": visible_documents(user).select_related("current_version", "created_by"),
+        "document_role": document_role(user, document),
+        "can_manage_collaboration": document.created_by_id == user.pk,
+        "can_write_document": document_role(user, document) in {'owner', 'collaborator'},
+        "can_edit_version": document_role(user, document) == 'owner' or (document_role(user, document) == 'collaborator' and not branch.is_default),
+        "document_ai_enabled": document.agent_grants.filter(user=user, is_enabled=True).exists(),
         "document_form": DocumentUploadForm(),
         "commit_form": commit_form if commit_form is not None else VersionCommitForm(initial={**initial, "content": current.content if current else ""}),
         "upload_form": upload_form if upload_form is not None else VersionUploadForm(document=document, initial=initial),
@@ -174,7 +189,7 @@ def _document_context(document, *, branch=None, commit_form=None, upload_form=No
 def document_detail(request, document_id):
     document = get_object_or_404(Document, pk=document_id)
     return render(request, "padif/document_detail.html", _document_context(
-        document, branch=_selected_branch(document, request), full_history=request.GET.get("history") == "all",
+        document, user=request.user, branch=_selected_branch(document, request), full_history=request.GET.get("history") == "all",
     ))
 
 
@@ -204,7 +219,7 @@ def _commit_response(request, document_id, *, upload=False):
             messages.success(request, f"已保存 v{result.version.semantic_version} · {branch.name}。")
             return _branch_redirect(document, branch)
     kwargs = {"upload_form" if upload else "commit_form": form}
-    return render(request, "padif/document_detail.html", _document_context(document, branch=branch, **kwargs), status=status)
+    return render(request, "padif/document_detail.html", _document_context(document, user=request.user, branch=branch, **kwargs), status=status)
 
 
 @padif_access_required
@@ -333,7 +348,7 @@ def create_annotation(request: HttpRequest, document_id: int, version_id: int) -
     return render(
         request,
         "padif/document_detail.html",
-        _document_context(document, branch=_selected_branch(document, request), annotation_form=form),
+        _document_context(document, user=request.user, branch=_selected_branch(document, request), annotation_form=form),
         status=400,
     )
 
@@ -367,7 +382,7 @@ def update_annotation(request: HttpRequest, document_id: int, annotation_id: int
     return render(
         request,
         "padif/document_detail.html",
-        _document_context(document, branch=_selected_branch(document, request)),
+        _document_context(document, user=request.user, branch=_selected_branch(document, request)),
         status=400,
     )
 
@@ -392,6 +407,6 @@ def create_annotation_reply(request: HttpRequest, document_id: int, annotation_i
     return render(
         request,
         "padif/document_detail.html",
-        _document_context(document, branch=_selected_branch(document, request)),
+        _document_context(document, user=request.user, branch=_selected_branch(document, request)),
         status=400,
     )

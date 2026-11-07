@@ -17,11 +17,12 @@
             <p class="panel-h">共享文档 · 版本差异</p>
             <p class="document-heading__status"><span class="status-square" aria-hidden="true"></span>PRIVATE / 仅授权用户可见</p>
             <h1>{{ document.title }}</h1>
+            <p class="document-heading__meta">{% if document_role == 'owner' %}创建者{% elif document_role == 'collaborator' %}协作者{% else %}访客 · 只读{% endif %} · ✦ AI+ {% if document_ai_enabled %}已启用{% else %}未启用{% endif %}{% if can_manage_collaboration %} · <a href="{% url 'padif:collaboration' document.pk %}">管理协作授权</a>{% else %} · <a href="{% url 'accounts:agent-token-management' %}#article-access">申请 / 查看 ✦ AI+</a>{% endif %}</p>
             <p class="document-heading__meta">{{ document.source_name|default:"在线文档" }} · 目标分支 {{ selected_branch.name }}{% if selected_branch.archived_at %} · 已归档{% endif %}</p>
           </div>
           <a class="back-link" href="{% url 'padif:workspace' %}">← 文档列表</a>
         </div>
-        {% if not selected_branch.archived_at %}
+        {% if can_edit_version and not selected_branch.archived_at %}
         <section class="main-add-version" aria-labelledby="add-version-title">
           <div class="rail-action__head"><p class="panel-h">ADD VERSION</p><h2 id="add-version-title">追加版本</h2></div>
           <p class="muted">从本地 Markdown 添加一版，保留原始稿件。</p>
@@ -37,7 +38,7 @@
             <div class="main-add-version__cell main-add-version__submit"><span class="panel-h">COMMIT</span><button type="submit">添加版本</button></div>
           </form>
         </section>
-        {% else %}<p class="muted">已归档：保留正文、差异和批注，不再追加版本。</p>{% endif %}
+        {% elif selected_branch.archived_at %}<p class="muted">已归档：保留正文、差异和批注，不再追加版本。</p>{% else %}<p class="muted">当前版本只读。协作者可从独立分支继续修改。</p>{% endif %}
       </section>
       <div id="diff-result" hidden aria-hidden="true"></div>
 
@@ -59,8 +60,8 @@
               <button type="button" data-padif-preview>全屏预览</button>
             </div>
           </div>
-          <div id="padif-editor" class="padif-editor"{% if selected_branch.archived_at %} inert aria-disabled="true"{% endif %}></div>
-          {% if not selected_branch.archived_at %}<div class="padif-editor__fields">
+          <div id="padif-editor" class="padif-editor"{% if not can_edit_version or selected_branch.archived_at %} inert aria-disabled="true"{% endif %}></div>
+          {% if can_edit_version and not selected_branch.archived_at %}<div class="padif-editor__fields">
             <p><label for="{{ commit_form.commit_message.id_for_label }}">本次修改</label>{{ commit_form.commit_message }}</p>
             <p><label for="{{ commit_form.version_kind.id_for_label }}">版本级别</label>{{ commit_form.version_kind }}</p>
           </div>
@@ -89,7 +90,7 @@
                 <div><p class="panel-h">ANNOTATIONS</p><h2>批注</h2></div>
                 <span class="annotation-count">{{ annotations|length }}</span>
               </div>
-              <p class="padif-annotation-selection" data-padif-selection-state>选择正文后添加批注。</p>
+              <p class="padif-annotation-selection" data-padif-selection-state>{% if can_write_document %}选择正文后添加批注。{% else %}访客只读，可查看批注与回复。{% endif %}</p>
               <div class="padif-annotation-list" data-padif-annotation-list>
                 {% for annotation in annotations %}
                   <article class="padif-annotation-card padif-annotation-card--{{ annotation.status }}" data-start-line="{{ annotation.start_line }}" data-end-line="{{ annotation.end_line }}">
@@ -105,7 +106,7 @@
                         <strong>处理说明</strong><p>{{ annotation.resolution_note }}</p>
                         <small>{{ annotation.resolved_by }} · {{ annotation.resolved_at|date:"m-d H:i" }}</small>
                       </div>
-                    {% else %}
+                    {% elif can_write_document %}
                       <form class="padif-annotation-status-form" method="post" action="{% url 'padif:update_annotation' document.pk annotation.pk %}">
                         {% csrf_token %}<input type="hidden" name="branch_context" value="{{ selected_branch.name }}">
                         <label>处理结果<select name="status"><option value="resolved">已处理</option><option value="rejected">驳回</option></select></label>
@@ -123,18 +124,18 @@
                       {% empty %}
                         <small class="muted">暂无回复。</small>
                       {% endfor %}
-                      <form class="padif-annotation-reply-form" method="post" action="{% url 'padif:create_annotation_reply' document.pk annotation.pk %}">
+                      {% if can_write_document %}<form class="padif-annotation-reply-form" method="post" action="{% url 'padif:create_annotation_reply' document.pk annotation.pk %}">
                         {% csrf_token %}<input type="hidden" name="branch_context" value="{{ selected_branch.name }}">
                         <textarea name="body" rows="2" required placeholder="追加回复…"></textarea>
                         <button type="submit">回复</button>
-                      </form>
+                      </form>{% endif %}
                     </div>
                   </article>
                 {% empty %}
                   <p class="muted" data-padif-annotation-empty>当前版本还没有批注。</p>
                 {% endfor %}
               </div>
-              <form class="padif-annotation-form" data-padif-annotation-form method="post" action="{% url 'padif:create_annotation' document.pk current_version.pk %}">
+              {% if can_write_document %}<form class="padif-annotation-form" data-padif-annotation-form method="post" action="{% url 'padif:create_annotation' document.pk current_version.pk %}">
                 {% csrf_token %}<input type="hidden" name="branch_context" value="{{ selected_branch.name }}">
                 <input type="hidden" name="start_line" data-padif-start-line value="1">
                 <input type="hidden" name="end_line" data-padif-end-line value="1">
@@ -142,7 +143,7 @@
                 <p><label for="{{ annotation_form.kind.id_for_label }}">类型</label>{{ annotation_form.kind }}</p>
                 <p><label for="{{ annotation_form.body.id_for_label }}">批注内容</label>{{ annotation_form.body }}</p>
                 <button type="submit" data-padif-annotation-submit disabled>添加批注</button>
-              </form>
+              </form>{% endif %}
             </aside>
           </div>
         </div>

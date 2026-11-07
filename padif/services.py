@@ -141,7 +141,11 @@ def _append_version(document, branch, user, content, commit_message, version_kin
 def commit_document_version(*, document_id, user, content, commit_message, version_kind,
                             branch_id=None, base_version_id=None):
     document = Document.objects.select_for_update().get(pk=document_id)
+    from .permissions import require_document
+    require_document(user, document, write=True)
     branch = resolve_branch(document, branch_id=branch_id)
+    if branch.is_default:
+        require_document(user, document, owner=True)
     if branch.archived_at:
         raise BranchError("BRANCH_ARCHIVED", "归档分支不能追加版本。", 409)
     previous = effective_head(branch)
@@ -154,6 +158,8 @@ def commit_document_version(*, document_id, user, content, commit_message, versi
 @transaction.atomic
 def create_branch(*, document_id, user, name, fork_from_version_id, description=""):
     document = Document.objects.select_for_update().get(pk=document_id)
+    from .permissions import require_document
+    require_document(user, document, write=True)
     source = document.versions.filter(pk=fork_from_version_id).first()
     if source is None:
         raise BranchError("VERSION_NOT_FOUND", "分叉源不存在。", 404)
@@ -169,6 +175,8 @@ def create_branch(*, document_id, user, name, fork_from_version_id, description=
 def publish_branch(*, document_id, branch_id, user, commit_message, version_kind,
                    base_version_id, source_version_id, confirm_replace):
     document = Document.objects.select_for_update().get(pk=document_id)
+    from .permissions import require_document
+    require_document(user, document, owner=True)
     branch = resolve_branch(document, branch_id=branch_id)
     if branch.is_default:
         raise BranchError("DEFAULT_BRANCH", "不能将主线发布到自身。")
@@ -192,6 +200,8 @@ def publish_branch(*, document_id, branch_id, user, commit_message, version_kind
 @transaction.atomic
 def archive_branch(*, document_id, branch_id, user):
     document = Document.objects.select_for_update().get(pk=document_id)
+    from .permissions import require_document
+    require_document(user, document, write=True)
     branch = resolve_branch(document, branch_id=branch_id)
     if branch.is_default:
         raise BranchError("DEFAULT_BRANCH", "主线不能归档。")

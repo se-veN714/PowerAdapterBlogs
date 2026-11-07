@@ -21,9 +21,9 @@
         </li>
       {% endfor %}
     </ol>
-    {% if not card.branch.archived_at %}
+    {% if can_write_document and not card.branch.archived_at %}
       <div class="rail-branch__actions">
-        {% if card.head %}<a class="rail-branch__publish" href="{% url 'padif:publish_branch' document.pk card.branch.pk %}">审阅并采用此稿</a>{% endif %}
+        {% if card.head and can_manage_collaboration %}<a class="rail-branch__publish" href="{% url 'padif:publish_branch' document.pk card.branch.pk %}">审阅并采用此稿</a>{% endif %}
         <a href="{% url 'padif:archive_branch' document.pk card.branch.pk %}">归档分支</a>
       </div>
     {% endif %}

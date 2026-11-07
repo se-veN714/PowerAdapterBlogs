@@ -1,0 +1,55 @@
+{% extends "padif/base.html" %}
+{% block title %}协作授权 · {{ document.title }}{% endblock %}
+{% block content %}
+<main class="collaboration-page panel">
+  <p class="panel-h">DOCUMENT ACCESS</p><h1>协作授权</h1>
+  <p>{{ document.title }} · PRIVATE / 仅授权用户可见</p>
+  <p class="muted">授权覆盖本文全部历史版本、归档分支、批注和回复。主线发布仍由创建者在网页确认。</p>
+  <section aria-labelledby="human-collaboration-title">
+    <p class="panel-h">HUMAN COLLABORATION</p><h2 id="human-collaboration-title">人类协作成员</h2>
+    <p class="muted">访客可阅读；协作者可修改独立分支、批注和回复。此处的成员角色不会自动授予 Agent 访问。</p>
+    <form method="post" class="collaboration-add">
+      {% csrf_token %}<input type="hidden" name="action" value="role">
+      <label>用户名<input name="username" required maxlength="150" autocomplete="off"></label>
+      <label>文档角色<select name="role"><option value="viewer">访客 · 只读</option><option value="collaborator">协作者 · 分支修改与批注</option></select></label>
+      <button type="submit">添加 / 更新成员</button>
+    </form>
+    {% for member in members %}<article class="collaboration-member" data-human-member="{{ member.user.get_username }}">
+      <h3>{{ member.user.get_username }} · {{ member.label }}</h3>
+      {% if member.role != 'owner' %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="username" value="{{ member.user.get_username }}"><input type="hidden" name="action" value="role">
+        <label>角色<select name="role"><option value="viewer"{% if member.role == 'viewer' %} selected{% endif %}>访客</option><option value="collaborator"{% if member.role == 'collaborator' %} selected{% endif %}>协作者</option></select></label><button type="submit">更新角色</button>
+      </form>
+      <form method="post">{% csrf_token %}<input type="hidden" name="username" value="{{ member.user.get_username }}"><input type="hidden" name="action" value="remove"><button type="submit">移除成员</button></form>
+      {% endif %}
+    </article>{% endfor %}
+  </section>
+  <section aria-labelledby="article-ai-title">
+    <p class="panel-h">ARTICLE AGENT ACCESS</p><h2 id="article-ai-title">本文 ✦ AI+ 授权</h2>
+    <p class="muted">目标账号须已开通 PAdif Agent 资格；AI+ 不改变人类角色，能力仍受角色与连接 scope 限制。</p>
+    <h3 id="ai-request-title">本文 Agent 申请</h3>
+    {% for item in ai_requests %}<article class="ai-review-item" data-ai-request="{{ item.pk }}">
+      <h4>{{ item.applicant.username }} · {{ item.get_status_display }}</h4><p>{{ item.reason }}</p><p>{% if item.request_kind == "increase" %}提权申请 · 基线：{{ item.basis_summary }} → {% else %}申请操作：{% endif %}{{ item.operations_summary }}{% if item.operations_source == "legacy_role_limit" %} · 旧版按角色上限申请，未逐项选择{% endif %}</p>
+      <small>{{ item.created_at|date:'m-d H:i' }}{% if item.reviewed_by %} · {{ item.reviewed_by }} · {{ item.reviewed_at|date:'m-d H:i' }}{% endif %}</small>
+      {% if item.decision_note %}<p>{{ item.decision_note }}</p>{% endif %}
+      {% if item.invalidated_reason %}<p>前置权限已变化，申请已失效，不能再审批。</p>{% endif %}
+      {% if item.status == 'pending' %}<form method="post">{% csrf_token %}<input type="hidden" name="request_id" value="{{ item.pk }}">
+        <label>审核说明<textarea name="note" required maxlength="2000" rows="2"></textarea></label>
+        <button name="action" value="approve-ai" type="submit">批准本文 AI+</button><button name="action" value="reject-ai" type="submit">驳回申请</button>
+      </form>{% endif %}
+    </article>{% empty %}<p class="muted">暂无本文 AI+ 申请。</p>{% endfor %}
+    <h3>创建者直接授权 / 撤销</h3>
+    {% for member in members %}<article class="collaboration-member" data-ai-member="{{ member.user.get_username }}">
+      <h4>{{ member.user.get_username }} · {{ member.label }}</h4>
+      <form method="post">{% csrf_token %}<input type="hidden" name="username" value="{{ member.user.get_username }}"><input type="hidden" name="action" value="ai">
+        <label class="collaboration-ai"><input type="checkbox" name="enabled"{% if member.ai_enabled %} checked{% endif %}> ✦ AI+ · 允许该账号的 Agent 访问本文</label>
+        <input type="hidden" name="operations_form" value="1"><fieldset><legend>本文操作范围</legend>{% for op in member.operation_options %}<label><input type="checkbox" name="operations" value="{{ op.key }}"{% if op.checked %} checked{% endif %}{% if op.disabled %} disabled{% endif %}>{{ op.label }}</label>{% endfor %}</fieldset>
+        <label>授权 / 撤销说明<textarea name="note" rows="2" maxlength="2000" required></textarea></label>
+        <button type="submit">保存 AI+ 授权</button>
+      </form>
+    </article>{% endfor %}
+    <p class="muted">变更成员角色或移除成员会关闭其 AI+。重新开通 PAdif Agent 资格不会自动恢复本文授权。</p>
+  </section>
+  <a href="{% url 'padif:document_detail' document.pk %}">← 返回文档</a>
+</main>
+{% endblock %}

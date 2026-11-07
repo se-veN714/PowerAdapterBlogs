@@ -196,7 +196,8 @@ class BranchMigrationTests(TransactionTestCase):
             latest = self.apps.get_model("padif", "Version").objects.filter(document_id=document.pk).order_by("-id").first()
             document.current_version_id = latest.pk if latest else None
             document.save()
-        MigrationExecutor(connection).migrate([("padif", "0005_branching")])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
 
     def old_document(self):
@@ -234,6 +235,7 @@ class BranchMigrationTests(TransactionTestCase):
 class BranchConcurrencyTests(TransactionTestCase):
     def test_same_base_can_only_commit_once(self):
         user = get_user_model().objects.create_user(username="parallel", email="parallel@example.test", password="test-pass", is_active=True)
+        user.user_permissions.add(Permission.objects.get(codename="use_padif"))
         document = make_document(user)
         branch = document.branches.get(is_default=True)
         barrier = Barrier(2)

@@ -1,26 +1,60 @@
 {% extends 'base.html' %}
 {% load static %}
-
 {% block title %}Agent 授权管理{% endblock %}
-
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20261101.1">
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20261107.mcp1">
+<link rel="stylesheet" href="{% static 'css/agent-access.css' %}?v=20261107.operations2">
+<script defer src="{% static 'js/agent-access.js' %}?v=20261107.operations2"></script>
 {% endblock %}
-
-{% block hero %}
-<div class="page-header">
-    <p class="profile-kicker">SECURITY / AGENT ACCESS</p>
-    <h1 class="page-title">Agent 授权</h1>
-</div>
-{% endblock %}
-
+{% block hero %}{% endblock %}
 {% block content %}
-<div class="auth-page agent-token-page">
-    <section class="auth-card agent-token-card">
-        <div class="agent-token-intro">
-            <p>管理已通过设备码流程授权给 Agent 的访问令牌。</p>
-            <small>令牌正文只在签发时返回一次；此处仅显示不可逆指纹。</small>
-        </div>
+<div class="agent-console agent-console--manage">
+  <section class="agent-token-card">
+    <header class="agent-console-heading"><p class="agent-console-kicker">SECURITY / AGENT ACCESS</p><a href="{% url 'accounts:my-profile' %}">← 个人主页</a></header>
+    <h1>Agent 连接与授权</h1>
+    <p class="agent-console-lead">先开通板块，再申请文章访问，最后连接客户端。</p>
+    <section class="agent-access-state" aria-labelledby="agent-qualification-title">
+      <p class="agent-token-kicker">01 / 板块资格</p>
+      <h2 id="agent-qualification-title">板块资格{% if agent_pending %} · 申请待审核{% endif %}</h2>
+      <div class="agent-module-row"><label for="agent-module">申请板块</label><select id="agent-module" disabled aria-describedby="agent-module-help"><option value="padif" selected>PAdif · 当前唯一支持</option></select><span class="agent-module-status">{{ module_status }}</span></div>
+      <p id="agent-module-help">当前仅支持 PAdif。板块资格不会自动开放文章。</p>
+      {% if not can_connect_mcp %}<p>请先获得 PAdif 使用权限，再申请板块 Agent 资格。</p>
+      {% elif agent_pending %}<p>申请已提交，等待 PAdif 审核管理员处理；可在历史记录中撤回。</p>
+      {% elif not agent_qualified %}<form method="post" action="{% url 'agent_mcp:apply' %}">{% csrf_token %}<input type="hidden" name="module_key" value="padif"><button class="agent-primary" type="submit">申请开通 PAdif Agent</button></form>{% endif %}
+      <details class="agent-request-history"><summary>板块申请历史</summary>
+        {% for item in agent_requests %}<div class="agent-application-row"><p>#{{ item.pk }} · PAdif · {{ item.get_status_display }} · {{ item.created_at|date:'m-d H:i' }}</p>
+          {% if item.reviewed_by %}<p>{{ item.reviewed_by.username }} · {{ item.reviewed_at|date:'m-d H:i' }} · {{ item.decision_note }}</p>{% endif %}
+          {% if item.invalidated_reason %}<p>前置权限已变化，请重新申请。</p>{% endif %}
+          {% if item.closed_at and not item.reviewed_at %}<p>{{ item.closed_at|date:'m-d H:i' }} · {{ item.closed_by.username|default:'系统' }}</p>{% endif %}
+          {% if item.status == 'pending' %}<form method="post" action="{% url 'agent_mcp:withdraw' item.pk %}">{% csrf_token %}<button class="agent-text-action" type="submit">撤回板块申请</button></form>{% endif %}
+        </div>{% empty %}<p>尚无板块申请记录。</p>{% endfor %}
+      </details>
+    </section>
+    {% include 'pages/accounts/_agent_articles.html' %}
+    <section class="agent-access-state" aria-labelledby="agent-connections-title">
+      <p class="agent-token-kicker">03 / 客户端连接</p><h2 id="agent-connections-title">MCP 连接</h2>
+      {% if agent_qualified and not agent_article_count %}<p class="agent-zero-access" role="status">已开通 PAdif Agent，尚无可访问文章。可先申请 AI+；主动连接后的文章列表为空。</p>{% endif %}
+      {% for connection in mcp_connections %}<article class="agent-token-item agent-connection">
+        <header class="agent-connection-row"><div class="agent-connection-name"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M3 3h18v18H3zM7 8l4 4-4 4m6 0h4"/></svg><h3>{{ connection.application.name }}</h3></div>
+          <span>{{ connection.scope_summary }}</span><span>{{ connection.display_status }}</span><small>最近使用：{{ connection.last_used_at|date:'m-d H:i'|default:'尚未使用' }}</small>
+          {% if connection.is_live %}<form method="post" action="{% url 'agent_mcp:disconnect' connection.pk %}">{% csrf_token %}<button type="submit" class="btn-ghost">撤销连接</button></form>{% endif %}
+        </header>
+        <details class="agent-connection-details"><summary>连接详情 · 到期 {{ connection.expires_at|date:'m-d H:i' }}</summary><dl class="agent-token-meta">
+          <div><dt>操作权限上限</dt><dd>{% for scope in connection.scopes %}<code>{{ scope }}</code> {% endfor %}</dd></div>
+          <div><dt>授权时间</dt><dd>{{ connection.created_at|date:'Y-m-d H:i' }}</dd></div><div><dt>连接到期</dt><dd>{{ connection.expires_at|date:'Y-m-d H:i' }}</dd></div>
+        </dl></details>
+      </article>{% empty %}<p>尚未连接 Agent。复制下方地址，在客户端添加并完成本人 OAuth 确认。</p>{% endfor %}
+      <div class="agent-endpoint"><label for="mcp-url">服务地址</label><div class="agent-copy-row"><input id="mcp-url" readonly value="{{ mcp_url }}"><button type="button" class="btn-ghost" data-copy-target="mcp-url">复制地址</button></div></div>
+      <p class="agent-copy-status" role="status" aria-live="polite"></p>
+      <details class="agent-connect-help"><summary>连接帮助</summary>
+        <p>使用 Streamable HTTP，在 WorkBuddy 等支持 OAuth PKCE 的客户端中添加以上地址；回到浏览器确认操作权限。你无需复制密码或访问令牌。</p>
+        <p>支持 DCR 的客户端会自动登记，无需手动填写客户端 ID。登记不代表获得文章权限。默认仅勾选阅读，写入操作仍受每篇文章角色限制。</p>
+        <p>仅支持预注册的客户端，请使用管理员登记的公开 ID 和精确回调地址：</p>{% for client in mcp_clients %}<p>{{ client.name }} · <code>{{ client.client_id }}</code></p>{% empty %}<p>尚无手动登记的客户端。</p>{% endfor %}
+        <p id="mcp-example">读取已授权的 PAdif 文章，先说明你的阅读结果；有协作者权限时，可创建改稿分支并提出修改建议。</p><button type="button" class="btn-ghost" data-copy-target="mcp-example">复制示例指令</button>
+        <p>新增文章仍需逐篇授权；主线发布保留创建者网页确认。可随时在此撤销连接。</p>
+      </details>
+    </section>
+        <details class="agent-legacy-records"><summary>设备码授权记录</summary>
 
         {% if agent_tokens %}
         <div class="agent-token-list">
@@ -52,11 +86,12 @@
         </div>
         {% else %}
         <div class="agent-token-empty">
-            <p>当前账号还没有 Agent 授权记录。</p>
-            <small>Agent 发起设备码授权后，批准的令牌会显示在这里。</small>
+            <p>当前账号还没有设备码授权记录。</p>
+            <small>使用已有 HTTP API 的 Agent 可继续发起设备码授权，批准后会显示在这里。</small>
         </div>
         {% endif %}
 
+        </details>
         <p class="agent-token-back"><a href="{% url 'accounts:my-profile' %}">← 返回个人主页</a></p>
     </section>
 </div>

@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 import re
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
+from django.db import transaction
 from functools import wraps
 
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -20,7 +21,7 @@ from accounts.agent_auth import (
 
 from .core.differ import build_stats, diff_sentences, summarize
 from .models import Annotation, AnnotationReply, Document, Version
-from .permissions import can_use_padif
+from .permissions import can_use_padif, visible_documents, action_document_id, require_document, agent_permission_payload
 from .services import (BranchError, commit_document_version, effective_head, resolve_branch,
                        create_branch as create_branch_service, publish_branch as publish_branch_service)
 
@@ -40,7 +41,27 @@ def agent_api_required(scope: str):
                 return JsonResponse({"error": "INVALID_TOKEN"}, status=401)
             request.agent_token = token
             request.agent_user = token.user
-            return view(request, *args, **kwargs)
+            request.agent_scopes = token.scopes
+            try:
+                with transaction.atomic():
+                    document_id = action_document_id(kwargs)
+                    if kwargs and document_id is None:
+                        raise Http404
+                    if document_id is not None:
+                        documents = Document.objects.filter(pk=document_id)
+                        if scope != AGENT_SCOPE_PADIF_READ:
+                            documents = documents.select_for_update()
+                        document = documents.first()
+                        if document is None:
+                            raise Http404
+                        require_document(token.user, document, write=scope != AGENT_SCOPE_PADIF_READ, agent=True, operation=scope)
+                    if view.__name__ == 'publish_branch':
+                        return JsonResponse({'error': 'MAIN_REQUIRES_WEB_CONFIRMATION'}, status=403)
+                    return view(request, *args, **kwargs)
+            except Http404:
+                return JsonResponse({'error': 'DOCUMENT_NOT_FOUND'}, status=404)
+            except PermissionDenied:
+                return JsonResponse({'error': 'DOCUMENT_PERMISSION_DENIED'}, status=403)
 
         return wrapped
 
@@ -174,8 +195,8 @@ def capabilities(request):
             "branching": {
                 "workspace_query": "branch", "default_branch": "main",
                 "write_scope": AGENT_SCOPE_PADIF_VERSION,
-                "publish_requires": ["base_version_id", "source_version_id", "confirm_replace"],
-                "publish_semantics": "replace_main_with_reviewed_branch_snapshot",
+                "publish_requires": ["owner_web_confirmation"],
+                "publish_semantics": "web_only_no_agent_main_writes",
             },
             "resources": {
                 "documents": request.build_absolute_uri(reverse("padif:agent-documents")),
@@ -192,6 +213,7 @@ def capabilities(request):
                 "AUTH_REQUIRED",
                 "INVALID_TOKEN",
                 "INSUFFICIENT_SCOPE",
+                "DOCUMENT_NOT_FOUND", "DOCUMENT_PERMISSION_DENIED", "MAIN_REQUIRES_WEB_CONFIRMATION",
                 "STALE_BASE_VERSION",
                 "STALE_SOURCE_VERSION", "BRANCH_NOT_FOUND", "BRANCH_ARCHIVED",
                 "EMPTY_BRANCH", "CONFIRMATION_REQUIRED", "BRANCH_NAME_EXISTS",
@@ -206,7 +228,7 @@ def capabilities(request):
 def documents(request):
     if request.method != "GET":
         return JsonResponse({"error": "METHOD_NOT_ALLOWED"}, status=405)
-    queryset = Document.objects.select_related("current_version", "created_by").all()
+    queryset = visible_documents(request.agent_user, agent=True).select_related("current_version", "created_by")
     return JsonResponse(
         {
             "documents": [
@@ -262,6 +284,7 @@ def workspace(request, document_id):
     current = effective_head(branch)
     return JsonResponse({
         "document": {"id": document.pk, "title": document.title, "source_name": document.source_name},
+        "permissions": agent_permission_payload(request.agent_user, document, getattr(request, "agent_scopes", [])),
         "current_version": {**_version_payload(current), "content": current.content} if current else None,
         "versions": [_version_payload(version) for version in versions],
         "annotations": [_annotation_payload(item) for item in current.annotations.select_related("author", "resolved_by").all()] if current else [],
@@ -311,6 +334,8 @@ def commit_version(request, document_id):
         return JsonResponse({"error": "INVALID_BRANCH_INPUT"}, status=400)
     try:
         branch = _request_branch(document, payload.get("branch"))
+        if branch.is_default:
+            return JsonResponse({'error': 'MAIN_REQUIRES_WEB_CONFIRMATION'}, status=403)
         result = commit_document_version(document_id=document.pk, user=request.agent_user,
             content=payload.get("content"), commit_message=payload.get("commit_message"),
             version_kind=payload.get("version_kind", Version.Kind.PATCH),

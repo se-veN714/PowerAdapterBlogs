@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}连接 PAdif Agent{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/agent-access.css' %}?v=20261107.operations2">{% endblock %}
+{% block hero %}{% endblock %}
+{% block content %}
+<section class="agent-console agent-console--consent" aria-labelledby="agent-consent-title">
+  <header class="agent-console-heading"><p class="agent-console-kicker">PADIF / AGENT ACCESS</p><a href="{% url 'accounts:agent-token-management' %}">← 连接与授权</a></header>
+  {% if error %}<h1 id="agent-consent-title">无法完成授权</h1><p>{{ error.description }}</p>
+  {% else %}
+  <h1 id="agent-consent-title">允许 {{ application.name }} 做什么？</h1>
+  <p class="agent-consent-account">账号 / {{ request.user.username }} · PAdif Agent 连接</p>
+  <section class="agent-consent-coverage" aria-labelledby="consent-coverage-title">
+    <div class="agent-section-heading"><h2 id="consent-coverage-title">文章范围</h2>{% if consent_pending_count %}<p>待审 {{ consent_pending_count }} 项，未获批的新增权限不可用</p>{% endif %}</div>
+    <p class="agent-coverage-total">已授权 <strong>{{ consent_article_count }}</strong> 篇</p>
+    <ul>{% for document in consent_documents %}<li><span>{{ document.title }}</span><small>{{ document.access_role }} · {{ document.operations_summary }}</small></li>{% empty %}<li>尚无已授权文章，连接后的文章列表为空。</li>{% endfor %}</ul>
+    {% if consent_more_count %}<p>另有 {{ consent_more_count }} 篇已授权文章，可在 Agent 管理页查看。</p>{% endif %}
+  </section>
+  <form method="post" class="agent-consent-form">{% csrf_token %}
+    {% for field in form %}{% if field.is_hidden %}{{ field }}{% endif %}{% endfor %}
+    <input type="hidden" name="consent" value="{{ consent }}">
+    <fieldset class="agent-scope-list"><legend>操作权限</legend><p class="agent-scope-help">下面是操作类型，不是文章数量。</p>
+      {% for value, label in scope_options %}<label class="agent-scope-row">
+        <span class="agent-scope-copy"><strong>{% if value == 'padif:read' %}阅读稿件{% elif value == 'padif:annotate' %}参与批注{% else %}保存分支稿{% endif %}</strong><span>{% if value == 'padif:read' %}读取已获 AI+ 授权的文章、版本和批注。{% elif value == 'padif:annotate' %}仅对具有协作者或创建者权限的文章生效。{% else %}仅对可写文章的独立分支生效，不含主线发布。{% endif %}</span></span>
+        <input type="checkbox" name="approved_scope" value="{{ value }}" {% if value == 'padif:read' %}checked{% endif %}>
+      </label>{% endfor %}
+    </fieldset>
+    <div class="agent-role-notice" role="note"><span class="agent-role-signal" aria-hidden="true"></span><p>{% if consent_article_count and not consent_writable_count %}<strong>当前已授权文章均为只读。</strong>{% else %}<strong>操作仍受每篇文章角色及 AI+ 操作集合限制。</strong>{% endif %}<br>勾选写入操作，不会提升文章角色或逐篇 AI+ 权限。</p></div>
+    <p class="agent-access-footnote">默认只读；新增文章仍需逐篇授权，后续显式授权的文章也受本次 scope 限制。主线发布保留创建者网页确认。</p>
+    <details class="agent-request-history"><summary>连接说明</summary><p>连接最多有效 7 天，可在 Agent 管理页随时撤销。</p>{% if application.registration_source == 'dcr' %}<p>客户端自动登记，名称由应用自行提供。请确认是你刚刚发起的连接。</p>{% endif %}</details>
+    {{ form.errors }}
+    <footer class="agent-consent-footer"><span>仅授予你选择的操作权限。</span><div><button class="btn-ghost" type="submit">取消</button><button class="agent-primary" name="allow" value="true" type="submit">允许连接</button></div></footer>
+  </form>{% endif %}
+</section>
+{% endblock %}

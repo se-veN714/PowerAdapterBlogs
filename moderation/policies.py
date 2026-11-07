@@ -17,7 +17,9 @@ def can_review_accounts(user) -> bool:
 
 
 def moderation_capabilities(user) -> dict[str, bool]:
+    from agent_mcp.access import can_review_agents
     return {
+        "agents": can_review_agents(user),
         "accounts": can_review_accounts(user),
         "posts": can_review_posts_in_admin(user),
         "comments": can_access_comment_admin(user),

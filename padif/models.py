@@ -34,6 +34,69 @@ class Document(models.Model):
         return self.title
 
 
+class DocumentCollaborator(models.Model):
+    class Role(models.TextChoices):
+        VIEWER = 'viewer', '访客'
+        COLLABORATOR = 'collaborator', '协作者'
+
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='collaborators')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='padif_collaborations')
+    role = models.CharField(max_length=16, choices=Role.choices)
+    is_active = models.BooleanField(default=True)
+    revision = models.PositiveIntegerField(default=1)
+    granted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['document', 'user'], name='padif_unique_collaborator')]
+
+
+class DocumentAgentGrant(models.Model):
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='agent_grants')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='padif_agent_grants')
+    is_enabled = models.BooleanField(default=False)
+    allowed_operations = models.JSONField(default=list)
+    operations_source = models.CharField(max_length=24, default='explicit')
+    revision = models.PositiveIntegerField(default=1)
+    source = models.CharField(max_length=16, default='legacy')
+    source_request = models.ForeignKey('DocumentAgentRequest', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    granted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['document', 'user'], name='padif_unique_document_ai')]
+
+
+class DocumentAgentRequest(models.Model):
+    from agent_mcp.models import RequestStatus as Status
+
+    document = models.ForeignKey(Document, null=True, on_delete=models.SET_NULL, related_name='agent_requests')
+    applicant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='document_agent_requests')
+    module_key = models.CharField(max_length=32, default='padif')
+    reason = models.TextField()
+    request_kind = models.CharField(max_length=16, default='initial')
+    requested_operations = models.JSONField(default=list)
+    basis_operations = models.JSONField(default=list)
+    base_grant_revision = models.PositiveIntegerField(default=0)
+    operations_source = models.CharField(max_length=24, default='explicit')
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    role = models.CharField(max_length=16)
+    role_revision = models.PositiveIntegerField()
+    qualification_revision = models.PositiveIntegerField()
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    decision_note = models.TextField(blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    closed_at = models.DateTimeField(null=True, blank=True)
+    invalidated_reason = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+        constraints = [models.UniqueConstraint(fields=['applicant', 'document'], condition=models.Q(status='pending'), name='unique_pending_document_ai_request')]
+
+
 class Branch(models.Model):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="branches")
     name = models.SlugField(max_length=64, validators=[RegexValidator(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")])

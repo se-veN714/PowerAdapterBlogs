@@ -238,13 +238,13 @@
     },
     {
       "path": "PowerAdapterBlogs/dashboard_context.py",
-      "size": 17417,
-      "sha256": "fd45eed8673853d053f75a23e192d448b886ddc1e02a311f7fe0a748f1158893"
+      "size": 17591,
+      "sha256": "8adf0cde49d101cb8f0af4a68880feab39789c2c61e5b962c6b59392ae326f94"
     },
     {
       "path": "PowerAdapterBlogs/dashboard_urls.py",
-      "size": 558,
-      "sha256": "962a8488d91009be8af8a3bb129f0c4e98b760e4e621abd1344722bce1d86530"
+      "size": 686,
+      "sha256": "fd93a3a4970b215b60c9094c920935f345e3955ba851d1590a74e84b81e52c09"
     },
     {
       "path": "PowerAdapterBlogs/dashboard_views.py",
@@ -278,8 +278,8 @@
     },
     {
       "path": "PowerAdapterBlogs/settings/base.py",
-      "size": 19924,
-      "sha256": "4d0a1c0e66c77ebdb9522fdbdfd59b0ecae8d856ceb591ad07d6c4d30ea66063"
+      "size": 21376,
+      "sha256": "f9abcba702e4b7a248e05299c9fecfc4352a1396a6cd0e845f04fdbbcfee7140"
     },
     {
       "path": "PowerAdapterBlogs/settings/develop.py",
@@ -313,8 +313,8 @@
     },
     {
       "path": "PowerAdapterBlogs/urls.py",
-      "size": 4218,
-      "sha256": "5e74d9ab84d9563079fa15cb89a98ab1941472b68e7cefca8989113535924824"
+      "size": 4664,
+      "sha256": "ef476121c2906ba0e94368575f6c83f336e20a3c479e82441aae8a5132555c1e"
     },
     {
       "path": "PowerAdapterBlogs/wsgi.py",
@@ -348,13 +348,13 @@
     },
     {
       "path": "accounts/admin.py",
-      "size": 13436,
-      "sha256": "2734c75110a49def90b2dc9a268211cd3d28abd2994456a65a409d92a8e25b0f"
+      "size": 13805,
+      "sha256": "e15ce226ade5d8ebb43a1694bc074fdeb15b8dd61d3c38754b661f4afc4dc228"
     },
     {
       "path": "accounts/agent_auth.py",
-      "size": 8414,
-      "sha256": "ae7b099f2395bd5e6f390143ca48e20372ab258bafec44c60bd4c1289da597df"
+      "size": 9093,
+      "sha256": "1c9a76d7825b4117784a9aaa267569ef875fb5f8653e4da10b035396cc295f13"
     },
     {
       "path": "accounts/apps.py",
@@ -543,8 +543,8 @@
     },
     {
       "path": "accounts/tests/test_agent_auth.py",
-      "size": 24286,
-      "sha256": "b776b1d12760c20c2023ed43af7a212efdaa2b1d3bd2ea9384c465cfd78f3186"
+      "size": 25656,
+      "sha256": "b485e65e498c5725cb708ca57fc26145d2b6266fc0eaac0c9421ef81eec52431"
     },
     {
       "path": "accounts/tests/test_deployment_manifest.py",
@@ -598,8 +598,223 @@
     },
     {
       "path": "accounts/views.py",
-      "size": 45108,
-      "sha256": "b86f55caa4def6c9ca5bd1b06e3b310fc286e7608a846c229524a520cc310b71"
+      "size": 46481,
+      "sha256": "a238ad3eb0a801a4586e6cfb4416ebf7c663dee493ab7809a25e3bd54b2dc42a"
+    },
+    {
+      "path": "agent_mcp/README.md",
+      "size": 11316,
+      "sha256": "dae83861bae09d4e22c40598bd6f08c57f62cbb3c76e192cd7a9ae8e0809988e"
+    },
+    {
+      "path": "agent_mcp/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "agent_mcp/access.py",
+      "size": 8426,
+      "sha256": "c5431793bb10f3eeb8d63cfa659b98d674aa0139ceda80de089f96d4fe23dc7b"
+    },
+    {
+      "path": "agent_mcp/admin.py",
+      "size": 1665,
+      "sha256": "07990d951189b2e545d52b3abb2da6020926984b78db7b9585ba04b8d238ab9a"
+    },
+    {
+      "path": "agent_mcp/apps.py",
+      "size": 239,
+      "sha256": "ac7e76fe7c8ebd3f3baaf489d552149d2bac2283a7091d689eaeaaf5e8c814da"
+    },
+    {
+      "path": "agent_mcp/article_views.py",
+      "size": 3847,
+      "sha256": "51e8bc4deb284a28d93bc007d9bfaef96760e4e387a6a47466746c164225cc7a"
+    },
+    {
+      "path": "agent_mcp/checks.py",
+      "size": 360,
+      "sha256": "6eda5fdb372d30c2f77d8a204374b7af0cc15aacb3d2c15ff638ea8725dd34e7"
+    },
+    {
+      "path": "agent_mcp/config.py",
+      "size": 1417,
+      "sha256": "50027e1f70f11b7d9e8015bb5cdba0853ff34eb493091e49700df7febc358fb8"
+    },
+    {
+      "path": "agent_mcp/management/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "agent_mcp/management/commands/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "agent_mcp/management/commands/cleanup_padif_mcp.py",
+      "size": 935,
+      "sha256": "fc5728c2cedee10b1173b486ea0a9071a2b34c60b16a6332c8814e361ead839c"
+    },
+    {
+      "path": "agent_mcp/management/commands/register_padif_mcp_client.py",
+      "size": 1768,
+      "sha256": "d4156827c7fe0425c813fefa03b3fb9d8983a194aebc76bd829e1b984c3e6e17"
+    },
+    {
+      "path": "agent_mcp/migrations/0001_initial.py",
+      "size": 2165,
+      "sha256": "ac038533c03ab5ba4f123accca337519301a9f7e10f326a0e1ae995726020149"
+    },
+    {
+      "path": "agent_mcp/migrations/0002_agentqualification_agentaccessrequest.py",
+      "size": 2293,
+      "sha256": "0c0ab00b55f74d62d79bdc6d669de5844102c589ebaa278d94fd3bb5c3deeb0b"
+    },
+    {
+      "path": "agent_mcp/migrations/0003_remove_agentaccessrequest_unique_pending_agent_request_and_more.py",
+      "size": 4085,
+      "sha256": "abd04c452542c9915eae15e735657d8ce200dffabdc6d81cc2f1ca7c7d77f648"
+    },
+    {
+      "path": "agent_mcp/migrations/0004_alter_agentaccessrequest_reason.py",
+      "size": 461,
+      "sha256": "a90294caea4196477f83703118c3b54843d6cd30aa0544ed063286fa4613ac8f"
+    },
+    {
+      "path": "agent_mcp/migrations/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "agent_mcp/models.py",
+      "size": 3287,
+      "sha256": "2f2c6e3144eb3e3d55382266c9c49dae104df5b3ef03b5d0a1cb6eb10a9dbdc7"
+    },
+    {
+      "path": "agent_mcp/oauth.py",
+      "size": 6176,
+      "sha256": "662c17409e157ce7e8250b1d5e34c35585884ea65b746e467339b8faa4781d8d"
+    },
+    {
+      "path": "agent_mcp/presentation.py",
+      "size": 4495,
+      "sha256": "f12155e5b88f1a083b9c9a9582ab14e22da8db368ef5e6f4640304eaa5543b88"
+    },
+    {
+      "path": "agent_mcp/review_views.py",
+      "size": 4535,
+      "sha256": "0708e67045bc74432d1c728e958760dca3f14d08ca98b5a89916e6a18fee810b"
+    },
+    {
+      "path": "agent_mcp/signals.py",
+      "size": 2326,
+      "sha256": "a935584bf3da1e06e969122fa5713e298c23b27ae5cd41209ce9a8f3ef3f66d8"
+    },
+    {
+      "path": "agent_mcp/tests/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "agent_mcp/tests/browser_access_concept.cjs",
+      "size": 5111,
+      "sha256": "3da3d3dd99faf22e8e3d2c215b2d9751c2762683f8da2b6faaa467d7be90c4eb"
+    },
+    {
+      "path": "agent_mcp/tests/browser_access_review.cjs",
+      "size": 4146,
+      "sha256": "f2434c96c230f862dcc6b07d13a6fac5ce64d99e92e9f9e33fdd948b12048756"
+    },
+    {
+      "path": "agent_mcp/tests/browser_collaboration.cjs",
+      "size": 6400,
+      "sha256": "ffba6869b3dda060f05e4832691af761f39569e0d4410591684eb6daebd3a8e0"
+    },
+    {
+      "path": "agent_mcp/tests/browser_oauth.cjs",
+      "size": 6730,
+      "sha256": "21a4ce73d07b0c1ad8ab224878899f42b3ab128ca3239ca43192845e054cbf94"
+    },
+    {
+      "path": "agent_mcp/tests/browser_operation_permissions.cjs",
+      "size": 8901,
+      "sha256": "4482a41892ef0e3a5e986cfc24e84bddccb7b5f456031e59e9e12e8455c105b3"
+    },
+    {
+      "path": "agent_mcp/tests/browser_two_level_access.cjs",
+      "size": 9264,
+      "sha256": "1ade2a791f28be6cb6ab282202c6f8ec343786b316fdd8db231d7e6d72d3a158"
+    },
+    {
+      "path": "agent_mcp/tests/e2e_client.py",
+      "size": 7125,
+      "sha256": "47519ae1dfe966de243e1139977602f39bdded336c8caa65436671a641264a97"
+    },
+    {
+      "path": "agent_mcp/tests/test_access_migration.py",
+      "size": 3707,
+      "sha256": "e08338d2e2eae92053b950d7d2c5d36a312e69b767efdfa00eab2fd87fc7d9e5"
+    },
+    {
+      "path": "agent_mcp/tests/test_access_presentation.py",
+      "size": 3764,
+      "sha256": "2cbdd44720a80a79b3b306dbc0d739f377ed89452d386a351b02cb04b98b693d"
+    },
+    {
+      "path": "agent_mcp/tests/test_access_review.py",
+      "size": 5601,
+      "sha256": "8386515c006b90874fcd9e7c93c26c1de44d1b1683190f9850c418767df771ee"
+    },
+    {
+      "path": "agent_mcp/tests/test_access_states.py",
+      "size": 3369,
+      "sha256": "c56b69f6c0065dbd08072d9e4132ff31e544e88c35a422dc5dbdea7910effed3"
+    },
+    {
+      "path": "agent_mcp/tests/test_access_web.py",
+      "size": 7696,
+      "sha256": "69bed888c34950cef256d08a53ec6908d53b8de8b7c6117fd5fbb2dabd29ff68"
+    },
+    {
+      "path": "agent_mcp/tests/test_concurrency.py",
+      "size": 1832,
+      "sha256": "7b96b4a2a318ed62b535462f3ae96fbf81549bc74e4835ef92bebc90f2aa371a"
+    },
+    {
+      "path": "agent_mcp/tests/test_dcr.py",
+      "size": 4167,
+      "sha256": "14b3a703462dce54639a9aae4d36146ab526e1249e96a736d446702559e935fe"
+    },
+    {
+      "path": "agent_mcp/tests/test_mcp.py",
+      "size": 23346,
+      "sha256": "1abe1b00fdc420409c91ab25cf5603387c10f605e56ca05348bbc6f27b031175"
+    },
+    {
+      "path": "agent_mcp/tests/test_operation_web.py",
+      "size": 3709,
+      "sha256": "50ca34d0963a0996d8f8bb917c9701d6df3275b7ff7e0a96d507a5c53765f3ca"
+    },
+    {
+      "path": "agent_mcp/tools.py",
+      "size": 13541,
+      "sha256": "3795ef77b2f5ad02652de69264562fb9d7a21be64eca4acd2ee9c8774fd245b0"
+    },
+    {
+      "path": "agent_mcp/transport.py",
+      "size": 5239,
+      "sha256": "947a769eb54074fcca91bfcf5bcc49733a5b74a2d6751e4fa8cedaa811e19dfd"
+    },
+    {
+      "path": "agent_mcp/urls.py",
+      "size": 1170,
+      "sha256": "b8f3e497d9de7e7166434dd0d344b80e37d27faef143c29f2d315de89af07934"
+    },
+    {
+      "path": "agent_mcp/views.py",
+      "size": 12160,
+      "sha256": "0df301b21d8a12c8a93d06008b14f8b8b720b34071b6ea5f59d3645f7ac5bc6e"
     },
     {
       "path": "boards/DEVELOPMENT.md",
@@ -1298,8 +1513,8 @@
     },
     {
       "path": "deploy/manifest.py",
-      "size": 6505,
-      "sha256": "07f189b97d3633d9dfc6519a1c6e61af7aecc037f163bc72e6e985e71575f093"
+      "size": 6522,
+      "sha256": "fe67c7d13ddc68ac1b1429a32c987d552037886ce9f28207bc38decaadad0052"
     },
     {
       "path": "deploy/mongo/Dockerfile",
@@ -1363,8 +1578,8 @@
     },
     {
       "path": "moderation/policies.py",
-      "size": 821,
-      "sha256": "d29873322ae490552c9328d969a20328822a1535599b62b98cadd41a0848253a"
+      "size": 917,
+      "sha256": "1e4aa772254f827147698c5d4c805cab6a6b9f0f27376a0fc7f1e768c1fcd395"
     },
     {
       "path": "moderation/tests.py",
@@ -1427,14 +1642,34 @@
       "sha256": "392cdef564f8bad24fdcd0c3035ac6588d86d2545bbe47f4c462b57bfb70d379"
     },
     {
+      "path": "padif/agent_operations.py",
+      "size": 1189,
+      "sha256": "d97d987e787439b3c9a73714991c5063e1e0e94dccab58470d2e0762855fd7a2"
+    },
+    {
+      "path": "padif/agent_requests.py",
+      "size": 12237,
+      "sha256": "2ac7310072c8040e964691bd9cc0d571bf8c9e829fcba43c7375dbd9e5992a86"
+    },
+    {
       "path": "padif/api.py",
-      "size": 20808,
-      "sha256": "9d395484b5d3b92a7047067f60586206708bff8aaa6ca9817a81614a0c611d5c"
+      "size": 22485,
+      "sha256": "24e91c81fef02e4873e97aeafad0831e638f7337168b020f90f5fa273b38e92d"
     },
     {
       "path": "padif/apps.py",
       "size": 182,
       "sha256": "45039a6cc73b6249d0fcf32f914ebbd518195f7f8d520e63677f85ee59ed9749"
+    },
+    {
+      "path": "padif/collaboration.py",
+      "size": 3476,
+      "sha256": "8587cb52dbe70252dc80d0b549fed5cf6ff9ddb1c44d3159700536fbcd0ca755"
+    },
+    {
+      "path": "padif/collaboration_views.py",
+      "size": 3305,
+      "sha256": "0ca708fe7f0cb78fd653af5360b98472eb7d564d4f51f176e3fec3bc7a6e5cf8"
     },
     {
       "path": "padif/core/__init__.py",
@@ -1497,24 +1732,39 @@
       "sha256": "3f439e5e3a59b8fab0ea16c6b2c7efdbd4d00829a11e0a20d2fb8a15318497e6"
     },
     {
+      "path": "padif/migrations/0006_documentagentgrant_documentcollaborator.py",
+      "size": 2469,
+      "sha256": "913d687540dd83f43ea585ee65afc9d231667d4c6cab4e4c16d7a2edd58695d9"
+    },
+    {
+      "path": "padif/migrations/0007_documentagentgrant_revision_and_more.py",
+      "size": 3616,
+      "sha256": "def0af54e1c2799f0c9b305eca3d7d1a3b820333e1d8d51d5e1c63ece46cca61"
+    },
+    {
+      "path": "padif/migrations/0008_documentagentgrant_allowed_operations_and_more.py",
+      "size": 5216,
+      "sha256": "9ff923cd4089ea0c875b4f7b9b219ac29df9ccf48ba5c31821ec126af2f57cc1"
+    },
+    {
       "path": "padif/migrations/__init__.py",
       "size": 33,
       "sha256": "4a6e8c866f4a34cfce02671ff5e4324ad79a27b1b1515891adcf4e918ef0942c"
     },
     {
       "path": "padif/models.py",
-      "size": 7970,
-      "sha256": "66e89d6e03b2c114c0120567ea2ba2007fe7d1653f1d620343a988f31733818f"
+      "size": 11690,
+      "sha256": "88d325fd4f4bbeed0fcf62bf6ff888ca07b834aa9f2982f74e9d09606bceb4df"
     },
     {
       "path": "padif/permissions.py",
-      "size": 437,
-      "sha256": "ad891be8b4ff664124f4f77a24882dfaab01bd253aa9ece512253717a3f0ef23"
+      "size": 3952,
+      "sha256": "5740293c634db86fbe0018770c69dd8560831aacdc1b74c95a3a607f40a3dba6"
     },
     {
       "path": "padif/services.py",
-      "size": 8467,
-      "sha256": "d983bab7a40bd4e3c573bdfaf254b19f6def614f7fc50189e357b93f3818d801"
+      "size": 8936,
+      "sha256": "279fae8913407784336604cb70a2ed6ed08c5b2d12e942817cc5fcbc8977d78c"
     },
     {
       "path": "padif/static/padif/htmx.min.js",
@@ -1523,8 +1773,8 @@
     },
     {
       "path": "padif/static/padif/padif.css",
-      "size": 37134,
-      "sha256": "8e58f9d9ba5ca2fadf5a3cd4fdbc35c22093e7aa58bea89e558ba74fca8c6535"
+      "size": 38674,
+      "sha256": "f2738b0d0a3a165118e946d0bb1597559b0818062866e719d826e05504c0507d"
     },
     {
       "path": "padif/static/padif/padif.js",
@@ -1538,13 +1788,13 @@
     },
     {
       "path": "padif/templates/padif/_rail_branch.html",
-      "size": 2875,
-      "sha256": "bd242dc80fced0c3365052b02e9be7c2e8ed5cbfa7ef69d750d7d207f2998b13"
+      "size": 2927,
+      "sha256": "4fb4b36a149b5bab9bf39eb858e01dcabeac27edcacd639692bff70821bfeb59"
     },
     {
       "path": "padif/templates/padif/_rail_fork.html",
-      "size": 507,
-      "sha256": "30bff3ca3912c71018acb72d237ef43d9449ab6f70797cbc7852322feddbe2c1"
+      "size": 545,
+      "sha256": "c193037799b576dfe7d65ff44960d86e67af949bdf27bf2f869603858da0c1a0"
     },
     {
       "path": "padif/templates/padif/_version_rail.html",
@@ -1554,12 +1804,17 @@
     {
       "path": "padif/templates/padif/base.html",
       "size": 1083,
-      "sha256": "d41af10edf79e5f44631f95007e4f70bf1148e471a15e8b16501d7f6bf5f769b"
+      "sha256": "40b0acbb43206ddc1041ab347c2b0ef4ab89481f8e8c0334cdf6780bbd62ed6a"
     },
     {
       "path": "padif/templates/padif/branch_action.html",
       "size": 2868,
       "sha256": "54d85f17bd9e2de53c583bc6c511577ebac2be91f95aa2b6061f3ad05297ca20"
+    },
+    {
+      "path": "padif/templates/padif/collaboration.html",
+      "size": 5328,
+      "sha256": "bd2b0145d4ce5b5ebe6a0d94f5f3df6e9dc9536b328be22c22d799660f78a06a"
     },
     {
       "path": "padif/templates/padif/diff_errors.html",
@@ -1573,8 +1828,8 @@
     },
     {
       "path": "padif/templates/padif/document_detail.html",
-      "size": 25345,
-      "sha256": "e03bd63d3d78b2041742bb70100e59bc97fb1c41e5d669ac4e8f24013f73f146"
+      "size": 26213,
+      "sha256": "629be55692287c0570310e5b73f04c112ae149183e8ad140ca6943ea7c99482a"
     },
     {
       "path": "padif/templates/padif/sidebar.html",
@@ -1607,9 +1862,49 @@
       "sha256": "abc573d9df81ddc3a8559bdecbdcb9237e680c17395c0963505d49ce4a6b1f6f"
     },
     {
+      "path": "padif/tests/test_agent_operations.py",
+      "size": 11195,
+      "sha256": "da39d770628a8b9590b0290847aea9e1959734cd462ac9ef000d21bf97f2a039"
+    },
+    {
+      "path": "padif/tests/test_agent_operations_concurrency.py",
+      "size": 3586,
+      "sha256": "31eda48b3c72c4da3e3fa303d0d996189ca246e0fe49d2e92dd005155637c6e0"
+    },
+    {
+      "path": "padif/tests/test_agent_operations_migration.py",
+      "size": 7147,
+      "sha256": "672c98a24b32135f89f5f24b589438bc2ff4f7cc817d0d6d5456dfcae784ce98"
+    },
+    {
+      "path": "padif/tests/test_agent_request_concurrency.py",
+      "size": 4485,
+      "sha256": "749614a08d85120b890d5884a27948f8ff5acba26ddf08fb56509488156d5033"
+    },
+    {
+      "path": "padif/tests/test_agent_requests.py",
+      "size": 8663,
+      "sha256": "bad0e81798cf77a77c520357ec4e2687bd4a38e6e7e6f011ef950dcb5b71b7c9"
+    },
+    {
       "path": "padif/tests/test_branching.py",
-      "size": 32121,
-      "sha256": "7cad9f26272e66d153a050204ae4805f1ec8dc22b004c756dec96163cc7fef08"
+      "size": 32236,
+      "sha256": "66922c2bc343f00ae8a2ee47c07032f555e0f979b9d27035234260ddd7421bc9"
+    },
+    {
+      "path": "padif/tests/test_collaboration.py",
+      "size": 14280,
+      "sha256": "48361eb1a6512d9f4f138209a812be35e2de7c34787efbf57804ffa9da297a45"
+    },
+    {
+      "path": "padif/tests/test_collaboration_concurrency.py",
+      "size": 2862,
+      "sha256": "10a3b70d8677fce23019c37caff1a7076559ce485b50a48175dbfe5d8eeb5d08"
+    },
+    {
+      "path": "padif/tests/test_collaboration_migration.py",
+      "size": 2807,
+      "sha256": "f35ade86778579bdf38de205555eb50f415d3736e17cfeabe9facd34c704377f"
     },
     {
       "path": "padif/tests/test_rail_interactions.cjs",
@@ -1618,13 +1913,13 @@
     },
     {
       "path": "padif/urls.py",
-      "size": 2364,
-      "sha256": "54f11dc13046f635b15170c27a19756ac2ef5ada31e1376eab44cf7e61da716f"
+      "size": 2609,
+      "sha256": "3b943f07edc352877bf87c528bd1ed66bc7e738b24099bc2c036e89059cbd2af"
     },
     {
       "path": "padif/views.py",
-      "size": 18815,
-      "sha256": "38e7caf585de39bc62ad6ac305078002056474f65e4edd43441b5549c9ffe258"
+      "size": 20062,
+      "sha256": "57df4e92cf99d23d4447b7158a0034449b55e3c28e8d796bc281b2a36423cdd6"
     },
     {
       "path": "padif/worldlines.py",
@@ -1633,8 +1928,8 @@
     },
     {
       "path": "requirements.txt",
-      "size": 662,
-      "sha256": "5dedf1966ee6d461f7cf4c18f40ddcbb66f3df53ee34bd283f33ff8fb68b992f"
+      "size": 724,
+      "sha256": "780d569e1c379d9661cc368c0ef3379d1371a82abf20890225d227968f6691b4"
     },
     {
       "path": "security/DEVELOPMENT.md",
@@ -1973,8 +2268,8 @@
     },
     {
       "path": "themes/devenir/static/css/accounts.css",
-      "size": 34742,
-      "sha256": "b4b400ae1f95615fe46eb308128070e9ba8e4742d46d017e8244beb12e2701e0"
+      "size": 36406,
+      "sha256": "9cb8384a99dc2ea9e580b34db9eaa3f9318ad282aa68b5d32eb55500e7b824dc"
     },
     {
       "path": "themes/devenir/static/css/accounts.css.bak.20260726",
@@ -1985,6 +2280,11 @@
       "path": "themes/devenir/static/css/admin_theme.css",
       "size": 13059,
       "sha256": "835ed3649153fb0ede376c6ef47bc5b724cef84b93cd2c64595e8bf10db10a0f"
+    },
+    {
+      "path": "themes/devenir/static/css/agent-access.css",
+      "size": 18475,
+      "sha256": "879cc647c9c1a220d369519e6b33df2ca977fa1c6b035dfa177c445eec715d30"
     },
     {
       "path": "themes/devenir/static/css/blog.css",
@@ -2302,6 +2602,11 @@
       "sha256": "cb2f4d431a291f2001adccc837c4397d202546f09e351b351894d13312ac6cd1"
     },
     {
+      "path": "themes/devenir/static/js/agent-access.js",
+      "size": 6859,
+      "sha256": "6795675a65243c40ccb910bd6ca767f4848663918606cb1dd7ac7f5363006156"
+    },
+    {
       "path": "themes/devenir/static/js/boards/form-presets.js",
       "size": 6257,
       "sha256": "a7a85d56015d461ab88f9ec4812c95c3f4b0b25eca95d5f3f9026e36b8c87b20"
@@ -2477,24 +2782,44 @@
       "sha256": "2426a6687057fbbb6cfbf2e00aa719d40779669d46c7301cc60f98026c31b9be"
     },
     {
+      "path": "themes/devenir/templates/pages/accounts/_agent_article_row.html",
+      "size": 1708,
+      "sha256": "72b8b96de429faad20f4acf8be49ebd5eccdf4b66191411963e2565303e79e3f"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/_agent_articles.html",
+      "size": 5917,
+      "sha256": "507eb232eb6b6d5912e902f4caf2f44f3d1452701a2c0ac2bb540b55ec1a1afe"
+    },
+    {
       "path": "themes/devenir/templates/pages/accounts/accept_invitation.html",
       "size": 1669,
       "sha256": "1bed4a950a6f59445d068f638bbe978879e2d3979f29a1fa3e8da0b9020d942f"
     },
     {
+      "path": "themes/devenir/templates/pages/accounts/agent_access_required.html",
+      "size": 622,
+      "sha256": "b0ec2948f22961975e372f9eee0f7cea9306aadad3ecc9a111c7b56cc6d156da"
+    },
+    {
       "path": "themes/devenir/templates/pages/accounts/agent_authorize.html",
-      "size": 1899,
-      "sha256": "e8e8521298bc0a6afe6f55bf98afaee431e0aefd24d3f3979b47fa7125da9ee0"
+      "size": 1991,
+      "sha256": "a46dfc87661dca466b26ba76d9ac04110e4b3787f65cea15b6c3dc1029d5d042"
     },
     {
       "path": "themes/devenir/templates/pages/accounts/agent_tokens.html",
-      "size": 2855,
-      "sha256": "806710a96e9dc4dd7ecfea00f162a6d4726d7c029bd3cdfb080526411ece9638"
+      "size": 8714,
+      "sha256": "66476efa35002681148242ffab62a28d90703858f8df5ddd1d0ea328d3fdc792"
     },
     {
       "path": "themes/devenir/templates/pages/accounts/login.html",
       "size": 2167,
       "sha256": "7707617a6cfea138b1410af518af02e6925d0f06cc97896c64f975b24190769e"
+    },
+    {
+      "path": "themes/devenir/templates/pages/accounts/mcp_authorize.html",
+      "size": 4033,
+      "sha256": "ea27f9931bf88940fccb53d02896d04d51ea6fa296c1b0ff0b7a64f777ac1790"
     },
     {
       "path": "themes/devenir/templates/pages/accounts/mfa_challenge.html",
@@ -2817,6 +3142,11 @@
       "sha256": "161ee7319596ca642ac61927166e256c01fa0854a5e216314372b9ac9df4ea83"
     },
     {
+      "path": "themes/devenir/templates/pages/dashboard/agents.html",
+      "size": 2782,
+      "sha256": "efd8c3fbb0ab7c36fcf6d2f6882156f914bdf3a4670f34707c33e1fec7c4db57"
+    },
+    {
       "path": "themes/devenir/templates/pages/dashboard/audit.html",
       "size": 1229,
       "sha256": "bae383f675f2293f3a68326875396374080be3e5508337a1cfe3d30a70cf4c21"
@@ -2953,8 +3283,8 @@
     },
     {
       "path": "themes/devenir/templates/pages/moderation/hub.html",
-      "size": 2571,
-      "sha256": "032654195957978e2e7e920510057da0df4f2a517c5043e5221ff2bd5969eb1d"
+      "size": 2909,
+      "sha256": "6f4d76af5ca0f3fb5e7b2028bd19966e87edce8b745f807fbe328cdc7bc3e95f"
     },
     {
       "path": "themes/devenir/templates/pages/moderation/pagination.html",

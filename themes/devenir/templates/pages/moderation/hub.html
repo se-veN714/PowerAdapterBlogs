@@ -8,6 +8,7 @@
     <h1 class="moderation-title">审核中心</h1>
     <p class="moderation-lead">审核在业务页面完成；这里不授予新权限，只汇总当前账号已有的账号、稿件和评论审核能力。</p>
     <div class="moderation-grid">
+        {% if capabilities.agents %}<section class="moderation-card"><h2>AGENT / 开通资格</h2><p>审核账号的 Agent 使用资格；每次连接的 OAuth scope 仍由账号本人确认。</p><div class="moderation-actions"><a class="btn-ghost" href="{% url 'dashboard:agents' %}">进入 Agent 审核</a></div></section>{% endif %}
         {% if capabilities.boards %}
         <section class="moderation-card">
             <h2>BOARD / 板块权限</h2>

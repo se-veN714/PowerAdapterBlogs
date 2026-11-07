@@ -1,0 +1,44 @@
+<section id="article-access" class="agent-access-state" aria-labelledby="article-access-title">
+  <div class="agent-section-heading"><div><p class="agent-token-kicker">02 / 我的文章 AI+</p><h2 id="article-access-title">文章授权</h2></div><p>每篇独立审批。AI+ 不提升你在文章中的角色。</p></div>
+  <div class="agent-access-counts" aria-label="本人文章授权统计">
+    <span>已授权 <strong data-granted-count>{{ agent_article_count }}</strong> 篇</span><span>待审核 <strong data-pending-count>{{ agent_pending_article_count }}</strong> 篇</span>
+  </div>
+  {% if not agent_qualified %}<p>请先开通 PAdif 板块资格。文章申请不会代替板块资格。</p>{% endif %}
+  <table class="agent-article-table" aria-label="本人文章的角色与 Agent 授权状态">
+    <thead><tr><th scope="col">文章</th><th scope="col">本人角色</th><th scope="col">Agent 状态</th><th scope="col">操作</th></tr></thead>
+    <tbody>{% for doc in agent_documents %}{% include 'pages/accounts/_agent_article_row.html' %}{% empty %}<tr><td colspan="4">暂无可见文章。请先由创建者授予人类协作角色，再申请 AI+。</td></tr>{% endfor %}</tbody>
+  </table>
+  <div class="agent-article-tools">
+    {% if agent_qualified %}<details id="article-application" class="agent-article-application"><summary>申请其他文章访问 <span aria-hidden="true">＋</span></summary>
+      {% if agent_requestable_count %}<form id="article-request-form" method="post" action="{% url 'agent_mcp:apply-articles' %}">
+        {% csrf_token %}<input type="hidden" name="module_key" value="padif"><input type="hidden" name="operations_form" value="1">
+        <fieldset><legend>选择文章（可多选，提交后逐篇审批）</legend>
+          {% for doc in agent_documents %}{% if doc.can_request_ai %}<label class="agent-request-option"><input id="ai-doc-{{ doc.pk }}" type="checkbox" name="document_ids" value="{{ doc.pk }}" aria-label="申请 {{ doc.title }} 的 AI+"><span>{{ doc.title }} <small>{{ doc.access_role }}</small></span></label><div class="agent-initial-operations"><label><input type="checkbox" name="operations_{{ doc.pk }}" value="padif:read" checked>阅读</label><label><input type="checkbox" name="operations_{{ doc.pk }}" value="padif:annotate"{% if not doc.ai_can_write %} disabled{% endif %}>批注</label><label><input type="checkbox" name="operations_{{ doc.pk }}" value="padif:version"{% if not doc.ai_can_write %} disabled{% endif %}>分支写作</label>{% if not doc.ai_can_write %}<small>写操作需文章协作者角色</small>{% endif %}</div>{% endif %}{% endfor %}
+        </fieldset>
+        <label for="article-ai-reason">所选文章的 Agent 用途</label><textarea id="article-ai-reason" name="reason" rows="2" required maxlength="2000" placeholder="例如：阅读所选稿件并提出修改建议"></textarea>
+        <button type="submit" class="agent-primary">申请所选文章 AI+</button>
+      </form>{% else %}<p>当前可见文章均已授权或待审，暂无可申请项目。</p>{% endif %}
+    </details>{% endif %}
+    <details class="agent-request-history"><summary>查看申请记录</summary>
+      {% for item in article_requests %}<div class="agent-application-row" data-ai-request="{{ item.pk }}">
+        <p>#{{ item.pk }} · {% if item.visible_title %}{{ item.visible_title }}{% else %}文章已不可见{% endif %} · {{ item.get_status_display }} · {{ item.created_at|date:'m-d H:i' }}</p>
+        {% if item.visible_title %}<p>{{ item.reason }} · 目标：{{ item.operations_summary }}{% if item.operations_source == "legacy_role_limit" %} · 旧版按角色上限申请，未逐项选择{% endif %}</p>{% if item.reviewed_by %}<p>{{ item.reviewed_by.username }} · {{ item.reviewed_at|date:'m-d H:i' }} · {{ item.decision_note }}</p>{% endif %}{% endif %}
+        {% if item.invalidated_reason %}<p>前置授权已变化，满足条件后请重新申请。</p>{% endif %}
+      </div>{% empty %}<p>尚无文章 AI+ 申请。</p>{% endfor %}
+    </details>
+  </div>
+  <p class="agent-access-footnote">授权覆盖文章历史版本、归档分支、批注和回复；不改变本人角色及连接 scope。同篇可同时已授权和待审提权，数量不互斥。</p>
+</section>
+
+<dialog id="agent-permission-drawer" class="agent-permission-drawer" aria-labelledby="permission-drawer-title">
+  <header><p class="agent-token-kicker">ARTICLE / ✦ AI+</p><button type="button" data-drawer-close aria-label="关闭权限设置">关闭 ×</button></header>
+  <h2 id="permission-drawer-title">更改文章 AI+ 权限</h2><h3 data-drawer-document></h3>
+  <p data-drawer-role></p><p>此处是本文 AI+ 上限；实际调用还受板块资格、人类角色和客户端 scope 限制。主线仍需创建者网页确认。</p>
+  <p data-drawer-current></p><p data-drawer-pending></p>
+  <form method="post" id="agent-permission-form">{% csrf_token %}<input type="hidden" name="revision">
+    <fieldset><legend>本文操作范围</legend><label><input type="checkbox" name="operations" value="padif:read">阅读</label><label><input type="checkbox" name="operations" value="padif:annotate">批注</label><label><input type="checkbox" name="operations" value="padif:version">分支写作</label></fieldset>
+    <p data-drawer-restriction></p><label for="agent-permission-note">调整说明 / 提权用途</label><textarea id="agent-permission-note" name="note" rows="3" maxlength="2000" required></textarea>
+    <p data-drawer-effect role="status" aria-live="polite"></p><p data-drawer-error role="alert"></p>
+    <button type="submit" class="agent-primary" data-drawer-submit>提交</button><button type="button" data-drawer-close class="btn-ghost">取消</button>
+  </form>
+</dialog><p id="agent-permission-feedback" tabindex="-1" role="status" aria-live="polite"></p>

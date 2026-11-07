@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Agent 开通审核{% endblock %}
+{% block hero %}{% endblock %}
+{% block content %}<section class="agent-console"><p>AGENT / ACCESS REQUIRED</p><h1>先开通 Agent 使用资格</h1><p>当前账号尚未通过 Agent 开通审核。审核通过后，请回到客户端重新连接，再确认本次连接的权限。</p><a class="btn-ghost" href="{% url 'accounts:agent-token-management' %}">申请开通 / 查看进度</a></section>{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/agent-access.css' %}?v=20261107.2">{% endblock %}

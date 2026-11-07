@@ -355,7 +355,7 @@ class AgentAccessTokenAdmin(admin.ModelAdmin):
         permissions=["change"],
     )
     def revoke_all_tokens_for_selected_users(self, request, queryset):
-        user_ids = queryset.values_list("user_id", flat=True).distinct()
+        user_ids = list(queryset.values_list("user_id", flat=True).distinct())
         token_ids = AgentAccessToken.objects.filter(
             user_id__in=user_ids,
             revoked_at__isnull=True,
@@ -367,7 +367,13 @@ class AgentAccessTokenAdmin(admin.ModelAdmin):
             event_type="agent.token.admin_revoked",
             reason="admin_user_global_revoke",
         )
-        messages.success(request, f"已撤销选中账号的 {count} 个有效 Agent 令牌。")
+        from agent_mcp.models import Connection
+        from agent_mcp.oauth import revoke_connection
+
+        connections = list(Connection.objects.filter(user_id__in=user_ids, revoked_at__isnull=True))
+        for connection in connections:
+            revoke_connection(connection, request.user, "agent.mcp.admin_revoked")
+        messages.success(request, f"已撤销选中账号的 {count} 个有效 Agent 令牌及 {len(connections)} 个 MCP 连接。")
 
 
 @admin.register(UserProfile)

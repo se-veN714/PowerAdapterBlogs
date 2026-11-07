@@ -24,6 +24,7 @@ DEFAULT_ROOTS = (
     "PowerAdapterBlogs",
     "Blogs",
     "accounts",
+    "agent_mcp",
     "boards",
     "comment",
     "config",

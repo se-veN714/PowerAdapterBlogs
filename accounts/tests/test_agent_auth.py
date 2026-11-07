@@ -20,7 +20,7 @@ from accounts.agent_auth import (
     revoke_agent_access_token,
 )
 from accounts.models import AgentAccessToken, AgentDeviceAuthorization
-from padif.models import Branch, Document, Version
+from padif.models import Branch, Document, Version, DocumentAgentGrant
 from security.models import AuditOutbox
 
 
@@ -115,6 +115,7 @@ class AgentAuthorizationTests(TestCase):
 
     def test_bearer_token_can_read_padif_workspace(self):
         document = Document.objects.create(title="Agent document", created_by=self.user)
+        DocumentAgentGrant.objects.create(document=document, user=self.user, granted_by=self.user, is_enabled=True, allowed_operations=['padif:read', 'padif:annotate', 'padif:version'])
         branch = Branch.objects.create(document=document, name="main", is_default=True, created_by=self.user)
         version = Version.objects.create(
             document=document,
@@ -149,6 +150,7 @@ class AgentAuthorizationTests(TestCase):
 
     def test_scoped_bearer_token_can_write_annotation_reply_and_version(self):
         document = Document.objects.create(title="Agent writable", created_by=self.user)
+        DocumentAgentGrant.objects.create(document=document, user=self.user, granted_by=self.user, is_enabled=True, allowed_operations=['padif:read', 'padif:annotate', 'padif:version'])
         branch = Branch.objects.create(document=document, name="main", is_default=True, created_by=self.user)
         version = Version.objects.create(
             document=document,
@@ -190,10 +192,13 @@ class AgentAuthorizationTests(TestCase):
             **headers,
         )
         self.assertEqual(reply_response.status_code, 201)
+        from padif.services import create_branch
+        rewrite = create_branch(document_id=document.pk, user=self.user, name="agent-rewrite", fork_from_version_id=version.pk)
         version_response = self.client.post(
             reverse("padif:agent-commit-version", args=[document.pk]),
             data=json.dumps(
                 {
+                    "branch": rewrite.name,
                     "base_version_id": version.pk,
                     "content": "第一句。补充第二句。",
                     "commit_message": "Agent revision",
@@ -207,6 +212,7 @@ class AgentAuthorizationTests(TestCase):
 
     def test_agent_can_discover_documents_read_diff_and_resolve_annotation(self):
         document = Document.objects.create(title="Agent discovery", created_by=self.user)
+        DocumentAgentGrant.objects.create(document=document, user=self.user, granted_by=self.user, is_enabled=True, allowed_operations=['padif:read', 'padif:annotate', 'padif:version'])
         branch = Branch.objects.create(document=document, name="main", is_default=True, created_by=self.user)
         first = Version.objects.create(
             document=document,
@@ -438,6 +444,7 @@ class AgentAuthorizationTests(TestCase):
 
         document = create_document_from_upload(user=self.user,
             upload=SimpleUploadedFile("agent.md", b"Original manuscript."), title="Branches", commit_message="Initial").document
+        DocumentAgentGrant.objects.create(document=document, user=self.user, granted_by=self.user, is_enabled=True, allowed_operations=['padif:read', 'padif:annotate', 'padif:version'])
         initial_id = document.current_version_id
         device = create_device_authorization(client_name="Branch Agent", scopes=[AGENT_SCOPE_PADIF_READ, AGENT_SCOPE_PADIF_VERSION])
         approve_device_authorization(user=self.user, user_code=device["user_code"], approve=True)
@@ -466,10 +473,12 @@ class AgentAuthorizationTests(TestCase):
         publish_url = reverse("padif:agent-publish-branch", args=[document.pk, branch_id])
         publish_payload = {"commit_message": "Ready", "base_version_id": initial_id, "source_version_id": source_id, "confirm_replace": True}
         response = self.client.post(publish_url, data=json.dumps(publish_payload), content_type="application/json", **headers)
-        self.assertEqual(response.status_code, 201)
-        self.assertTrue(response.json()["branch"]["is_default"])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error"], "MAIN_REQUIRES_WEB_CONFIRMATION")
+        document.refresh_from_db()
+        self.assertEqual(document.current_version_id, initial_id)
         retry = self.client.post(publish_url, data=json.dumps(publish_payload), content_type="application/json", **headers)
-        self.assertEqual(retry.status_code, 409)
+        self.assertEqual(retry.status_code, 403)
         archive_branch(document_id=document.pk, branch_id=branch_id, user=self.user)
         history = self.client.get(workspace_url, {"branch": "rewrite"}, **headers).json()
         self.assertEqual(history["current_version"]["id"], source_id)
@@ -486,6 +495,7 @@ class AgentAuthorizationTests(TestCase):
         from padif.services import create_document_from_upload
 
         document = create_document_from_upload(user=self.user, upload=SimpleUploadedFile("agent.md", b"Draft"), title="Scopes", commit_message="Initial").document
+        DocumentAgentGrant.objects.create(document=document, user=self.user, granted_by=self.user, is_enabled=True, allowed_operations=['padif:read', 'padif:annotate', 'padif:version'])
         url = reverse("padif:agent-create-branch", args=[document.pk])
         self.assertEqual(self.client.post(url, data="{}", content_type="application/json").status_code, 401)
         for scopes, expected in (([AGENT_SCOPE_PADIF_READ], 403), ([AGENT_SCOPE_PADIF_VERSION], 400)):

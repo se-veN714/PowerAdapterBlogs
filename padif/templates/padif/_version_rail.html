@@ -1,0 +1,32 @@
+{% load l10n %}
+<div class="section-heading section-heading--rail">
+  <div><p class="panel-h">VERSION LOG</p><h2 id="worldline-title">版本世界线</h2></div>
+  <div class="worldline-drawer__controls"><span class="rail-count">近期 {{ rail_visible_count }} / 全部 {{ rail_branch_total }}</span><button type="button" data-drawer-close hidden aria-label="收起版本世界线">收起 →</button></div>
+</div>
+<div class="worldline-direction"><span>最新 ↑</span><span>独立推进 · 提交顺序</span></div>
+{% localize off %}<div class="worldline-graph" style="--graph-height: {{ worldlines.height }}px" role="group" aria-label="主线和最多三条独立分支世界线；较新的提交在上方">
+  <svg class="worldline-graph__paths" viewBox="0 0 680 {{ worldlines.height }}" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    {% for path in worldlines.paths %}<path d="{{ path.d }}" class="worldline-path worldline-path--underlay"/><path d="{{ path.d }}" class="worldline-path worldline-path--{{ path.kind }}"/>{% endfor %}
+  </svg>
+  {% for item in worldlines.heads %}
+    <a class="worldline-head{% if item.selected %} is-selected{% endif %}{% if item.main %} is-main{% endif %}" style="--lane-x:{{ item.left }}%;--node-y:{{ item.top }}px" href="?branch={{ item.branch.name|urlencode }}"{% if not item.main %} data-worldline-branch="{{ item.branch.pk }}"{% endif %} data-rail-navigation data-rail-focus="{% if item.main %}main{% else %}branch-{{ item.branch.pk }}-name{% endif %}"{% if item.selected %} aria-current="page"{% endif %} title="{{ item.branch.name }}{% if item.branch.archived_at %} · 已归档{% endif %}">
+      <strong>{{ item.branch.name }}{% if item.main %} · 主线{% endif %}</strong><span>{% if item.version %}v{{ item.version.semantic_version }}{% else %}尚无提交{% endif %}{% if item.selected %} · 当前{% endif %}</span>
+    </a>
+  {% endfor %}
+  {% for node in worldlines.nodes %}<a id="version-{{ node.version.pk }}" class="worldline-node{% if node.selected %} is-selected{% endif %}{% if node.main %} is-main{% endif %}{% if node.head %} is-head{% endif %}" style="--lane-x:{{ node.left }}%;--node-y:{{ node.top }}px" href="?branch={{ node.version.branch.name|urlencode }}#worldline-inspector" title="{{ node.version.branch.name }} · v{{ node.version.semantic_version }}{% if node.main or node.selected %} · {{ node.version.commit_message }}{% endif %}" aria-label="{{ node.version.branch.name }} 版本 {{ node.version.semantic_version }}{% if node.main or node.selected %}：{{ node.version.commit_message }}{% endif %}"><span class="worldline-node__square" aria-hidden="true"></span>{% if node.main or node.selected %}<span class="worldline-node__label">v{{ node.version.semantic_version }}</span>{% endif %}</a>{% endfor %}
+  {% for origin in worldlines.origins %}<span class="worldline-origin" style="--lane-x:{{ origin.left }}%;--node-y:{{ origin.top }}px">{{ origin.label }}</span>{% endfor %}
+</div>{% endlocalize %}
+<div class="worldline-direction"><span>最早 ↓</span><span>版本号按各分支独立递增</span></div>
+<section class="worldline-inspector" id="worldline-inspector" aria-label="当前世界线详情">
+  {% if rail_selected_card %}{% include "padif/_rail_branch.html" with card=rail_selected_card %}
+  {% else %}
+    <h3>main · 当前主线</h3><p class="muted">稳定稿保留在主线；从历史版本开始独立试写。</p>
+    <details class="worldline-main-history"><summary>查看主线版本与分叉入口</summary>
+      <ol>{% for row in rail_rows %}<li><b>v{{ row.version.semantic_version }}</b><span>{{ row.version.commit_message }}</span>{% if row.anchor_only %}<small>较早分叉点</small>{% endif %}{% include "padif/_rail_fork.html" with version=row.version %}</li>{% endfor %}</ol>
+    </details>
+  {% endif %}
+</section>
+{% if not selected_branch.is_default %}<details class="worldline-main-history"><summary>主线历史 · 从此分叉</summary><ol>{% for row in rail_rows %}<li><b>v{{ row.version.semantic_version }}</b><span>{{ row.version.commit_message }}</span>{% if row.anchor_only %}<small>较早分叉点</small>{% endif %}{% include "padif/_rail_fork.html" with version=row.version %}</li>{% endfor %}</ol></details>{% endif %}
+{% if rail_has_older %}<a class="rail-history" href="?branch={{ selected_branch.name|urlencode }}&amp;history=all">查看完整主线历史</a>{% elif rail_full_history %}<a class="rail-history" href="?branch={{ selected_branch.name|urlencode }}">收起较早历史</a>{% endif %}
+{% if not rail_branch_total %}<p class="muted">尚无分支，从主线任一版本开始试写。</p>{% endif %}
+<details class="rail-all-branches"><summary>全部分支 · {{ rail_branch_total }}<span>查看归档与历史</span></summary><nav aria-label="全部分支"><a href="?branch=main" data-rail-navigation data-rail-focus="all-main">main <small>主线</small></a>{% for item in rail_all_branches %}<a href="?branch={{ item.name|urlencode }}" data-rail-navigation data-rail-focus="all-{{ item.pk }}"{% if item.pk == selected_branch.pk %} aria-current="page"{% endif %}>{{ item.name }}{% if item.archived_at %}<small>已归档</small>{% endif %}</a>{% endfor %}</nav></details>

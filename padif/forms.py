@@ -1,8 +1,10 @@
 from typing import Any
 
 from django import forms
+from django.db.models import F, Max
+from django.db.models.functions import Coalesce
 
-from .models import Annotation, AnnotationReply, Document, Version
+from .models import Annotation, AnnotationReply, Branch, Document, Version
 
 
 class DocumentUploadForm(forms.Form):
@@ -20,13 +22,20 @@ class DocumentUploadForm(forms.Form):
     )
 
 
-class VersionCommitForm(forms.Form):
+class BranchCommitFields(forms.Form):
+    branch_id = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
+    base_version_id = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
+
+
+class VersionCommitForm(BranchCommitFields):
     content = forms.CharField(label="正文", widget=forms.Textarea)
     commit_message = forms.CharField(label="本次修改", max_length=300)
     version_kind = forms.ChoiceField(label="版本级别", choices=Version.Kind.choices)
 
 
-class VersionUploadForm(forms.Form):
+class VersionUploadForm(BranchCommitFields):
+    target_branch = forms.ModelChoiceField(label="目标分支", queryset=Branch.objects.none(), required=False, empty_label=None)
+    branch_bases = forms.JSONField(required=False, widget=forms.HiddenInput)
     markdown_file = forms.FileField(
         label="Markdown 文件",
         widget=forms.ClearableFileInput(
@@ -36,10 +45,51 @@ class VersionUploadForm(forms.Form):
     commit_message = forms.CharField(label="本次修改", max_length=300)
     version_kind = forms.ChoiceField(label="版本级别", choices=Version.Kind.choices)
 
+    def __init__(self, *args, document=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if document is not None:
+            branches = document.branches.filter(archived_at__isnull=True).annotate(
+                head_id=Coalesce(Max("versions__id"), F("forked_from_id")),
+            )
+            self.fields["target_branch"].queryset = branches
+            # Carry the heads seen when the form was rendered, including without JS.
+            self.initial.setdefault("branch_bases", {str(item.pk): item.head_id for item in branches})
+            self.initial.setdefault("target_branch", self.initial.get("branch_id"))
+
+    def clean(self):
+        cleaned = super().clean()
+        target = cleaned.get("target_branch")
+        if target is not None:
+            bases = cleaned.get("branch_bases")
+            expected = bases.get(str(target.pk)) if isinstance(bases, dict) else None
+            if type(expected) is not int or expected < 1:
+                raise forms.ValidationError("目标分支基准缺失，请刷新页面后重新选择文件。")
+            cleaned["base_version_id"] = expected
+        return cleaned
+
+
+class BranchCreateForm(forms.Form):
+    name = forms.RegexField(regex=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=64, label="分支名")
+    description = forms.CharField(max_length=300, required=False, label="说明")
+    fork_from_version_id = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
+
+
+class BranchPublishForm(forms.Form):
+    commit_message = forms.CharField(max_length=300, label="发布说明")
+    version_kind = forms.ChoiceField(choices=Version.Kind.choices, initial="patch", label="版本级别")
+    base_version_id = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
+    source_version_id = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
+    confirm_replace = forms.BooleanField(label="我已审阅差异，确认主线正文采用分支整稿")
+
+
+class VersionChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return f"v{obj.semantic_version} · {obj.branch.name}"
+
 
 class DiffSelectionForm(forms.Form):
-    from_version = forms.ModelChoiceField(label="旧版本", queryset=Version.objects.none())
-    to_version = forms.ModelChoiceField(label="新版本", queryset=Version.objects.none())
+    from_version = VersionChoiceField(label="旧版本", queryset=Version.objects.none())
+    to_version = VersionChoiceField(label="新版本", queryset=Version.objects.none())
     mode = forms.ChoiceField(
         label="视图",
         choices=(("inline", "行内"), ("split", "并排"), ("stats", "统计")),
@@ -52,7 +102,7 @@ class DiffSelectionForm(forms.Form):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        versions = document.versions.select_related("created_by").all()
+        versions = document.versions.select_related("created_by", "branch").all()
         self.fields["from_version"].queryset = versions
         self.fields["to_version"].queryset = versions
 

@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 
 
@@ -32,6 +34,35 @@ class Document(models.Model):
         return self.title
 
 
+class Branch(models.Model):
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="branches")
+    name = models.SlugField(max_length=64, validators=[RegexValidator(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")])
+    description = models.CharField(max_length=300, blank=True)
+    is_default = models.BooleanField(default=False)
+    forked_from = models.ForeignKey("Version", null=True, blank=True, on_delete=models.SET_NULL, related_name="forked_branches")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="padif_branches")
+    created_at = models.DateTimeField(auto_now_add=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-is_default", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["document", "name"], name="padif_unique_branch_name_per_document"),
+            models.UniqueConstraint(fields=["document"], condition=models.Q(is_default=True), name="padif_one_default_branch_per_document"),
+        ]
+
+    def clean(self):
+        if self.is_default and (self.name != "main" or self.archived_at or self.forked_from_id):
+            raise ValidationError("默认分支必须为 main，不能归档或设置分叉源。")
+        if not self.is_default and (self.name == "main" or not self.forked_from_id):
+            raise ValidationError("普通分支必须提供分叉源，且不能使用 main。")
+        if self.forked_from_id and self.forked_from.document_id != self.document_id:
+            raise ValidationError("分叉源必须属于同一文档。")
+
+    def __str__(self):
+        return self.name
+
+
 class Version(models.Model):
     class Kind(models.TextChoices):
         MAJOR = "major", "Major"
@@ -44,6 +75,8 @@ class Version(models.Model):
         related_name="versions",
         verbose_name="文档",
     )
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name="versions")
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="children")
     content = models.TextField(verbose_name="正文快照")
     commit_message = models.CharField(max_length=300, verbose_name="提交说明")
     semantic_version = models.CharField(max_length=32, verbose_name="语义版本")
@@ -65,15 +98,25 @@ class Version(models.Model):
         ordering = ["id"]
         constraints = [
             models.UniqueConstraint(
-                fields=["document", "semantic_version"],
-                name="padif_unique_document_semantic_version",
+                fields=["branch", "semantic_version"],
+                name="padif_unique_branch_semantic_version",
             )
         ]
         verbose_name = "PAdif 版本"
         verbose_name_plural = "PAdif 版本"
 
     def __str__(self) -> str:
-        return f"{self.document.title} v{self.semantic_version}"
+        return f"{self.document.title} v{self.semantic_version} · {self.branch.name}"
+
+    @property
+    def is_on_default_branch(self):
+        return self.branch.is_default
+
+    def clean(self):
+        if self.branch_id and self.branch.document_id != self.document_id:
+            raise ValidationError("版本分支必须属于同一文档。")
+        if self.parent_id and (self.parent.document_id != self.document_id or (self.pk and self.parent_id >= self.pk)):
+            raise ValidationError("前驱必须是同文档的较早版本。")
 
 
 class Annotation(models.Model):

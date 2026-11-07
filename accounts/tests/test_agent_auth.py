@@ -20,7 +20,7 @@ from accounts.agent_auth import (
     revoke_agent_access_token,
 )
 from accounts.models import AgentAccessToken, AgentDeviceAuthorization
-from padif.models import Document, Version
+from padif.models import Branch, Document, Version
 from security.models import AuditOutbox
 
 
@@ -115,8 +115,10 @@ class AgentAuthorizationTests(TestCase):
 
     def test_bearer_token_can_read_padif_workspace(self):
         document = Document.objects.create(title="Agent document", created_by=self.user)
+        branch = Branch.objects.create(document=document, name="main", is_default=True, created_by=self.user)
         version = Version.objects.create(
             document=document,
+            branch=branch,
             content="# Draft",
             commit_message="Initial",
             semantic_version="1.0.0",
@@ -147,8 +149,10 @@ class AgentAuthorizationTests(TestCase):
 
     def test_scoped_bearer_token_can_write_annotation_reply_and_version(self):
         document = Document.objects.create(title="Agent writable", created_by=self.user)
+        branch = Branch.objects.create(document=document, name="main", is_default=True, created_by=self.user)
         version = Version.objects.create(
             document=document,
+            branch=branch,
             content="第一句。",
             commit_message="Initial",
             semantic_version="1.0.0",
@@ -203,8 +207,10 @@ class AgentAuthorizationTests(TestCase):
 
     def test_agent_can_discover_documents_read_diff_and_resolve_annotation(self):
         document = Document.objects.create(title="Agent discovery", created_by=self.user)
+        branch = Branch.objects.create(document=document, name="main", is_default=True, created_by=self.user)
         first = Version.objects.create(
             document=document,
+            branch=branch,
             content="第一句。\n\n第二句。",
             commit_message="Initial",
             semantic_version="1.0.0",
@@ -213,6 +219,7 @@ class AgentAuthorizationTests(TestCase):
         )
         second = Version.objects.create(
             document=document,
+            branch=branch,
             content="第一句。\n\n第二句已修改。",
             commit_message="Revision",
             semantic_version="1.1.0",
@@ -424,3 +431,71 @@ class AgentAuthorizationTests(TestCase):
                 event__target__id=str(token.pk),
             ).exists()
         )
+
+    def test_agent_branch_workspace_commit_publish_and_stale_heads(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from padif.services import archive_branch, create_document_from_upload
+
+        document = create_document_from_upload(user=self.user,
+            upload=SimpleUploadedFile("agent.md", b"Original manuscript."), title="Branches", commit_message="Initial").document
+        initial_id = document.current_version_id
+        device = create_device_authorization(client_name="Branch Agent", scopes=[AGENT_SCOPE_PADIF_READ, AGENT_SCOPE_PADIF_VERSION])
+        approve_device_authorization(user=self.user, user_code=device["user_code"], approve=True)
+        issued = issue_access_token(authorization=device["authorization"], device_code=device["device_code"])
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {issued['access_token']}"}
+        create_url = reverse("padif:agent-create-branch", args=[document.pk])
+        response = self.client.post(create_url, data=json.dumps({"name": "rewrite", "fork_from_version_id": initial_id}), content_type="application/json", **headers)
+        self.assertEqual(response.status_code, 201)
+        branch_id = response.json()["branch"]["id"]
+        workspace_url = reverse("padif:agent-workspace", args=[document.pk])
+        empty = self.client.get(workspace_url, {"branch": "rewrite"}, **headers).json()
+        self.assertEqual(empty["current_version"]["id"], initial_id)
+        self.assertEqual(empty["selected_branch"]["name"], "rewrite")
+        self.assertEqual(self.client.get(workspace_url, {"branch": "missing"}, **headers).status_code, 404)
+        commit_url = reverse("padif:agent-commit-version", args=[document.pk])
+        payload = {"branch": "rewrite", "base_version_id": initial_id, "content": "Branch manuscript.", "commit_message": "Rewrite", "version_kind": "minor"}
+        response = self.client.post(commit_url, data=json.dumps(payload), content_type="application/json", **headers)
+        self.assertEqual(response.status_code, 201)
+        source_id = response.json()["version"]["id"]
+        self.assertEqual(response.json()["version"]["parent_version_id"], initial_id)
+        stale = self.client.post(commit_url, data=json.dumps(payload), content_type="application/json", **headers)
+        self.assertEqual(stale.status_code, 409)
+        self.assertEqual(stale.json()["error"], "STALE_BASE_VERSION")
+        document.refresh_from_db()
+        self.assertEqual(document.current_version_id, initial_id)
+        publish_url = reverse("padif:agent-publish-branch", args=[document.pk, branch_id])
+        publish_payload = {"commit_message": "Ready", "base_version_id": initial_id, "source_version_id": source_id, "confirm_replace": True}
+        response = self.client.post(publish_url, data=json.dumps(publish_payload), content_type="application/json", **headers)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.json()["branch"]["is_default"])
+        retry = self.client.post(publish_url, data=json.dumps(publish_payload), content_type="application/json", **headers)
+        self.assertEqual(retry.status_code, 409)
+        archive_branch(document_id=document.pk, branch_id=branch_id, user=self.user)
+        history = self.client.get(workspace_url, {"branch": "rewrite"}, **headers).json()
+        self.assertEqual(history["current_version"]["id"], source_id)
+        self.assertIsNotNone(history["selected_branch"]["archived_at"])
+        payload["base_version_id"] = source_id
+        response = self.client.post(commit_url, data=json.dumps(payload), content_type="application/json", **headers)
+        self.assertEqual(response.json()["error"], "BRANCH_ARCHIVED")
+        capability = self.client.get(reverse("padif:agent-capabilities")).json()
+        self.assertIn("{document_id}", capability["resources"]["publish_branch"])
+        self.assertIn("{branch_id}", capability["resources"]["publish_branch"])
+
+    def test_agent_branch_scopes_types_and_cross_document_access(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from padif.services import create_document_from_upload
+
+        document = create_document_from_upload(user=self.user, upload=SimpleUploadedFile("agent.md", b"Draft"), title="Scopes", commit_message="Initial").document
+        url = reverse("padif:agent-create-branch", args=[document.pk])
+        self.assertEqual(self.client.post(url, data="{}", content_type="application/json").status_code, 401)
+        for scopes, expected in (([AGENT_SCOPE_PADIF_READ], 403), ([AGENT_SCOPE_PADIF_VERSION], 400)):
+            device = create_device_authorization(client_name="Limited Agent", scopes=scopes)
+            approve_device_authorization(user=self.user, user_code=device["user_code"], approve=True)
+            issued = issue_access_token(authorization=device["authorization"], device_code=device["device_code"])
+            headers = {"HTTP_AUTHORIZATION": f"Bearer {issued['access_token']}"}
+            response = self.client.post(url, data=json.dumps({"name": "rewrite", "fork_from_version_id": True}), content_type="application/json", **headers)
+            self.assertEqual(response.status_code, expected)
+        other = create_document_from_upload(user=self.user, upload=SimpleUploadedFile("other.md", b"Other"), title="Other", commit_message="Initial").document
+        response = self.client.post(url, data=json.dumps({"name": "cross", "fork_from_version_id": other.current_version_id}), content_type="application/json", **headers)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(document.branches.count(), 1)

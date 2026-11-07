@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import re
+
+from django.core.exceptions import ValidationError
 from functools import wraps
 
 from django.http import JsonResponse
@@ -18,7 +21,8 @@ from accounts.agent_auth import (
 from .core.differ import build_stats, diff_sentences, summarize
 from .models import Annotation, AnnotationReply, Document, Version
 from .permissions import can_use_padif
-from .services import commit_document_version
+from .services import (BranchError, commit_document_version, effective_head, resolve_branch,
+                       create_branch as create_branch_service, publish_branch as publish_branch_service)
 
 
 def agent_api_required(scope: str):
@@ -54,6 +58,9 @@ def _payload(request):
 def _version_payload(version):
     return {
         "id": version.pk,
+        "branch_id": version.branch_id,
+        "branch_name": version.branch.name,
+        "parent_version_id": version.parent_id,
         "semantic_version": version.semantic_version,
         "commit_message": version.commit_message,
         "version_kind": version.version_kind,
@@ -164,11 +171,19 @@ def capabilities(request):
                     {"name": AGENT_SCOPE_PADIF_VERSION, "description": "追加文档版本"},
                 ],
             },
+            "branching": {
+                "workspace_query": "branch", "default_branch": "main",
+                "write_scope": AGENT_SCOPE_PADIF_VERSION,
+                "publish_requires": ["base_version_id", "source_version_id", "confirm_replace"],
+                "publish_semantics": "replace_main_with_reviewed_branch_snapshot",
+            },
             "resources": {
                 "documents": request.build_absolute_uri(reverse("padif:agent-documents")),
                 "workspace": templated("padif:agent-workspace", "document_id"),
                 "diff": templated("padif:agent-diff", "document_id"),
                 "commit_version": templated("padif:agent-commit-version", "document_id"),
+                "create_branch": templated("padif:agent-create-branch", "document_id"),
+                "publish_branch": request.build_absolute_uri(reverse("padif:agent-publish-branch", args=[0, 0])).replace("/documents/0/", "/documents/{document_id}/").replace("/branches/0/", "/branches/{branch_id}/"),
                 "create_annotation": templated("padif:agent-create-annotation", "version_id"),
                 "update_annotation": templated("padif:agent-update-annotation", "annotation_id"),
                 "create_reply": templated("padif:agent-create-reply", "annotation_id"),
@@ -178,6 +193,8 @@ def capabilities(request):
                 "INVALID_TOKEN",
                 "INSUFFICIENT_SCOPE",
                 "STALE_BASE_VERSION",
+                "STALE_SOURCE_VERSION", "BRANCH_NOT_FOUND", "BRANCH_ARCHIVED",
+                "EMPTY_BRANCH", "CONFIRMATION_REQUIRED", "BRANCH_NAME_EXISTS",
                 "INVALID_JSON",
                 "INVALID_DIFF_INPUT",
             ],
@@ -237,26 +254,44 @@ def workspace(request, document_id):
     document = Document.objects.select_related("current_version").filter(pk=document_id).first()
     if document is None:
         return JsonResponse({"error": "DOCUMENT_NOT_FOUND"}, status=404)
-    versions = document.versions.select_related("created_by").all()
-    current = document.current_version
-    annotations = (
-        current.annotations.select_related("author", "resolved_by").all()
-        if current
-        else []
-    )
-    return JsonResponse(
-        {
-            "document": {"id": document.pk, "title": document.title, "source_name": document.source_name},
-            "current_version": {
-                **_version_payload(current),
-                "content": current.content,
-            }
-            if current
-            else None,
-            "versions": [_version_payload(version) for version in versions],
-            "annotations": [_annotation_payload(annotation) for annotation in annotations],
-        }
-    )
+    try:
+        branch = _request_branch(document, request.GET.get("branch"))
+    except ValidationError as exc:
+        return _branch_error(exc)
+    versions = document.versions.select_related("created_by", "branch").all()
+    current = effective_head(branch)
+    return JsonResponse({
+        "document": {"id": document.pk, "title": document.title, "source_name": document.source_name},
+        "current_version": {**_version_payload(current), "content": current.content} if current else None,
+        "versions": [_version_payload(version) for version in versions],
+        "annotations": [_annotation_payload(item) for item in current.annotations.select_related("author", "resolved_by").all()] if current else [],
+        "selected_branch": _branch_payload(branch),
+        "branches": [_branch_payload(item) for item in document.branches.all()],
+    })
+
+
+def _branch_payload(branch):
+    head = effective_head(branch)
+    return {"id": branch.pk, "name": branch.name, "is_default": branch.is_default,
+            "forked_from_version_id": branch.forked_from_id,
+            "head_version_id": head.pk if head else None,
+            "head_semantic_version": head.semantic_version if head else None,
+            "archived_at": branch.archived_at.isoformat() if branch.archived_at else None}
+
+
+def _branch_error(exc):
+    return JsonResponse({"error": getattr(exc, "error_code", "INVALID_BRANCH_INPUT"),
+                         "messages": exc.messages, **getattr(exc, "details", {})}, status=getattr(exc, "status", 400))
+
+
+def _positive_id(value):
+    return type(value) is int and value > 0
+
+
+def _request_branch(document, name):
+    if name is not None and (not isinstance(name, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name) or len(name) > 64):
+        raise BranchError("INVALID_BRANCH_INPUT", "分支名无效。")
+    return resolve_branch(document, name=name)
 
 
 @csrf_exempt
@@ -267,30 +302,66 @@ def commit_version(request, document_id):
     payload = _payload(request)
     if payload is None:
         return JsonResponse({"error": "INVALID_JSON"}, status=400)
-    document = Document.objects.select_related("current_version").filter(pk=document_id).first()
+    document = Document.objects.filter(pk=document_id).first()
     if document is None:
         return JsonResponse({"error": "DOCUMENT_NOT_FOUND"}, status=404)
-    expected = payload.get("base_version_id")
-    if expected is not None and document.current_version_id != expected:
-        return JsonResponse(
-            {"error": "STALE_BASE_VERSION", "current_version_id": document.current_version_id},
-            status=409,
-        )
-    content = payload.get("content")
-    commit_message = payload.get("commit_message")
-    version_kind = payload.get("version_kind", Version.Kind.PATCH)
-    if not isinstance(content, str) or not content.strip() or not isinstance(commit_message, str) or not commit_message.strip():
+    if "base_version_id" in payload and not _positive_id(payload["base_version_id"]):
         return JsonResponse({"error": "INVALID_VERSION_INPUT"}, status=400)
-    if version_kind not in Version.Kind.values:
-        return JsonResponse({"error": "INVALID_VERSION_KIND"}, status=400)
-    result = commit_document_version(
-        document_id=document.pk,
-        user=request.agent_user,
-        content=content,
-        commit_message=commit_message.strip(),
-        version_kind=version_kind,
-    )
-    return JsonResponse({"version": _version_payload(result.version), "gentle_warning": result.gentle_warning}, status=201)
+    if "branch" in payload and payload["branch"] is None:
+        return JsonResponse({"error": "INVALID_BRANCH_INPUT"}, status=400)
+    try:
+        branch = _request_branch(document, payload.get("branch"))
+        result = commit_document_version(document_id=document.pk, user=request.agent_user,
+            content=payload.get("content"), commit_message=payload.get("commit_message"),
+            version_kind=payload.get("version_kind", Version.Kind.PATCH),
+            branch_id=branch.pk, base_version_id=payload.get("base_version_id"))
+    except ValidationError as exc:
+        return _branch_error(exc)
+    return JsonResponse({"version": _version_payload(result.version), "branch": _branch_payload(branch), "gentle_warning": result.gentle_warning}, status=201)
+
+
+@csrf_exempt
+@agent_api_required(AGENT_SCOPE_PADIF_VERSION)
+def create_branch(request, document_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "METHOD_NOT_ALLOWED"}, status=405)
+    payload = _payload(request)
+    if payload is None:
+        return JsonResponse({"error": "INVALID_JSON"}, status=400)
+    if not Document.objects.filter(pk=document_id).exists():
+        return JsonResponse({"error": "DOCUMENT_NOT_FOUND"}, status=404)
+    if (not _positive_id(payload.get("fork_from_version_id")) or not isinstance(payload.get("name"), str)
+            or not isinstance(payload.get("description", ""), str) or "is_default" in payload):
+        return JsonResponse({"error": "INVALID_BRANCH_INPUT"}, status=400)
+    try:
+        branch = create_branch_service(document_id=document_id, user=request.agent_user,
+            name=payload["name"], description=payload.get("description", ""), fork_from_version_id=payload["fork_from_version_id"])
+    except ValidationError as exc:
+        return _branch_error(exc)
+    return JsonResponse({"branch": _branch_payload(branch)}, status=201)
+
+
+@csrf_exempt
+@agent_api_required(AGENT_SCOPE_PADIF_VERSION)
+def publish_branch(request, document_id, branch_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "METHOD_NOT_ALLOWED"}, status=405)
+    payload = _payload(request)
+    if payload is None:
+        return JsonResponse({"error": "INVALID_JSON"}, status=400)
+    if not Document.objects.filter(pk=document_id).exists():
+        return JsonResponse({"error": "DOCUMENT_NOT_FOUND"}, status=404)
+    if not _positive_id(payload.get("base_version_id")) or not _positive_id(payload.get("source_version_id")) or payload.get("confirm_replace") is not True:
+        return JsonResponse({"error": "CONFIRMATION_REQUIRED"}, status=400)
+    if not isinstance(payload.get("commit_message"), str) or not payload["commit_message"].strip():
+        return JsonResponse({"error": "INVALID_VERSION_INPUT"}, status=400)
+    try:
+        result = publish_branch_service(document_id=document_id, branch_id=branch_id, user=request.agent_user,
+            commit_message=payload["commit_message"], version_kind=payload.get("version_kind", Version.Kind.PATCH),
+            base_version_id=payload["base_version_id"], source_version_id=payload["source_version_id"], confirm_replace=True)
+    except ValidationError as exc:
+        return _branch_error(exc)
+    return JsonResponse({"version": _version_payload(result.version), "branch": _branch_payload(result.version.branch), "gentle_warning": result.gentle_warning}, status=201)
 
 
 @csrf_exempt

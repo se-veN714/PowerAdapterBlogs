@@ -9,7 +9,7 @@
 {% block content %}
 <div class="app-layout">
   {% include "padif/sidebar.html" %}
-  <main class="col-right document-layout">
+  <main class="col-right document-layout document-layout--worldlines" data-worldline-layout>
     <div class="document-main">
       <section class="panel version-panel">
         <div class="document-heading">
@@ -17,28 +17,36 @@
             <p class="panel-h">共享文档 · 版本差异</p>
             <p class="document-heading__status"><span class="status-square" aria-hidden="true"></span>PRIVATE / 仅授权用户可见</p>
             <h1>{{ document.title }}</h1>
-            <p class="document-heading__meta">{{ document.source_name|default:"在线文档" }} · {{ document.versions.count }} 个版本</p>
+            <p class="document-heading__meta">{{ document.source_name|default:"在线文档" }} · 目标分支 {{ selected_branch.name }}{% if selected_branch.archived_at %} · 已归档{% endif %}</p>
           </div>
           <a class="back-link" href="{% url 'padif:workspace' %}">← 文档列表</a>
         </div>
+        {% if not selected_branch.archived_at %}
         <section class="main-add-version" aria-labelledby="add-version-title">
           <div class="rail-action__head"><p class="panel-h">ADD VERSION</p><h2 id="add-version-title">追加版本</h2></div>
           <p class="muted">从本地 Markdown 添加一版，保留原始稿件。</p>
           <form class="main-add-version__grid" method="post" enctype="multipart/form-data" action="{% url 'padif:upload_version' document.pk %}">
-            {% csrf_token %}
+            {% csrf_token %}<input type="hidden" name="branch_context" value="{{ selected_branch.name }}">{{ upload_form.branch_id }}{{ upload_form.base_version_id }}{{ upload_form.branch_bases }}
+            {{ upload_form.non_field_errors }}
             <div class="main-add-version__cell"><label>Markdown 文件</label>{% include "padif/_dropzone.html" with field=upload_form.markdown_file %}</div>
-            <p class="main-add-version__cell"><label for="{{ upload_form.commit_message.id_for_label }}">本次修改</label>{{ upload_form.commit_message }}</p>
+            <div class="main-add-version__cell"><div class="main-add-version__meta">
+              <p><label for="{{ upload_form.commit_message.id_for_label }}">本次修改</label>{{ upload_form.commit_message }}{{ upload_form.commit_message.errors }}</p>
+              <p><label for="{{ upload_form.target_branch.id_for_label }}">目标分支</label>{{ upload_form.target_branch }}{{ upload_form.target_branch.errors }}</p>
+            </div></div>
             <p class="main-add-version__cell"><label for="{{ upload_form.version_kind.id_for_label }}">版本级别</label>{{ upload_form.version_kind }}</p>
             <div class="main-add-version__cell main-add-version__submit"><span class="panel-h">COMMIT</span><button type="submit">添加版本</button></div>
           </form>
         </section>
+        {% else %}<p class="muted">已归档：保留正文、差异和批注，不再追加版本。</p>{% endif %}
       </section>
       <div id="diff-result" hidden aria-hidden="true"></div>
 
       <details class="panel editor-panel">
         <summary><span><span class="panel-h">ONLINE EDITOR</span><strong>在线编辑器</strong></span><span class="editor-panel__state">点击展开</span></summary>
         <form id="padif-editor-form" method="post" action="{% url 'padif:commit_version' document.pk %}">
-          {% csrf_token %}
+          {% csrf_token %}<input type="hidden" name="branch_context" value="{{ selected_branch.name }}">
+          {{ commit_form.branch_id }}{{ commit_form.base_version_id }}
+          {{ commit_form.non_field_errors }}
           {{ commit_form.content.as_hidden }}
           {{ commit_form.content.errors }}
           {{ commit_form.content.value|default_if_none:""|json_script:"padif-initial-content" }}
@@ -51,12 +59,12 @@
               <button type="button" data-padif-preview>全屏预览</button>
             </div>
           </div>
-          <div id="padif-editor" class="padif-editor"></div>
-          <div class="padif-editor__fields">
+          <div id="padif-editor" class="padif-editor"{% if selected_branch.archived_at %} inert aria-disabled="true"{% endif %}></div>
+          {% if not selected_branch.archived_at %}<div class="padif-editor__fields">
             <p><label for="{{ commit_form.commit_message.id_for_label }}">本次修改</label>{{ commit_form.commit_message }}</p>
             <p><label for="{{ commit_form.version_kind.id_for_label }}">版本级别</label>{{ commit_form.version_kind }}</p>
           </div>
-          <button type="submit">保存新版本</button>
+          <button type="submit">保存新版本</button>{% endif %}
         </form>
       </details>
       <div id="padif-preview-modal" class="padif-preview-modal" hidden role="dialog" aria-modal="true" aria-labelledby="padif-preview-title">
@@ -99,7 +107,7 @@
                       </div>
                     {% else %}
                       <form class="padif-annotation-status-form" method="post" action="{% url 'padif:update_annotation' document.pk annotation.pk %}">
-                        {% csrf_token %}
+                        {% csrf_token %}<input type="hidden" name="branch_context" value="{{ selected_branch.name }}">
                         <label>处理结果<select name="status"><option value="resolved">已处理</option><option value="rejected">驳回</option></select></label>
                         <label>处理说明<textarea name="resolution_note" rows="2" required placeholder="必须填写处理说明"></textarea></label>
                         <button type="submit">提交处理</button>
@@ -116,7 +124,7 @@
                         <small class="muted">暂无回复。</small>
                       {% endfor %}
                       <form class="padif-annotation-reply-form" method="post" action="{% url 'padif:create_annotation_reply' document.pk annotation.pk %}">
-                        {% csrf_token %}
+                        {% csrf_token %}<input type="hidden" name="branch_context" value="{{ selected_branch.name }}">
                         <textarea name="body" rows="2" required placeholder="追加回复…"></textarea>
                         <button type="submit">回复</button>
                       </form>
@@ -127,7 +135,7 @@
                 {% endfor %}
               </div>
               <form class="padif-annotation-form" data-padif-annotation-form method="post" action="{% url 'padif:create_annotation' document.pk current_version.pk %}">
-                {% csrf_token %}
+                {% csrf_token %}<input type="hidden" name="branch_context" value="{{ selected_branch.name }}">
                 <input type="hidden" name="start_line" data-padif-start-line value="1">
                 <input type="hidden" name="end_line" data-padif-end-line value="1">
                 <input type="hidden" name="selected_text" data-padif-selected-text>
@@ -141,23 +149,9 @@
       </div>
     </div>
 
-    <aside class="version-rail panel" aria-label="版本时间线">
-      <div class="section-heading section-heading--rail">
-        <div><p class="panel-h">VERSION LOG</p><h2>版本轨</h2></div>
-        <span class="version-count">{{ document.versions.count }}</span>
-      </div>
-      <ol class="version-strip">
-        {% for version in document.versions.all %}
-          <li{% if version.pk == document.current_version_id %} class="current"{% endif %}>
-            <span class="version-strip__dot" aria-hidden="true"></span>
-            <div class="version-strip__body">
-              <b>v{{ version.semantic_version }}</b>
-              <span>{{ version.commit_message }}</span>
-              <small>{{ version.created_by }} · {{ version.created_at|date:"m-d H:i" }}</small>
-            </div>
-          </li>
-        {% endfor %}
-      </ol>
+    <button type="button" class="worldline-drawer-handle" data-drawer-handle aria-controls="padif-version-drawer" aria-expanded="false" hidden>← 版本世界线</button>
+    <aside id="padif-version-drawer" class="version-rail panel version-drawer" data-version-drawer aria-labelledby="worldline-title">
+      {% include "padif/_version_rail.html" %}
       <section class="rail-compare" aria-labelledby="compare-title">
         <div class="rail-compare__head">
           <p class="panel-h">COMPARE</p>
@@ -170,7 +164,7 @@
           <button type="submit">查看差异</button>
         </form>
       </section>
-      <div class="version-rail__note">版本轨固定在右侧，主编辑区保持连续阅读宽度。</div>
+      <div class="version-rail__note">主线常驻 · 近期最多 3 条 · 当前分支固定保留</div>
     </aside>
   </main>
 </div>
@@ -187,6 +181,7 @@
       el: editorElement,
       height: '560px',
       initialEditType: 'markdown',
+      autofocus: false,
       previewStyle: 'vertical',
       theme: 'dark',
       initialValue: JSON.parse(initialElement.textContent || '""')

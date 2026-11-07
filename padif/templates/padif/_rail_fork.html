@@ -1,0 +1,10 @@
+<details class="branch-fork">
+  <summary>从此分叉</summary>
+  <form method="post" action="{% url 'padif:create_branch' document.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="fork_from_version_id" value="{{ version.pk }}">
+    <label>分支名<input name="name" maxlength="64" pattern="[a-z0-9]+(-[a-z0-9]+)*" required placeholder="rewrite-v2"></label>
+    <label>说明<input name="description" maxlength="300"></label>
+    <button type="submit">创建分支</button>
+  </form>
+</details>

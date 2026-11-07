@@ -1,0 +1,32 @@
+<article id="rail-branch-{{ card.branch.pk }}" class="rail-branch{% if card.selected %} is-selected{% endif %}" data-rail-branch="{{ card.branch.pk }}" data-expanded="{{ card.selected|yesno:'true,false' }}">
+  <div class="rail-branch__summary">
+    <a href="?branch={{ card.branch.name|urlencode }}" data-rail-navigation data-rail-focus="branch-{{ card.branch.pk }}-name"{% if card.selected %} aria-current="page"{% endif %}><strong>{{ card.branch.name }}</strong></a>
+    {% if card.selected %}<button type="button" class="rail-branch__toggle" data-rail-toggle data-rail-focus="branch-{{ card.branch.pk }}-toggle" aria-controls="rail-branch-body-{{ card.branch.pk }}" aria-expanded="true" aria-label="收起分支 {{ card.branch.name }}">−</button>
+    {% else %}<a class="rail-branch__toggle" href="?branch={{ card.branch.name|urlencode }}" data-rail-navigation data-rail-focus="branch-{{ card.branch.pk }}-toggle" aria-label="展开分支 {{ card.branch.name }}">＋</a>{% endif %}
+  </div>
+  {% if card.branch.archived_at %}<span class="rail-branch__status">已归档 · 当前查看</span>{% elif card.selected %}<span class="rail-branch__status">当前编辑</span>{% endif %}
+  {% if card.head %}<b class="rail-branch__head" data-rail-head{% if card.selected %} hidden{% endif %}>v{{ card.head.semantic_version }}</b>{% endif %}
+  <time class="rail-branch__updated" datetime="{{ card.branch.last_activity|date:'c' }}">{{ card.branch.last_activity|timesince }}前</time>
+  {% if card.selected %}
+    <div class="rail-branch__body" id="rail-branch-body-{{ card.branch.pk }}">
+    <p class="rail-branch__origin">源于 {{ card.branch.forked_from.branch.name }} · v{{ card.branch.forked_from.semantic_version }}</p>
+    {% if not branch_versions %}<p class="rail-branch__empty">尚无分支提交，正在查看源版本及其批注。</p>{% endif %}
+    <ol class="rail-branch__versions" aria-label="{{ card.branch.name }} 提交历史">
+      {% for version in branch_versions reversed %}
+        <li{% if version.pk == current_version.pk %} class="is-head"{% endif %}>
+          <b>v{{ version.semantic_version }}</b>
+          <span>{{ version.commit_message }}</span>
+          <small>{{ version.created_by }} · {{ version.created_at|date:"m-d H:i" }}</small>
+          {% include "padif/_rail_fork.html" %}
+        </li>
+      {% endfor %}
+    </ol>
+    {% if not card.branch.archived_at %}
+      <div class="rail-branch__actions">
+        {% if card.head %}<a class="rail-branch__publish" href="{% url 'padif:publish_branch' document.pk card.branch.pk %}">审阅并采用此稿</a>{% endif %}
+        <a href="{% url 'padif:archive_branch' document.pk card.branch.pk %}">归档分支</a>
+      </div>
+    {% endif %}
+    </div>
+  {% elif not card.head %}<span class="rail-branch__empty">尚无提交</span>{% endif %}
+</article>

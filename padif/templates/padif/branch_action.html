@@ -1,0 +1,35 @@
+{% extends "padif/base.html" %}
+{% block title %}{{ action_title }} · {{ document.title }}{% endblock %}
+{% block content %}
+<main class="branch-action-page panel">
+  <p class="panel-h">BRANCH / {{ branch.name }}</p><h1>{{ action_title }}</h1>
+  <p>{{ document.title }}</p>
+  {% if publish %}
+    <p>发布后主线正文将采用分支整稿；主线自分叉以来的修改不会自动合并。历史版本与批注仍保留。</p>
+    <p>目标 main · v{{ main_head.semantic_version }}（#{{ main_head.pk }}） ← {{ branch.name }} · v{{ source_head.semantic_version }}（#{{ source_head.pk }}）</p>
+    <form class="diff-controls" hx-get="{% url 'padif:diff_fragment' document.pk %}" hx-target="#diff-result" hx-swap="innerHTML">
+      <input type="hidden" name="from_version" value="{{ main_head.pk }}"><input type="hidden" name="to_version" value="{{ source_head.pk }}"><input type="hidden" name="mode" value="inline">
+      <button type="submit">全屏审阅发布差异</button>
+    </form>
+    <div id="diff-result" hidden></div>
+    <div id="padif-preview-modal" class="padif-preview-modal" hidden role="dialog" aria-modal="true" aria-label="发布差异">
+      <div class="padif-preview-modal__shell"><header class="padif-preview-modal__head"><h2>主线 → {{ branch.name }}</h2><button type="button" data-branch-preview-close>关闭差异</button></header>
+        <div class="padif-preview-modal__body"><aside class="padif-preview-toc"><ol id="padif-preview-toc-list"></ol></aside><div class="padif-preview-reader"><article id="padif-preview-content" class="padif-preview-content"></article></div></div>
+      </div>
+    </div>
+  {% elif branch %}<p>归档将停止追加版本及发布；正文、版本、批注和回复全部保留，仍可查看和比较。</p>{% endif %}
+  {% if form %}<form method="post" class="branch-action-form">{% csrf_token %}{{ form.as_p }}
+    {% if stale %}<p>版本已变化。<a href="{{ request.path }}">重新读取版本并审阅差异</a></p>{% else %}<button type="submit">{{ action_title }}</button>{% endif %}
+  </form>{% else %}<form method="post">{% csrf_token %}<button type="submit">确认归档，保留历史</button></form>{% endif %}
+  <p><a href="{% url 'padif:document_detail' document.pk %}{% if branch %}?branch={{ branch.name|urlencode }}{% endif %}">返回文档</a></p>
+</main>
+{% endblock %}
+{% block extra_scripts %}<script>
+  (function () {
+    var modal = document.getElementById('padif-preview-modal');
+    if (!modal) return;
+    function close() { modal.hidden = true; document.body.classList.remove('padif-preview-open'); }
+    document.querySelector('[data-branch-preview-close]').addEventListener('click', close);
+    document.addEventListener('keydown', function (event) { if (event.key === 'Escape') close(); });
+  }());
+</script>{% endblock %}

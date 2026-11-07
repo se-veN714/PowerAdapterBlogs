@@ -5,6 +5,11 @@ from . import api, views
 app_name = "padif"
 
 urlpatterns = [
+    path("documents/<int:document_id>/branches/create/", views.create_branch, name="create_branch"),
+    path("documents/<int:document_id>/branches/<int:branch_id>/publish/", views.publish_branch, name="publish_branch"),
+    path("documents/<int:document_id>/branches/<int:branch_id>/archive/", views.archive_branch, name="archive_branch"),
+    path("api/documents/<int:document_id>/branches/", api.create_branch, name="agent-create-branch"),
+    path("api/documents/<int:document_id>/branches/<int:branch_id>/publish/", api.publish_branch, name="agent-publish-branch"),
     path("", views.workspace, name="workspace"),
     path("documents/<int:document_id>/", views.document_detail, name="document_detail"),
     path("documents/<int:document_id>/commit/", views.commit_version, name="commit_version"),

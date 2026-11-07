@@ -543,8 +543,8 @@
     },
     {
       "path": "accounts/tests/test_agent_auth.py",
-      "size": 17739,
-      "sha256": "c8a4829aba5edcae4f70eadd8ef10b39e62a2cf00c79df0fc79220047204b921"
+      "size": 24286,
+      "sha256": "b776b1d12760c20c2023ed43af7a212efdaa2b1d3bd2ea9384c465cfd78f3186"
     },
     {
       "path": "accounts/tests/test_deployment_manifest.py",
@@ -1428,8 +1428,8 @@
     },
     {
       "path": "padif/api.py",
-      "size": 15644,
-      "sha256": "1f78638ac34d9488101085a10231b5ef3c6283ac24ed64df05cff309f1d7e1f2"
+      "size": 20808,
+      "sha256": "9d395484b5d3b92a7047067f60586206708bff8aaa6ca9817a81614a0c611d5c"
     },
     {
       "path": "padif/apps.py",
@@ -1453,8 +1453,8 @@
     },
     {
       "path": "padif/forms.py",
-      "size": 3746,
-      "sha256": "6366a61ef530899ae4a3f5f013b3ca39af3a5298e7b114edf667f2ee48c14b0e"
+      "size": 6557,
+      "sha256": "c97c31ec8781badcc66e4bf58b332d719036f29248e0c9bd998ea298e79a4482"
     },
     {
       "path": "padif/management/__init__.py",
@@ -1492,14 +1492,19 @@
       "sha256": "a5e2971d1985fcc55cc51503a0d31cc70ebf59b770e08ab5a05489ce8572a588"
     },
     {
+      "path": "padif/migrations/0005_branching.py",
+      "size": 4909,
+      "sha256": "3f439e5e3a59b8fab0ea16c6b2c7efdbd4d00829a11e0a20d2fb8a15318497e6"
+    },
+    {
       "path": "padif/migrations/__init__.py",
       "size": 33,
       "sha256": "4a6e8c866f4a34cfce02671ff5e4324ad79a27b1b1515891adcf4e918ef0942c"
     },
     {
       "path": "padif/models.py",
-      "size": 5320,
-      "sha256": "0c4a43ed6baa0b4af4eb6c04786afb1de034925d6c19c900e576a37db97de722"
+      "size": 7970,
+      "sha256": "66e89d6e03b2c114c0120567ea2ba2007fe7d1653f1d620343a988f31733818f"
     },
     {
       "path": "padif/permissions.py",
@@ -1508,8 +1513,8 @@
     },
     {
       "path": "padif/services.py",
-      "size": 3455,
-      "sha256": "361ecf4fafce1b015bc93d028363d1cb045d8de1de01863f23de8797367d49c4"
+      "size": 8467,
+      "sha256": "d983bab7a40bd4e3c573bdfaf254b19f6def614f7fc50189e357b93f3818d801"
     },
     {
       "path": "padif/static/padif/htmx.min.js",
@@ -1518,13 +1523,13 @@
     },
     {
       "path": "padif/static/padif/padif.css",
-      "size": 22879,
-      "sha256": "386c11013159ca9d6b09d45a3e471daa99197157f22c91816bc6d42fd01cbc45"
+      "size": 36967,
+      "sha256": "15b92560582d1bf29ff66ad37a6ed6fccf49acc13dd99365222830603821340e"
     },
     {
       "path": "padif/static/padif/padif.js",
-      "size": 2662,
-      "sha256": "96b2d7e92cd8730500082acfc38b8cf3a06a7c42cb3af94b80d4d18dcd213463"
+      "size": 8412,
+      "sha256": "38be277e1025dae0f32c10d89e55d842aba8bac72d9400e6fc5dc083c65898ba"
     },
     {
       "path": "padif/templates/padif/_dropzone.html",
@@ -1532,9 +1537,29 @@
       "sha256": "bd31c8eb797080ce0e606be64562861f4289a1d5119ae5443081f76c2d5fca22"
     },
     {
+      "path": "padif/templates/padif/_rail_branch.html",
+      "size": 2875,
+      "sha256": "bd242dc80fced0c3365052b02e9be7c2e8ed5cbfa7ef69d750d7d207f2998b13"
+    },
+    {
+      "path": "padif/templates/padif/_rail_fork.html",
+      "size": 507,
+      "sha256": "30bff3ca3912c71018acb72d237ef43d9449ab6f70797cbc7852322feddbe2c1"
+    },
+    {
+      "path": "padif/templates/padif/_version_rail.html",
+      "size": 5266,
+      "sha256": "6d443a4ac169e89082d6124bce17d21c452a0fd035f8648450956589823b6975"
+    },
+    {
       "path": "padif/templates/padif/base.html",
-      "size": 1060,
-      "sha256": "285e5479ed27206bb234b7383ac42435d59a718ba547661e7f6fbe7a29815daf"
+      "size": 1083,
+      "sha256": "a9c2249eadcd5c826235fd78034e03bfaf0fe1957652cf0b60d6466ab8e7d30e"
+    },
+    {
+      "path": "padif/templates/padif/branch_action.html",
+      "size": 2868,
+      "sha256": "54d85f17bd9e2de53c583bc6c511577ebac2be91f95aa2b6061f3ad05297ca20"
     },
     {
       "path": "padif/templates/padif/diff_errors.html",
@@ -1548,8 +1573,8 @@
     },
     {
       "path": "padif/templates/padif/document_detail.html",
-      "size": 24039,
-      "sha256": "6e115e86b9c963bd7605cf09d47f1f3b98eb3fcb243c830921573da74bc8d727"
+      "size": 25345,
+      "sha256": "e03bd63d3d78b2041742bb70100e59bc97fb1c41e5d669ac4e8f24013f73f146"
     },
     {
       "path": "padif/templates/padif/sidebar.html",
@@ -1562,9 +1587,19 @@
       "sha256": "828ef4f5c1b9af2d6e813ce7832948453f9beb45e6dda9add3cfa62f7401998f"
     },
     {
+      "path": "padif/tests/README.md",
+      "size": 1932,
+      "sha256": "143140916440e27fb15e4e46cd5684f7ab5cc1296e365af4b9cdf665f2b80c8e"
+    },
+    {
       "path": "padif/tests/__init__.py",
       "size": 30,
       "sha256": "688868cfcbfc8be16edd281247fd8b6bf5e4186af8191f6d9ce0101c3d92794c"
+    },
+    {
+      "path": "padif/tests/browser_worldlines.cjs",
+      "size": 13199,
+      "sha256": "148be428bf6d4998780f6517e3852551e735fc96d2862fc96c857b1d9ccd9051"
     },
     {
       "path": "padif/tests/test_access_and_workflow.py",
@@ -1572,14 +1607,29 @@
       "sha256": "abc573d9df81ddc3a8559bdecbdcb9237e680c17395c0963505d49ce4a6b1f6f"
     },
     {
+      "path": "padif/tests/test_branching.py",
+      "size": 30590,
+      "sha256": "8f4dadb49cfcdfb296600b5bbb77c2c18bbf271150d0d43873eadc2be75f5b10"
+    },
+    {
+      "path": "padif/tests/test_rail_interactions.cjs",
+      "size": 9747,
+      "sha256": "b930b82d6db29758c0cb0cc0e229af08e71361a52560269d64dcc916b5be25e4"
+    },
+    {
       "path": "padif/urls.py",
-      "size": 1752,
-      "sha256": "223ab7a01c86599bc7e1900f1066d8ef0699f0f9cdb5c5861ad51b728459b1ea"
+      "size": 2364,
+      "sha256": "54f11dc13046f635b15170c27a19756ac2ef5ada31e1376eab44cf7e61da716f"
     },
     {
       "path": "padif/views.py",
-      "size": 10919,
-      "sha256": "fdd3fc86477cdb41abb0316b54d0f96980c9c6ef23fe20e5cfaa7605b31266d3"
+      "size": 18797,
+      "sha256": "f32646b07d630f0c86df2acfcedee038b6a6f13526afb6a6e8dfbd0647e59644"
+    },
+    {
+      "path": "padif/worldlines.py",
+      "size": 4058,
+      "sha256": "00a9006fe9cbd6b9837d0ff080caaec5219e4624bc46c8499d039203435beb6e"
     },
     {
       "path": "requirements.txt",

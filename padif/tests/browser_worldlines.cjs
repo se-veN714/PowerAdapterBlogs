@@ -11,7 +11,7 @@ if (!password) throw new Error('Set PADIF_QA_PASSWORD for the disposable local p
 const documentId = Number(process.env.PADIF_QA_DOCUMENT_ID || 2);
 if (!Number.isSafeInteger(documentId) || documentId < 1) throw new Error('Invalid local QA document id');
 const doc = `/padif/documents/${documentId}/`;
-const output = path.resolve(process.cwd(), '.local/browser-qa/worldlines');
+const output = path.resolve(process.cwd(), process.env.PADIF_QA_OUTPUT || '.local/browser-qa/worldlines');
 const results = [];
 const report = { tool: 'Playwright ' + require('playwright/package.json').version,
   target: base + doc, browser: 'isolated Chromium', developmentToolbar: 'disabled in local runtime only', results };
@@ -38,9 +38,19 @@ async function geometry(page) {
       drawerStyle: {position:getComputedStyle(drawer).position,top:getComputedStyle(drawer).top,bottom:getComputedStyle(drawer).bottom,height:getComputedStyle(drawer).height,alignSelf:getComputedStyle(drawer).alignSelf},
       main: rect('.document-main'), drawer: drawer.hidden ? null : rect('[data-version-drawer]'),
       editor: rect('#padif-editor'),
+      uploadCells: document.querySelectorAll('.main-add-version__grid > .main-add-version__cell').length,
+      uploadRows: [...document.querySelectorAll('.main-add-version__meta > p')].map(row => ({
+        label: row.querySelector('label').getBoundingClientRect().toJSON(),
+        control: row.querySelector('input,select').getBoundingClientRect().toJSON()
+      })),
+      graphHeight: graphBox.height,
+      branchIterations: [...graph.querySelectorAll('[data-worldline-branch]')].map(head => ({
+        branch: head.querySelector('strong').textContent,
+        count: graph.querySelectorAll(`[data-worldline-owner="${head.dataset.worldlineBranch}"]`).length
+      })),
       heads: [...graph.querySelectorAll('.worldline-head')].map(head => {
         const r = head.getBoundingClientRect();
-        return { name: head.textContent.trim(), left: r.left - graphBox.left, right: r.right - graphBox.right, top: r.top - graphBox.top };
+        return { name: head.querySelector('strong').textContent, left: r.left - graphBox.left, right: r.right - graphBox.right, top: r.top - graphBox.top, width: r.width, height: r.height };
       }) };
   });
 }
@@ -66,11 +76,27 @@ function assertGeometry(measurement, viewport) {
   assert.equal(measurement.width, viewport.width);
   assert.equal(measurement.height, viewport.height);
   assert.ok(measurement.pageOverflow <= 1, 'no page horizontal overflow: ' + measurement.pageOverflow);
+  assert.equal(measurement.uploadCells, 4, 'upload layout retains exactly four cells');
+  assert.equal(measurement.uploadRows.length, 2);
+  for (const row of measurement.uploadRows) assert.ok(row.label.right < row.control.left, 'label remains left of its control');
+  assert.ok(measurement.uploadRows[1].control.top >= measurement.uploadRows[0].control.bottom + 4, 'message and target branch are stacked vertically');
   if (measurement.drawer) {
     assert.ok(measurement.drawer.left >= 0 && measurement.drawer.right <= viewport.width + 1, 'drawer fits viewport horizontally');
     assert.ok(measurement.drawer.top >= 0 && measurement.drawer.bottom <= viewport.height + 1, 'drawer fits viewport vertically');
     assert.ok(measurement.drawerOverflow <= 1, 'no drawer content clipping/overflow: ' + measurement.drawerOverflow);
     for (const head of measurement.heads) assert.ok(head.left >= -1 && head.right <= 1 && head.top >= 0, 'worldline label fits graph: ' + JSON.stringify(head));
+    assert.ok(measurement.graphHeight <= 460, 'recent worldline graph stays compact');
+    assert.ok(measurement.drawer.width <= 561, 'drawer stays within compact width');
+    for (let i = 0; i < measurement.heads.length; i++) for (let j = i + 1; j < measurement.heads.length; j++) {
+      const a = measurement.heads[i], b = measurement.heads[j];
+      const overlapX = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+      const overlapY = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+      assert.ok(overlapX <= 1 || overlapY <= 1, 'branch head labels do not overlap');
+    }
+    for (const item of measurement.branchIterations) {
+      assert.ok(item.count <= 3, 'each branch shows at most three recent iterations');
+      if (process.env.PADIF_QA_EXPECT_RECENT_COUNT) assert.equal(item.count, Number(process.env.PADIF_QA_EXPECT_RECENT_COUNT));
+    }
   }
 }
 
@@ -119,7 +145,9 @@ async function runViewport(browser, viewport) {
     const closed = await geometry(page);
     assertGeometry(closed, viewport);
     const gain = closed.main.width - initial.main.width;
-    if (viewport.width > 1400) assert.ok(gain > 600, 'wide editor gains drawer width');
+    if (viewport.width > 1400) {
+      assert.ok(Math.abs(gain - initial.drawer.width - 18) <= 2, 'wide editor gains the drawer column and gap');
+    }
     else assert.ok(Math.abs(gain) <= 2, 'overlay drawer does not squeeze narrow editor');
     result.closed = closed;
     result.editorWidthGain = gain;
@@ -171,6 +199,11 @@ async function runViewport(browser, viewport) {
     const afterSwitch = await page.evaluate(() => ({ scrollY, rail: document.querySelector('[data-version-drawer]').scrollTop }));
     result.switchScroll = { before: beforeSwitch, after: afterSwitch };
     assert.ok(Math.abs(afterSwitch.scrollY - beforeSwitch.scrollY) <= 3, 'branch switch retains window scroll position');
+    const switchedGeometry = await geometry(page);
+    for (const head of initial.heads) {
+      const next = switchedGeometry.heads.find(item => item.name === head.name);
+      assert.ok(next && Math.abs(next.left - head.left) < 1 && Math.abs(next.top - head.top) < 1, 'switching selection does not shuffle worldline lanes');
+    }
     result.checks.push('switch branch: focus restored to selected head, page scroll retained');
 
     await page.locator('[data-drawer-close]').click();

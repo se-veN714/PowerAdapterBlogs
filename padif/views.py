@@ -133,11 +133,13 @@ def _version_rail_context(document, selected, *, full_history=False):
     anchors = list(main_versions.filter(pk__in=set(attached) - shown))
     rows = [{"version": item, "anchor_only": item.pk not in shown, "branches": attached.get(item.pk, [])}
             for item in sorted(latest + anchors, key=lambda item: item.pk, reverse=True)]
-    selected_history = list(selected.versions.select_related("created_by", "branch").order_by("-id")[:5]) if not selected.is_default else []
+    recent_versions = []
+    for item in visible:
+        recent_versions.extend(item.versions.select_related("branch").defer("content").order_by("-id")[:3])
     selected_card = next((card for card in [item for group in attached.values() for item in group] + unattached if card["selected"]), None)
     cards = [item for group in attached.values() for item in group] + unattached
     return {
-        "worldlines": build_worldlines(main, rows, cards, selected_history), "rail_selected_card": selected_card,
+        "worldlines": build_worldlines(main, rows, cards, recent_versions), "rail_selected_card": selected_card,
         "rail_main": main, "rail_rows": rows, "rail_unattached": unattached,
         "rail_visible_count": len(visible), "rail_branch_total": len(branches),
         "rail_all_branches": branches, "rail_full_history": full_history,

@@ -1,10 +1,11 @@
 """Presentation-only worldline geometry; versions and ancestry remain unchanged."""
 
 
-def build_worldlines(main, rows, cards, selected_versions):
+def build_worldlines(main, rows, cards, recent_versions):
     lanes = {main.pk: 340}
-    ordered_cards = sorted(cards, key=lambda card: not card["selected"])
-    for card, x in zip(ordered_cards, (70, 210, 570)):
+    # Selection changes emphasis, not lane placement, so switching does not shuffle the tree.
+    ordered_cards = sorted(cards, key=lambda card: (card["branch"].last_activity, card["branch"].pk), reverse=True)
+    for card, x in zip(ordered_cards, (110, 230, 550)):
         lanes[card["branch"].pk] = x
 
     versions = {row["version"].pk: row["version"] for row in rows}
@@ -14,13 +15,13 @@ def build_worldlines(main, rows, cards, selected_versions):
             versions[card["head"].pk] = card["head"]
         if branch.forked_from_id:
             versions[branch.forked_from_id] = branch.forked_from
-    for version in selected_versions:
+    for version in recent_versions:
         versions[version.pk] = version
 
     ordered_versions = sorted(versions.values(), key=lambda version: version.pk, reverse=True)
-    step = max(28, min(48, 420 / max(len(ordered_versions) - 1, 1)))
-    y = {version.pk: round(110 + index * step, 2) for index, version in enumerate(ordered_versions)}
-    height = round(max(350, (max(y.values()) if y else 200) + 72))
+    step = max(20, min(34, 300 / max(len(ordered_versions) - 1, 1)))
+    y = {version.pk: round(94 + index * step, 2) for index, version in enumerate(ordered_versions)}
+    height = round(max(260, (max(y.values()) if y else 180) + 42))
     paths, nodes, heads, origins = [], [], [], []
 
     main_versions = [row["version"] for row in rows]
@@ -31,7 +32,7 @@ def build_worldlines(main, rows, cards, selected_versions):
         main_head = max(main_versions, key=lambda version: version.pk)
         oldest = min(main_versions, key=lambda version: version.pk)
         paths.append({"d": f"M 340 {y[oldest.pk]} V {y[main_head.pk]}", "kind": "main"})
-        heads.append({"branch": main, "version": main_head, "left": 50, "top": y[main_head.pk] - 58,
+        heads.append({"branch": main, "version": main_head, "left": 50, "top": y[main_head.pk] - 52,
                       "selected": not any(card["selected"] for card in cards), "main": True})
 
     for card in ordered_cards:
@@ -51,7 +52,7 @@ def build_worldlines(main, rows, cards, selected_versions):
         corner_y = source_y - min(20, max(10, (source_y - head_y) / 2))
         paths.append({"d": f"M {source_x} {source_y} H {x - (12 if x > source_x else -12)} L {x} {corner_y} V {head_y}",
                       "kind": "selected" if card["selected"] else "branch"})
-        heads.append({"branch": branch, "version": head, "left": x / 6.8, "top": head_y - 58,
+        heads.append({"branch": branch, "version": head, "left": x / 6.8, "top": head_y - 52,
                       "selected": card["selected"], "main": False})
         card["graph_head_y"] = head_y
 
@@ -60,9 +61,8 @@ def build_worldlines(main, rows, cards, selected_versions):
             continue
         is_main = version.branch_id == main.pk
         is_selected = any(card["selected"] and card["branch"].pk == version.branch_id for card in cards)
-        # Nonselected branch histories stay at their head summary, except real fork junctions.
-        if not is_main and not is_selected and not any(card["head"] and card["head"].pk == version.pk for card in cards) and not any(card["branch"].forked_from_id == version.pk for card in cards):
-            continue
+        # Every visible lane gets its actual recent iterations, while descriptions
+        # remain expanded only in the selected branch inspector.
         nodes.append({"version": version, "left": lanes[version.branch_id] / 6.8,
                       "top": y[version.pk], "main": is_main, "selected": is_selected,
                       "head": any(item["version"] and item["version"].pk == version.pk for item in heads)})

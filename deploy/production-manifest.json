@@ -1523,8 +1523,8 @@
     },
     {
       "path": "padif/static/padif/padif.css",
-      "size": 36967,
-      "sha256": "15b92560582d1bf29ff66ad37a6ed6fccf49acc13dd99365222830603821340e"
+      "size": 37134,
+      "sha256": "8e58f9d9ba5ca2fadf5a3cd4fdbc35c22093e7aa58bea89e558ba74fca8c6535"
     },
     {
       "path": "padif/static/padif/padif.js",
@@ -1548,13 +1548,13 @@
     },
     {
       "path": "padif/templates/padif/_version_rail.html",
-      "size": 5266,
-      "sha256": "6d443a4ac169e89082d6124bce17d21c452a0fd035f8648450956589823b6975"
+      "size": 5276,
+      "sha256": "ea235d1a60577da1f8c4421803319122d701730d6eeb907bc747c8e1db1bb6b1"
     },
     {
       "path": "padif/templates/padif/base.html",
       "size": 1083,
-      "sha256": "a9c2249eadcd5c826235fd78034e03bfaf0fe1957652cf0b60d6466ab8e7d30e"
+      "sha256": "d41af10edf79e5f44631f95007e4f70bf1148e471a15e8b16501d7f6bf5f769b"
     },
     {
       "path": "padif/templates/padif/branch_action.html",
@@ -1598,8 +1598,8 @@
     },
     {
       "path": "padif/tests/browser_worldlines.cjs",
-      "size": 13199,
-      "sha256": "148be428bf6d4998780f6517e3852551e735fc96d2862fc96c857b1d9ccd9051"
+      "size": 15710,
+      "sha256": "14299a9836ef7082bce67a21b0433f87067475f8ab679c941eda5a210466678e"
     },
     {
       "path": "padif/tests/test_access_and_workflow.py",
@@ -1608,8 +1608,8 @@
     },
     {
       "path": "padif/tests/test_branching.py",
-      "size": 30590,
-      "sha256": "8f4dadb49cfcdfb296600b5bbb77c2c18bbf271150d0d43873eadc2be75f5b10"
+      "size": 32121,
+      "sha256": "7cad9f26272e66d153a050204ae4805f1ec8dc22b004c756dec96163cc7fef08"
     },
     {
       "path": "padif/tests/test_rail_interactions.cjs",
@@ -1623,13 +1623,13 @@
     },
     {
       "path": "padif/views.py",
-      "size": 18797,
-      "sha256": "f32646b07d630f0c86df2acfcedee038b6a6f13526afb6a6e8dfbd0647e59644"
+      "size": 18815,
+      "sha256": "38e7caf585de39bc62ad6ac305078002056474f65e4edd43441b5549c9ffe258"
     },
     {
       "path": "padif/worldlines.py",
-      "size": 4058,
-      "sha256": "00a9006fe9cbd6b9837d0ff080caaec5219e4624bc46c8499d039203435beb6e"
+      "size": 4026,
+      "sha256": "7d97bb189c3c62b3fa9292420b8a6487c0cddc33404cb42f5009ac9ac0c1d797"
     },
     {
       "path": "requirements.txt",

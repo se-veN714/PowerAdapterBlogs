@@ -483,3 +483,28 @@ class WorldlineGraphTests(TestCase):
         self.assertTrue(any("opening" in item["label"] for item in graph["origins"]))
         self.assertContains(response, "源于 opening")
         self.assertLessEqual(sum(not head["main"] for head in graph["heads"]), 3)
+
+
+    def test_all_visible_branches_show_recent_iterations_without_shuffling_lanes(self):
+        branches = [self.branch] + [create_branch(document_id=self.document.pk, user=self.user,
+            name=name, fork_from_version_id=self.initial.pk) for name in ("ending", "structure")]
+        expected = {}
+        for branch in branches:
+            own_versions = []
+            for index in range(4):
+                own_versions.append(commit_document_version(document_id=self.document.pk, branch_id=branch.pk,
+                    user=self.user, content=f"{branch.name} revision {index}",
+                    commit_message=f"{branch.name} note {index}", version_kind="patch").version)
+            expected[branch.pk] = {version.pk for version in own_versions[-3:]}
+        before = Version.objects.count()
+        response, graph = self.graph("opening")
+        for branch in branches:
+            nodes = {node["version"].pk for node in graph["nodes"] if node["version"].branch_id == branch.pk}
+            self.assertEqual(nodes, expected[branch.pk])
+        self.assertLessEqual(graph["height"], 460)
+        self.assertContains(response, "opening note 0")
+        self.assertNotContains(response, "ending note 0")
+        positions = {head["branch"].pk: head["left"] for head in graph["heads"]}
+        _, switched = self.graph("ending")
+        self.assertEqual(positions, {head["branch"].pk: head["left"] for head in switched["heads"]})
+        self.assertEqual(Version.objects.count(), before)

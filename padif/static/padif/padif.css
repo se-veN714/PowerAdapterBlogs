@@ -380,8 +380,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 }
 
 /* Four upload cells; branch selection belongs to the commit-information cell. */
-.main-add-version__meta { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
-.main-add-version__meta > p { flex: 1 1 160px; min-width: 0; margin: 0; }
+.main-add-version__meta { display: grid; gap: 8px; min-width: 0; }
+.main-add-version__meta > p { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 8px; min-width: 0; margin: 0; }
+.main-add-version__meta .errorlist { grid-column: 2; }
 .main-add-version__meta select { min-width: 0; width: 100%; }
 .rail-branch__summary > a:first-child { flex: 1; min-width: 0; color: inherit; text-decoration: none; }
 .rail-branch__toggle { display: inline-grid; place-items: center; flex: 0 0 24px; width: 24px; min-height: 24px; padding: 0; color: var(--soft); border: 1px solid transparent; background: transparent; font: 14px var(--mono); text-decoration: none; }
@@ -396,7 +397,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .has-rail-connectors .rail-branch::before { display: none; }
 
 /* Worldlines use independent lanes; the drawer never rebuilds the manuscript editor. */
-.document-layout--worldlines { grid-template-columns: minmax(0, 1fr) minmax(460px, min(680px, 44vw)); }
+.document-layout--worldlines { grid-template-columns: minmax(0, 1fr) minmax(420px, min(560px, 40vw)); }
 .document-layout--worldlines.worldline-collapsed { grid-template-columns: minmax(0, 1fr); }
 .version-drawer { max-height: calc(100dvh - 100px); overflow-y: auto; overflow-x: hidden; background: var(--bg2); border-color: var(--line2); scrollbar-gutter: stable; }
 .version-drawer[hidden], .worldline-drawer-handle[hidden] { display: none; }
@@ -404,23 +405,23 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .worldline-drawer__controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .worldline-drawer__controls button { padding: 6px 9px; background: var(--bg); font-size: 11px; }
 .worldline-drawer-handle { position: fixed; z-index: 45; right: 0; top: 116px; padding: 12px 14px; border-right: 0; box-shadow: -6px 6px 18px #0005; }
-.worldline-direction { display: flex; justify-content: space-between; gap: 12px; margin: 18px 0 0; color: var(--soft); font-size: 11px; }
+.worldline-direction { display: flex; justify-content: space-between; gap: 12px; margin: 12px 0 0; color: var(--soft); font-size: 11px; }
 .worldline-graph { position: relative; height: var(--graph-height); min-width: 0; margin-top: 8px; }
 .worldline-graph__paths { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .worldline-path { fill: none; stroke: var(--soft); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-linejoin: miter; }
-.worldline-path--main { stroke: #a7cdb4; stroke-width: 2; }
-.worldline-path--selected { stroke: var(--accent); stroke-width: 2.5; }
-.worldline-head { position: absolute; z-index: 2; left: var(--lane-x); top: var(--node-y); width: calc(20% - 10px); max-width: 120px; height: 50px; transform: translateX(-50%); display: grid; align-content: center; gap: 3px; padding: 5px; border: 1px solid var(--soft); background: var(--bg); color: var(--text2); text-align: center; text-decoration: none; }
-.worldline-head strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12px var(--mono); }
+.worldline-path--main { stroke: #a7cdb4; stroke-width: 1.5; }
+.worldline-path--selected { stroke: var(--accent); stroke-width: 2; }
+.worldline-head { position: absolute; z-index: 2; left: var(--lane-x); top: var(--node-y); width: calc(16% - 8px); max-width: 96px; height: 44px; transform: translateX(-50%); display: grid; align-content: center; gap: 3px; padding: 5px; border: 1px solid var(--soft); background: var(--bg); color: var(--text2); text-align: center; text-decoration: none; }
+.worldline-head strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 11px var(--mono); }
 .worldline-head > span { font: 11px var(--mono); overflow-wrap: anywhere; }
 .worldline-head::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 8px; background: var(--soft); }
-.worldline-head.is-selected { color: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.worldline-head.is-selected { color: var(--accent); border-color: var(--accent); }
 .worldline-head.is-selected::after { background: var(--accent); }
 .worldline-node { position: absolute; z-index: 1; left: var(--lane-x); top: var(--node-y); color: var(--text2); text-decoration: none; }
 .worldline-node__square { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border: 1px solid var(--soft); background: var(--bg2); }
 .worldline-node.is-head .worldline-node__square, .worldline-node.is-selected .worldline-node__square { background: var(--accent); border-color: var(--accent); }
 .worldline-node.is-head .worldline-node__square { width: 10px; height: 10px; left: -5px; top: -5px; }
-.worldline-node__label { position: absolute; left: 12px; top: -8px; white-space: nowrap; font: 11px var(--mono); }
+.worldline-node__label { position: absolute; left: 10px; top: -8px; max-width: 72px; padding: 0 3px; background: var(--bg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11px var(--mono); }
 .worldline-node.is-selected { color: var(--accent); }
 .worldline-origin { position: absolute; left: var(--lane-x); top: var(--node-y); width: 25%; transform: translateX(-50%); color: var(--soft); font-size: 11px; overflow-wrap: anywhere; }
 .worldline-inspector { margin-top: 18px; border-top: 1px solid var(--line2); padding-top: 12px; }
@@ -441,7 +442,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .worldline-main-history .branch-fork { max-width: 320px; }
 @media (max-width: 1400px) {
   .document-layout--worldlines { display: block; }
-  .drawer-enhanced .version-drawer { position: fixed; z-index: 40; top: 82px; right: 16px; bottom: 16px; width: min(680px, calc(100vw - 32px)); height: calc(100dvh - 98px); min-height: 0; max-height: none; align-self: stretch; margin: 0; box-shadow: -12px 0 40px #0008; }
+  .drawer-enhanced .version-drawer { position: fixed; z-index: 40; top: 82px; right: 16px; bottom: 16px; width: min(560px, calc(100vw - 32px)); height: calc(100dvh - 98px); min-height: 0; max-height: none; align-self: stretch; margin: 0; box-shadow: -12px 0 40px #0008; }
 }
 @media (max-width: 560px) {
   .drawer-enhanced .version-drawer { top: 100px; right: 8px; bottom: 8px; width: calc(100vw - 16px); height: calc(100dvh - 108px); padding: 12px 10px; }

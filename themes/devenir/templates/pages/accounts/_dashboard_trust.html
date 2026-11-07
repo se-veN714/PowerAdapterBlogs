@@ -1,0 +1,8 @@
+{% if dashboard_browser_trust %}
+<section class="mfa-browser-trust" aria-label="控制台浏览器信任有效期">
+    <p>当前浏览器已信任 · 控制台</p>
+    <strong role="timer" aria-live="off" data-mfa-trust-countdown data-remaining-seconds="{{ dashboard_browser_trust.remaining_seconds }}">{{ dashboard_browser_trust.label }}</strong>
+    <small>到期：<time datetime="{{ dashboard_browser_trust.expires_at|date:'c' }}">{{ dashboard_browser_trust.expires_at|date:'Y-m-d H:i:s' }}</time></small>
+    <small>仅用于 /dashboard/；系统后台仍需新验证码。</small>
+</section>
+{% endif %}

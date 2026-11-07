@@ -1,11 +1,16 @@
 """H2b pending-challenge, rate-limit, and privileged-session state."""
 
 import hashlib
+import math
 import secrets
 from dataclasses import dataclass
+from datetime import datetime, timezone as datetime_timezone
+from urllib.parse import urlsplit
 
 from django.conf import settings
+from django.core import signing
 from django.core.cache import cache
+from django.utils.crypto import constant_time_compare
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -17,6 +22,8 @@ from ..models import MfaTotpDevice, MyUser
 PENDING_KEY = "accounts.mfa.pending"
 PRIVILEGED_KEY = "accounts.mfa.privileged"
 DASHBOARD_REMEMBER_KEY = "accounts.mfa.dashboard_remember"
+DASHBOARD_TRUST_COOKIE = "pa_dashboard_trust"
+DASHBOARD_TRUST_SALT = "accounts.mfa.dashboard-trust.v1"
 RECOVERY_KEY = "accounts.mfa.recovery"
 ENROLLMENT_KEY = "accounts.mfa.enrollment"
 
@@ -232,6 +239,8 @@ def mark_privileged_session(
             request.session[DASHBOARD_REMEMBER_KEY] = {
                 **value,
                 "expires_at": now + settings.MFA_DASHBOARD_REMEMBER_TTL_SECONDS,
+                "auth_hash": device.user.get_session_auth_hash(),
+                "nonce": secrets.token_urlsafe(24),
             }
         else:
             request.session.pop(DASHBOARD_REMEMBER_KEY, None)
@@ -313,11 +322,12 @@ def privileged_session_is_valid(request, *, require_certificate: bool = False) -
     return valid
 
 
-def dashboard_remembered_session_is_valid(request) -> bool:
-    """Validate the optional seven-day grant only for the daily dashboard."""
+def is_dashboard_target(target):
+    return urlsplit(target).path.startswith("/dashboard/")
 
-    value = request.session.get(DASHBOARD_REMEMBER_KEY)
-    if not isinstance(value, dict) or not request.user.is_authenticated:
+
+def _dashboard_grant_is_valid(user, value, *, require_credential_binding=False):
+    if not isinstance(value, dict) or not user.is_authenticated or not user.is_active:
         return False
     try:
         now = timezone.now().timestamp()
@@ -326,25 +336,79 @@ def dashboard_remembered_session_is_valid(request) -> bool:
         user_id = int(value["user_id"])
         device_id = str(value["device_id"])
         auth_version = int(value["auth_version"])
-    except (KeyError, TypeError, ValueError):
-        request.session.pop(DASHBOARD_REMEMBER_KEY, None)
+    except (KeyError, TypeError, ValueError, OverflowError):
         return False
+    auth_hash = value.get("auth_hash")
+    if require_credential_binding or auth_hash is not None:
+        if not isinstance(auth_hash, str) or not constant_time_compare(auth_hash, user.get_session_auth_hash()):
+            return False
     max_ttl = settings.MFA_DASHBOARD_REMEMBER_TTL_SECONDS
-    valid = (
+    return (
         0 <= now - verified_at <= max_ttl
-        and now <= expires_at <= verified_at + max_ttl
-        and request.user.pk == user_id
-        and (request.user.is_dashboard_user or request.user.is_superuser)
+        and now < expires_at <= verified_at + max_ttl
+        and user.pk == user_id
+        and (user.is_dashboard_user or user.is_superuser)
+        and "certificate_binding_id" not in value
+        and "certificate_auth_version" not in value
         and MfaTotpDevice.objects.filter(
-            pk=device_id,
-            user_id=user_id,
-            status=MfaTotpDevice.Status.ACTIVE,
-            auth_version=auth_version,
+            pk=device_id, user_id=user_id,
+            status=MfaTotpDevice.Status.ACTIVE, auth_version=auth_version,
         ).exists()
     )
-    if not valid:
-        request.session.pop(DASHBOARD_REMEMBER_KEY, None)
-    return valid
+
+
+def dashboard_browser_grant(request, user):
+    """Browser possession never authenticates a user; login still verifies password."""
+    token = request.COOKIES.get(DASHBOARD_TRUST_COOKIE)
+    if not token:
+        return None
+    try:
+        value = signing.loads(token, salt=DASHBOARD_TRUST_SALT,
+            max_age=settings.MFA_DASHBOARD_REMEMBER_TTL_SECONDS)
+    except (signing.BadSignature, ValueError, TypeError):
+        return None
+    return value if _dashboard_grant_is_valid(user, value, require_credential_binding=True) else None
+
+
+def set_dashboard_trust_cookie(request, response):
+    value = request.session.get(DASHBOARD_REMEMBER_KEY)
+    if not _dashboard_grant_is_valid(request.user, value, require_credential_binding=True):
+        return response
+    remaining = math.ceil(value["expires_at"] - timezone.now().timestamp())
+    response.set_cookie(
+        DASHBOARD_TRUST_COOKIE, signing.dumps(value, salt=DASHBOARD_TRUST_SALT, compress=True),
+        max_age=remaining, secure=request.is_secure() or settings.SESSION_COOKIE_SECURE,
+        httponly=True, samesite="Lax", path="/",
+    )
+    return response
+
+
+def dashboard_remembered_session_is_valid(request) -> bool:
+    """Restore dashboard-only trust, without issuing a fresh privileged session."""
+    value = request.session.get(DASHBOARD_REMEMBER_KEY)
+    if _dashboard_grant_is_valid(request.user, value):
+        return True
+    request.session.pop(DASHBOARD_REMEMBER_KEY, None)
+    value = dashboard_browser_grant(request, request.user)
+    if value:
+        request.session[DASHBOARD_REMEMBER_KEY] = value
+        return True
+    return False
+
+
+def dashboard_trust_status(request):
+    """Read-only countdown projection. Never refresh expiry while rendering."""
+    value = request.session.get(DASHBOARD_REMEMBER_KEY)
+    if not _dashboard_grant_is_valid(request.user, value):
+        value = dashboard_browser_grant(request, request.user)
+    if not value:
+        return None
+    remaining = max(0, int(value["expires_at"] - timezone.now().timestamp()))
+    days, rest = divmod(remaining, 86400)
+    hours, rest = divmod(rest, 3600)
+    minutes, seconds = divmod(rest, 60)
+    return {"expires_at": datetime.fromtimestamp(value["expires_at"], datetime_timezone.utc),
+        "remaining_seconds": remaining, "label": f"{days}天 {hours:02d}:{minutes:02d}:{seconds:02d}"}
 
 
 def dashboard_session_is_valid(request) -> bool:

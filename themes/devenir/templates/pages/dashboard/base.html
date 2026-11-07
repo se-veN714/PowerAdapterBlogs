@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex, nofollow">
     <title>{{ dashboard_page_title }} · PowerAdapter</title>
     <link rel="stylesheet" href="{% static 'css/dashboard/tokens.css' %}">
-    <link rel="stylesheet" href="{% static 'css/dashboard/shell.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard/shell.css' %}?v=20261107.trust1">
     <link rel="stylesheet" href="{% static 'css/dashboard/components.css' %}">
     <link rel="stylesheet" href="{% static 'css/site-compliance.css' %}">
     {% block dashboard_css %}{% endblock %}
@@ -47,5 +47,6 @@
 </div>
 <div class="dashboard-overlay" data-dashboard-overlay hidden></div>
 <script src="{% static 'js/dashboard.js' %}" defer></script>
+<script src="{% static 'js/mfa-trust.js' %}?v=20261107.trust1" defer></script>
 </body>
 </html>

@@ -54,6 +54,13 @@ from .authn.mfa_services import (
 )
 from .authn.mtls_services import MtlsServiceError, resolve_client_certificate
 from .authn.mfa_session import (
+    DASHBOARD_REMEMBER_KEY,
+    DASHBOARD_TRUST_COOKIE,
+    PENDING_KEY,
+    PRIVILEGED_KEY,
+    dashboard_browser_grant,
+    is_dashboard_target,
+    set_dashboard_trust_cookie,
     challenge_is_locked,
     clear_challenge_failures,
     get_pending_challenge,
@@ -244,6 +251,14 @@ class LoginView(FormView):
                                 None, "客户端证书验证失败，无法进入系统后台。"
                             )
                             return self.form_invalid(form)
+                    trust = dashboard_browser_grant(self.request, user) if certificate_binding is None and is_dashboard_target(target) else None
+                    if trust:
+                        login(self.request, user)
+                        self.request.session[DASHBOARD_REMEMBER_KEY] = trust
+                        self.request.session.pop(PRIVILEGED_KEY, None)
+                        self.request.session.pop(PENDING_KEY, None)
+                        cache.delete(failure_key)
+                        return redirect(target)
                     issue_pending_challenge(
                         self.request,
                         user=user,
@@ -1020,7 +1035,7 @@ class MfaChallengeView(View):
     def _can_remember_dashboard(challenge):
         return (
             challenge.certificate_binding_id is None
-            and challenge.target.startswith("/dashboard/")
+            and is_dashboard_target(challenge.target)
             and (
                 challenge.user.is_dashboard_user
                 or challenge.user.is_superuser
@@ -1125,7 +1140,13 @@ class MfaChallengeView(View):
                     ),
                 )
                 clear_challenge_failures(request, challenge.user.pk)
-                return redirect(challenge.target)
+                response = redirect(challenge.target)
+                if self._can_remember_dashboard(challenge):
+                    if totp_form.cleaned_data["remember_dashboard"]:
+                        set_dashboard_trust_cookie(request, response)
+                    else:
+                        response.delete_cookie(DASHBOARD_TRUST_COOKIE, path="/", samesite="Lax")
+                return response
         attempts = record_challenge_failure(request, challenge.user.pk)
         increment_pending_attempts(request)
         totp_form.add_error(None, "动态验证码无效、已使用或已过期。")

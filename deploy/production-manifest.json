@@ -378,8 +378,8 @@
     },
     {
       "path": "accounts/authn/mfa_session.py",
-      "size": 14602,
-      "sha256": "21c9bab7875fdd7cb49edbeca9243433b1948868d083ba48366296a023cdf854"
+      "size": 17632,
+      "sha256": "b075bca26ecd4b6768210290501645690e89e5abeb471f076d74e6893a7a41a8"
     },
     {
       "path": "accounts/authn/mtls_services.py",
@@ -388,8 +388,8 @@
     },
     {
       "path": "accounts/context_processors.py",
-      "size": 611,
-      "sha256": "eb02feb27e05fc6f1589e15994d5bdfc52788eef2112a1beb6f219df49dba811"
+      "size": 704,
+      "sha256": "0d759cee555aaf0fbfb5ad25eca87c5574215a035f021c8fcd29120434767d47"
     },
     {
       "path": "accounts/forms.py",
@@ -532,6 +532,11 @@
       "sha256": "237912546fde484890fcf1d5c6086f19d4f539ff21ff0e634432dbdca03c2371"
     },
     {
+      "path": "accounts/tests/browser_mfa_trust.cjs",
+      "size": 5150,
+      "sha256": "e44106804000af68c04eb4be587a2e20ccb5fe94498311c1f398fc04f9506d4d"
+    },
+    {
       "path": "accounts/tests/test_accounts.py",
       "size": 32145,
       "sha256": "5687df14b52fce912a91f4e28d11a6d8d38d65553530414e466aed87a4d9cb7e"
@@ -573,8 +578,8 @@
     },
     {
       "path": "accounts/tests/test_mfa_h2.py",
-      "size": 19675,
-      "sha256": "273d89d1cbbfa12bbff4491cc06930929eddc8b4806c4b516827a891e1d13879"
+      "size": 27285,
+      "sha256": "5518c62f094e4d1299fece07141b1acc1fe5a29c0c42ce4064004f514e6a9c6b"
     },
     {
       "path": "accounts/tests/test_mfa_services.py",
@@ -598,8 +603,8 @@
     },
     {
       "path": "accounts/views.py",
-      "size": 46481,
-      "sha256": "a238ad3eb0a801a4586e6cfb4416ebf7c663dee493ab7809a25e3bd54b2dc42a"
+      "size": 47573,
+      "sha256": "c9843724af0e433f7e498894eed0c37b0683966ccbd26a197b67d9ffc9feeb8a"
     },
     {
       "path": "agent_mcp/README.md",
@@ -2268,8 +2273,8 @@
     },
     {
       "path": "themes/devenir/static/css/accounts.css",
-      "size": 36406,
-      "sha256": "9cb8384a99dc2ea9e580b34db9eaa3f9318ad282aa68b5d32eb55500e7b824dc"
+      "size": 37022,
+      "sha256": "6ecf2e08a6738786abbb06d692409d8edadb867bd40a5b36c2e9b4652bac1dec"
     },
     {
       "path": "themes/devenir/static/css/accounts.css.bak.20260726",
@@ -2343,8 +2348,8 @@
     },
     {
       "path": "themes/devenir/static/css/dashboard/shell.css",
-      "size": 5736,
-      "sha256": "5a5627b7c5672558364a7d2468b08c1e219f29b2654ff004712c2cef3d2cafd2"
+      "size": 6152,
+      "sha256": "05e957c092e4cbd245fadb4233534157402a3eae7e1ef46f0ec14f740ce1416a"
     },
     {
       "path": "themes/devenir/static/css/dashboard/tokens.css",
@@ -2657,6 +2662,11 @@
       "sha256": "4d30b2cd0415ed302d5b9cac777a900dfda4d1e0ad0ffd0325f5618c9d5e64fb"
     },
     {
+      "path": "themes/devenir/static/js/mfa-trust.js",
+      "size": 1186,
+      "sha256": "e008412b1cbb8f58c7674e899ab23030a31e6b433983fc3cfef00433ac41e62c"
+    },
+    {
       "path": "themes/devenir/static/js/music/music-mock-data.js",
       "size": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -2792,6 +2802,11 @@
       "sha256": "507eb232eb6b6d5912e902f4caf2f44f3d1452701a2c0ac2bb540b55ec1a1afe"
     },
     {
+      "path": "themes/devenir/templates/pages/accounts/_dashboard_trust.html",
+      "size": 619,
+      "sha256": "2aeb3a9d4e2bb1782a7ca3a6d788d9ae9b332c0ebed0b35b2f212745a059f705"
+    },
+    {
       "path": "themes/devenir/templates/pages/accounts/accept_invitation.html",
       "size": 1669,
       "sha256": "1bed4a950a6f59445d068f638bbe978879e2d3979f29a1fa3e8da0b9020d942f"
@@ -2823,8 +2838,8 @@
     },
     {
       "path": "themes/devenir/templates/pages/accounts/mfa_challenge.html",
-      "size": 2373,
-      "sha256": "04816cd95ce72c3fdb04cc0adacf373fb59ebbc5cb03e913646436e1517ca1fa"
+      "size": 2417,
+      "sha256": "1262ee146475d5f5dd00f87fe31db059c5ea61f8e05eb1e5f15cfabb5084a18e"
     },
     {
       "path": "themes/devenir/templates/pages/accounts/mfa_recovery_codes.html",
@@ -2833,8 +2848,8 @@
     },
     {
       "path": "themes/devenir/templates/pages/accounts/mfa_settings.html",
-      "size": 5445,
-      "sha256": "5ef124520b75606238094cbbee3451d7fdf995001b3127864f5399be46c14a6f"
+      "size": 5630,
+      "sha256": "6326c8372c88c9ab626014b2930054c4d32776100cf9c91c17d765303f112ddb"
     },
     {
       "path": "themes/devenir/templates/pages/accounts/password_change.html",
@@ -3153,8 +3168,8 @@
     },
     {
       "path": "themes/devenir/templates/pages/dashboard/base.html",
-      "size": 2403,
-      "sha256": "371ba02f6f130e8802e803c85d2bce84cb5328bbee620b5ae521e9e2286412ef"
+      "size": 2506,
+      "sha256": "4ab5bce8e28105fca8b9be875569907833b87a4bffffe8129f678d295d6e7762"
     },
     {
       "path": "themes/devenir/templates/pages/dashboard/comments.html",
@@ -3173,8 +3188,8 @@
     },
     {
       "path": "themes/devenir/templates/pages/dashboard/components/_sidebar.html",
-      "size": 1483,
-      "sha256": "e501fe641a958698a4513dc50786014a87e022cc94e929cd674b22aed69b7966"
+      "size": 1545,
+      "sha256": "2c859394cb3b4da0ff052b442101d7d6670b851ef3cd0e5bb1384e52f1dd731b"
     },
     {
       "path": "themes/devenir/templates/pages/dashboard/components/_topbar.html",

@@ -2,7 +2,7 @@
 
 from django.conf import settings
 
-from .authn.mfa_session import mfa_required_for_user
+from .authn.mfa_session import mfa_required_for_user, dashboard_trust_status
 
 
 def account_security_navigation(request):
@@ -14,6 +14,7 @@ def account_security_navigation(request):
         }
     return {
         "can_manage_mfa": mfa_required_for_user(user),
+        "dashboard_browser_trust": dashboard_trust_status(request),
         "super_admin_entry_url": (
             settings.SUPER_ADMIN_EXTERNAL_URL if user.is_superuser else ""
         ),

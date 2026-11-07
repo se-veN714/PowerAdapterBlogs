@@ -55,3 +55,8 @@
     .dashboard-main { padding: 26px 16px 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .dashboard-sidebar { transition: none; } }
+
+.dashboard-session .mfa-browser-trust { border-top:1px solid var(--d-line); padding-top:12px; margin-top:12px; overflow-wrap:anywhere; }
+.dashboard-session .mfa-browser-trust p { letter-spacing:0; }
+.dashboard-session .mfa-browser-trust strong { margin:8px 0; font-size:14px; letter-spacing:0; }
+.dashboard-session .mfa-browser-trust small { display:block; font-size:12px; letter-spacing:0; line-height:1.6; }

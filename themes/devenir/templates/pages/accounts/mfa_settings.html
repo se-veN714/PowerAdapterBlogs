@@ -4,7 +4,7 @@
 {% block title %}动态验证码安全设置{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20260803.2">
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=20261107.trust1">
 {% endblock %}
 
 {% block hero %}
@@ -25,6 +25,8 @@
             <span>DEVICE</span>
             <strong>{% if device %}{{ device.get_status_display }}{% else %}未绑定{% endif %}</strong>
         </div>
+
+        {% include "pages/accounts/_dashboard_trust.html" %}
 
         {% if enrollment %}
         <div class="mfa-enrollment-grid">
@@ -101,3 +103,5 @@
     </section>
 </div>
 {% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/mfa-trust.js' %}?v=20261107.trust1" defer></script>{% endblock %}

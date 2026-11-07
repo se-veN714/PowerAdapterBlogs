@@ -203,6 +203,120 @@ class H2PrivilegedAuthenticationTest(TestCase):
             fetch_redirect_response=False,
         )
 
+    def _trust_dashboard_browser(self):
+        self._begin_login(target=reverse("dashboard:overview"))
+        step, code = self._fresh_step_and_code()
+        with patch("accounts.authn.mfa_services._matching_step", return_value=step):
+            return self.client.post(reverse("accounts:mfa-challenge"), {
+                "action": "totp", "code": code, "remember_dashboard": "on",
+            })
+
+    def test_dashboard_trust_survives_login_session_expiry_without_granting_admin_freshness(self):
+        from django.conf import settings
+        self._trust_dashboard_browser()
+        # A closed browser/expired login loses the login cookie, not persistent browser cookies.
+        self.client.cookies.pop(settings.SESSION_COOKIE_NAME, None)
+        response = self._begin_login(target=reverse("dashboard:overview"))
+        self.assertRedirects(response, reverse("dashboard:overview"), fetch_redirect_response=False)
+        self.assertNotIn(PRIVILEGED_KEY, self.client.session)
+        self.assertEqual(self.client.get(reverse("dashboard:overview")).status_code, 200)
+        self.assertRedirects(self.client.get(reverse("admin:index")), reverse("accounts:mfa-challenge"), fetch_redirect_response=False)
+
+    def test_trust_cookie_is_persistent_host_only_and_http_only(self):
+        from accounts.authn.mfa_session import DASHBOARD_TRUST_COOKIE
+        self._begin_login(target=reverse("dashboard:overview"))
+        step, code = self._fresh_step_and_code()
+        with patch("accounts.authn.mfa_services._matching_step", return_value=step):
+            response = self.client.post(reverse("accounts:mfa-challenge"), {"code": code, "remember_dashboard": "on"}, secure=True)
+        cookie = response.cookies[DASHBOARD_TRUST_COOKIE]
+        self.assertTrue(cookie["httponly"])
+        self.assertTrue(cookie["secure"])
+        self.assertEqual(cookie["samesite"], "Lax")
+        self.assertEqual(cookie["domain"], "")
+        self.assertTrue(0 < int(cookie["max-age"]) <= 604800)
+
+    def test_trust_survives_explicit_logout_but_password_is_still_required(self):
+        self._trust_dashboard_browser()
+        self.client.post(reverse("accounts:logout"))
+        response = self.client.post(reverse("accounts:login"), {"username": self.user.username, "password": "wrong"})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(SESSION_KEY, self.client.session)
+        self.assertRedirects(self._begin_login(target=reverse("dashboard:overview")), reverse("dashboard:overview"), fetch_redirect_response=False)
+        self.assertNotIn(PRIVILEGED_KEY, self.client.session)
+
+    def test_trust_never_renews_on_login_and_expires_at_seven_days(self):
+        from django.conf import settings
+        from accounts.authn.mfa_session import DASHBOARD_TRUST_COOKIE
+        self._trust_dashboard_browser()
+        original = self.client.session[DASHBOARD_REMEMBER_KEY].copy()
+        for days, target in [(6, reverse("dashboard:overview")), (7, reverse("accounts:mfa-challenge"))]:
+            self.client.cookies.pop(settings.SESSION_COOKIE_NAME, None)
+            when = timezone.datetime.fromtimestamp(original["expires_at"], timezone.get_current_timezone()) - timedelta(days=7-days)
+            with patch("accounts.authn.mfa_session.timezone.now", return_value=when):
+                response = self._begin_login(target=reverse("dashboard:overview"))
+            self.assertRedirects(response, target, fetch_redirect_response=False)
+            self.assertNotIn(DASHBOARD_TRUST_COOKIE, response.cookies)
+            if days == 6:
+                self.assertEqual(self.client.session[DASHBOARD_REMEMBER_KEY]["expires_at"], original["expires_at"])
+
+    def test_bad_signature_password_reset_and_device_revocation_invalidate_browser_trust(self):
+        from django.conf import settings
+        from accounts.authn.mfa_session import DASHBOARD_TRUST_COOKIE
+        self._trust_dashboard_browser()
+        cookie = self.client.cookies[DASHBOARD_TRUST_COOKIE].value
+        original_password = self.user.password
+        cases = ["tampered", "password", "device"]
+        for case in cases:
+            with self.subTest(case=case):
+                self.user.password = original_password
+                self.user.save(update_fields=["password"])
+                MfaTotpDevice.objects.filter(pk=self.device.pk).update(auth_version=self.device.auth_version)
+                self.client.cookies.pop(settings.SESSION_COOKIE_NAME, None)
+                self.client.cookies[DASHBOARD_TRUST_COOKIE] = cookie + 'broken' if case == 'tampered' else cookie
+                if case == 'password':
+                    self.user.set_password(self.password)
+                    self.user.save(update_fields=['password'])
+                if case == 'device':
+                    MfaTotpDevice.objects.filter(pk=self.device.pk).update(auth_version=self.device.auth_version + 1)
+                response = self._begin_login(target=reverse("dashboard:overview"))
+                self.assertRedirects(response, reverse("accounts:mfa-challenge"), fetch_redirect_response=False)
+                self.assertNotIn(SESSION_KEY, self.client.session)
+
+    def test_browser_trust_cannot_authenticate_or_apply_to_another_account(self):
+        from django.conf import settings
+        from django.test import RequestFactory
+        from accounts.authn.mfa_session import dashboard_browser_grant, DASHBOARD_TRUST_COOKIE
+        self._trust_dashboard_browser()
+        cookie = self.client.cookies[DASHBOARD_TRUST_COOKIE].value
+        other = MyUser.objects.create_superuser(email='other-trust@example.test', username='other-trust', password=self.password)
+        request = RequestFactory().get('/')
+        request.COOKIES[DASHBOARD_TRUST_COOKIE] = cookie
+        self.assertIsNone(dashboard_browser_grant(request, other))
+        self.client.cookies.pop(settings.SESSION_COOKIE_NAME, None)
+        response = self.client.get(reverse("dashboard:overview"))
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn(SESSION_KEY, self.client.session)
+        self.assertRedirects(self._begin_login(target=reverse("admin:index")), reverse("accounts:mfa-challenge"), fetch_redirect_response=False)
+
+    def test_unchecked_trust_cannot_issue_a_persistent_grant(self):
+        from accounts.authn.mfa_session import DASHBOARD_TRUST_COOKIE
+        self._begin_login(target=reverse("dashboard:overview"))
+        step, code = self._fresh_step_and_code()
+        with patch("accounts.authn.mfa_services._matching_step", return_value=step):
+            response = self.client.post(reverse("accounts:mfa-challenge"), {"code": code})
+        self.assertNotIn(DASHBOARD_REMEMBER_KEY, self.client.session)
+        self.assertEqual(response.cookies[DASHBOARD_TRUST_COOKIE]['max-age'], 0)
+
+    def test_trust_countdown_is_present_and_does_not_extend_the_grant(self):
+        self._trust_dashboard_browser()
+        expires_at = self.client.session[DASHBOARD_REMEMBER_KEY]["expires_at"]
+        for url in [reverse("dashboard:overview"), reverse("accounts:mfa-settings")]:
+            response = self.client.get(url)
+            self.assertContains(response, 'data-mfa-trust-countdown')
+            self.assertContains(response, '仅用于 /dashboard/')
+            self.assertGreater(response.context['dashboard_browser_trust']['remaining_seconds'], 0)
+        self.assertEqual(self.client.session[DASHBOARD_REMEMBER_KEY]["expires_at"], expires_at)
+
     def test_super_admin_challenge_never_offers_dashboard_remember_option(self):
         self._begin_login(target=reverse("admin:index"))
         response = self.client.get(reverse("accounts:mfa-challenge"))

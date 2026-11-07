@@ -967,3 +967,9 @@ a.profile-coordinate:focus-visible {
     .agent-token-meta { grid-template-columns: 1fr; }
     .agent-token-item__header { flex-direction: column; }
 }
+
+/* Dashboard-only browser trust: fixed expiry, no sliding renewal. */
+.mfa-browser-trust { margin:1.25rem 0; padding:1rem; border:1px solid var(--fragment-border); border-radius:0; color:var(--text-secondary); overflow-wrap:anywhere; }
+.mfa-browser-trust p { margin:0 0 .5rem; font-size:13px; }
+.mfa-browser-trust strong { display:block; color:var(--accent-primary); font:600 18px var(--font-mono); }
+.mfa-browser-trust small { display:block; margin-top:.4rem; font-size:13px; line-height:1.6; }

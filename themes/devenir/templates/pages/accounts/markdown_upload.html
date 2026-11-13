@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<section class="markdown-upload" style="max-width:760px;margin:3rem auto;padding:1.5rem;border:1px solid #405b4c;background:#141c19;color:#d5f5df">
+  <p>PADIF / PRIVATE MARKDOWN UPLOAD</p>
+  <h1>选择本地 Markdown 稿件</h1>
+  <p>文件仅暂存于当前账号和原 Agent 连接中，不公开展示。Agent 校验后可提交到独立分支，主线仍需网页确认。</p>
+  <p>目标分支：<strong>{{ upload.branch }}</strong> · 基础版本 #{{ upload.base_version_id }}</p>
+  <p>任务到期：<time>{{ upload.expires_at }}</time> · 状态：{{ upload.state }}</p>
+  {% if upload.state == 'awaiting_file' or upload.state == 'receiving' %}
+  <form id="markdown-file-form" data-upload-id="{{ upload.upload_id }}">
+    {% csrf_token %}
+    <label for="markdown-file">Markdown 文件（.md / .markdown，最多 2 MiB）</label>
+    <input id="markdown-file" type="file" accept=".md,.markdown" required style="display:block;margin:1rem 0;max-width:100%">
+    <button type="submit">上传至私有暂存</button>
+  </form>
+  {% else %}
+  <p>此任务不再接收文件。请回到 Agent 查看校验、提交或终止状态。</p>
+  {% endif %}
+  <p id="markdown-file-state" role="status" aria-live="polite">选择文件后上传；没有选择时任务不会自动完成。</p>
+  <p>这一步只上传，不提交版本。完成后回到 Agent，继续文件校验与提交。请勿复制或解密客户端凭证。</p>
+</section>
+<script src="{% static 'js/markdown-upload.js' %}" defer></script>
+{% endblock %}

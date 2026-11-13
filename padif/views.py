@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import F, Max
+from django.db.models import F, Max, Q
 from django.db.models.functions import Coalesce
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -107,7 +107,7 @@ def _branch_redirect(document, branch):
     return redirect(url if branch.is_default else url + "?" + urlencode({"branch": branch.name}))
 
 
-def _version_rail_context(document, selected, *, full_history=False):
+def _version_rail_context(document, selected, *, full_history=False, viewed=None):
     main = resolve_branch(document)
     branches = list(document.branches.filter(is_default=False).select_related("forked_from__branch").annotate(
         last_activity=Coalesce(Max("versions__created_at"), F("created_at")),
@@ -141,11 +141,15 @@ def _version_rail_context(document, selected, *, full_history=False):
     latest = list(main_versions if full_history else main_versions[:5])
     shown = {item.pk for item in latest}
     anchors = list(main_versions.filter(pk__in=set(attached) - shown))
+    if viewed and viewed.branch_id == main.pk and viewed.pk not in {item.pk for item in latest + anchors}:
+        anchors.append(viewed)
     rows = [{"version": item, "anchor_only": item.pk not in shown, "branches": attached.get(item.pk, [])}
             for item in sorted(latest + anchors, key=lambda item: item.pk, reverse=True)]
     recent_versions = []
     for item in visible:
         recent_versions.extend(item.versions.select_related("branch").defer("content").order_by("-id")[:3])
+    if viewed and viewed.branch_id != main.pk:
+        recent_versions.append(viewed)
     selected_card = next((card for card in [item for group in attached.values() for item in group] + unattached if card["selected"]), None)
     cards = [item for group in attached.values() for item in group] + unattached
     return {
@@ -164,17 +168,30 @@ def _article_access_state(document, user):
         document.agent_requests.filter(applicant=user, status='pending').first())
 
 
-def _document_context(document, *, user, branch=None, commit_form=None, upload_form=None, annotation_form=None, full_history=False):
+def _document_context(document, *, user, branch=None, viewed=None, commit_form=None, upload_form=None, annotation_form=None, full_history=False):
     branch = branch or resolve_branch(document)
-    current = effective_head(branch)
+    head = effective_head(branch)
+    current = viewed or head
+    bound_draft = bool(commit_form is not None and commit_form.is_bound)
+    if bound_draft:
+        raw_base = commit_form.data.get('base_version_id', '')
+        if str(raw_base).isascii() and str(raw_base).isdecimal() and len(str(raw_base)) <= 19 and 0 < int(raw_base) < 2**63:
+            original = document.versions.filter(Q(branch=branch) | Q(pk=branch.forked_from_id), pk=int(raw_base)).first()
+            current = original or current
+    historical = bool(current and head and current.pk != head.pk)
+    conflicted = historical and bound_draft
     initial = {"branch_id": branch.pk, "base_version_id": current.pk if current else None, "version_kind": "patch"}
     diff_initial = {"mode": "inline"}
     if current and current.parent_id:
         diff_initial.update(from_version=current.parent_id, to_version=current.pk)
     access = _article_access_state(document, user)
     return {
-        **_version_rail_context(document, branch, full_history=full_history),
+        **_version_rail_context(document, branch, full_history=full_history, viewed=current),
         "document": document, "current_version": current, "selected_branch": branch,
+        "head_version": head, "is_historical": historical,
+        "editor_conflicted": conflicted, "editor_bound_draft": bound_draft,
+        "editor_branches": document.branches.all(),
+        "editor_versions": document.versions.filter(Q(branch=branch) | Q(pk=branch.forked_from_id)).select_related('branch').defer('content').order_by('-pk'),
         "branches": document.branches.filter(archived_at__isnull=True),
         "archived_branches": document.branches.filter(archived_at__isnull=False),
         "branch_versions": branch.versions.select_related("created_by").prefetch_related("forked_branches"),
@@ -183,7 +200,7 @@ def _document_context(document, *, user, branch=None, commit_form=None, upload_f
         "document_role": document_role(user, document),
         "can_manage_collaboration": document.created_by_id == user.pk,
         "can_write_document": document_role(user, document) in {'owner', 'collaborator'},
-        "can_edit_version": document_role(user, document) == 'owner' or (document_role(user, document) == 'collaborator' and not branch.is_default),
+        "can_edit_version": not branch.archived_at and (not historical or conflicted) and (document_role(user, document) == 'owner' or (document_role(user, document) == 'collaborator' and not branch.is_default)),
         "document_ai_enabled": access['effective'],
         "ai_access": access,
         "document_form": DocumentUploadForm(),
@@ -197,8 +214,19 @@ def _document_context(document, *, user, branch=None, commit_form=None, upload_f
 @padif_access_required
 def document_detail(request, document_id):
     document = get_object_or_404(Document, pk=document_id)
+    branch = _selected_branch(document, request)
+    viewed = None
+    raw_version = request.GET.get('version')
+    if raw_version is not None:
+        if not raw_version.isascii() or not raw_version.isdecimal() or len(raw_version) > 19 or not 0 < int(raw_version) < 2**63:
+            raise Http404('版本不存在。')
+        viewed = get_object_or_404(document.versions.select_related('branch'), pk=int(raw_version))
+        if 'branch' not in request.GET:
+            branch = viewed.branch
+        if viewed.branch_id != branch.pk and viewed.pk != branch.forked_from_id:
+            raise Http404('版本不属于所选分支。')
     return render(request, "padif/document_detail.html", _document_context(
-        document, user=request.user, branch=_selected_branch(document, request), full_history=request.GET.get("history") == "all",
+        document, user=request.user, branch=branch, viewed=viewed, full_history=request.GET.get("history") == "all",
     ))
 
 

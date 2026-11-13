@@ -207,7 +207,11 @@ def build_stats(a: str, b: str) -> dict:
     基于移动感知的 diff：moved 不计入增删（重排不再虚增句数变化）；
     replace 按句内字符级差异分别计入字增/字删。
     """
-    ops = diff_sentences(a, b)
+    return stats_from_ops(diff_sentences(a, b))
+
+
+def stats_from_ops(ops: List[DiffOp]) -> dict:
+    """Reuse the exact existing statistics without computing the diff twice."""
     sentences_added = sum(1 for o in ops if o.op == "insert")
     sentences_removed = sum(1 for o in ops if o.op == "delete")
     chars_added = sum(len(x.text) for o in ops for x in _leaf_ops(o) if x.op == "insert")

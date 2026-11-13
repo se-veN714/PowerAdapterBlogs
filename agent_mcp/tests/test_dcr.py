@@ -45,7 +45,7 @@ class DynamicRegistrationTests(TestCase):
         listed = self.rpc(issued['access_token'], 'tools/list')
         self.assertEqual(listed.status_code, 200, listed.content)
         names = {tool['name'] for tool in listed.json()['result']['tools']}
-        self.assertEqual(len(names), 5)
+        self.assertEqual(len(names), 7)
         self.assertNotIn('commit_version', names)
         self.assertNotIn('publish_branch', names)
 

@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const http = require('node:http');
+const { createHash } = require('node:crypto');
 
 const base = process.env.PADIF_MCP_QA_BASE || 'http://127.0.0.1:8772';
 if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw new Error('Local QA hosts only');
@@ -83,6 +84,32 @@ async function waitJson(file) {
     await page.locator('[name=approved_scope][value="padif:version"]').check();
     await page.locator('[name=approved_scope][value="padif:annotate"]').check();
     await page.getByRole('button', { name: '允许连接', exact: true }).click();
+    if (process.env.PADIF_MCP_QA_UPLOAD === '1') {
+      report.uploads = [];
+      for (let index = 0; index < 7; index++) {
+        const task = await waitJson(path.join(output, `upload-${index}.json`));
+        const paragraph = '这是一段用于验收的稿件：“中文引号”、反斜线\\与表情🙂都需要原样保留。\n\n';
+        const text = `# 稿件 ${index + 1}\n\n` + paragraph.repeat(Math.ceil((9000+index*1200)/Array.from(paragraph).length)) +
+          '```html\n<script>window.uploadXss = true</script>\n```\n\n![不应请求](http://127.0.0.1:9/private-resource)\n\n';
+        const raw = Buffer.from((index % 2 ? '\ufeff' : '') + text.replace(/\n/g, index % 2 ? '\r\n' : '\n'), 'utf8');
+        const filename = path.join(output, `manuscript-${index}.md`);
+        await fs.writeFile(filename, raw);
+        await page.goto(task.url);
+        for (const viewport of [{width: 1198, height: 715}, {width: 390, height: 844}]) {
+          await page.setViewportSize(viewport);
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+          if (index === 0) await page.screenshot({path: path.join(output, `upload-${viewport.width}.png`), fullPage: true});
+        }
+        await page.locator('#markdown-file').setInputFiles(filename);
+        await page.getByRole('button', {name: '上传至私有暂存', exact: true}).click();
+        await page.getByRole('status').filter({hasText: '文件接收完成'}).waitFor({timeout: 60000});
+        assert.equal(await page.evaluate(() => window.uploadXss), undefined);
+        const expected = {file_sha256: createHash('sha256').update(raw).digest('hex'),
+          content_sha256: createHash('sha256').update(Buffer.from(text)).digest('hex'), bytes: raw.length};
+        await fs.writeFile(path.join(output, `uploaded-${index}.json`), JSON.stringify(expected));
+        report.uploads.push({index, bytes: raw.length, codepoints: Array.from(text).length, canonicalHash: expected.content_sha256});
+      }
+    }
     await waitJson(path.join(output, 'ready-to-revoke.json'));
     await page.goto(base + '/accounts/security/agents/');
     const live = page.locator('article.agent-token-item').filter({ has: page.getByRole('button', { name: '撤销连接', exact: true }) });

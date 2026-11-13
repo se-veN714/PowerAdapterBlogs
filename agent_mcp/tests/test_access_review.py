@@ -57,7 +57,7 @@ class AgentAccessReviewTests(TestCase):
         with self.assertRaises(ValidationError):
             decide_agent_request(item.pk, self.reviewer, True, 'Duplicate decision')
         issued = self.issue(['padif:read'])
-        self.assertEqual(len(self.rpc(issued['access_token'], 'tools/list').json()['result']['tools']), 5)
+        self.assertEqual(len(self.rpc(issued['access_token'], 'tools/list').json()['result']['tools']), 7)
 
     def test_revocation_blocks_oauth_refresh_and_legacy_tokens_and_retains_history(self):
         item = self.apply_and_approve()

@@ -28,4 +28,12 @@
 
 模块级 `DEVELOPMENT.md`、`LOGGUIDE.md` 和专项交接文档保留在对应 App 或主题目录。阅读全局指南后，再进入目标模块查看局部约束。
 
+- [PAdif 编辑器版本导航](../padif/EDITOR_VERSION_NAVIGATION_SPEC.md)：版本身份、历史节点、草稿保护与本地验收结果。
+
+- [PAdif MCP 工具安全与长文读写 Spec](../agent_mcp/TOOL_SAFETY_SPEC.md)：全部现有及拟新增工具的安全合同与长文方案；第一阶段本地实现，未部署。
+- [PAdif MCP 工具安全验收矩阵](../agent_mcp/TOOL_SAFETY_ACCEPTANCE_MATRIX.md)：权限、输入输出、事务、上传、客户端及渲染的目标用例，执行结果单独记录。
+- [PAdif MCP 第一阶段验证](../agent_mcp/TOOL_SAFETY_PHASE1_VALIDATION.md)：有界读取、精确 patch、统一安全边界的实际证据及后续缺口。
+- [PAdif MCP 第二阶段验证](../agent_mcp/TOOL_SAFETY_PHASE2_VALIDATION.md)：差异计算预算、固定版本分页及批注回复续页的本地证据。
+- [PAdif MCP 第三阶段验证](../agent_mcp/TOOL_SAFETY_PHASE3_VALIDATION.md)：私有 Markdown 暂存、文件验证、迁移与网站选文件的本地证据。
+
 个人学习计划、Agent 上下文和本地 Git 工作流不属于仓库文档，通过 `.gitignore` 单独保留。

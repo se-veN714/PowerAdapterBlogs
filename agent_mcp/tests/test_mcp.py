@@ -174,7 +174,7 @@ class OAuthMcpTests(TestCase):
         issued = self.issue(['padif:read'])
         token = issued['access_token']
         names = {item['name'] for item in self.rpc(token, 'tools/list').json()['result']['tools']}
-        self.assertEqual(names, {'list_documents', 'get_workspace', 'get_version', 'compare_versions', 'list_annotations'})
+        self.assertEqual(names, {'list_documents', 'get_workspace', 'get_version', 'compare_versions', 'list_annotations', 'get_document_outline', 'read_content_chunk'})
         self.assertNotIn('publish_branch', names)
         result = self.tool(token, 'commit_version', {})
         self.assertEqual(result['error'], 'INSUFFICIENT_SCOPE')

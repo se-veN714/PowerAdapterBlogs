@@ -5,6 +5,7 @@ authorization callback via a per-run ignored directory. Only the named local
 fixture document is modified, always on a new writing branch.
 """
 import asyncio
+import hashlib
 import json
 import os
 import time
@@ -65,7 +66,7 @@ async def main():
                 initialized = await session.initialize()
                 assert initialized.serverInfo.name == 'padif-writing'
                 listed = await session.list_tools()
-                assert len(listed.tools) == 10
+                assert len(listed.tools) == 19
                 assert not any('publish' in item.name for item in listed.tools)
 
                 async def call(name, args):
@@ -73,11 +74,15 @@ async def main():
                     assert not result.isError, result.content
                     return result.structuredContent
 
-                docs = await call('list_documents', {'query': 'MCP 本地验收'})
+                docs = await call('list_documents', {'query': os.environ.get('PADIF_MCP_QA_TITLE', 'MCP 本地验收')})
                 assert docs['total'] == 1
                 doc_id = docs['items'][0]['id']
-                workspace = await call('get_workspace', {'document_id': doc_id})
+                workspace = await call('get_workspace', {'document_id': doc_id, 'include_content': False})
                 head = workspace['current_version']['id']
+                outline = await call('get_document_outline', {'document_id': doc_id})
+                assert outline['version']['id'] == head
+                source = await call('read_content_chunk', {'source_kind': 'version_markdown', 'source_id': head})
+                assert source['content_sha256'] == workspace['current_version']['content_sha256']
                 branch_name = 'sdk-' + uuid.uuid4().hex[:8]
                 branch_args = dict(document_id=doc_id, name=branch_name, fork_from_version_id=head, request_id='create-branch')
                 assert await call('create_branch', branch_args) == await call('create_branch', branch_args)
@@ -93,10 +98,75 @@ async def main():
                 annotation = await call('add_annotation', dict(version_id=version_id, kind='question', body='Local QA question', start_line=3, end_line=3, request_id='annotation'))
                 annotation_id = annotation['annotation']['id']
                 await call('reply_annotation', dict(annotation_id=annotation_id, body='Local QA answer', request_id='reply'))
+                await call('reply_annotation', dict(annotation_id=annotation_id, body='Second local QA answer', request_id='reply-second'))
                 await call('resolve_annotation', dict(annotation_id=annotation_id, status='resolved', resolution_note='Verified locally.', request_id='resolve'))
                 assert (await call('list_annotations', dict(version_id=version_id, status='resolved')))['total'] == 1
-                await call('compare_versions', dict(document_id=doc_id, from_version=head, to_version=version_id))
+                full_diff = (await call('compare_versions', dict(document_id=doc_id, from_version=head, to_version=version_id)))['diff']
+                offset, ops = 0, []
+                while offset is not None:
+                    page = (await call('compare_versions', dict(document_id=doc_id, from_version=head, to_version=version_id, offset=offset, limit=1)))['diff']
+                    assert page['stats'] == full_diff['stats']
+                    ops.extend(page['ops'])
+                    offset = page['next_offset']
+                assert ops == full_diff['ops']
+                note = (await call('list_annotations', dict(version_id=version_id, paginate_replies=True, reply_limit=1)))['items'][0]
+                assert note['replies_total'] == 2 and not note['replies_complete']
+                next_replies = await call('list_annotations', dict(version_id=version_id,
+                    reply_annotation_id=annotation_id, reply_cursor=note['next_reply_cursor'], reply_limit=1))
+                assert next_replies['items'][0]['body'] == 'Second local QA answer'
+                assert next_replies['next_reply_cursor'] is None
                 assert (await call('get_workspace', {'document_id': doc_id}))['current_version']['id'] == head
+                patch_outline = await call('get_document_outline', {'document_id': doc_id, 'version_id': version_id})
+                patch_args = dict(document_id=doc_id, branch=branch_name, base_version_id=version_id,
+                    base_content_sha256=patch_outline['version']['content_sha256'], edits=[
+                        {'start_line': 3, 'end_line_exclusive': 4, 'expected_lines': ['A local QA paragraph.'],
+                         'replacement_lines': ['An exact local SDK edit.']}], commit_message='Official SDK exact patch',
+                    version_kind='patch', request_id='exact-patch')
+                patched = await call('apply_version_patch', patch_args)
+                assert await call('apply_version_patch', patch_args) == patched
+                assert (await call('get_version', {'version_id': patched['version']['id']}))['content'] == '# Revised\n\nAn exact local SDK edit.\n\nAnother paragraph.'
+                if os.environ.get('PADIF_MCP_QA_UPLOAD') == '1':
+                    for index in range(7):
+                        upload_branch = 'file-'+uuid.uuid4().hex[:8]
+                        await call('create_branch', dict(document_id=doc_id, name=upload_branch, fork_from_version_id=head, request_id=f'file-branch-{index}'))
+                        task = await call('begin_markdown_upload', dict(document_id=doc_id, branch=upload_branch,
+                            base_version_id=head, request_id=f'file-begin-{index}'))
+                        if index == 0:
+                            previous_refresh = storage.tokens.refresh_token
+                            auth.context.token_expiry_time = time.time()-1
+                            await session.list_tools()
+                            assert storage.tokens.refresh_token != previous_refresh
+                            assert (await call('get_markdown_upload_status', {'upload_id': task['upload_id']}))['state'] == 'awaiting_file'
+                        (exchange / f'upload-{index}.json').write_text(json.dumps({'url': task['file_page_url'],
+                            'upload_id': task['upload_id']}), encoding='utf-8')
+                        deadline = time.monotonic()+90
+                        marker = exchange / f'uploaded-{index}.json'
+                        while not marker.exists():
+                            assert time.monotonic() < deadline, 'Website file selection timed out'
+                            await asyncio.sleep(.2)
+                        expected = json.loads(marker.read_text(encoding='utf-8'))
+                        received = await call('get_markdown_upload_status', {'upload_id': task['upload_id']})
+                        assert received['state'] == 'uploaded'
+                        verified = await call('validate_markdown_upload', {'upload_id': task['upload_id'], 'request_id': f'file-validate-{index}'})
+                        assert verified['file_sha256'] == expected['file_sha256']
+                        assert verified['content_sha256'] == expected['content_sha256']
+                        if index == 0:
+                            await call('compare_versions', verified['diff_ref']['arguments'])
+                        committed = await call('commit_markdown_upload', dict(upload_id=task['upload_id'], commit_message='Website file QA',
+                            version_kind='patch', request_id=f'file-commit-{index}'))
+                        repeated = await call('commit_markdown_upload', dict(upload_id=task['upload_id'], commit_message='Website file QA',
+                            version_kind='patch', request_id=f'file-retry-{index}'))
+                        assert committed == repeated
+                        digest = hashlib.sha256()
+                        read_args = {'source_kind': 'version_markdown', 'source_id': committed['version']['id']}
+                        while True:
+                            part = await call('read_content_chunk', read_args)
+                            digest.update(part['content'].encode('utf-8'))
+                            if not part['next_cursor']:
+                                break
+                            read_args['cursor'] = part['next_cursor']
+                        assert digest.hexdigest() == expected['content_sha256']
+                    assert (await call('get_workspace', {'document_id': doc_id, 'include_content': False}))['current_version']['id'] == head
                 old_refresh = storage.tokens.refresh_token
                 auth.context.token_expiry_time = time.time() - 1
                 await session.list_tools()
@@ -112,7 +182,7 @@ async def main():
                     assert denied.status_code == 401
                     denied_refresh = await verify.post(base + '/accounts/agent/oauth/token/', data={'client_id': storage.client_info.client_id, 'grant_type': 'refresh_token', 'refresh_token': storage.tokens.refresh_token, 'resource': base + '/padif/mcp/'})
                     assert denied_refresh.status_code == 400
-                print('Official MCP SDK: OAuth discovery/PKCE, 10 tools, branch writes, idempotency, comments, source lines, token refresh and browser revocation passed; main unchanged.')
+                print('Official MCP SDK: OAuth/PKCE, 19 tools, bounded reads/diffs/replies, patches, optional seven website-file staging workflow, hash roundtrips, refresh and revocation passed; main unchanged.')
 
 
 if __name__ == '__main__':

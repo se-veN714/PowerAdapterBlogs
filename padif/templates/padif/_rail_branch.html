@@ -13,8 +13,8 @@
     {% if not branch_versions %}<p class="rail-branch__empty">尚无分支提交，正在查看源版本及其批注。</p>{% endif %}
     <ol class="rail-branch__versions" aria-label="{{ card.branch.name }} 提交历史">
       {% for version in branch_versions reversed %}
-        <li{% if version.pk == current_version.pk %} class="is-head"{% endif %}>
-          <b>v{{ version.semantic_version }}</b>
+        <li class="{% if version.pk == head_version.pk %}is-head {% endif %}{% if version.pk == current_version.pk %}is-current{% endif %}">
+          <a href="?branch={{ selected_branch.name|urlencode }}&amp;version={{ version.pk }}" data-rail-navigation data-rail-focus="version-list-{{ version.pk }}"{% if version.pk == current_version.pk %} aria-current="true"{% endif %}>v{{ version.semantic_version }}</a>
           <span>{{ version.commit_message }}</span>
           <small>{{ version.created_by }} · {{ version.created_at|date:"m-d H:i" }}</small>
           {% include "padif/_rail_fork.html" %}

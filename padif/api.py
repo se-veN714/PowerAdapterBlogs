@@ -20,6 +20,7 @@ from accounts.agent_auth import (
 )
 
 from .core.differ import build_stats, diff_sentences, summarize
+from .core.diff_payload import annotate_diff_lines as _annotate_diff_lines, op_payload as _diff_op_payload
 from .models import Annotation, AnnotationReply, Document, Version
 from .permissions import can_use_padif, visible_documents, action_document_id, require_document, agent_permission_payload
 from .services import (BranchError, commit_document_version, effective_head, resolve_branch,
@@ -115,43 +116,6 @@ def _annotation_payload(annotation):
             for reply in annotation.replies.select_related("author").all()
         ],
     }
-
-
-def _diff_op_payload(op):
-    payload = {"op": op.op, "text": op.text}
-    for field in ("old_line", "new_line"):
-        value = getattr(op, field, None)
-        if value is not None:
-            payload[field] = value
-    if op.inner:
-        payload["inner"] = [_diff_op_payload(item) for item in op.inner]
-    return payload
-
-
-def _annotate_diff_lines(ops, old_content: str, new_content: str) -> None:
-    old_cursor = 0
-    new_cursor = 0
-    old_lines = old_content.replace("\r\n", "\n").split("\n")
-    new_lines = new_content.replace("\r\n", "\n").split("\n")
-    for op in ops:
-        text = getattr(op, "text", "")
-        if op.op in {"delete", "replace"}:
-            for index in range(old_cursor, len(old_lines)):
-                if text and text.strip() in old_lines[index]:
-                    op.old_line = index + 1
-                    old_cursor = index
-                    break
-        search_text = text
-        if op.op == "replace" and op.inner:
-            inserted = "".join(item.text for item in op.inner if item.op in {"equal", "insert"})
-            if inserted:
-                search_text = inserted
-        if op.op in {"insert", "replace", "moved", "equal"}:
-            for index in range(new_cursor, len(new_lines)):
-                if search_text and search_text.strip() in new_lines[index]:
-                    op.new_line = index + 1
-                    new_cursor = index
-                    break
 
 
 def _diff_payload(old: Version, new: Version) -> dict[str, object]:

@@ -1,6 +1,7 @@
 """OAuth connection lifecycle and bounded, transactionally saved write receipts."""
 from django.conf import settings
 from django.db import models
+import uuid
 
 
 class RequestStatus(models.TextChoices):
@@ -67,3 +68,50 @@ class WriteReceipt(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['connection', 'request_id'], name='mcp_unique_write_request')]
+
+
+class UploadCapacity(models.Model):
+    """Singleton lock serializing global reservation admission, not manuscript data."""
+    pass
+
+
+class MarkdownUpload(models.Model):
+    class State(models.TextChoices):
+        AWAITING = 'awaiting_file'
+        RECEIVING = 'receiving'
+        UPLOADED = 'uploaded'
+        VALIDATED = 'validated'
+        COMMITTED = 'committed'
+        CANCELLED = 'cancelled'
+        EXPIRED = 'expired'
+        INVALIDATED = 'invalidated'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    connection = models.ForeignKey(Connection, on_delete=models.PROTECT)
+    document = models.ForeignKey('padif.Document', on_delete=models.PROTECT)
+    branch = models.ForeignKey('padif.Branch', on_delete=models.PROTECT)
+    base_version = models.ForeignKey('padif.Version', on_delete=models.PROTECT, related_name='+')
+    committed_version = models.OneToOneField('padif.Version', null=True, on_delete=models.PROTECT, related_name='+')
+    state = models.CharField(max_length=20, choices=State.choices, default=State.AWAITING)
+    basis = models.JSONField(default=dict)
+    reserved_bytes = models.PositiveIntegerField(default=2097152)
+    file_name = models.CharField(max_length=120, blank=True)
+    file_size = models.PositiveIntegerField(null=True)
+    file_sha256 = models.CharField(max_length=64, blank=True)
+    content_sha256 = models.CharField(max_length=64, blank=True)
+    failure_code = models.CharField(max_length=64, blank=True)
+    commit_result = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    purged_at = models.DateTimeField(null=True)
+
+
+class MarkdownUploadChunk(models.Model):
+    upload = models.ForeignKey(MarkdownUpload, on_delete=models.CASCADE, related_name='chunks')
+    index = models.PositiveSmallIntegerField()
+    sha256 = models.CharField(max_length=64)
+    data = models.BinaryField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['upload', 'index'], name='mcp_unique_upload_chunk')]

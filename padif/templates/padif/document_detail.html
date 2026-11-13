@@ -45,7 +45,17 @@
 
       <details class="panel editor-panel">
         <summary><span><span class="panel-h">ONLINE EDITOR</span><strong>在线编辑器</strong></span><span class="editor-panel__state">点击展开</span></summary>
-        <form id="padif-editor-form" method="post" action="{% url 'padif:commit_version' document.pk %}">
+        <div class="editor-version-bar" data-editor-version-bar>
+          <label>分支<select data-editor-branch aria-label="编辑器分支">{% for item in editor_branches %}<option value="{{ item.name }}"{% if item.pk == selected_branch.pk %} selected{% endif %}>{{ item.name }}{% if item.archived_at %} · 已归档{% endif %}</option>{% endfor %}</select></label>
+          <label>版本<select data-editor-version aria-label="编辑器版本">{% for item in editor_versions %}<option value="{{ item.pk }}"{% if item.pk == current_version.pk %} selected{% endif %}>v{{ item.semantic_version }} · #{{ item.pk }}{% if item.pk == head_version.pk %} · 最新{% endif %}</option>{% endfor %}</select></label>
+          <span class="editor-version-state">{% if editor_conflicted %}旧基础草稿 · 分支已更新{% elif is_historical %}历史正文 · 只读{% elif selected_branch.archived_at %}已归档 · 只读{% else %}分支最新{% endif %}</span>
+          <span data-editor-dirty-state role="status">未修改</span>
+          <button type="button" data-editor-locate>定位节点</button>
+          {% if is_historical %}<a href="?branch={{ selected_branch.name|urlencode }}" data-editor-latest>回到分支最新</a>{% endif %}
+        </div>
+        {% if is_historical and can_write_document %}<div class="editor-history-actions"><span>从 v{{ current_version.semantic_version }}（#{{ current_version.pk }}）继续写作：</span>{% include "padif/_rail_fork.html" with version=current_version %}</div>{% endif %}
+        <p data-editor-draft-notice hidden><span data-editor-draft-description>此节点有本标签页保留的草稿。</span><button type="button" data-editor-draft-restore>恢复草稿</button> <button type="button" data-editor-draft-delete>删除草稿</button></p>
+        <form id="padif-editor-form" data-document="{{ document.pk }}" data-user="{{ request.user.pk }}" data-branch="{{ selected_branch.name }}" data-version="{{ current_version.pk }}" data-bound-draft="{{ editor_bound_draft|yesno:'true,false' }}" data-editable="{% if can_edit_version and not selected_branch.archived_at %}true{% else %}false{% endif %}" method="post" action="{% url 'padif:commit_version' document.pk %}">
           {% csrf_token %}<input type="hidden" name="branch_context" value="{{ selected_branch.name }}">
           {{ commit_form.branch_id }}{{ commit_form.base_version_id }}
           {{ commit_form.non_field_errors }}
@@ -69,6 +79,12 @@
           <button type="submit">保存新版本</button>{% endif %}
         </form>
       </details>
+      <dialog class="editor-leave-dialog" data-editor-leave-dialog aria-labelledby="editor-leave-title">
+        <h2 id="editor-leave-title">当前稿件有未保存修改</h2>
+        <p>保留草稿只保存当前标签页的正文、修改说明和版本级别；文件需重新选择。</p>
+        <p data-editor-storage-error role="alert" hidden>草稿未能保留，请留在本页保存或复制内容后再切换。</p>
+        <div><button type="button" data-editor-leave="keep">保留草稿并切换</button><button type="button" data-editor-leave="discard">放弃修改并切换</button><button type="button" data-editor-leave="cancel">取消</button></div>
+      </dialog>
       <div id="padif-preview-modal" class="padif-preview-modal" hidden role="dialog" aria-modal="true" aria-labelledby="padif-preview-title">
         <div class="padif-preview-modal__shell">
           <header class="padif-preview-modal__head">
@@ -188,6 +204,7 @@
       theme: 'dark',
       initialValue: JSON.parse(initialElement.textContent || '""')
     });
+    if (window.padifBindVersionEditor) window.padifBindVersionEditor(editor, form);
     var previewModal = document.getElementById('padif-preview-modal');
     var previewContent = document.getElementById('padif-preview-content');
     var lineNumbers = document.getElementById('padif-preview-line-numbers');

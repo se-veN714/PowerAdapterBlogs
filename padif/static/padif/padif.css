@@ -536,3 +536,27 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .access-footer { margin-top:20px; font-size:12px; }
 @media(max-width:1050px) { .collaboration-columns { grid-template-columns:1fr; } }
 @media(max-width:650px) { .collaboration-console { padding:16px 12px; } .collaboration-console .panel { padding:16px; } .collaboration-document { gap:12px; } .collaboration-add-actions { grid-template-columns:1fr; } .access-table-heading { display:none; } .access-member-row { grid-template-columns:1fr; gap:8px; } .document-heading-actions { align-items:flex-start; } .document-heading:has(.document-manage-collaboration) { flex-wrap:wrap; } }
+
+/* Editor identity and version navigation: compact, sharp rectangles. */
+.editor-version-bar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid var(--line2); }
+.editor-version-bar label { display:flex; align-items:center; gap:6px; min-width:0; font-size:12px; }
+.editor-version-bar select { width:auto; max-width:220px; min-width:100px; padding:6px; }
+.editor-version-bar button,.editor-history-actions button { padding:6px 10px; }
+.editor-version-state,[data-editor-dirty-state] { font-size:12px; color:var(--soft); }
+.editor-history-actions { display:flex; align-items:start; flex-wrap:wrap; gap:12px; padding:12px 0; }
+.editor-leave-dialog { max-width:min(600px,calc(100vw - 32px)); color:var(--text); background:var(--bg2); border:1px solid var(--soft); border-radius:0; padding:24px; }
+.editor-leave-dialog::backdrop { background:rgba(0,0,0,.7); }
+.editor-leave-dialog>div { display:flex; flex-wrap:wrap; gap:10px; }
+.worldline-node.is-current .worldline-node__square { outline:2px solid var(--accent); outline-offset:3px; }
+.worldline-node.is-head .worldline-node__square { background:var(--accent); }
+@media(max-width:650px) { .editor-version-bar label { width:100%; } .editor-version-bar select { flex:1; max-width:100%; } }
+
+/* Give graph links a real keyboard/pointer target while keeping node centers fixed. */
+.worldline-node { width:24px; height:24px; margin-left:-12px; margin-top:-12px; }
+.worldline-node__square { left:8px; top:8px; }
+.worldline-node.is-head .worldline-node__square { left:7px; top:7px; }
+.worldline-node.is-selected:not(.is-head) .worldline-node__square { background:var(--bg2); }
+.worldline-node__label { left:22px; top:4px; }
+@media(max-width:650px) { .worldline-node__label { left:19px; } }
+
+.rail-branch__versions > li.is-current { outline:1px solid var(--soft); outline-offset:3px; }

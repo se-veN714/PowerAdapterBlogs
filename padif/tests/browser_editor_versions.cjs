@@ -16,6 +16,9 @@ if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw new Erro
     for (const viewport of [{width:1915,height:930}, {width:1198,height:715}, {width:390,height:844}]) {
       const context = await browser.newContext({viewport});
       const page = await context.newPage();
+      // This suite verifies the tab-local fallback when cloud storage is unavailable.
+      // Cloud persistence and cross-session recovery have their own browser suite.
+      await page.route('**/drafts/*/', route => route.abort());
       page.on('pageerror', error => {
         const stack = error.stack || error.message;
         if (stack.includes('https://cdn.jsdelivr.net/npm/mathjax@3/es5/startup.js') && stack.includes('Cannot set property Package')) report.baselineErrors.push(stack);
@@ -33,7 +36,7 @@ if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw new Erro
       const dialog = page.locator('[data-editor-leave-dialog]');
       const choose = async value => {
         await version.selectOption(String(value));
-        await page.waitForFunction(id => document.querySelector('#padif-editor-form').dataset.version === String(id), value);
+        await page.waitForFunction(id => document.querySelector('#padif-editor-form')?.dataset.version === String(id), value);
         await editor.waitFor();
       };
       await editor.waitFor({state:'attached'});
@@ -56,7 +59,7 @@ if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw new Erro
       assert.ok((await editor.textContent()).includes('LOCAL UNSAVED DRAFT'));
       await version.selectOption(String(fixture.old_id));
       await page.locator('[data-editor-leave=keep]').click();
-      await page.waitForFunction(id => document.querySelector('#padif-editor-form').dataset.version === String(id), fixture.old_id);
+      await page.waitForFunction(id => document.querySelector('#padif-editor-form')?.dataset.version === String(id), fixture.old_id);
       await editor.waitFor();
       assert.ok((await editor.textContent()).includes('Earlier paragraph'));
       await page.waitForFunction(() => document.activeElement === document.querySelector('[data-editor-version]'));
@@ -90,17 +93,17 @@ if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw new Erro
       assert.equal(await page.locator('#padif-editor-form [name=version_kind]').inputValue(), 'minor');
       await branch.selectOption('other');
       await page.locator('[data-editor-leave=discard]').click();
-      await page.waitForFunction(id => document.querySelector('#padif-editor-form').dataset.version === String(id), fixture.other_id);
+      await page.waitForFunction(id => document.querySelector('#padif-editor-form')?.dataset.version === String(id), fixture.other_id);
       await editor.waitFor();
       await branch.selectOption('writing');
-      await page.waitForFunction(id => document.querySelector('#padif-editor-form').dataset.version === String(id), fixture.latest_id);
+      await page.waitForFunction(id => document.querySelector('#padif-editor-form')?.dataset.version === String(id), fixture.latest_id);
       await editor.waitFor();
       assert.equal(await page.locator('[data-editor-draft-notice]').isVisible(), false);
       assert.ok(!(await editor.textContent()).includes('LOCAL UNSAVED DRAFT'));
       await page.locator('[data-editor-locate]').click();
       assert.equal(await page.locator('[data-version-drawer]').isVisible(), true);
       await page.locator(`[data-worldline-version="${fixture.old_id}"]`).click();
-      await page.waitForFunction(id => document.querySelector('#padif-editor-form').dataset.version === String(id), fixture.old_id);
+      await page.waitForFunction(id => document.querySelector('#padif-editor-form')?.dataset.version === String(id), fixture.old_id);
       await editor.waitFor();
       assert.equal(await page.locator(`[data-worldline-version="${fixture.old_id}"].is-current`).count(), 1);
       assert.equal(await page.locator(`[data-worldline-version="${fixture.latest_id}"].is-head`).count(), 1);

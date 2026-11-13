@@ -251,6 +251,17 @@ def _commit_response(request, document_id, *, upload=False):
             form.add_error(None, exc)
             status = getattr(exc, "status", 400)
         else:
+            if not upload and request.POST.get('draft_revision'):
+                from uuid import UUID
+                from .models import EditorDraft
+                try:
+                    revision = UUID(request.POST['draft_revision'])
+                except ValueError:
+                    revision = None
+                if revision:
+                    EditorDraft.objects.filter(user=request.user, document=document, branch=branch,
+                        base_version_id=form.cleaned_data['base_version_id'], revision=revision,
+                        content=form.cleaned_data['content']).delete()
             if result.gentle_warning:
                 messages.warning(request, "本次改动可能只有空白或标点差异，版本仍已保存。")
             messages.success(request, f"已保存 v{result.version.semantic_version} · {branch.name}。")

@@ -1,7 +1,24 @@
+import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+
+
+class EditorDraft(models.Model):
+    """Private working text; never a version or branch head."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    document = models.ForeignKey('Document', on_delete=models.CASCADE)
+    branch = models.ForeignKey('Branch', on_delete=models.CASCADE)
+    base_version = models.ForeignKey('Version', on_delete=models.PROTECT)
+    content = models.TextField(blank=True)
+    commit_message = models.CharField(max_length=300, blank=True)
+    version_kind = models.CharField(max_length=5, default='patch')
+    revision = models.UUIDField(default=uuid.uuid4, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'branch', 'base_version'], name='padif_unique_private_draft')]
 
 
 class Document(models.Model):

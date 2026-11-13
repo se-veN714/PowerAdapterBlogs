@@ -19,11 +19,12 @@
     let priorFocus = null;
     const key = ['padif.editor.draft', form.dataset.user, form.dataset.document, form.dataset.branch, form.dataset.version].join(':');
     const navigationKey = 'padif.editor.navigation';
+    const cloud = window.padifBindCloudDraft ? window.padifBindCloudDraft(editor, form) : null;
     function dirty() {
       return serverDirty || (form.dataset.editable === 'true' && (editor.getMarkdown() !== baseline.content ||
         (message && message.value !== baseline.message) || (kind && kind.value !== baseline.kind)));
     }
-    function refreshState() { state.textContent = dirty() ? '未保存修改' : '未修改'; }
+    function refreshState() { state.textContent = dirty() ? (cloud && cloud.isSaved() ? '草稿已保存 · 未提交版本' : '未保存修改') : '未修改'; }
     function stashNavigation(url) {
       try { sessionStorage.setItem(navigationKey, JSON.stringify({target: url.pathname + url.search,
         open: form.closest('details').open, y: window.scrollY, top: bar.getBoundingClientRect().top})); } catch (_) { /* Preference only. */ }
@@ -42,13 +43,18 @@
       if (priorFocus && priorFocus.isConnected) priorFocus.focus({preventScroll: true});
     }
     dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
-    dialog.addEventListener('click', event => {
+    dialog.addEventListener('click', async event => {
       const button = event.target.closest('[data-editor-leave]');
       if (!button) return;
       const choice = button.dataset.editorLeave;
       if (choice === 'cancel') { close(); return; }
       try {
         if (choice === 'keep') {
+          const expectedAction = pending;
+          if (cloud && cloud.available() && form.dataset.editable === 'true' && !cloud.isSaved() && !await cloud.save()) {
+            error.hidden = false; return;
+          }
+          if (pending !== expectedAction || !dialog.open) return;
           sessionStorage.setItem(key, JSON.stringify({content: editor.getMarkdown(), message: message ? message.value : (saved ? saved.message : ''),
             kind: kind ? kind.value : (saved ? saved.kind : ''), created: Date.now()}));
         } else sessionStorage.removeItem(key);
@@ -98,11 +104,12 @@
       request(() => { leaving = true; target.requestSubmit(submitter); });
     }, true);
     window.addEventListener('beforeunload', event => {
-      if (dirty() && !leaving && !submitting) { event.preventDefault(); event.returnValue = ''; }
+      if (dirty() && !leaving && !submitting && !(cloud && cloud.isSaved())) { event.preventDefault(); event.returnValue = ''; }
     });
     editor.on('change', refreshState);
     form.addEventListener('input', refreshState);
     form.addEventListener('change', refreshState);
+    form.addEventListener('padif:cloud-draft-state', refreshState);
     let saved = null;
     try {
       saved = JSON.parse(sessionStorage.getItem(key) || 'null');

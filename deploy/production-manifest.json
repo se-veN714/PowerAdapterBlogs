@@ -1767,9 +1767,19 @@
       "sha256": "8e17136ed6f3adae7b29dec8fd4e0a5b56be2449956026c8ebf6781e9c33d1b9"
     },
     {
+      "path": "padif/CLOUD_DRAFT_SPEC.md",
+      "size": 3750,
+      "sha256": "dfbc481564580300fe072db2c6cc80e0be2bf167d119bb61e66b7161b7a7a0d1"
+    },
+    {
+      "path": "padif/CLOUD_DRAFT_VALIDATION.md",
+      "size": 3398,
+      "sha256": "4dc54377bb50eb581c1fc58dca9781c4b8928daec90862470340ff1372eb241e"
+    },
+    {
       "path": "padif/EDITOR_VERSION_NAVIGATION_SPEC.md",
-      "size": 4578,
-      "sha256": "f769fa439af543772685fb620a48b37e5d7896bb1a76be6044a6714404e0cedd"
+      "size": 4764,
+      "sha256": "9d26c38ba5a5f21cd31fb19951dd947c71c955db135d233793a380c385a976ee"
     },
     {
       "path": "padif/__init__.py",
@@ -1837,6 +1847,11 @@
       "sha256": "256706a06b584896ebbf8c640458301d9533c7098c032845ed194d9874e4eef6"
     },
     {
+      "path": "padif/draft_views.py",
+      "size": 4099,
+      "sha256": "367a47aaa5fd94e5d2e6b47fc8ca432dd9af9f1c6aa299f6b6842b7a31ff1cfe"
+    },
+    {
       "path": "padif/forms.py",
       "size": 6557,
       "sha256": "c97c31ec8781badcc66e4bf58b332d719036f29248e0c9bd998ea298e79a4482"
@@ -1897,14 +1912,19 @@
       "sha256": "9ff923cd4089ea0c875b4f7b9b219ac29df9ccf48ba5c31821ec126af2f57cc1"
     },
     {
+      "path": "padif/migrations/0009_editordraft.py",
+      "size": 1682,
+      "sha256": "ac292208065cb3f54131b1eb572e27b0fe702d616ba5b3d1604eac55bd9623c0"
+    },
+    {
       "path": "padif/migrations/__init__.py",
       "size": 33,
       "sha256": "4a6e8c866f4a34cfce02671ff5e4324ad79a27b1b1515891adcf4e918ef0942c"
     },
     {
       "path": "padif/models.py",
-      "size": 11690,
-      "sha256": "88d325fd4f4bbeed0fcf62bf6ff888ca07b834aa9f2982f74e9d09606bceb4df"
+      "size": 12551,
+      "sha256": "f1eaa667deb411f6d91293dd80e4a89a0d0f87ff236109fb869435ebec02213a"
     },
     {
       "path": "padif/permissions.py",
@@ -1917,14 +1937,24 @@
       "sha256": "279fae8913407784336604cb70a2ed6ed08c5b2d12e942817cc5fcbc8977d78c"
     },
     {
+      "path": "padif/static/padif/cloud-draft.js",
+      "size": 6681,
+      "sha256": "938943074afe40a666067e872421cf6ef0dbf22709d7f4f25cd62ca69d72cba7"
+    },
+    {
       "path": "padif/static/padif/collaboration.js",
       "size": 6006,
       "sha256": "2fba87d8721f1dff6f16b74df9c6d3a6c5b928b8d0234f0ce05b1e13135db903"
     },
     {
+      "path": "padif/static/padif/editor-fullscreen.js",
+      "size": 2090,
+      "sha256": "5d6ad0bc1110b64eea99bbfdeebd9fab7ee6367da7013bde70cc98bfab4546f0"
+    },
+    {
       "path": "padif/static/padif/editor-navigation.js",
-      "size": 8265,
-      "sha256": "f14c4697f8351d606e7639c7ea0fcd315662023e8ee4e4ad46142b3e7c45fb44"
+      "size": 8819,
+      "sha256": "a2fdd6a897add9608bbeeaed3a0c0565cda558846c0279595320a7c5e7ce021e"
     },
     {
       "path": "padif/static/padif/htmx.min.js",
@@ -1933,8 +1963,8 @@
     },
     {
       "path": "padif/static/padif/padif.css",
-      "size": 46757,
-      "sha256": "1231f2da45006e8bf55b8cecd596e43b4e146739c0a61ac97743afee8363d990"
+      "size": 48128,
+      "sha256": "f69489e4100ef1f5ba822e129e967f04666a536b509938bde04c472857792a3d"
     },
     {
       "path": "padif/static/padif/padif.js",
@@ -1968,8 +1998,8 @@
     },
     {
       "path": "padif/templates/padif/base.html",
-      "size": 1164,
-      "sha256": "c618fcd63db9c836d38b116a450fb62a204041c9688231aa6c5bb0f8e44c96ff"
+      "size": 1320,
+      "sha256": "8e077e5bddfd1508ebb44cb90e5724946bd0f5d65e6b52588620369a9aced048"
     },
     {
       "path": "padif/templates/padif/branch_action.html",
@@ -1993,8 +2023,8 @@
     },
     {
       "path": "padif/templates/padif/document_detail.html",
-      "size": 29698,
-      "sha256": "ada348a05cbab8c484528f375ad31780f0e73fc3bd544b41be7bf2c9d56a7e42"
+      "size": 30618,
+      "sha256": "666b75a2fd7cf2d6a7acb87be1903b74ec9c27cfd1192957222051427694457b"
     },
     {
       "path": "padif/templates/padif/sidebar.html",
@@ -2017,14 +2047,19 @@
       "sha256": "688868cfcbfc8be16edd281247fd8b6bf5e4186af8191f6d9ce0101c3d92794c"
     },
     {
+      "path": "padif/tests/browser_cloud_drafts.cjs",
+      "size": 7612,
+      "sha256": "1fda672d5b58f9e87ad241d8a713b74edd3bbeecb04dfab60e59270b7e9ef472"
+    },
+    {
       "path": "padif/tests/browser_collaboration_access.cjs",
       "size": 6868,
       "sha256": "f7ed3c06539f3c68631cac4793fbfd8e52d62185df6a80b9b45642478abfa73a"
     },
     {
       "path": "padif/tests/browser_editor_versions.cjs",
-      "size": 10045,
-      "sha256": "d852f847853b109d1e31ae8f72b9a8d600d4859bc2505627caf01c344ca59b7b"
+      "size": 10430,
+      "sha256": "00b4bf275e99dd6531a0a3b02359ead08986d3f510d5fb95adf1a8310296c969"
     },
     {
       "path": "padif/tests/browser_worldlines.cjs",
@@ -2067,6 +2102,11 @@
       "sha256": "66922c2bc343f00ae8a2ee47c07032f555e0f979b9d27035234260ddd7421bc9"
     },
     {
+      "path": "padif/tests/test_cloud_drafts.py",
+      "size": 9504,
+      "sha256": "4f40842a55220ab395dce5cf6527f5b77ddd0e32d1477e069b5772e0f03454df"
+    },
+    {
       "path": "padif/tests/test_collaboration.py",
       "size": 14280,
       "sha256": "48361eb1a6512d9f4f138209a812be35e2de7c34787efbf57804ffa9da297a45"
@@ -2098,13 +2138,13 @@
     },
     {
       "path": "padif/urls.py",
-      "size": 2609,
-      "sha256": "3b943f07edc352877bf87c528bd1ed66bc7e738b24099bc2c036e89059cbd2af"
+      "size": 2775,
+      "sha256": "5fdf45ef10a6f7d3f18dbadfbed1ab442aab6fee14bb90f1900286570f8babdc"
     },
     {
       "path": "padif/views.py",
-      "size": 22328,
-      "sha256": "6db35ba0cd749e4d2ddccfad14f558eb7cdca9d8dcde2d71db96678a69d35b8a"
+      "size": 22948,
+      "sha256": "ebd70ab7c2c5978773fc8551ab6246cb3222b86436bc5587a273b4ce7aa53e1f"
     },
     {
       "path": "padif/worldlines.py",

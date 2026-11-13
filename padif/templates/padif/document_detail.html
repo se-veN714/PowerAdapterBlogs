@@ -58,6 +58,12 @@
         <form id="padif-editor-form" data-document="{{ document.pk }}" data-user="{{ request.user.pk }}" data-branch="{{ selected_branch.name }}" data-version="{{ current_version.pk }}" data-bound-draft="{{ editor_bound_draft|yesno:'true,false' }}" data-editable="{% if can_edit_version and not selected_branch.archived_at %}true{% else %}false{% endif %}" method="post" action="{% url 'padif:commit_version' document.pk %}">
           {% csrf_token %}<input type="hidden" name="branch_context" value="{{ selected_branch.name }}">
           {{ commit_form.branch_id }}{{ commit_form.base_version_id }}
+          <input type="hidden" name="draft_revision" value="">
+          <div class="cloud-draft" data-cloud-draft data-url="{% url 'padif:editor-draft' document.pk selected_branch.pk current_version.pk %}">
+            <div class="cloud-draft__actions"><button type="button" data-cloud-draft-restore hidden>恢复云端草稿</button><button type="button" data-cloud-draft-delete hidden>删除云端草稿</button></div>
+            <span data-cloud-draft-status role="status">正在检查云端草稿…</span>
+            <div data-cloud-draft-other></div>
+          </div>
           {{ commit_form.non_field_errors }}
           {{ commit_form.content.as_hidden }}
           {{ commit_form.content.errors }}
@@ -68,6 +74,7 @@
               <span>Markdown 编辑 · WYSIWYG 预览 · 当前文档版本提交</span>
             </div>
             <div class="padif-editor-tools__actions">
+              {% if can_edit_version and not selected_branch.archived_at %}<button type="button" data-cloud-draft-save>保存草稿</button><button type="button" data-editor-fullscreen aria-pressed="false">全屏编辑</button>{% endif %}
               <button type="button" data-padif-preview>全屏预览</button>
             </div>
           </div>
@@ -81,7 +88,7 @@
       </details>
       <dialog class="editor-leave-dialog" data-editor-leave-dialog aria-labelledby="editor-leave-title">
         <h2 id="editor-leave-title">当前稿件有未保存修改</h2>
-        <p>保留草稿只保存当前标签页的正文、修改说明和版本级别；文件需重新选择。</p>
+        <p>优先保存云端私有草稿；云端不可用时仅保留当前标签页备份。文件需重新选择。</p>
         <p data-editor-storage-error role="alert" hidden>草稿未能保留，请留在本页保存或复制内容后再切换。</p>
         <div><button type="button" data-editor-leave="keep">保留草稿并切换</button><button type="button" data-editor-leave="discard">放弃修改并切换</button><button type="button" data-editor-leave="cancel">取消</button></div>
       </dialog>
@@ -205,6 +212,7 @@
       initialValue: JSON.parse(initialElement.textContent || '""')
     });
     if (window.padifBindVersionEditor) window.padifBindVersionEditor(editor, form);
+    if (window.padifBindFullscreenEditor) window.padifBindFullscreenEditor(editor, form);
     var previewModal = document.getElementById('padif-preview-modal');
     var previewContent = document.getElementById('padif-preview-content');
     var lineNumbers = document.getElementById('padif-preview-line-numbers');

@@ -7,7 +7,7 @@
   <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
 {% endblock %}
 {% block content %}
-<div class="app-layout">
+<div class="app-layout padif-article-layout">
   {% include "padif/sidebar.html" %}
   <main class="col-right document-layout document-layout--worldlines" data-worldline-layout>
     <div class="document-main">
@@ -21,10 +21,11 @@
             <div class="document-access-status"><span class="access-badge">{{ ai_access.module_label }}</span><span class="access-badge access-badge--{{ ai_access.state }}">✦ {{ ai_access.label }}</span>{% if not can_manage_collaboration %}<a href="{% url 'accounts:agent-token-management' %}#article-access">申请 / 查看 ✦ AI+</a>{% endif %}</div>
             <p class="document-heading__meta">{{ document.source_name|default:"在线文档" }} · 目标分支 {{ selected_branch.name }}{% if selected_branch.archived_at %} · 已归档{% endif %}</p>
           </div>
-          <div class="document-heading-actions">{% if can_manage_collaboration %}<a class="document-manage-collaboration" href="{% url 'padif:collaboration' document.pk %}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-3.87M16 3a4 4 0 0 1 0 8"/><circle cx="9" cy="7" r="4"/></svg>管理协作</a>{% endif %}<a class="back-link" href="{% url 'padif:workspace' %}">← 文档列表</a></div>
+          <div class="document-heading-actions">{% if can_manage_collaboration %}<a class="document-manage-collaboration" href="{% url 'padif:collaboration' document.pk %}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-3.87M16 3a4 4 0 0 1 0 8"/><circle cx="9" cy="7" r="4"/></svg>管理协作</a>{% endif %}<a class="back-link" href="{% url 'padif:workspace' %}">← 文档列表</a><button type="button" class="worldline-drawer-handle" data-drawer-handle aria-controls="padif-version-drawer" aria-expanded="false" hidden>← 版本世界线</button></div>
         </div>
         {% if can_edit_version and not selected_branch.archived_at %}
-        <section class="main-add-version" aria-labelledby="add-version-title">
+        <details class="main-add-version" open data-mobile-upload{% if upload_form.is_bound %} data-upload-bound{% endif %}>
+          <summary class="padif-mobile-control">追加版本</summary>
           <div class="rail-action__head"><p class="panel-h">ADD VERSION</p><h2 id="add-version-title">追加版本</h2></div>
           <p class="muted">从本地 Markdown 添加一版，保留原始稿件。</p>
           <form class="main-add-version__grid" method="post" enctype="multipart/form-data" action="{% url 'padif:upload_version' document.pk %}">
@@ -38,7 +39,7 @@
             <p class="main-add-version__cell"><label for="{{ upload_form.version_kind.id_for_label }}">版本级别</label>{{ upload_form.version_kind }}</p>
             <div class="main-add-version__cell main-add-version__submit"><span class="panel-h">COMMIT</span><button type="submit">添加版本</button></div>
           </form>
-        </section>
+        </details>
         {% elif selected_branch.archived_at %}<p class="muted">已归档：保留正文、差异和批注，不再追加版本。</p>{% else %}<p class="muted">当前版本只读。协作者可从独立分支继续修改。</p>{% endif %}
       </section>
       <div id="diff-result" hidden aria-hidden="true"></div>
@@ -62,6 +63,7 @@
           <div class="cloud-draft" data-cloud-draft data-url="{% url 'padif:editor-draft' document.pk selected_branch.pk current_version.pk %}">
             <div class="cloud-draft__actions"><button type="button" data-cloud-draft-restore hidden>恢复云端草稿</button><button type="button" data-cloud-draft-delete hidden>删除云端草稿</button></div>
             <span data-cloud-draft-status role="status">正在检查云端草稿…</span>
+            <button type="button" data-cloud-draft-retry hidden>重试读取</button>
             <div data-cloud-draft-other></div>
           </div>
           {{ commit_form.non_field_errors }}
@@ -98,8 +100,13 @@
             <div><p class="panel-h">FULLSCREEN PREVIEW</p><h2 id="padif-preview-title">{{ document.title }}</h2></div>
             <button type="button" data-padif-preview-close>关闭预览</button>
           </header>
+          <nav class="padif-mobile-control padif-preview-actions" aria-label="阅读工具">
+            <button type="button" data-preview-sheet-open="toc" aria-controls="padif-preview-toc" aria-expanded="false">目录</button>
+            <button type="button" data-preview-sheet-open="annotations" aria-controls="padif-preview-annotations" aria-expanded="false">批注 {{ annotations|length }}</button>
+          </nav>
           <div class="padif-preview-modal__body">
-            <aside class="padif-preview-toc" data-padif-preview-toc>
+            <aside class="padif-preview-toc" id="padif-preview-toc" data-padif-preview-toc aria-label="章节目录">
+              <button class="padif-mobile-control" type="button" data-preview-sheet-close>关闭目录</button>
               <p class="panel-h">CHAPTERS</p>
               <nav aria-label="章节目录"><ol id="padif-preview-toc-list"></ol></nav>
             </aside>
@@ -109,7 +116,8 @@
               </aside>
               <article id="padif-preview-content" class="padif-preview-content"></article>
             </div>
-            <aside class="padif-annotation-panel" aria-label="版本批注">
+            <aside class="padif-annotation-panel" id="padif-preview-annotations" aria-label="版本批注">
+              <button class="padif-mobile-control" type="button" data-preview-sheet-close>关闭批注</button>
               <div class="section-heading">
                 <div><p class="panel-h">ANNOTATIONS</p><h2>批注</h2></div>
                 <span class="annotation-count">{{ annotations|length }}</span>
@@ -174,7 +182,6 @@
       </div>
     </div>
 
-    <button type="button" class="worldline-drawer-handle" data-drawer-handle aria-controls="padif-version-drawer" aria-expanded="false" hidden>← 版本世界线</button>
     <aside id="padif-version-drawer" class="version-rail panel version-drawer" data-version-drawer aria-labelledby="worldline-title">
       {% include "padif/_version_rail.html" %}
       <section class="rail-compare" aria-labelledby="compare-title">
@@ -202,6 +209,15 @@
     var contentField = form && form.querySelector('input[name="content"]');
     var initialElement = document.getElementById('padif-initial-content');
     if (!editorElement || !form || !contentField || !window.toastui || !initialElement) return;
+    var mobile = window.matchMedia('(max-width: 650px)');
+    var editorPanel = form.closest('.editor-panel');
+    var uploadPanel = document.querySelector('[data-mobile-upload]');
+    if (mobile.matches) editorPanel.open = true;
+    function syncUploadPanel() {
+      if (uploadPanel) uploadPanel.open = !mobile.matches || uploadPanel.hasAttribute('data-upload-bound');
+    }
+    syncUploadPanel();
+    mobile.addEventListener('change', syncUploadPanel);
     var editor = new toastui.Editor({
       el: editorElement,
       height: '560px',
@@ -219,6 +235,46 @@
     var tocList = document.getElementById('padif-preview-toc-list');
     var previewButton = document.querySelector('[data-padif-preview]');
     var closeButton = document.querySelector('[data-padif-preview-close]');
+    var sheetButtons = [...previewModal.querySelectorAll('[data-preview-sheet-open]')];
+    var reader = previewModal.querySelector('.padif-preview-reader');
+    var activeSheet = null;
+    var previewTrigger = null;
+    function setPreviewSheet(button, restoreFocus) {
+      if (activeSheet) document.getElementById(activeSheet.getAttribute('aria-controls')).removeAttribute('role');
+      if (!button && restoreFocus && activeSheet) activeSheet.focus({preventScroll: true});
+      activeSheet = button;
+      previewModal.dataset.sheet = button ? button.dataset.previewSheetOpen : '';
+      reader.inert = Boolean(button);
+      sheetButtons.forEach(function (item) { item.setAttribute('aria-expanded', String(item === button)); });
+      if (button) {
+        var sheet = document.getElementById(button.getAttribute('aria-controls'));
+        sheet.setAttribute('role', 'region');
+        sheet.querySelector('[data-preview-sheet-close]').focus({preventScroll: true});
+      }
+    }
+    sheetButtons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        if (button.dataset.previewSheetOpen === 'annotations') captureSelection();
+        setPreviewSheet(activeSheet === button ? null : button, true);
+      });
+    });
+    previewModal.querySelectorAll('[data-preview-sheet-close]').forEach(function (button) {
+      button.addEventListener('click', function () { setPreviewSheet(null, true); });
+    });
+    mobile.addEventListener('change', function () { setPreviewSheet(null, false); });
+    var viewport = window.visualViewport;
+    if (viewport) {
+      function resizeMobileOverlays() {
+        var visibleHeight = Math.round(viewport.height);
+        document.documentElement.style.setProperty('--padif-viewport-height', visibleHeight + 'px');
+        document.documentElement.style.setProperty('--padif-viewport-top', Math.round(viewport.offsetTop) + 'px');
+        document.documentElement.classList.toggle('padif-keyboard-open', window.innerHeight - visibleHeight > 100);
+      }
+      viewport.addEventListener('resize', resizeMobileOverlays);
+      viewport.addEventListener('scroll', resizeMobileOverlays);
+      window.addEventListener('resize', resizeMobileOverlays);
+      resizeMobileOverlays();
+    }
     var diffForm = document.querySelector('.diff-controls');
     var diffResult = document.getElementById('diff-result');
     var annotationForm = document.querySelector('[data-padif-annotation-form]');
@@ -322,18 +378,21 @@
         return lastPosition;
       });
 
-      var nextPosition = null;
-      for (var reverseIndex = positions.length - 1; reverseIndex >= 0; reverseIndex -= 1) {
-        if (positions[reverseIndex]) nextPosition = positions[reverseIndex];
-        else if (nextPosition) positions[reverseIndex] = { top: nextPosition.top - lineHeight, bottom: nextPosition.top };
+      // Distribute each run of original blank lines between the adjacent source lines.
+      for (var start = 0; start < positions.length;) {
+        if (positions[start]) { start += 1; continue; }
+        var end = start + 1;
+        while (end < positions.length && !positions[end]) end += 1;
+        var previous = positions[start - 1];
+        var left = previous ? previous.top : paddingTop - lineHeight;
+        var right = positions[end] ? positions[end].top : (previous ? Math.max(previous.bottom, left + lineHeight) : paddingTop) + (end - start) * lineHeight;
+        var step = (right - left) / (end - start + 1);
+        for (var index = start; index < end; index += 1) {
+          var top = left + (index - start + 1) * step;
+          positions[index] = {top: top, bottom: top + step};
+        }
+        start = end;
       }
-      positions = positions.map(function (position, index) {
-        if (position) return position;
-        var previous = index > 0 ? positions[index - 1] : null;
-        return previous
-          ? { top: previous.bottom + lineHeight * 0.2, bottom: previous.bottom + lineHeight }
-          : { top: paddingTop + (index * lineHeight), bottom: paddingTop + ((index + 1) * lineHeight) };
-      });
 
       positions.forEach(function (position, index) {
         var item = document.createElement('li');
@@ -384,7 +443,7 @@
 
     function headingId(text, index) {
       var slug = String(text || '').toLowerCase().replace(/[^\w\u4e00-\u9fff]+/g, '-').replace(/^-+|-+$/g, '');
-      return 'padif-preview-heading-' + (slug || index);
+      return 'padif-preview-heading-' + index + (slug ? '-' + slug : '');
     }
 
     function renderPreview() {
@@ -400,6 +459,11 @@
         var link = document.createElement('a');
         link.href = '#' + id;
         link.textContent = heading.textContent;
+        link.addEventListener('click', function (event) {
+          event.preventDefault();
+          setPreviewSheet(null, true);
+          previewContent.scrollTop += heading.getBoundingClientRect().top - previewContent.getBoundingClientRect().top - 12;
+        });
         item.appendChild(link);
         tocList.appendChild(item);
       });
@@ -414,6 +478,8 @@
 
     function openDiffPreview() {
       if (!diffResult || !diffResult.innerHTML.trim()) return;
+      previewTrigger = document.activeElement;
+      setPreviewSheet(null, false);
       previewModal.classList.add('is-diff-preview');
       previewContent.innerHTML = diffResult.innerHTML;
       tocList.innerHTML = '<li class="padif-preview-toc__item"><a href="#padif-diff-reading">差异结果</a></li>';
@@ -426,7 +492,7 @@
     }
 
     function captureSelection() {
-      if (!annotationForm || previewModal.hidden) return;
+      if (!annotationForm || previewModal.hidden || activeSheet || previewModal.classList.contains('is-diff-preview')) return;
       var selection = window.getSelection();
       if (!selection || !selection.rangeCount || !selection.toString().trim()) return;
       if (!previewContent.contains(selection.anchorNode) || !previewContent.contains(selection.focusNode)) return;
@@ -445,17 +511,22 @@
     }
 
     function closePreview() {
+      setPreviewSheet(null, false);
       previewModal.hidden = true;
       document.body.classList.remove('padif-preview-open');
+      if (previewTrigger && previewTrigger.isConnected) previewTrigger.focus({preventScroll: true});
     }
 
     previewButton.addEventListener('click', function () {
+      previewTrigger = previewButton;
+      setPreviewSheet(null, false);
       previewModal.hidden = false;
       document.body.classList.add('padif-preview-open');
       renderPreview();
       closeButton.focus();
     });
     closeButton.addEventListener('click', closePreview);
+    document.addEventListener('selectionchange', function () { if (mobile.matches) captureSelection(); });
     previewContent.addEventListener('mouseup', captureSelection);
     previewContent.addEventListener('keyup', captureSelection);
     document.querySelectorAll('.padif-annotation-card').forEach(function (card) {
@@ -469,7 +540,10 @@
     });
     window.addEventListener('resize', scheduleLineNumbers);
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape' && !previewModal.hidden) closePreview();
+      if (event.key === 'Escape' && !previewModal.hidden) {
+        if (activeSheet) setPreviewSheet(null, true);
+        else closePreview();
+      }
     });
     form.addEventListener('submit', function () {
       contentField.value = editor.getMarkdown();

@@ -1938,8 +1938,8 @@
     },
     {
       "path": "padif/static/padif/cloud-draft.js",
-      "size": 6681,
-      "sha256": "938943074afe40a666067e872421cf6ef0dbf22709d7f4f25cd62ca69d72cba7"
+      "size": 7781,
+      "sha256": "d2dd0b00c0db68ddeafea58acc86121780644acb5cbd672694127a000dc8d4d8"
     },
     {
       "path": "padif/static/padif/collaboration.js",
@@ -1963,13 +1963,13 @@
     },
     {
       "path": "padif/static/padif/padif.css",
-      "size": 48128,
-      "sha256": "f69489e4100ef1f5ba822e129e967f04666a536b509938bde04c472857792a3d"
+      "size": 52516,
+      "sha256": "bd219fed076401263477be5eb457fb4b2c821144fc306f99fa413f3cafe7cd1c"
     },
     {
       "path": "padif/static/padif/padif.js",
-      "size": 8412,
-      "sha256": "38be277e1025dae0f32c10d89e55d842aba8bac72d9400e6fc5dc083c65898ba"
+      "size": 8490,
+      "sha256": "966ecaa7e42ffe648f02731345d1791480eabf7f55dab0eda194367fa67444c5"
     },
     {
       "path": "padif/templates/padif/_collaboration_request.html",
@@ -1999,7 +1999,7 @@
     {
       "path": "padif/templates/padif/base.html",
       "size": 1320,
-      "sha256": "8e077e5bddfd1508ebb44cb90e5724946bd0f5d65e6b52588620369a9aced048"
+      "sha256": "b860a1dc4cc3b2e34ef6053f71397c08d157515217ea0dca83b17e2ba392f3ca"
     },
     {
       "path": "padif/templates/padif/branch_action.html",
@@ -2023,8 +2023,8 @@
     },
     {
       "path": "padif/templates/padif/document_detail.html",
-      "size": 30618,
-      "sha256": "666b75a2fd7cf2d6a7acb87be1903b74ec9c27cfd1192957222051427694457b"
+      "size": 35293,
+      "sha256": "94eed6c4bb188786824c5556d068fa01d490cfd700b69ab1cd547891bb57da8b"
     },
     {
       "path": "padif/templates/padif/sidebar.html",
@@ -2048,8 +2048,8 @@
     },
     {
       "path": "padif/tests/browser_cloud_drafts.cjs",
-      "size": 7612,
-      "sha256": "1fda672d5b58f9e87ad241d8a713b74edd3bbeecb04dfab60e59270b7e9ef472"
+      "size": 10129,
+      "sha256": "3a15d606572fb8d779746239d02e9802eb7f49e2b3b50ad6eb5e1d3c946d37d5"
     },
     {
       "path": "padif/tests/browser_collaboration_access.cjs",

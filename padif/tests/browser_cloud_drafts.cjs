@@ -39,6 +39,16 @@ if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw Error('L
       await page.locator('button[type=submit]').first().click();
       await page.waitForURL(address => !address.pathname.includes('/login/'));
       await prepare(page);
+      if (viewport.width <= 650) {
+        await page.locator('[data-drawer-handle]').click();
+        await page.locator('[data-version-drawer]').waitFor({state:'visible'});
+        await page.locator('[data-drawer-close]').click();
+        await page.locator('[data-version-drawer]').waitFor({state:'hidden'});
+        const width = (await page.locator('.toastui-editor-md-container .toastui-editor').boundingBox()).width;
+        const container = (await page.locator('.toastui-editor-md-container').boundingBox()).width;
+        assert.ok(width >= container - 4, 'Mobile Markdown input fills the editor');
+        assert.equal(await page.locator('.toastui-editor-md-preview').isVisible(), false);
+      }
       assert.deepEqual(await page.locator('.padif-editor-tools__actions > button').allTextContents(),
         ['保存草稿', '全屏编辑', '全屏预览']);
       const originalWidth = (await page.locator('#padif-editor').boundingBox()).width;
@@ -50,11 +60,31 @@ if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw Error('L
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth), 0);
       const text = `CLOUD PRIVATE ${viewport.width}`;
       await type(page, text);
+      if (viewport.width <= 650) {
+        await page.keyboard.press('Control+Home');
+        await page.keyboard.insertText('# 手机目录\n\n');
+      }
       // No commit message is required for a working draft.
       await page.locator('[data-cloud-draft-status]').filter({hasText:'云端草稿已保存'}).waitFor();
       await page.locator('[data-padif-preview]').click();
       await page.locator('#padif-preview-modal').waitFor({state:'visible'});
       assert.ok((await page.locator('#padif-preview-content').textContent()).includes(text));
+      if (viewport.width <= 650) {
+        for (const [mode, target] of [['toc', 'padif-preview-toc'], ['annotations', 'padif-preview-annotations']]) {
+          const sheet = page.locator('#' + target);
+          assert.equal(await sheet.isVisible(), false);
+          await page.locator('[data-preview-sheet-open="' + mode + '"]').click();
+          await sheet.waitFor({state:'visible'});
+          if (mode === 'toc') await sheet.locator('a').first().click();
+          else await sheet.locator('[data-preview-sheet-close]').click();
+          await sheet.waitFor({state:'hidden'});
+        }
+        const sourceLines = await page.locator('#padif-preview-line-numbers > li').evaluateAll(lines =>
+          lines.map(line => ({number:Number(line.dataset.line), top:parseFloat(line.style.top)})));
+        assert.deepEqual(sourceLines.slice(0, 4).map(line => line.number), [1, 2, 3, 4]);
+        assert.ok(sourceLines[1].top < sourceLines[2].top, 'Consecutive Markdown blank lines have distinct markers');
+        await page.screenshot({path:path.join(output, 'mobile-preview.png')});
+      }
       await page.keyboard.press('Escape');
       await page.locator('#padif-preview-modal').waitFor({state:'hidden'});
       assert.equal(await page.locator('#padif-editor-form').getAttribute('class'), 'is-editor-fullscreen');
@@ -100,6 +130,16 @@ if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw Error('L
         assert.ok((await page.locator('.toastui-editor-md-container .ProseMirror').textContent()).includes('FAST SWITCH FLUSH'));
         await page.locator('[data-cloud-draft-delete]').click();
         await page.locator('[data-cloud-draft-status]').filter({hasText:'云端草稿已删除'}).waitFor();
+      }
+      if (viewport.width <= 650) {
+        const retryPage = await context.newPage();
+        await retryPage.route('**/drafts/*/', route => route.fulfill({status:403}));
+        await prepare(retryPage);
+        const status = retryPage.locator('[data-cloud-draft-status]');
+        await status.filter({hasText:'服务器拒绝草稿请求'}).waitFor();
+        await retryPage.unroute('**/drafts/*/');
+        await retryPage.locator('[data-cloud-draft-retry]').click();
+        await status.filter({hasText:'修改后自动保存'}).waitFor();
       }
       report.results.push({...viewport, overflow, crossSessionRestore:true, autoSave:true,
         explicitSave:true, concurrentTabRejected:true, failedSaveKeepsEditor:true,

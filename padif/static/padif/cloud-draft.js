@@ -7,6 +7,7 @@
     const restore = panel.querySelector('[data-cloud-draft-restore]');
     const remove = panel.querySelector('[data-cloud-draft-delete]');
     const saveButton = form.querySelector('[data-cloud-draft-save]');
+    const retry = panel.querySelector('[data-cloud-draft-retry]');
     const other = panel.querySelector('[data-cloud-draft-other]');
     const message = form.querySelector('[name=commit_message]');
     const kind = form.querySelector('[name=version_kind]');
@@ -24,12 +25,30 @@
       if (saveButton) saveButton.disabled = busy || paused;
     };
     const show = text => { status.textContent = text; controls(); form.dispatchEvent(new Event('padif:cloud-draft-state')); };
+    async function draftResponse(response) {
+      if (response.redirected || response.status === 401) throw new Error('session');
+      if (response.status === 403) throw new Error('forbidden');
+      if (response.status === 404) throw new Error('unavailable');
+      if (response.status === 413) throw new Error('too-large');
+      if (!response.ok || !response.headers.get('Content-Type')?.includes('application/json')) throw new Error('server');
+      return response.json();
+    }
+    function failureMessage(error) {
+      const messages = {
+        session: '登录会话已失效，请在新标签页重新登录后重试。',
+        forbidden: '服务器拒绝草稿请求，请检查权限或重新登录后重试。',
+        unavailable: '草稿接口或当前版本不可用。',
+        'too-large': '草稿超过保存大小限制。',
+        server: '草稿服务暂时不可用，请重试。'
+      };
+      return (messages[error.message] || '网络请求未完成，请重试。') + ' 当前内容仍在编辑器中。';
+    }
     async function load() {
+      retry.hidden = true;
       ready = false; show('正在检查云端草稿…');
       try {
         const response = await fetch(panel.dataset.url, {headers: {Accept: 'application/json'}, cache: 'no-store'});
-        if (!response.ok) throw new Error();
-        const data = await response.json();
+        const data = await draftResponse(response);
         saved = data.draft;
         revision = saved ? saved.revision : '';
         token.value = revision;
@@ -48,7 +67,10 @@
         show(saved ? `发现云端草稿 · ${new Date(saved.updated_at).toLocaleString()} · 请先恢复或删除`
           : '云端草稿 · 修改后自动保存，不生成版本');
         if (!saved && fingerprint(snapshot()) !== initial) schedule();
-      } catch (_) { show('无法读取云端草稿；请检查网络后重试，当前内容仍在编辑器中。'); }
+      } catch (error) {
+        retry.hidden = false;
+        show('无法读取云端草稿。' + failureMessage(error));
+      }
     }
     async function save() {
       clearTimeout(timer);
@@ -65,14 +87,13 @@
           show('其他标签页已更改云端草稿；当前内容已保留，请复制或导出后刷新比较。');
           return false;
         }
-        if (!response.ok) throw new Error();
-        saved = (await response.json()).draft;
+        saved = (await draftResponse(response)).draft;
         revision = saved.revision; token.value = revision; lastSaved = fingerprint(value);
         show(`云端草稿已保存 · ${new Date(saved.updated_at).toLocaleString()} · 尚未提交版本`);
         if (fingerprint(snapshot()) !== lastSaved) schedule();
         return true;
-      } catch (_) {
-        show('云端保存失败；当前内容仍在编辑器中，请重试或复制备份。');
+      } catch (error) {
+        show('云端保存失败。' + failureMessage(error));
         return false;
       } finally { busy = false; controls(); }
     }
@@ -123,6 +144,7 @@
       if (!loading) loading = load().finally(() => { loading = null; });
       return loading;
     }
+    retry.addEventListener('click', ensureLoaded);
     ensureLoaded();
     return controller;
   };

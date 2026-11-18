@@ -51,6 +51,7 @@
     if (!drawer || !handle || !closeButton) return;
     var key = "padif.worldline-drawer." + window.location.pathname;
     var lastFocus = null;
+    var mobile = window.matchMedia("(max-width: 650px)");
 
     function setOpen(open, moveFocus) {
       if (!open && drawer.contains(document.activeElement)) lastFocus = document.activeElement;
@@ -79,7 +80,7 @@
     });
     var open = true;
     try { open = window.sessionStorage.getItem(key) !== "closed"; } catch (error) { /* Default open without storage. */ }
-    setOpen(open, false);
+    setOpen(!mobile.matches && open, false);
   }
 
   function initVersionRail() {

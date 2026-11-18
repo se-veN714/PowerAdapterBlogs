@@ -314,6 +314,26 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .branch-action-form input:not([type="checkbox"]), .branch-action-form select { max-width: 100%; }
 .branch-action-form label { display: block; }
 .branch-action-form input[type="checkbox"] { width: auto; }
+.padif-adopt-dialog {
+  width: min(720px, calc(100vw - 28px)); max-height: 88dvh; padding: 0 20px 18px;
+  overflow: auto; overscroll-behavior: contain; background: var(--bg2); color: var(--text);
+  border: 1px solid var(--soft); border-radius: 0;
+}
+.padif-adopt-dialog::backdrop { background: #000b; }
+.padif-adopt-dialog > header {
+  position: sticky; top: 0; z-index: 1; padding: 12px 0; border-bottom: 1px solid var(--line2);
+  background: var(--bg2); display: flex; gap: 10px; justify-content: space-between; align-items: center;
+}
+.padif-adopt-dialog > header h2 { margin: 0; color: var(--accent); font-size: 20px; }
+.padif-adopt-diff { border-block: 1px solid var(--line2); margin-block: 14px; padding: 8px 0; overflow-wrap: anywhere; }
+.padif-adopt-diff h2 { margin: 0; font-size: 16px; }
+.padif-adopt-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(105px, 24%); gap: 12px; }
+.branch-action-form .branch-action-consent { display: flex; gap: 8px; align-items: center; }
+.branch-action-consent input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 18px; padding: 0; margin: 0; accent-color: var(--accent); }
+@media (max-width: 560px) {
+  .padif-adopt-dialog { padding: 0 12px 14px; }
+  .padif-adopt-dialog button { min-height: 44px; }
+}
 .errorlist { color: var(--red); overflow-wrap: anywhere; }
 
 /* Main-centered version rail. Only the selected branch exposes its history. */

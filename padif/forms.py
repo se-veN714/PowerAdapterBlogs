@@ -82,9 +82,25 @@ class BranchPublishForm(forms.Form):
     confirm_replace = forms.BooleanField(label="我已审阅差异，确认主线正文采用分支整稿")
 
 
+class BranchAdoptForm(BranchPublishForm):
+    commit_message = forms.CharField(max_length=300, label="采用说明")
+    confirm_replace = forms.BooleanField(label="我已审阅差异，确认将来源整稿保存为目标分支的新版本")
+
+
 class VersionChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
         return f"v{obj.semantic_version} · {obj.branch.name}"
+
+
+class BranchAdoptSourceForm(forms.Form):
+    source_version = VersionChoiceField(label="来源版本", queryset=Version.objects.none())
+
+    def __init__(self, *args, branch, head, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["source_version"].queryset = (
+            branch.document.versions.exclude(branch=branch).exclude(pk=head.pk)
+            .select_related("branch").defer("content").order_by("branch__name", "-pk")
+        )
 
 
 class DiffSelectionForm(forms.Form):

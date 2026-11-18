@@ -1,0 +1,9 @@
+{% extends "padif/base.html" %}
+{% block title %}采用为新版本 · {{ document.title }}{% endblock %}
+{% block content %}
+<main class="branch-action-page panel">
+  <h1>采用为新版本</h1>
+  {% include "padif/_branch_adopt_form.html" %}
+  <p><a href="{% url 'padif:document_detail' document.pk %}?branch={{ branch.name|urlencode }}">返回 {{ branch.name }}</a></p>
+</main>
+{% endblock %}

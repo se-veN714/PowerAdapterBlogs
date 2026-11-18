@@ -18,7 +18,14 @@
       </div>
     </div>
   {% elif branch %}<p>归档将停止追加版本及发布；正文、版本、批注和回复全部保留，仍可查看和比较。</p>{% endif %}
-  {% if form %}<form method="post" class="branch-action-form">{% csrf_token %}{{ form.as_p }}
+  {% if form %}<form method="post" class="branch-action-form">{% csrf_token %}
+    {% if publish %}
+      {{ form.non_field_errors }}
+      {% for field in form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
+      <p>{{ form.commit_message.label_tag }}{{ form.commit_message }}{{ form.commit_message.errors }}</p>
+      <p>{{ form.version_kind.label_tag }}{{ form.version_kind }}{{ form.version_kind.errors }}</p>
+      <p><label class="branch-action-consent">{{ form.confirm_replace }} <span>{{ form.confirm_replace.label }}</span></label>{{ form.confirm_replace.errors }}</p>
+    {% else %}{{ form.as_p }}{% endif %}
     {% if stale %}<p>版本已变化。<a href="{{ request.path }}">重新读取版本并审阅差异</a></p>{% else %}<button type="submit">{{ action_title }}</button>{% endif %}
   </form>{% else %}<form method="post">{% csrf_token %}<button type="submit">确认归档，保留历史</button></form>{% endif %}
   <p><a href="{% url 'padif:document_detail' document.pk %}{% if branch %}?branch={{ branch.name|urlencode }}{% endif %}">返回文档</a></p>

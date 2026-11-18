@@ -62,12 +62,13 @@
         if (choice === 'keep') { error.hidden = false; return; }
       }
       const action = pending;
-      dialog.close(); pending = null; leaving = true;
+      dialog.close(); pending = null;
       if (action) action();
     });
     document.addEventListener('click', event => {
       const link = event.target.closest('a[href]');
       if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || link.target === '_blank' || link.hasAttribute('download')) return;
+      if (link.closest('[data-adopt-dialog]')) return;
       const url = new URL(link.href, location.href);
       if (!['http:', 'https:'].includes(url.protocol)) return;
       if (url.origin === location.origin && url.pathname === location.pathname && url.search === location.search) return;
@@ -96,6 +97,7 @@
     bar.querySelector('[data-editor-locate]').addEventListener('click', locate);
     document.addEventListener('submit', event => {
       if (event.target === form) { submitting = true; return; }
+      if (event.target.closest('[data-adopt-dialog]')) return;
       if (event.target.matches('.diff-controls[hx-get][hx-target="#diff-result"]')) return;
       if (leaving || !dirty()) return;
       event.preventDefault(); event.stopImmediatePropagation();
@@ -103,6 +105,14 @@
       const submitter = event.submitter;
       request(() => { leaving = true; target.requestSubmit(submitter); });
     }, true);
+    document.addEventListener('padif:adopt-confirm', event => {
+      event.preventDefault();
+      request(event.detail);
+    });
+    document.addEventListener('padif:adopt-complete', event => {
+      event.preventDefault();
+      go(new URL(event.detail, location.href));
+    });
     window.addEventListener('beforeunload', event => {
       if (dirty() && !leaving && !submitting && !(cloud && cloud.isSaved())) { event.preventDefault(); event.returnValue = ''; }
     });

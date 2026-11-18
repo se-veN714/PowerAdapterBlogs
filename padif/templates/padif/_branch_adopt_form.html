@@ -1,0 +1,26 @@
+  <p>{{ document.title }} · 目标 {{ branch.name }} · v{{ head.semantic_version }}（#{{ head.pk }}）</p>
+  <form method="get" action="{{ request.path }}" class="branch-action-form" data-adopt-compare>
+    {{ selection.as_p }}
+    <button type="submit">比较版本</button>
+  </form>
+  {% if review_again %}
+    {{ submission_errors }}
+    <p><a href="{{ review_again }}" data-adopt-review-again="{{ review_again }}">重新比较后确认</a></p>
+  {% elif confirmation %}
+    <section class="padif-adopt-diff" aria-labelledby="adopt-diff">
+      <h2 id="adopt-diff" tabindex="-1">目标当前版 → 来源整稿</h2>
+      <p>{{ branch.name }} · v{{ head.semantic_version }}（#{{ head.pk }}） → {{ source.branch.name }} · v{{ source.semantic_version }}（#{{ source.pk }}）</p>
+      {% include "padif/diff_fragment.html" with old=diff.old new=diff.new mode=diff.mode ops=diff.ops stats=diff.stats only %}
+    </section>
+    <form method="post" action="{{ request.path }}" class="branch-action-form" data-adopt-confirm>
+      {% csrf_token %}
+      {{ confirmation.non_field_errors }}
+      {% for field in confirmation.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
+      <div class="padif-adopt-fields">
+        <p>{{ confirmation.commit_message.label_tag }}{{ confirmation.commit_message }}{{ confirmation.commit_message.errors }}</p>
+        <p>{{ confirmation.version_kind.label_tag }}{{ confirmation.version_kind }}{{ confirmation.version_kind.errors }}</p>
+      </div>
+      <p><label class="branch-action-consent">{{ confirmation.confirm_replace }} <span>{{ confirmation.confirm_replace.label }}</span></label>{{ confirmation.confirm_replace.errors }}</p>
+      <button type="submit">确认采用为新版本</button>
+    </form>
+  {% endif %}

@@ -13,6 +13,7 @@ urlpatterns = [
     path("mcp/", mcp_endpoint, name="mcp"),
     path("documents/<int:document_id>/branches/create/", views.create_branch, name="create_branch"),
     path("documents/<int:document_id>/branches/<int:branch_id>/publish/", views.publish_branch, name="publish_branch"),
+    path("documents/<int:document_id>/branches/<int:branch_id>/adopt/", views.adopt_version, name="adopt_version"),
     path("documents/<int:document_id>/branches/<int:branch_id>/archive/", views.archive_branch, name="archive_branch"),
     path("api/documents/<int:document_id>/branches/", api.create_branch, name="agent-create-branch"),
     path("api/documents/<int:document_id>/branches/<int:branch_id>/publish/", api.publish_branch, name="agent-publish-branch"),

@@ -10,13 +10,15 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import F, Max, Q
 from django.db.models.functions import Coalesce
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.urls import reverse
 
 from .core.differ import build_stats, diff_sentences, summarize
 from .forms import (
+    BranchAdoptForm,
+    BranchAdoptSourceForm,
     BranchCreateForm,
     BranchPublishForm,
     AnnotationForm,
@@ -32,6 +34,7 @@ from .permissions import can_use_padif, visible_documents, require_document, doc
 from .worldlines import build_worldlines
 from .services import (
     BranchError,
+    adopt_branch_version,
     archive_branch as archive_branch_service,
     create_branch as create_branch_service,
     publish_branch as publish_branch_service,
@@ -326,6 +329,67 @@ def publish_branch(request, document_id, branch_id):
 
 
 @padif_access_required
+def adopt_version(request, document_id, branch_id):
+    if request.method not in {"GET", "POST"}:
+        return HttpResponse(status=405)
+    document = get_object_or_404(Document, pk=document_id)
+    require_document(request.user, document, write=True)
+    branch = get_object_or_404(document.branches, pk=branch_id)
+    if branch.is_default:
+        return HttpResponse("主线请使用网页发布流程。", status=400)
+    if branch.archived_at:
+        return HttpResponse("归档分支不能采用新版本。", status=409)
+    head = effective_head(branch)
+    if head is None:
+        raise Http404("目标分支没有可比较的版本。")
+
+    in_dialog = request.headers.get("X-PAdif-Adopt-Dialog") == "1"
+    selection = BranchAdoptSourceForm(request.GET if "source_version" in request.GET else None,
+                                     branch=branch, head=head)
+    context = {"document": document, "branch": branch, "head": head, "selection": selection}
+    status = 200
+    source = None
+    if request.method == "POST":
+        form = BranchAdoptForm(request.POST, auto_id="id_adopt_%s")
+        status = 400
+        if form.is_valid():
+            try:
+                result = adopt_branch_version(document_id=document.pk, branch_id=branch.pk,
+                                              user=request.user, **form.cleaned_data)
+            except BranchError as exc:
+                form.add_error(None, exc)
+                status = exc.status
+            else:
+                messages.success(request, f"已保存为 {branch.name} · v{result.version.semantic_version}。")
+                destination = _branch_redirect(document, branch)
+                return JsonResponse({"url": destination.url}) if in_dialog else destination
+        source_id = form.cleaned_data.get("source_version_id")
+        if source_id:
+            source = selection.fields["source_version"].queryset.filter(pk=source_id).first()
+        if source and form.cleaned_data.get("base_version_id") == head.pk and status != 409:
+            context["confirmation"] = form
+        else:
+            context["review_again"] = "?" + urlencode({"source_version": source.pk}) if source else request.path
+        context["submission_errors"] = form.non_field_errors()
+    elif selection.is_bound:
+        if selection.is_valid():
+            source = selection.cleaned_data["source_version"]
+            context["confirmation"] = BranchAdoptForm(auto_id="id_adopt_%s", initial={
+                "base_version_id": head.pk, "source_version_id": source.pk, "version_kind": "patch",
+            })
+        else:
+            status = 400
+    if "confirmation" in context:
+        context["source"] = source
+        context["diff"] = _version_diff_context(head, source, "inline")
+    template = "padif/_branch_adopt_form.html" if in_dialog else "padif/branch_adopt.html"
+    response = render(request, template, context, status=status)
+    if in_dialog:
+        response["X-PAdif-Adopt-Dialog"] = "1"
+    return response
+
+
+@padif_access_required
 def archive_branch(request, document_id, branch_id):
     document = get_object_or_404(Document, pk=document_id)
     branch = get_object_or_404(document.branches, pk=branch_id)
@@ -348,6 +412,10 @@ def diff_fragment(request: HttpRequest, document_id: int) -> HttpResponse:
         return render(request, "padif/diff_errors.html", {"form": form}, status=400)
     old = form.cleaned_data["from_version"]
     new = form.cleaned_data["to_version"]
+    return render(request, "padif/diff_fragment.html", _version_diff_context(old, new, form.cleaned_data["mode"]))
+
+
+def _version_diff_context(old, new, mode):
     ops = diff_sentences(old.content, new.content)
     old_cursor = 0
     new_cursor = 0
@@ -367,16 +435,15 @@ def diff_fragment(request: HttpRequest, document_id: int) -> HttpResponse:
                     op.new_line = index + 1
                     new_cursor = index
                     break
-    context = {
+    return {
         "old": old,
         "new": new,
-        "mode": form.cleaned_data["mode"],
+        "mode": mode,
         "ops": ops,
         "stats": build_stats(old.content, new.content),
         "old_summary": summarize(old.content),
         "new_summary": summarize(new.content),
     }
-    return render(request, "padif/diff_fragment.html", context)
 
 
 @padif_access_required

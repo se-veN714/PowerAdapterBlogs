@@ -1853,8 +1853,8 @@
     },
     {
       "path": "padif/forms.py",
-      "size": 6557,
-      "sha256": "c97c31ec8781badcc66e4bf58b332d719036f29248e0c9bd998ea298e79a4482"
+      "size": 7282,
+      "sha256": "825850d783b3917603aa990606f4a4ec769be81b2c22f49c3d22e68d1ad1c241"
     },
     {
       "path": "padif/management/__init__.py",
@@ -1917,14 +1917,19 @@
       "sha256": "ac292208065cb3f54131b1eb572e27b0fe702d616ba5b3d1604eac55bd9623c0"
     },
     {
+      "path": "padif/migrations/0010_version_adopted_from.py",
+      "size": 536,
+      "sha256": "85e7065741a250b8ac13d0c8abaa4214eea850733c36f3b6f419d16a7799ada2"
+    },
+    {
       "path": "padif/migrations/__init__.py",
       "size": 33,
       "sha256": "4a6e8c866f4a34cfce02671ff5e4324ad79a27b1b1515891adcf4e918ef0942c"
     },
     {
       "path": "padif/models.py",
-      "size": 12551,
-      "sha256": "f1eaa667deb411f6d91293dd80e4a89a0d0f87ff236109fb869435ebec02213a"
+      "size": 12979,
+      "sha256": "83b0198b737e0e15fbcd0d80edd2d1753b1e814e8da0af0d993ce3118752bde3"
     },
     {
       "path": "padif/permissions.py",
@@ -1933,8 +1938,13 @@
     },
     {
       "path": "padif/services.py",
-      "size": 8936,
-      "sha256": "279fae8913407784336604cb70a2ed6ed08c5b2d12e942817cc5fcbc8977d78c"
+      "size": 10437,
+      "sha256": "47f017d260bb315bdd3d306a5007654542ae5c7a029203754e40c8bd4203798a"
+    },
+    {
+      "path": "padif/static/padif/branch-adopt.js",
+      "size": 3333,
+      "sha256": "043a8399dd872d6fc65fd73470ff8d52c729740310ffec95673a27f896276c62"
     },
     {
       "path": "padif/static/padif/cloud-draft.js",
@@ -1953,8 +1963,8 @@
     },
     {
       "path": "padif/static/padif/editor-navigation.js",
-      "size": 8819,
-      "sha256": "a2fdd6a897add9608bbeeaed3a0c0565cda558846c0279595320a7c5e7ce021e"
+      "size": 9203,
+      "sha256": "d1e3818c9bdc14c7ed7ba805fc1fe4013190c7af01705e922270852995847730"
     },
     {
       "path": "padif/static/padif/htmx.min.js",
@@ -1963,13 +1973,18 @@
     },
     {
       "path": "padif/static/padif/padif.css",
-      "size": 52516,
-      "sha256": "bd219fed076401263477be5eb457fb4b2c821144fc306f99fa413f3cafe7cd1c"
+      "size": 53807,
+      "sha256": "35dfb38cd56fe59f1690e09d2b56a1a7f15991b64f6cbece28bebac4ad1ac4ac"
     },
     {
       "path": "padif/static/padif/padif.js",
       "size": 8490,
       "sha256": "966ecaa7e42ffe648f02731345d1791480eabf7f55dab0eda194367fa67444c5"
+    },
+    {
+      "path": "padif/templates/padif/_branch_adopt_form.html",
+      "size": 1804,
+      "sha256": "fbd7ed05b8227d1d7d8a42687a5dcf79f244e4464a54f0b5cebb5ae4b6b3ad73"
     },
     {
       "path": "padif/templates/padif/_collaboration_request.html",
@@ -1983,8 +1998,8 @@
     },
     {
       "path": "padif/templates/padif/_rail_branch.html",
-      "size": 3209,
-      "sha256": "3d992aef6b5659b756d6c02ba7b27bcccc7e030d2bcd346a7bdf5f7d179a74d8"
+      "size": 3320,
+      "sha256": "4f9aecc7ff70d23c3a87d5d7d20fa791ac9faf77e9fc38f3db235008bc38991e"
     },
     {
       "path": "padif/templates/padif/_rail_fork.html",
@@ -1999,12 +2014,17 @@
     {
       "path": "padif/templates/padif/base.html",
       "size": 1320,
-      "sha256": "b860a1dc4cc3b2e34ef6053f71397c08d157515217ea0dca83b17e2ba392f3ca"
+      "sha256": "96da4fed7059a18cdab8b053d5f168c34d119ebf2dccdf673f1db8bbd2e50db1"
     },
     {
       "path": "padif/templates/padif/branch_action.html",
-      "size": 2868,
-      "sha256": "54d85f17bd9e2de53c583bc6c511577ebac2be91f95aa2b6061f3ad05297ca20"
+      "size": 3411,
+      "sha256": "cb2ba38a1608158c4fb86008c60ae92a4d0acade966469d0560130b1f590df68"
+    },
+    {
+      "path": "padif/templates/padif/branch_adopt.html",
+      "size": 405,
+      "sha256": "fc18f442890e8d475c489646390ab758d7674e1216fffc452a2df77ddf61e343"
     },
     {
       "path": "padif/templates/padif/collaboration.html",
@@ -2023,8 +2043,8 @@
     },
     {
       "path": "padif/templates/padif/document_detail.html",
-      "size": 35293,
-      "sha256": "94eed6c4bb188786824c5556d068fa01d490cfd700b69ab1cd547891bb57da8b"
+      "size": 36059,
+      "sha256": "e14e545c6ef961235bba155863ad0fa9d9d73a500d472e2abc2791fb6982804e"
     },
     {
       "path": "padif/templates/padif/sidebar.html",
@@ -2097,9 +2117,14 @@
       "sha256": "bad0e81798cf77a77c520357ec4e2687bd4a38e6e7e6f011ef950dcb5b71b7c9"
     },
     {
+      "path": "padif/tests/test_branch_adoption.py",
+      "size": 8176,
+      "sha256": "c7364310c09b0875494bdb813a4f46aa2510000670e5fe30b74d2f5cba18a91f"
+    },
+    {
       "path": "padif/tests/test_branching.py",
-      "size": 32236,
-      "sha256": "66922c2bc343f00ae8a2ee47c07032f555e0f979b9d27035234260ddd7421bc9"
+      "size": 32366,
+      "sha256": "6325d1e9e141f0af4b4bf816fbc1d7957a81ce8da93e28b36f901ff8bb8c08d4"
     },
     {
       "path": "padif/tests/test_cloud_drafts.py",
@@ -2138,13 +2163,13 @@
     },
     {
       "path": "padif/urls.py",
-      "size": 2775,
-      "sha256": "5fdf45ef10a6f7d3f18dbadfbed1ab442aab6fee14bb90f1900286570f8babdc"
+      "size": 2892,
+      "sha256": "3d34726dbc10a62ba09fd1601db39056135c28ae4525d0f4a76c20e2da0c2f05"
     },
     {
       "path": "padif/views.py",
-      "size": 22948,
-      "sha256": "ebd70ab7c2c5978773fc8551ab6246cb3222b86436bc5587a273b4ce7aa53e1f"
+      "size": 26210,
+      "sha256": "9cf9cc1faba408029308b0c45d58a4b5ea198e158135f21dc8d009f632615b52"
     },
     {
       "path": "padif/worldlines.py",

@@ -157,6 +157,7 @@ class Version(models.Model):
     )
     branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name="versions")
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="children")
+    adopted_from = models.ForeignKey("self", null=True, blank=True, on_delete=models.RESTRICT, related_name="adoptions")
     content = models.TextField(verbose_name="正文快照")
     commit_message = models.CharField(max_length=300, verbose_name="提交说明")
     semantic_version = models.CharField(max_length=32, verbose_name="语义版本")
@@ -197,6 +198,10 @@ class Version(models.Model):
             raise ValidationError("版本分支必须属于同一文档。")
         if self.parent_id and (self.parent.document_id != self.document_id or (self.pk and self.parent_id >= self.pk)):
             raise ValidationError("前驱必须是同文档的较早版本。")
+        if self.adopted_from_id:
+            source = self.adopted_from
+            if source.document_id != self.document_id or source.branch_id == self.branch_id or (self.pk and source.pk >= self.pk):
+                raise ValidationError("采用来源必须是本文其他分支的较早版本。")
 
 
 class Annotation(models.Model):

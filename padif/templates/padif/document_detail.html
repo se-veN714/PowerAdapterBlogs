@@ -5,8 +5,14 @@
   <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
   <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/theme/toastui-editor-dark.min.css">
   <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+  <script defer src="{% static 'padif/branch-adopt.js' %}"></script>
 {% endblock %}
 {% block content %}
+<dialog class="padif-adopt-dialog" data-adopt-dialog aria-labelledby="padif-adopt-title">
+  <header><h2 id="padif-adopt-title">采用为新版本</h2><button type="button" data-adopt-close>关闭</button></header>
+  <p data-adopt-status role="status" hidden></p>
+  <div data-adopt-content></div>
+</dialog>
 <div class="app-layout padif-article-layout">
   {% include "padif/sidebar.html" %}
   <main class="col-right document-layout document-layout--worldlines" data-worldline-layout>
@@ -20,6 +26,7 @@
             <p class="document-heading__meta">{% if document_role == 'owner' %}创建者{% elif document_role == 'collaborator' %}协作者{% else %}访客 · 只读{% endif %} · {{ request.user.get_username }} <span class="access-account-id">ID {{ request.user.pk }}</span></p>
             <div class="document-access-status"><span class="access-badge">{{ ai_access.module_label }}</span><span class="access-badge access-badge--{{ ai_access.state }}">✦ {{ ai_access.label }}</span>{% if not can_manage_collaboration %}<a href="{% url 'accounts:agent-token-management' %}#article-access">申请 / 查看 ✦ AI+</a>{% endif %}</div>
             <p class="document-heading__meta">{{ document.source_name|default:"在线文档" }} · 目标分支 {{ selected_branch.name }}{% if selected_branch.archived_at %} · 已归档{% endif %}</p>
+            {% if current_version.adopted_from %}<p class="document-heading__meta">采用自 <a href="?branch={{ current_version.adopted_from.branch.name|urlencode }}&amp;version={{ current_version.adopted_from_id }}">{{ current_version.adopted_from.branch.name }} · v{{ current_version.adopted_from.semantic_version }}（#{{ current_version.adopted_from_id }}）</a></p>{% endif %}
           </div>
           <div class="document-heading-actions">{% if can_manage_collaboration %}<a class="document-manage-collaboration" href="{% url 'padif:collaboration' document.pk %}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-3.87M16 3a4 4 0 0 1 0 8"/><circle cx="9" cy="7" r="4"/></svg>管理协作</a>{% endif %}<a class="back-link" href="{% url 'padif:workspace' %}">← 文档列表</a><button type="button" class="worldline-drawer-handle" data-drawer-handle aria-controls="padif-version-drawer" aria-expanded="false" hidden>← 版本世界线</button></div>
         </div>

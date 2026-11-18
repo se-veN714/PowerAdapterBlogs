@@ -117,12 +117,12 @@ def _validate_commit(content, commit_message, version_kind):
         raise BranchError("INVALID_VERSION_KIND", "版本级别无效。")
 
 
-def _append_version(document, branch, user, content, commit_message, version_kind):
+def _append_version(document, branch, user, content, commit_message, version_kind, *, adopted_from=None):
     _validate_commit(content, commit_message, version_kind)
     previous = effective_head(branch)
     stats = build_stats(previous.content if previous else "", content)
     version = Version(
-        document=document, branch=branch, parent=previous, content=content,
+        document=document, branch=branch, parent=previous, content=content, adopted_from=adopted_from,
         commit_message=commit_message.strip(),
         semantic_version=bump(previous.semantic_version if previous else None, version_kind),
         version_kind=version_kind, diff_stats=stats, created_by=user,
@@ -169,6 +169,29 @@ def create_branch(*, document_id, user, name, fork_from_version_id, description=
     branch.full_clean()
     branch.save()
     return branch
+
+
+@transaction.atomic
+def adopt_branch_version(*, document_id, branch_id, user, source_version_id,
+                         base_version_id, commit_message, version_kind, confirm_replace):
+    document = Document.objects.select_for_update().get(pk=document_id)
+    from .permissions import require_document
+    require_document(user, document, write=True)
+    branch = resolve_branch(document, branch_id=branch_id)
+    if branch.is_default:
+        raise BranchError("DEFAULT_BRANCH", "主线请使用网页发布流程。")
+    if branch.archived_at:
+        raise BranchError("BRANCH_ARCHIVED", "归档分支不能采用新版本。", 409)
+    if confirm_replace is not True or type(base_version_id) is not int or type(source_version_id) is not int:
+        raise BranchError("CONFIRMATION_REQUIRED", "请审阅差异并确认采用整稿。")
+    head = effective_head(branch)
+    if head is None or head.pk != base_version_id:
+        raise BranchError("STALE_BASE_VERSION", "目标分支已更新，请重新比较后确认。", 409)
+    source = document.versions.exclude(branch=branch).filter(pk=source_version_id).first()
+    if source is None or source.pk == head.pk:
+        raise BranchError("INVALID_SOURCE_VERSION", "请选择本文其他分支的有效来源版本。")
+    return _append_version(document, branch, user, source.content, commit_message, version_kind,
+                           adopted_from=source)
 
 
 @transaction.atomic
